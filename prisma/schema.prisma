@@ -1,0 +1,109 @@
+// DentOrganizer — dental practice organizer & CRM
+// No billing / payment / fiscalization models by design.
+
+// Prisma 7 moved the connection URL out of the schema — see `prisma.config.ts`,
+// which reads DATABASE_URL from `.env`.
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+model Patient {
+  id           String        @id @default(uuid())
+  firstName    String
+  lastName     String
+  phone        String
+  email        String?
+  dateOfBirth  DateTime?
+  medicalNotes String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
+  visitRecords VisitRecord[]
+  teethRecords ToothRecord[]
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  patientId   String
+  patient     Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  date        DateTime
+  startTime   String
+  durationMin Int               @default(30)
+  status      AppointmentStatus @default(SCHEDULED)
+  notes       String?
+  serviceName String?
+  createdAt   DateTime          @default(now())
+
+  @@index([date])
+  @@index([patientId])
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model VisitRecord {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  visitDate DateTime @default(now())
+  notes     String
+  services  String // JSON string or comma-separated list of services done
+  createdAt DateTime @default(now())
+
+  @@index([patientId])
+  @@index([visitDate])
+}
+
+model ToothRecord {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  toothNum  Int // 1 to 32
+  status    String // Healthy, Caries, Extracted, Crown, Root Canal, etc.
+  notes     String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([patientId, toothNum])
+}
+
+model StockItem {
+  id        String   @id @default(uuid())
+  name      String
+  category  String?
+  quantity  Int      @default(0)
+  minLimit  Int      @default(5)
+  unit      String   @default("pcs")
+  updatedAt DateTime @updatedAt
+
+  movements StockMovement[]
+}
+
+/// Append-only log of quantity changes — powers the "stock usage" analytics chart
+/// and gives the dentist a plain audit trail of what was consumed and when.
+model StockMovement {
+  id        String   @id @default(uuid())
+  itemId    String
+  item      StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  delta     Int // negative = used / removed, positive = restocked
+  reason    String? // e.g. "manual", "restock", "used in visit"
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
+  @@index([createdAt])
+}
+
+model Service {
+  id          String  @id @default(uuid())
+  name        String
+  category    String?
+  durationMin Int     @default(30)
+}

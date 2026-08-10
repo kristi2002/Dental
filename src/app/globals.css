@@ -1,0 +1,124 @@
+@import 'tailwindcss';
+
+/*
+ * DentOrganizer visual language
+ * -----------------------------
+ * The brief is a dentist who trusts paper. So: a warm paper background, near-black
+ * ink, one confident blue for anything clickable, and borders you can actually see.
+ * No gradients, no low-contrast grey-on-grey, no decorative chrome.
+ */
+@theme {
+  --color-paper: #fbfaf7;
+  --color-surface: #ffffff;
+
+  --color-ink: #14181f;
+  --color-ink-soft: #4a5361;
+  --color-ink-faint: #6b7480;
+
+  --color-line: #ddd9d1;
+  --color-line-strong: #a8a39a;
+
+  --color-brand: #0b5cd5;
+  --color-brand-dark: #083f96;
+  --color-brand-soft: #e8f0fd;
+
+  --color-ok: #157347;
+  --color-ok-soft: #e4f4ea;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e0;
+  --color-danger: #c02626;
+  --color-danger-soft: #fbe9e9;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --radius-card: 0.75rem;
+}
+
+@layer base {
+  html {
+    /* Larger than the web default — this is read at arm's length, often bifocally. */
+    font-size: 17px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+  }
+
+  /* One obvious focus treatment everywhere — keyboard users are never lost. */
+  :focus-visible {
+    outline: 3px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::placeholder {
+    color: var(--color-ink-faint);
+  }
+
+  /* Comfortable hit targets on touch screens and shaky hands alike. */
+  button,
+  [role='button'],
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  dialog::backdrop {
+    background: rgb(20 24 31 / 0.55);
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-[var(--radius-card)] border-2 border-line bg-surface;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-[0.95rem] font-semibold text-ink;
+  }
+
+  /* Inputs are tall, boxed and high-contrast — never a bare underline. */
+  .field-input {
+    @apply block w-full rounded-lg border-2 border-line-strong bg-surface px-3.5 py-2.5
+      text-[1.02rem] text-ink transition-colors
+      hover:border-ink-faint focus:border-brand focus:outline-none
+      disabled:cursor-not-allowed disabled:bg-paper disabled:text-ink-faint;
+  }
+
+  .btn {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border-2
+      px-4 py-2 text-[1rem] font-semibold transition-colors
+      disabled:cursor-not-allowed disabled:opacity-55;
+  }
+
+  .btn-primary {
+    @apply border-brand-dark bg-brand text-white hover:bg-brand-dark;
+  }
+
+  .btn-secondary {
+    @apply border-line-strong bg-surface text-ink hover:border-ink hover:bg-paper;
+  }
+
+  .btn-danger {
+    @apply border-danger bg-surface text-danger hover:bg-danger hover:text-white;
+  }
+
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-ink-soft hover:border-line-strong hover:text-ink;
+  }
+
+  .btn-sm {
+    @apply min-h-10 px-3 py-1.5 text-[0.92rem];
+  }
+
+  .btn-lg {
+    @apply min-h-16 px-5 text-[1.1rem];
+  }
+}
