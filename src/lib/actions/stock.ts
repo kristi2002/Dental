@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
+import { authorize, recordAudit } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -12,6 +13,9 @@ function revalidateAll() {
 
 export async function saveStockItem(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const t = await getTranslations('errors');
+
+  const user = await authorize('stock.edit');
+  if (!user) return actionError(t('forbidden'));
 
   const id = optionalString(formData.get('id'));
   const name = requiredString(formData.get('name'));
@@ -26,6 +30,7 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
     unit: requiredString(formData.get('unit')) || 'pcs',
   };
 
+  let savedId = id;
   try {
     if (id) {
       const existing = await prisma.stockItem.findUnique({ where: { id } });
@@ -35,15 +40,24 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
         await tx.stockItem.update({ where: { id }, data });
         const delta = quantity - existing.quantity;
         if (delta !== 0) {
-          await tx.stockMovement.create({ data: { itemId: id, delta, reason: 'manual' } });
+          await tx.stockMovement.create({
+            data: { itemId: id, delta, reason: 'manual', staffUserId: user.id },
+          });
         }
       });
     } else {
-      await prisma.stockItem.create({ data });
+      savedId = (await prisma.stockItem.create({ data, select: { id: true } })).id;
     }
   } catch {
     return actionError(t('generic'));
   }
+
+  await recordAudit(user, {
+    action: id ? 'update' : 'create',
+    entity: 'stock',
+    entityId: savedId,
+    summary: name,
+  });
 
   revalidateAll();
   return actionOk();
@@ -52,8 +66,14 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
 /**
  * The one-tap +1 / −1 buttons on the stock page. Quantity never goes below zero,
  * and the movement is logged so the statistics page can show real consumption.
+ *
+ * No audit entry: the StockMovement row already records who and when, and one
+ * audit line per tap would bury everything else in the activity feed.
  */
 export async function adjustStock(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
   const id = requiredString(formData.get('id'));
   const delta = toInt(formData.get('delta'), 0);
   if (!id || delta === 0) return;
@@ -68,7 +88,12 @@ export async function adjustStock(formData: FormData): Promise<void> {
   await prisma.$transaction([
     prisma.stockItem.update({ where: { id }, data: { quantity: nextQuantity } }),
     prisma.stockMovement.create({
-      data: { itemId: id, delta: appliedDelta, reason: appliedDelta < 0 ? 'used' : 'restock' },
+      data: {
+        itemId: id,
+        delta: appliedDelta,
+        reason: appliedDelta < 0 ? 'used' : 'restock',
+        staffUserId: user.id,
+      },
     }),
   ]);
 
@@ -76,9 +101,21 @@ export async function adjustStock(formData: FormData): Promise<void> {
 }
 
 export async function deleteStockItem(formData: FormData): Promise<void> {
+  const user = await authorize('stock.delete');
+  if (!user) return;
+
   const id = requiredString(formData.get('id'));
   if (!id) return;
 
+  const item = await prisma.stockItem.findUnique({ where: { id }, select: { name: true } });
+  if (!item) return;
+
   await prisma.stockItem.delete({ where: { id } });
+  await recordAudit(user, {
+    action: 'delete',
+    entity: 'stock',
+    entityId: id,
+    summary: item.name,
+  });
   revalidateAll();
 }

@@ -3,7 +3,7 @@
 import { Pencil, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
-import { TextAreaField, TextField } from '@/components/ui/Field';
+import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { savePatient } from '@/lib/actions/patients';
 
@@ -16,17 +16,25 @@ export type PatientDefaults = {
   /** `YYYY-MM-DD`, or empty. */
   dateOfBirth: string;
   medicalNotes: string;
+  /** How often to recall this patient. 0 = never. */
+  recallMonths: number;
 };
+
+/** The intervals a clinic actually uses, plus "never" for the one-off patient. */
+const RECALL_CHOICES = [0, 3, 4, 6, 12, 24] as const;
 
 export function PatientFormDialog({
   patient,
   triggerClassName,
   compact = false,
+  canEditMedical = true,
 }: {
   patient?: PatientDefaults;
   triggerClassName?: string;
   /** Icon-only trigger, for use inside a crowded header. */
   compact?: boolean;
+  /** The front desk edits contact details; the notes field stays out of reach. */
+  canEditMedical?: boolean;
 }) {
   const t = useTranslations('patients');
   const tc = useTranslations('common');
@@ -110,15 +118,31 @@ export function PatientFormDialog({
         defaultValue={patient?.email}
       />
 
-      <TextAreaField
-        id={`${uid}-medicalNotes`}
-        name="medicalNotes"
-        label={t('medicalNotes')}
-        hint={t('medicalNotesHint')}
-        optional={tc('optional')}
-        rows={4}
-        defaultValue={patient?.medicalNotes}
-      />
+      <SelectField
+        id={`${uid}-recallMonths`}
+        name="recallMonths"
+        label={t('recallEvery')}
+        hint={t('recallHint')}
+        defaultValue={String(patient?.recallMonths ?? 6)}
+      >
+        {RECALL_CHOICES.map((months) => (
+          <option key={months} value={months}>
+            {months === 0 ? t('recallOff') : t('recallMonths', { months })}
+          </option>
+        ))}
+      </SelectField>
+
+      {canEditMedical ? (
+        <TextAreaField
+          id={`${uid}-medicalNotes`}
+          name="medicalNotes"
+          label={t('medicalNotes')}
+          hint={t('medicalNotesHint')}
+          optional={tc('optional')}
+          rows={4}
+          defaultValue={patient?.medicalNotes}
+        />
+      ) : null}
     </FormDialog>
   );
 }

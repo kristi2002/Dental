@@ -1,0 +1,265 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { getTranslations } from 'next-intl/server';
+import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
+import { authorize, recordAudit } from '@/lib/auth/guard';
+import { prisma } from '@/lib/prisma';
+import { optionalString, requiredString, toInt } from '@/lib/utils';
+import { actionError, actionOk, type ActionState } from './types';
+
+function revalidateAll() {
+  revalidatePath('/', 'layout');
+}
+
+function toPlanStatus(value: string): TreatmentPlanStatus {
+  return value in TreatmentPlanStatus
+    ? (value as TreatmentPlanStatus)
+    : TreatmentPlanStatus.ACTIVE;
+}
+
+function toStepStatus(value: string): TreatmentStepStatus {
+  return value in TreatmentStepStatus
+    ? (value as TreatmentStepStatus)
+    : TreatmentStepStatus.PENDING;
+}
+
+/** 1–32, or null for work that is not about one specific tooth. */
+function toToothNum(value: FormDataEntryValue | null): number | null {
+  const parsed = toInt(value, 0);
+  return parsed >= 1 && parsed <= 32 ? parsed : null;
+}
+
+export async function savePlan(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('plan.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const id = optionalString(formData.get('id'));
+  const patientId = requiredString(formData.get('patientId'));
+  const title = requiredString(formData.get('title'));
+  if (!patientId || !title) return actionError(t('fillRequired'));
+
+  const data = {
+    title,
+    notes: optionalString(formData.get('notes')),
+    status: toPlanStatus(requiredString(formData.get('status'))),
+  };
+
+  // A brand-new plan is usually dictated in one go, so the dialog accepts the
+  // opening steps as newline-separated text rather than making the dentist
+  // save and then add them one at a time.
+  const initialSteps = requiredString(formData.get('steps'))
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 30);
+
+  let savedId = id;
+  try {
+    if (id) {
+      await prisma.treatmentPlan.update({ where: { id }, data });
+    } else {
+      savedId = (
+        await prisma.treatmentPlan.create({
+          data: {
+            ...data,
+            patientId,
+            steps: {
+              create: initialSteps.map((title, index) => ({
+                position: index + 1,
+                title,
+              })),
+            },
+          },
+          select: { id: true },
+        })
+      ).id;
+    }
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: id ? 'update' : 'create',
+    entity: 'plan',
+    entityId: savedId,
+    summary: title,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+export async function deletePlan(formData: FormData): Promise<void> {
+  // Deleting a course of treatment is a records decision, not a scheduling one.
+  const user = await authorize('patient.delete');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const plan = await prisma.treatmentPlan.findUnique({
+    where: { id },
+    select: { title: true },
+  });
+  if (!plan) return;
+
+  await prisma.treatmentPlan.delete({ where: { id } });
+  await recordAudit(user, {
+    action: 'delete',
+    entity: 'plan',
+    entityId: id,
+    summary: plan.title,
+  });
+  revalidateAll();
+}
+
+export async function saveStep(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('plan.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const id = optionalString(formData.get('id'));
+  const planId = requiredString(formData.get('planId'));
+  const title = requiredString(formData.get('title'));
+  if (!planId || !title) return actionError(t('fillRequired'));
+
+  const data = {
+    title,
+    toothNum: toToothNum(formData.get('toothNum')),
+    notes: optionalString(formData.get('notes')),
+  };
+
+  try {
+    if (id) {
+      await prisma.treatmentStep.update({ where: { id }, data });
+    } else {
+      const last = await prisma.treatmentStep.findFirst({
+        where: { planId },
+        orderBy: { position: 'desc' },
+        select: { position: true },
+      });
+
+      await prisma.treatmentStep.create({
+        data: { ...data, planId, position: (last?.position ?? 0) + 1 },
+      });
+    }
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: id ? 'update' : 'create',
+    entity: 'plan',
+    entityId: planId,
+    summary: title,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/**
+ * Tick a step off, or put it back. Completing the last outstanding step closes
+ * the plan, because a plan whose steps are all done is a finished plan and
+ * nobody should have to say so twice.
+ */
+export async function setStepStatus(formData: FormData): Promise<void> {
+  const user = await authorize('plan.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  const status = toStepStatus(requiredString(formData.get('status')));
+  if (!id) return;
+
+  const step = await prisma.treatmentStep.update({
+    where: { id },
+    data: {
+      status,
+      completedAt: status === TreatmentStepStatus.DONE ? new Date() : null,
+    },
+    select: { title: true, planId: true },
+  });
+
+  const outstanding = await prisma.treatmentStep.count({
+    where: { planId: step.planId, status: TreatmentStepStatus.PENDING },
+  });
+
+  await prisma.treatmentPlan.update({
+    where: { id: step.planId },
+    data: {
+      status: outstanding === 0 ? TreatmentPlanStatus.COMPLETED : TreatmentPlanStatus.ACTIVE,
+    },
+  });
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'plan',
+    entityId: step.planId,
+    summary: `${step.title} → ${status}`,
+  });
+  revalidateAll();
+}
+
+export async function deleteStep(formData: FormData): Promise<void> {
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const step = await prisma.treatmentStep.findUnique({
+    where: { id },
+    select: { title: true, planId: true, status: true },
+  });
+  if (!step) return;
+
+  // A pending step is a plan; a completed one is a record of care. Removing the
+  // second needs the same authority as deleting any other record.
+  const permission =
+    step.status === TreatmentStepStatus.DONE ? 'patient.delete' : 'plan.edit';
+  const user = await authorize(permission);
+  if (!user) return;
+
+  await prisma.treatmentStep.delete({ where: { id } });
+  await recordAudit(user, {
+    action: 'delete',
+    entity: 'plan',
+    entityId: step.planId,
+    summary: step.title,
+  });
+  revalidateAll();
+}
+
+/** Swap a step with its neighbour, so the sequence can be corrected in place. */
+export async function moveStep(formData: FormData): Promise<void> {
+  const user = await authorize('plan.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  const direction = requiredString(formData.get('direction')) === 'up' ? 'up' : 'down';
+  if (!id) return;
+
+  const step = await prisma.treatmentStep.findUnique({
+    where: { id },
+    select: { id: true, planId: true, position: true },
+  });
+  if (!step) return;
+
+  const neighbour = await prisma.treatmentStep.findFirst({
+    where: {
+      planId: step.planId,
+      position: direction === 'up' ? { lt: step.position } : { gt: step.position },
+    },
+    orderBy: { position: direction === 'up' ? 'desc' : 'asc' },
+    select: { id: true, position: true },
+  });
+  if (!neighbour) return;
+
+  await prisma.$transaction([
+    prisma.treatmentStep.update({ where: { id: step.id }, data: { position: neighbour.position } }),
+    prisma.treatmentStep.update({ where: { id: neighbour.id }, data: { position: step.position } }),
+  ]);
+
+  revalidateAll();
+}

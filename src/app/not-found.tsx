@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { routing } from '@/i18n/routing';
+import { poppins } from './fonts';
 import './globals.css';
 
 /**
@@ -8,7 +9,7 @@ import './globals.css';
  */
 export default function RootNotFound() {
   return (
-    <html lang={routing.defaultLocale}>
+    <html lang={routing.defaultLocale} className={poppins.variable}>
       <body>
         <div className="flex min-h-screen items-center justify-center p-8">
           <div className="card max-w-lg p-8 text-center">

@@ -9,6 +9,10 @@ export type AppointmentView = {
   status: string;
   serviceName: string;
   notes: string;
+  /** The patient answered the confirmation link themselves. */
+  confirmed: boolean;
+  /** They answered, and said no — the slot is free again. */
+  declined: boolean;
   patient: {
     id: string;
     firstName: string;

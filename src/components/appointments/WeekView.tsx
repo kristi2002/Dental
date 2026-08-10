@@ -5,10 +5,10 @@ import { cn } from '@/lib/utils';
 import type { AppointmentView } from './types';
 
 const STATUS_STYLE: Record<string, string> = {
-  SCHEDULED: 'border-brand bg-brand-soft text-ink',
-  COMPLETED: 'border-ok bg-ok-soft text-ink',
-  CANCELLED: 'border-line-strong bg-paper text-ink-faint line-through',
-  NO_SHOW: 'border-warn bg-warn-soft text-ink',
+  SCHEDULED: 'border-brand/40 bg-brand-soft text-ink',
+  COMPLETED: 'border-ok/30 bg-ok-soft text-ink',
+  CANCELLED: 'border-line-strong bg-paper text-ink-soft line-through',
+  NO_SHOW: 'border-warn/30 bg-warn-soft text-ink',
 };
 
 /** Seven columns at a glance; each day links through to its hour grid. */
@@ -33,12 +33,12 @@ export function WeekView({
           const isToday = isSameDay(day, now);
 
           return (
-            <div key={key} className="min-w-0 border-r-2 border-line last:border-r-0">
+            <div key={key} className="min-w-0 border-r border-line last:border-r-0">
               <Link
                 href={`/appointments?view=day&date=${key}`}
                 className={cn(
-                  'block border-b-2 border-line px-3 py-2.5 no-underline transition-colors hover:bg-brand-soft',
-                  isToday && 'bg-ink text-white hover:bg-ink',
+                  'block border-b border-line px-3 py-2.5 no-underline transition-colors hover:bg-brand-soft',
+                  isToday && 'bg-brand-dark text-white hover:bg-brand-dark',
                 )}
               >
                 <span
@@ -63,7 +63,7 @@ export function WeekView({
                       key={appointment.id}
                       href={`/appointments?view=day&date=${appointment.date}`}
                       className={cn(
-                        'block rounded-md border-2 px-2 py-1.5 no-underline',
+                        'block rounded-md border px-2 py-1.5 no-underline',
                         STATUS_STYLE[appointment.status] ?? STATUS_STYLE.SCHEDULED,
                       )}
                     >

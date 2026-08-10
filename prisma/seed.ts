@@ -5,6 +5,8 @@
  * Run with:  npm run db:seed
  */
 import { PrismaPg } from '@prisma/adapter-pg';
+import { hashPin } from '../src/lib/auth/crypto';
+import { storeFile } from '../src/lib/files';
 import { PrismaClient } from '../src/generated/prisma/client';
 
 try {
@@ -41,6 +43,18 @@ function addDays(date: Date, amount: number): Date {
 
 const now = new Date();
 const TODAY = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+
+/**
+ * One account per role, so every permission path can be tried immediately.
+ * Demo PINs — the README says to change them, and the app lets the owner do it
+ * from the Staff page without touching the database.
+ */
+const STAFF = [
+  { firstName: 'Ilir', lastName: 'Berisha', role: 'OWNER', pin: '1234' },
+  { firstName: 'Teuta', lastName: 'Gashi', role: 'ASSISTANT', pin: '2345' },
+  { firstName: 'Blerina', lastName: 'Nika', role: 'RECEPTIONIST', pin: '3456' },
+  { firstName: 'Marco', lastName: 'Rossi', role: 'READONLY', pin: '4567' },
+] as const;
 
 const SERVICES = [
   { name: 'Kontroll i përgjithshëm', category: 'Diagnostikë', durationMin: 20 },
@@ -80,27 +94,131 @@ const PATIENTS = [
   { firstName: 'Suela', lastName: 'Cami', phone: '068 45 72 019', email: 'suela.cami@example.al', dob: '1989-06-19', notes: 'Shtatzënë — shmang radiografitë.' },
 ];
 
+/**
+ * What each treatment consumes, by service name → [stock name, quantity].
+ * This is what makes recording a visit deduct materials on its own.
+ */
+const SERVICE_MATERIALS: Record<string, Array<[string, number]>> = {
+  'Kontroll i përgjithshëm': [['Dorashka nitrili (M)', 1]],
+  'Pastrim guri (detartrazh)': [
+    ['Dorashka nitrili (M)', 1],
+    ['Rula pambuku', 2],
+  ],
+  'Mbushje kompozite': [
+    ['Dorashka nitrili (M)', 1],
+    ['Kompozit A2', 1],
+    ['Freza diamanti', 1],
+    ['Anestezi Lidokainë 2%', 1],
+  ],
+  'Devitalizim (trajtim kanali)': [
+    ['Dorashka nitrili (M)', 2],
+    ['Anestezi Lidokainë 2%', 2],
+    ['Gjilpëra anestezie', 1],
+    ['Cimento qelqjonomer', 1],
+  ],
+  'Heqje dhëmbi': [
+    ['Dorashka nitrili (M)', 1],
+    ['Anestezi Lidokainë 2%', 2],
+    ['Fije suture 4-0', 1],
+    ['Rula pambuku', 3],
+  ],
+  'Implant dentar': [
+    ['Dorashka nitrili (M)', 2],
+    ['Anestezi Lidokainë 2%', 2],
+    ['Fije suture 4-0', 2],
+  ],
+};
+
+const PRESCRIPTION_TEMPLATES = [
+  {
+    name: 'Antibiotik pas ekstraksionit',
+    category: 'Antibiotikë',
+    body: 'Amoxicillin 500 mg\n1 kapsulë çdo 8 orë, për 5 ditë, pas ushqimit.\n\nNëse shfaqet skuqje ose vështirësi në frymëmarrje, ndaloni menjëherë dhe na kontaktoni.',
+  },
+  {
+    name: 'Qetësues dhimbjeje',
+    category: 'Analgjezikë',
+    body: 'Ibuprofen 400 mg\n1 tabletë çdo 8 orë sipas nevojës, maksimumi 3 në ditë, pas ushqimit.\n\nMos e kombinoni me qetësues të tjerë pa na pyetur.',
+  },
+  {
+    name: 'Shpëlarje pas ndërhyrjes',
+    category: 'Kujdesi pas ndërhyrjes',
+    body: 'Klorheksidinë 0.12%\nShpëlani gojën 30 sekonda, dy herë në ditë, për 7 ditë.\n\nFilloni 24 orë pas ndërhyrjes. Mos hani dhe mos pini për 30 minuta pas shpëlarjes.',
+  },
+];
+
+/**
+ * A tiny valid PNG, so the documents tab has something to show on first run
+ * without shipping a real radiograph. 8×8, mid-grey.
+ */
+const PLACEHOLDER_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAHElEQVQoz2NgGAWjYBSMglEwCkbBKBgFo4CBAAAIcAAB9r0ZzQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 const TOOTH_STATUSES = ['CARIES', 'FILLED', 'CROWN', 'ROOT_CANAL', 'EXTRACTED', 'IMPLANT', 'MISSING'];
 const START_TIMES = ['08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
 const APPOINTMENT_STATUSES = ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
 
 async function main() {
   console.log('Clearing existing data…');
+  await prisma.auditLog.deleteMany();
   await prisma.stockMovement.deleteMany();
+  await prisma.serviceMaterial.deleteMany();
   await prisma.toothRecord.deleteMany();
   await prisma.visitRecord.deleteMany();
+  await prisma.waitlistEntry.deleteMany();
+  await prisma.treatmentStep.deleteMany();
+  await prisma.treatmentPlan.deleteMany();
+  await prisma.patientDocument.deleteMany();
+  await prisma.prescription.deleteMany();
+  await prisma.prescriptionTemplate.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.patient.deleteMany();
   await prisma.stockItem.deleteMany();
   await prisma.service.deleteMany();
+  await prisma.staffUser.deleteMany();
+
+  console.log('Seeding staff…');
+  const staff = [];
+  for (const person of STAFF) {
+    const { hash, salt } = await hashPin(person.pin);
+    staff.push(
+      await prisma.staffUser.create({
+        data: {
+          firstName: person.firstName,
+          lastName: person.lastName,
+          role: person.role,
+          pinHash: hash,
+          pinSalt: salt,
+        },
+      }),
+    );
+  }
+  const owner = staff[0];
+  const assistant = staff[1];
 
   console.log('Seeding services…');
-  await prisma.service.createMany({ data: SERVICES });
+  const services = [];
+  for (const service of SERVICES) {
+    services.push(await prisma.service.create({ data: service }));
+  }
 
   console.log('Seeding stock…');
   const stockItems = [];
   for (const item of STOCK) {
     stockItems.push(await prisma.stockItem.create({ data: item }));
+  }
+
+  console.log('Seeding service materials…');
+  for (const service of services) {
+    for (const [itemName, quantity] of SERVICE_MATERIALS[service.name] ?? []) {
+      const item = stockItems.find((candidate) => candidate.name === itemName);
+      if (!item) continue;
+      await prisma.serviceMaterial.create({
+        data: { serviceId: service.id, itemId: item.id, quantity },
+      });
+    }
   }
 
   console.log('Seeding stock movements…');
@@ -111,7 +229,13 @@ async function main() {
       for (let i = 0; i < uses; i += 1) {
         const date = addDays(TODAY, -(monthsAgo * 30 + randomInt(0, 27)));
         await prisma.stockMovement.create({
-          data: { itemId: item.id, delta: -randomInt(1, 3), reason: 'used', createdAt: date },
+          data: {
+            itemId: item.id,
+            delta: -randomInt(1, 3),
+            reason: 'used',
+            createdAt: date,
+            staffUserId: assistant.id,
+          },
         });
       }
     }
@@ -129,12 +253,20 @@ async function main() {
           email: person.email,
           dateOfBirth: new Date(`${person.dob}T00:00:00.000Z`),
           medicalNotes: person.notes,
+          // A spread of intervals, so the recall list is not all one number.
+          recallMonths: [6, 6, 12, 4, 6, 3, 6, 12, 6, 4][index] ?? 6,
           // Spread registrations across the last six months so the growth chart moves.
           createdAt: addDays(TODAY, -(index * 17 + randomInt(0, 12))),
         },
       }),
     );
   }
+
+  // The last three are the recall demo: long overdue, and kept out of the future
+  // calendar below so the recall page has something real to show on first run.
+  const overdue = patients.slice(7);
+  // The first two are the follow-up demo: treated a few days ago.
+  const recentlyTreated = patients.slice(0, 2);
 
   console.log('Seeding visit history…');
   for (const patient of patients) {
@@ -145,12 +277,28 @@ async function main() {
       await prisma.visitRecord.create({
         data: {
           patientId: patient.id,
-          visitDate: addDays(TODAY, -randomInt(1, 170)),
+          visitDate: overdue.includes(patient)
+            ? addDays(TODAY, -randomInt(260, 400))
+            : addDays(TODAY, -randomInt(20, 170)),
           notes: `${service.name} — pa komplikacione. Pacienti u këshillua për higjienë orale.`,
           services: `${service.name}${extra}`,
+          staffUserId: pick([owner.id, assistant.id]),
         },
       });
     }
+  }
+
+  for (const [index, patient] of recentlyTreated.entries()) {
+    const service = SERVICES[2 + index];
+    await prisma.visitRecord.create({
+      data: {
+        patientId: patient.id,
+        visitDate: addDays(TODAY, -(index + 3)),
+        notes: `${service.name} — përfunduar. Kontroll pas një jave nëse ka shqetësim.`,
+        services: service.name,
+        staffUserId: owner.id,
+      },
+    });
   }
 
   console.log('Seeding dental charts…');
@@ -185,6 +333,9 @@ async function main() {
         durationMin: service.durationMin,
         status: 'SCHEDULED',
         serviceName: service.name,
+        // Two answered the confirmation link, two have not — so the digest has
+        // something real to nag about.
+        confirmedAt: index < 2 ? addDays(TODAY, -1) : null,
       },
     });
   }
@@ -206,9 +357,13 @@ async function main() {
       const status =
         offset < 0 ? pick(APPOINTMENT_STATUSES.filter((s) => s !== 'SCHEDULED')) : 'SCHEDULED';
 
+      // A booked patient is not overdue, so the recall demo group stays clear of
+      // anything upcoming.
+      const bookable = offset > 0 ? patients.filter((p) => !overdue.includes(p)) : patients;
+
       await prisma.appointment.create({
         data: {
-          patientId: pick(patients).id,
+          patientId: pick(bookable).id,
           date,
           startTime,
           durationMin: service.durationMin,
@@ -219,14 +374,110 @@ async function main() {
     }
   }
 
+  console.log('Seeding prescription templates…');
+  const templates = [];
+  for (const template of PRESCRIPTION_TEMPLATES) {
+    templates.push(await prisma.prescriptionTemplate.create({ data: template }));
+  }
+
+  console.log('Seeding treatment plans…');
+  await prisma.treatmentPlan.create({
+    data: {
+      patientId: patients[0].id,
+      title: 'Restaurim i kuadrantit të sipërm majtas',
+      notes: 'Pacienti preferon takime paradite.',
+      steps: {
+        create: [
+          { position: 1, title: 'Pastrim dhe vlerësim', status: 'DONE', completedAt: addDays(TODAY, -40) },
+          { position: 2, title: 'Mbushje kompozite', toothNum: 12, status: 'DONE', completedAt: addDays(TODAY, -12) },
+          { position: 3, title: 'Mbushje kompozite', toothNum: 13 },
+          { position: 4, title: 'Kontroll përfundimtar' },
+        ],
+      },
+    },
+  });
+
+  await prisma.treatmentPlan.create({
+    data: {
+      patientId: patients[4].id,
+      title: 'Implant në pozicionin 30',
+      notes: 'Diabet tip 2 — kujdes me shërimin, kontrolle më të shpeshta.',
+      steps: {
+        create: [
+          { position: 1, title: 'Radiografi dhe planifikim', status: 'DONE', completedAt: addDays(TODAY, -60) },
+          { position: 2, title: 'Heqje dhëmbi', toothNum: 30, status: 'DONE', completedAt: addDays(TODAY, -55) },
+          { position: 3, title: 'Vendosje implanti', toothNum: 30 },
+          { position: 4, title: 'Kurorë mbi implant', toothNum: 30 },
+        ],
+      },
+    },
+  });
+
+  console.log('Seeding prescriptions…');
+  await prisma.prescription.create({
+    data: {
+      patientId: patients[4].id,
+      templateId: templates[0].id,
+      body: PRESCRIPTION_TEMPLATES[0].body,
+      issuedById: owner.id,
+      createdAt: addDays(TODAY, -55),
+    },
+  });
+
+  console.log('Seeding documents…');
+  for (const [index, patient] of patients.slice(0, 3).entries()) {
+    const storageKey = await storeFile(PLACEHOLDER_PNG, 'image/png');
+    await prisma.patientDocument.create({
+      data: {
+        patientId: patient.id,
+        kind: index === 0 ? 'XRAY' : index === 1 ? 'PHOTO' : 'CONSENT',
+        fileName: index === 0 ? 'panoramike.png' : index === 1 ? 'para-trajtimit.png' : 'pelqim.png',
+        mimeType: 'image/png',
+        sizeBytes: PLACEHOLDER_PNG.byteLength,
+        storageKey,
+        toothNum: index === 0 ? 30 : null,
+        notes: index === 0 ? 'Radiografi panoramike para ndërhyrjes.' : null,
+        uploadedById: owner.id,
+        createdAt: addDays(TODAY, -randomInt(5, 60)),
+      },
+    });
+  }
+
+  console.log('Seeding waiting list…');
+  for (const [index, patient] of patients.slice(3, 6).entries()) {
+    const service = SERVICES[index * 2];
+    await prisma.waitlistEntry.create({
+      data: {
+        patientId: patient.id,
+        serviceName: service.name,
+        durationMin: service.durationMin,
+        note: index === 0 ? 'Vetëm paradite' : null,
+        urgent: index === 1,
+        createdAt: addDays(TODAY, -randomInt(1, 9)),
+      },
+    });
+  }
+
   const counts = {
+    staff: await prisma.staffUser.count(),
     patients: await prisma.patient.count(),
     appointments: await prisma.appointment.count(),
     visits: await prisma.visitRecord.count(),
     services: await prisma.service.count(),
+    serviceMaterials: await prisma.serviceMaterial.count(),
     stock: await prisma.stockItem.count(),
+    waitlist: await prisma.waitlistEntry.count(),
+    plans: await prisma.treatmentPlan.count(),
+    documents: await prisma.patientDocument.count(),
+    prescriptions: await prisma.prescription.count(),
+    templates: await prisma.prescriptionTemplate.count(),
   };
   console.log('Done:', counts);
+  console.log('\nSign in with:');
+  for (const person of STAFF) {
+    console.log(`  ${person.firstName} ${person.lastName} (${person.role}) — PIN ${person.pin}`);
+  }
+  console.log('\nChange these from the Staff page before real use.');
 }
 
 main()

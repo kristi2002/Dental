@@ -11,7 +11,9 @@
     "stock": "Magazzino",
     "analytics": "Statistiche",
     "language": "Lingua",
-    "menu": "Menu"
+    "menu": "Menu",
+    "recalls": "Richiami",
+    "digest": "Oggi"
   },
   "common": {
     "save": "Salva",
@@ -42,7 +44,8 @@
     "minutes": "min",
     "noResults": "Nessun risultato",
     "viewAll": "Vedi tutti",
-    "saving": "Salvataggio…"
+    "saving": "Salvataggio…",
+    "viewOnly": "Sola lettura"
   },
   "dashboard": {
     "title": "Pannello",
@@ -59,7 +62,8 @@
     "statWeek": "Questa settimana",
     "statLowStock": "Scorte basse",
     "openCalendar": "Apri il calendario",
-    "openStock": "Apri il magazzino"
+    "openStock": "Apri il magazzino",
+    "statRecalls": "Richiami"
   },
   "patients": {
     "title": "Pazienti",
@@ -94,7 +98,19 @@
     "visitServices": "Servizi eseguiti",
     "visitServicesHint": "Scegli dal catalogo o scrivi tu, separati da virgole.",
     "noAppointments": "Nessun appuntamento per questo paziente.",
-    "deleteWarning": "Eliminando il paziente si eliminano anche i suoi appuntamenti, le visite e la scheda dentale."
+    "deleteWarning": "Eliminando il paziente si eliminano anche i suoi appuntamenti, le visite e la scheda dentale.",
+    "recallTitle": "Richiamo",
+    "recallEvery": "Richiamo ogni",
+    "recallMonths": "{months} mesi",
+    "recallOff": "Mai",
+    "recallHint": "Ogni quanto richiamare questo paziente per un controllo.",
+    "medicalHidden": "Le note mediche non sono visibili al tuo ruolo.",
+    "recordedBy": "Registrata da {name}",
+    "willDeduct": "Salvando, i materiali per {services} verranno scalati dal magazzino.",
+    "ageLabel": "Età",
+    "tabPlans": "Piani di cura",
+    "tabDocuments": "File",
+    "tabPrescriptions": "Ricette"
   },
   "appointments": {
     "title": "Appuntamenti",
@@ -131,7 +147,10 @@
     "status_COMPLETED": "Completato",
     "status_CANCELLED": "Annullato",
     "status_NO_SHOW": "Non presentato",
-    "noPatients": "Aggiungi prima un paziente, poi potrai fissare appuntamenti."
+    "noPatients": "Aggiungi prima un paziente, poi potrai fissare appuntamenti.",
+    "bookAnyway": "Fissalo comunque — so che si sovrappone",
+    "confirmed": "Confermato",
+    "declined": "Rifiutato"
   },
   "services": {
     "title": "Servizi",
@@ -142,7 +161,11 @@
     "category": "Categoria",
     "duration": "Durata stimata",
     "empty": "Ancora nessun servizio. Aggiungi i trattamenti che offri.",
-    "uncategorized": "Senza categoria"
+    "uncategorized": "Senza categoria",
+    "materials": "Materiali usati",
+    "materialsHint": "Scegli cosa consuma questo trattamento. Registrando una visita verrà scalato dal magazzino in automatico.",
+    "materialsNoStock": "Aggiungi prima dei materiali nella pagina magazzino.",
+    "materialQuantity": "Quantità di {name}"
   },
   "stock": {
     "title": "Magazzino",
@@ -212,7 +235,15 @@
   "reminders": {
     "whatsappTemplate": "Buongiorno {name}, le ricordiamo il suo appuntamento dal dentista il {date} alle {time}. A presto!",
     "emailSubject": "Promemoria appuntamento — {date} alle {time}",
-    "emailBody": "Buongiorno {name},\n\nLe ricordiamo gentilmente il suo appuntamento dal dentista il {date} alle {time}.\n\nSe ha bisogno di spostarlo, risponda a questa email oppure ci telefoni.\n\nCordiali saluti,\nLo studio dentistico"
+    "emailBody": "Buongiorno {name},\n\nLe ricordiamo gentilmente il suo appuntamento dal dentista il {date} alle {time}.\n\nSe ha bisogno di spostarlo, risponda a questa email oppure ci telefoni.\n\nCordiali saluti,\nLo studio dentistico",
+    "recallWhatsapp": "Buongiorno {name}, sono passati {months} mesi dal suo ultimo controllo. Desidera fissare un appuntamento? Saremo lieti di rivederla.",
+    "recallEmailSubject": "È tempo del suo controllo dentistico",
+    "recallEmailBody": "Buongiorno {name},\n\nDai nostri archivi risulta che la sua ultima visita è stata il {last}. Un controllo ogni pochi mesi mantiene piccoli i piccoli problemi.\n\nRisponda a questa email o ci telefoni per fissare un orario che le sia comodo.\n\nCordiali saluti,\nLo studio dentistico",
+    "followUpWhatsapp": "Buongiorno {name}, sono passati {days} giorni dal suo trattamento. Come si sente? Ci faccia sapere se qualcosa la disturba.",
+    "followUpEmailSubject": "Come si sente dopo il trattamento?",
+    "followUpEmailBody": "Buongiorno {name},\n\nSono passati {days} giorni dal trattamento ({services}). Volevamo sapere come sta procedendo.\n\nSe qualcosa fa male o non le sembra giusto, risponda a questa email o ci telefoni e la riceveremo.\n\nCordiali saluti,\nLo studio dentistico",
+    "waitlistWhatsapp": "Buongiorno {name}, si è liberato un posto {day} alle {time}. Le interessa? Ci faccia sapere e lo teniamo per lei.",
+    "confirmAsk": "Ci faccia sapere se verrà: {link}"
   },
   "errors": {
     "generic": "Qualcosa è andato storto. Riprova.",
@@ -220,6 +251,311 @@
     "fillRequired": "Compila tutti i campi obbligatori.",
     "notFound": "Non trovato",
     "notFoundText": "La pagina che cerchi non esiste.",
-    "backHome": "Torna al pannello"
+    "backHome": "Torna al pannello",
+    "forbidden": "Il tuo ruolo non lo consente.",
+    "overlap": "Si sovrappone a un appuntamento esistente: {list}."
+  },
+  "roles": {
+    "OWNER": "Titolare / Dentista",
+    "ASSISTANT": "Assistente",
+    "RECEPTIONIST": "Receptionist",
+    "READONLY": "Sola lettura"
+  },
+  "permissions": {
+    "patient": {
+      "view": "Vede i pazienti",
+      "edit": "Aggiunge e modifica pazienti",
+      "delete": "Elimina pazienti",
+      "medical": {
+        "view": "Vede note mediche e cartella dentale",
+        "edit": "Registra visite e aggiorna la cartella"
+      }
+    },
+    "appointment": {
+      "view": "Vede il calendario",
+      "edit": "Fissa e modifica appuntamenti",
+      "delete": "Elimina appuntamenti"
+    },
+    "service": {
+      "view": "Vede il catalogo dei trattamenti",
+      "edit": "Aggiunge e modifica trattamenti",
+      "delete": "Elimina trattamenti"
+    },
+    "stock": {
+      "view": "Vede i materiali",
+      "edit": "Modifica e aggiunge materiali",
+      "delete": "Elimina materiali"
+    },
+    "analytics": {
+      "view": "Vede le statistiche"
+    },
+    "recall": {
+      "view": "Vede la lista dei richiami",
+      "send": "Contatta i pazienti per il richiamo"
+    },
+    "waitlist": {
+      "view": "Vede la lista d'attesa",
+      "edit": "Gestisce la lista d'attesa"
+    },
+    "staff": {
+      "manage": "Gestisce personale e ruoli"
+    },
+    "audit": {
+      "view": "Vede il registro attività"
+    },
+    "plan": {
+      "view": "Vede i piani di cura",
+      "edit": "Crea e aggiorna piani di cura"
+    },
+    "document": {
+      "view": "Vede radiografie e file",
+      "edit": "Carica radiografie e file",
+      "delete": "Elimina radiografie e file"
+    },
+    "prescription": {
+      "view": "Vede le ricette",
+      "edit": "Scrive ricette"
+    },
+    "backup": {
+      "export": "Esporta un backup completo"
+    }
+  },
+  "auth": {
+    "signIn": "Accedi",
+    "signingIn": "Accesso…",
+    "subtitle": "Scegli il tuo nome, poi inserisci il PIN.",
+    "whoAreYou": "Chi sta usando l'app?",
+    "enterPin": "Inserisci il tuo PIN",
+    "changePerson": "Un altro",
+    "clear": "Cancella",
+    "backspace": "Cancella l'ultima cifra",
+    "digitsEntered": "{count} cifre inserite",
+    "pinHint": "Il PIN ha da {min} a {max} cifre.",
+    "noStaff": "Non esistono ancora account. Esegui il seed del database per creare il primo.",
+    "errorMissing": "Scegli un nome e inserisci il PIN.",
+    "errorWrongPin": "PIN errato. {left, plural, =0 {} one {# tentativo rimasto.} other {# tentativi rimasti.}}",
+    "errorLocked": "Troppi tentativi. Riprova tra {minutes} minuti o chiedi al titolare di sbloccare.",
+    "manageStaff": "Personale e ruoli",
+    "activity": "Registro attività",
+    "signOut": "Esci"
+  },
+  "staff": {
+    "title": "Personale e ruoli",
+    "subtitle": "Chi lavora qui e cosa può fare ciascuno",
+    "people": "Persone",
+    "new": "Nuova persona",
+    "edit": "Modifica persona",
+    "firstName": "Nome",
+    "lastName": "Cognome",
+    "role": "Ruolo",
+    "roleAllows": "Questo ruolo può",
+    "pin": "PIN",
+    "pinHintNew": "Da {min} a {max} cifre. Comunicalo di persona.",
+    "pinHintEdit": "Lascia vuoto per mantenere il PIN attuale.",
+    "you": "Tu",
+    "disabled": "Disattivato",
+    "locked": "Bloccato",
+    "lastSeen": "Ultimo accesso {when}",
+    "neverSignedIn": "Non ha mai effettuato l’accesso",
+    "unlock": "Sblocca",
+    "disable": "Disattiva",
+    "enable": "Attiva",
+    "confirmDisable": "Disattivare questo account? La persona non potrà più accedere.",
+    "lastOwnerHint": "Unico titolare",
+    "matrixTitle": "Cosa può fare ogni ruolo",
+    "capability": "Operazione",
+    "allowed": "Consentito",
+    "notAllowed": "Non consentito",
+    "errorPinRequired": "Un nuovo account richiede un PIN.",
+    "errorPinFormat": "Il PIN deve avere da 4 a 6 cifre.",
+    "errorLastOwner": "È l’unico titolare — qualcuno deve poter gestire il personale."
+  },
+  "activity": {
+    "title": "Registro attività",
+    "subtitle": "Ogni modifica e chi l’ha fatta",
+    "filterLabel": "Filtra per tipo",
+    "recent": "Ultime {count} voci",
+    "empty": "Ancora nulla di registrato.",
+    "action_create": "Aggiunto",
+    "action_update": "Modificato",
+    "action_delete": "Eliminato",
+    "action_login": "Accesso",
+    "action_logout": "Uscita",
+    "action_denied": "Bloccato",
+    "entity_patient": "Paziente",
+    "entity_appointment": "Appuntamento",
+    "entity_visit": "Visita",
+    "entity_tooth": "Cartella dentale",
+    "entity_stock": "Magazzino",
+    "entity_service": "Trattamento",
+    "entity_staff": "Personale",
+    "entity_recall": "Richiamo",
+    "entity_waitlist": "Lista d'attesa",
+    "entity_session": "Accesso",
+    "actorPatient": "Paziente",
+    "action_confirmed": "Confermato",
+    "action_declined": "Rifiutato",
+    "entity_plan": "Piano di cura",
+    "entity_document": "File",
+    "entity_prescription": "Ricetta",
+    "entity_backup": "Backup"
+  },
+  "recalls": {
+    "title": "Richiami",
+    "subtitle": "Pazienti da chiamare oggi",
+    "dueTitle": "Da richiamare per un controllo",
+    "dueSubtitle": "{count, plural, =0 {Nessuno in ritardo} one {# paziente} other {# pazienti}}",
+    "dueEmpty": "Nessuno in ritardo. Sono tutti prenotati o visti di recente.",
+    "followUpTitle": "Controllo dopo il trattamento",
+    "followUpSubtitle": "{count, plural, =0 {Nessuno da ricontattare} one {# paziente} other {# pazienti}}",
+    "followUpEmpty": "Nessun trattamento recente da ricontattare.",
+    "overdueBy": "{days, plural, =0 {Oggi} one {# giorno di ritardo} other {# giorni di ritardo}}",
+    "daysAgo": "{days, plural, one {# giorno fa} other {# giorni fa}}",
+    "neverVisited": "Mai visitato",
+    "noPhone": "Nessun numero",
+    "markContacted": "Contattato",
+    "snoozeTitle": "Ricordamelo tra {days} giorni",
+    "theTreatment": "il trattamento"
+  },
+  "waitlist": {
+    "title": "Lista d'attesa",
+    "subtitle": "{count, plural, =0 {Nessuno in attesa} one {# persona in attesa} other {# persone in attesa}}",
+    "new": "Aggiungi",
+    "empty": "Nessuno è in attesa di un posto anticipato.",
+    "patient": "Paziente",
+    "selectPatient": "Scegli un paziente",
+    "service": "Trattamento",
+    "duration": "Tempo necessario",
+    "noteHint": "es. solo mattina, oppure ha dolore",
+    "urgent": "Urgente",
+    "freeOn": "Libero {day}:",
+    "fitsAt": "Entra alle {time}",
+    "noFit": "Nessuno spazio quel giorno",
+    "offer": "Offri il posto",
+    "resolve": "Togli dalla lista"
+  },
+  "reliability": {
+    "watch": "{missed} su {total} mancati",
+    "atRisk": "Spesso non si presenta ({missed}/{total})"
+  },
+  "plans": {
+    "title_": "Nome del piano",
+    "titleHint": "es. Restauro quadrante superiore sinistro",
+    "new": "Nuovo piano",
+    "edit": "Modifica piano",
+    "steps": "Fasi",
+    "stepsHint": "Una per riga. Potrà aggiungerle, riordinarle e modificarle dopo.",
+    "status": "Stato",
+    "status_ACTIVE": "In corso",
+    "status_COMPLETED": "Concluso",
+    "status_CANCELLED": "Annullato",
+    "empty": "Nessun piano di cura per questo paziente.",
+    "progress": "{done} di {total} completate",
+    "addStep": "Aggiungi fase",
+    "editStep": "Modifica fase",
+    "stepTitle": "Cosa verrà fatto",
+    "toothHint": "Numero del dente 1–32, se la fase riguarda un dente preciso.",
+    "markDone": "Fatto",
+    "skip": "Salta questa fase",
+    "reopen": "Riapri",
+    "moveUp": "Sposta su",
+    "moveDown": "Sposta giù"
+  },
+  "documents": {
+    "new": "Aggiungi file",
+    "upload": "Carica",
+    "uploading": "Caricamento…",
+    "file": "File",
+    "fileHint": "Radiografia, foto o PDF, fino a {max} MB.",
+    "kind": "Tipo",
+    "kind_XRAY": "Radiografia",
+    "kind_PHOTO": "Foto",
+    "kind_CONSENT": "Modulo di consenso",
+    "kind_OTHER": "Altro",
+    "empty": "Nessun file per questo paziente.",
+    "errorNoFile": "Scegli un file da caricare.",
+    "errorTooLarge": "Il file supera {max} MB.",
+    "errorType": "Si possono allegare solo immagini e file PDF."
+  },
+  "prescriptions": {
+    "new": "Scrivi ricetta",
+    "issue": "Emetti",
+    "template": "Parti da un modello",
+    "templateHint": "Scegliendone uno il testo si compila; puoi modificarlo liberamente.",
+    "templateNone": "Vuota",
+    "body": "Ricetta",
+    "forPatient": "Per {name}",
+    "empty": "Nessuna ricetta emessa per questo paziente.",
+    "print": "Stampa",
+    "sheetTitle": "Ricetta",
+    "sheetPatient": "Paziente",
+    "sheetSignature": "Firma",
+    "templatesTitle": "Modelli di ricetta",
+    "templatesSubtitle": "Testo standard, pronto da riusare",
+    "templatesEmpty": "Nessun modello. Aggiungi quelli che scrivi più spesso.",
+    "newTemplate": "Nuovo modello",
+    "editTemplate": "Modifica modello",
+    "templateName": "Nome del modello",
+    "templateBodyHint": "Il testo precompilato. Modificalo per paziente al momento di emettere."
+  },
+  "reorder": {
+    "title": "Ordine suggerito",
+    "subtitle": "{count, plural, one {# articolo da ordinare} other {# articoli da ordinare}}",
+    "urgent": "Urgente",
+    "monthlyUse": "{qty} {unit}/mese",
+    "daysLeft": "{days, plural, =0 {Finisce oggi} one {# giorno rimasto} other {# giorni rimasti}}",
+    "noUsage": "Nessun consumo registrato",
+    "suggested": "da ordinare",
+    "send": "Invia l'elenco",
+    "messageHeading": "Ordine per lo studio dentistico:"
+  },
+  "digest": {
+    "title": "Oggi",
+    "print": "Stampa",
+    "copy": "Copia",
+    "copied": "Copiato",
+    "send": "Invia",
+    "scheduleTitle": "Lista di oggi",
+    "scheduleSubtitle": "{count, plural, =0 {Nulla in agenda} one {# appuntamento} other {# appuntamenti}}",
+    "scheduleEmpty": "Nulla in agenda per oggi.",
+    "gapsTitle": "Tempo libero",
+    "gapsSubtitle": "Spazi in cui si può ancora inserire qualcuno",
+    "gapsNone": "La giornata è piena.",
+    "min": "min",
+    "callToConfirm": "Chiamare per confermare",
+    "confirmHint": "Da confermare prima dell'inizio: {names}.",
+    "callTitle": "Persone da chiamare",
+    "callSubtitle": "{count, plural, =0 {Nessuno oggi} one {# paziente} other {# pazienti}}",
+    "callEmpty": "Nessuno è in ritardo per un controllo.",
+    "stockTitle": "Materiali",
+    "stockSubtitle": "{count, plural, =0 {Tutti sopra il minimo} one {# sotto il minimo} other {# sotto il minimo}}",
+    "stockEmpty": "Nulla da ordinare.",
+    "reorderHint": "{count, plural, one {# articolo ha} other {# articoli hanno}} un ordine suggerito nella pagina magazzino."
+  },
+  "confirm": {
+    "title": "Conferma il tuo appuntamento",
+    "greeting": "Buongiorno {name}",
+    "intro": "Ci faccia sapere se riesce a venire.",
+    "when": "Quando",
+    "what": "Cosa",
+    "yes": "Sì, ci sarò",
+    "no": "No, non riesco",
+    "thanksConfirmed": "Grazie — la aspettiamo a quell’ora. A presto.",
+    "thanksDeclined": "Grazie per averci avvisato. Abbiamo liberato il posto; ci chiami per riprenotare.",
+    "changeMind": "Cambiato idea? Tocchi semplicemente l’altro pulsante.",
+    "closed": "Questo appuntamento è già passato.",
+    "invalidTitle": "Questo link non è valido",
+    "invalidText": "Potrebbe essere scaduto o digitato male. La preghiamo di chiamare lo studio.",
+    "errorInvalid": "Questo link non è valido.",
+    "errorPast": "Questo appuntamento è già passato.",
+    "errorGeneric": "Qualcosa è andato storto. La preghiamo di chiamare lo studio."
+  },
+  "backup": {
+    "title": "Backup",
+    "description": "Scarica tutti i dati in un unico file. Conservane una copia fuori da questo computer.",
+    "passphrase": "Cifra con una passphrase",
+    "passphraseHint": "Lascia vuoto per un file JSON leggibile.",
+    "warning": "Se imposti una passphrase e la dimentichi, il backup non è recuperabile. I PIN del personale e i file caricati non sono inclusi.",
+    "download": "Scarica backup"
   }
 }

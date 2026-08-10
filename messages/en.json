@@ -11,7 +11,9 @@
     "stock": "Stock",
     "analytics": "Statistics",
     "language": "Language",
-    "menu": "Menu"
+    "menu": "Menu",
+    "recalls": "Recalls",
+    "digest": "Today"
   },
   "common": {
     "save": "Save",
@@ -42,7 +44,8 @@
     "minutes": "min",
     "noResults": "Nothing found",
     "viewAll": "View all",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "viewOnly": "View only"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -59,7 +62,8 @@
     "statWeek": "This week",
     "statLowStock": "Low stock",
     "openCalendar": "Open calendar",
-    "openStock": "Open stock"
+    "openStock": "Open stock",
+    "statRecalls": "Recalls due"
   },
   "patients": {
     "title": "Patients",
@@ -94,7 +98,19 @@
     "visitServices": "Services performed",
     "visitServicesHint": "Pick from the catalog or type your own, separated by commas.",
     "noAppointments": "No appointments for this patient.",
-    "deleteWarning": "Deleting a patient also deletes their appointments, visits and dental chart."
+    "deleteWarning": "Deleting a patient also deletes their appointments, visits and dental chart.",
+    "recallTitle": "Recall",
+    "recallEvery": "Recall every",
+    "recallMonths": "{months} months",
+    "recallOff": "Never",
+    "recallHint": "How often this patient should be called back for a check-up.",
+    "medicalHidden": "Medical notes are not visible to your role.",
+    "recordedBy": "Recorded by {name}",
+    "willDeduct": "Saving this will take the materials for {services} out of stock.",
+    "ageLabel": "Age",
+    "tabPlans": "Treatment plans",
+    "tabDocuments": "Files",
+    "tabPrescriptions": "Prescriptions"
   },
   "appointments": {
     "title": "Appointments",
@@ -131,7 +147,10 @@
     "status_COMPLETED": "Completed",
     "status_CANCELLED": "Cancelled",
     "status_NO_SHOW": "No show",
-    "noPatients": "Add a patient first, then you can book appointments."
+    "noPatients": "Add a patient first, then you can book appointments.",
+    "bookAnyway": "Book it anyway — I know it overlaps",
+    "confirmed": "Confirmed",
+    "declined": "Declined"
   },
   "services": {
     "title": "Services",
@@ -142,7 +161,11 @@
     "category": "Category",
     "duration": "Estimated duration",
     "empty": "No services yet. Add the treatments you offer.",
-    "uncategorized": "Uncategorized"
+    "uncategorized": "Uncategorized",
+    "materials": "Materials used",
+    "materialsHint": "Pick what this treatment consumes. Recording a visit then deducts it from stock automatically.",
+    "materialsNoStock": "Add materials to the stock page first.",
+    "materialQuantity": "Quantity of {name}"
   },
   "stock": {
     "title": "Stock",
@@ -212,7 +235,15 @@
   "reminders": {
     "whatsappTemplate": "Hello {name}, this is a reminder of your dental appointment on {date} at {time}. See you soon!",
     "emailSubject": "Appointment reminder — {date} at {time}",
-    "emailBody": "Hello {name},\n\nThis is a friendly reminder of your dental appointment on {date} at {time}.\n\nIf you need to reschedule, just reply to this email or call us.\n\nKind regards,\nThe dental clinic"
+    "emailBody": "Hello {name},\n\nThis is a friendly reminder of your dental appointment on {date} at {time}.\n\nIf you need to reschedule, just reply to this email or call us.\n\nKind regards,\nThe dental clinic",
+    "recallWhatsapp": "Hello {name}, it has been {months} months since your last check-up. Would you like to book an appointment? We would be glad to see you.",
+    "recallEmailSubject": "Time for your dental check-up",
+    "recallEmailBody": "Hello {name},\n\nOur records show your last visit was {last}. A check-up every few months keeps small problems small.\n\nJust reply to this email or call us to book a time that suits you.\n\nKind regards,\nThe dental clinic",
+    "followUpWhatsapp": "Hello {name}, it has been {days} days since your treatment. How are you feeling? Let us know if anything is bothering you.",
+    "followUpEmailSubject": "How are you feeling after your treatment?",
+    "followUpEmailBody": "Hello {name},\n\nIt has been {days} days since we treated you ({services}). We wanted to check how you are getting on.\n\nIf anything is painful or does not feel right, reply to this email or call us and we will see you.\n\nKind regards,\nThe dental clinic",
+    "waitlistWhatsapp": "Hello {name}, a slot has opened up on {day} at {time}. Would you like it? Let us know and we will hold it for you.",
+    "confirmAsk": "Please let us know if you are coming: {link}"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -220,6 +251,311 @@
     "fillRequired": "Please fill in all required fields.",
     "notFound": "Not found",
     "notFoundText": "The page you are looking for does not exist.",
-    "backHome": "Back to dashboard"
+    "backHome": "Back to dashboard",
+    "forbidden": "Your role does not allow this.",
+    "overlap": "This overlaps an existing appointment: {list}."
+  },
+  "roles": {
+    "OWNER": "Owner / Dentist",
+    "ASSISTANT": "Assistant",
+    "RECEPTIONIST": "Receptionist",
+    "READONLY": "Read-only"
+  },
+  "permissions": {
+    "patient": {
+      "view": "See patients",
+      "edit": "Add and edit patients",
+      "delete": "Delete patients",
+      "medical": {
+        "view": "See medical notes and dental charts",
+        "edit": "Record visits and update charts"
+      }
+    },
+    "appointment": {
+      "view": "See the calendar",
+      "edit": "Book and change appointments",
+      "delete": "Delete appointments"
+    },
+    "service": {
+      "view": "See the treatment catalog",
+      "edit": "Add and edit treatments",
+      "delete": "Delete treatments"
+    },
+    "stock": {
+      "view": "See materials",
+      "edit": "Adjust and add materials",
+      "delete": "Delete materials"
+    },
+    "analytics": {
+      "view": "See statistics"
+    },
+    "recall": {
+      "view": "See the recall list",
+      "send": "Contact patients for recall"
+    },
+    "waitlist": {
+      "view": "See the waiting list",
+      "edit": "Manage the waiting list"
+    },
+    "staff": {
+      "manage": "Manage staff and roles"
+    },
+    "audit": {
+      "view": "See the activity log"
+    },
+    "plan": {
+      "view": "See treatment plans",
+      "edit": "Create and update treatment plans"
+    },
+    "document": {
+      "view": "See X-rays and files",
+      "edit": "Upload X-rays and files",
+      "delete": "Delete X-rays and files"
+    },
+    "prescription": {
+      "view": "See prescriptions",
+      "edit": "Write prescriptions"
+    },
+    "backup": {
+      "export": "Export a full backup"
+    }
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "subtitle": "Choose your name, then enter your PIN.",
+    "whoAreYou": "Who is using the app?",
+    "enterPin": "Enter your PIN",
+    "changePerson": "Someone else",
+    "clear": "Clear",
+    "backspace": "Delete last digit",
+    "digitsEntered": "{count} digits entered",
+    "pinHint": "A PIN is {min} to {max} digits.",
+    "noStaff": "No staff accounts exist yet. Run the database seed to create the first one.",
+    "errorMissing": "Choose a name and enter a PIN.",
+    "errorWrongPin": "Wrong PIN. {left, plural, =0 {} one {# attempt left.} other {# attempts left.}}",
+    "errorLocked": "Too many attempts. Try again in {minutes} minutes, or ask the owner to unlock.",
+    "manageStaff": "Staff and roles",
+    "activity": "Activity log",
+    "signOut": "Sign out"
+  },
+  "staff": {
+    "title": "Staff and roles",
+    "subtitle": "Who works here, and what each person is allowed to do",
+    "people": "People",
+    "new": "New person",
+    "edit": "Edit person",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "role": "Role",
+    "roleAllows": "This role can",
+    "pin": "PIN",
+    "pinHintNew": "{min} to {max} digits. Tell it to them in person.",
+    "pinHintEdit": "Leave blank to keep the current PIN.",
+    "you": "You",
+    "disabled": "Disabled",
+    "locked": "Locked",
+    "lastSeen": "Last signed in {when}",
+    "neverSignedIn": "Has never signed in",
+    "unlock": "Unlock",
+    "disable": "Disable",
+    "enable": "Enable",
+    "confirmDisable": "Disable this account? They will not be able to sign in.",
+    "lastOwnerHint": "The only owner",
+    "matrixTitle": "What each role can do",
+    "capability": "Capability",
+    "allowed": "Allowed",
+    "notAllowed": "Not allowed",
+    "errorPinRequired": "A new account needs a PIN.",
+    "errorPinFormat": "A PIN must be 4 to 6 digits.",
+    "errorLastOwner": "This is the only owner — someone must keep managing staff."
+  },
+  "activity": {
+    "title": "Activity log",
+    "subtitle": "Every change, and who made it",
+    "filterLabel": "Filter by type",
+    "recent": "Last {count} entries",
+    "empty": "Nothing recorded yet.",
+    "action_create": "Added",
+    "action_update": "Changed",
+    "action_delete": "Deleted",
+    "action_login": "Signed in",
+    "action_logout": "Signed out",
+    "action_denied": "Blocked",
+    "entity_patient": "Patient",
+    "entity_appointment": "Appointment",
+    "entity_visit": "Visit",
+    "entity_tooth": "Dental chart",
+    "entity_stock": "Stock",
+    "entity_service": "Service",
+    "entity_staff": "Staff",
+    "entity_recall": "Recall",
+    "entity_waitlist": "Waiting list",
+    "entity_session": "Access",
+    "actorPatient": "Patient",
+    "action_confirmed": "Confirmed",
+    "action_declined": "Declined",
+    "entity_plan": "Treatment plan",
+    "entity_document": "File",
+    "entity_prescription": "Prescription",
+    "entity_backup": "Backup"
+  },
+  "recalls": {
+    "title": "Recalls",
+    "subtitle": "Patients worth calling today",
+    "dueTitle": "Due for a check-up",
+    "dueSubtitle": "{count, plural, =0 {Nobody is overdue} one {# patient} other {# patients}}",
+    "dueEmpty": "Nobody is overdue. Everyone is either booked or recently seen.",
+    "followUpTitle": "Follow up after treatment",
+    "followUpSubtitle": "{count, plural, =0 {Nobody to follow up} one {# patient} other {# patients}}",
+    "followUpEmpty": "No recent treatments to follow up on.",
+    "overdueBy": "{days, plural, =0 {Due today} one {# day overdue} other {# days overdue}}",
+    "daysAgo": "{days, plural, one {# day ago} other {# days ago}}",
+    "neverVisited": "Never visited",
+    "noPhone": "No phone number",
+    "markContacted": "Contacted",
+    "snoozeTitle": "Remind me again in {days} days",
+    "theTreatment": "the treatment"
+  },
+  "waitlist": {
+    "title": "Waiting list",
+    "subtitle": "{count, plural, =0 {Nobody waiting} one {# person waiting} other {# people waiting}}",
+    "new": "Add to list",
+    "empty": "Nobody is waiting for an earlier slot.",
+    "patient": "Patient",
+    "selectPatient": "Select a patient",
+    "service": "Treatment",
+    "duration": "Time needed",
+    "noteHint": "e.g. mornings only, or in pain",
+    "urgent": "Urgent",
+    "freeOn": "Free on {day}:",
+    "fitsAt": "Fits at {time}",
+    "noFit": "No gap this day",
+    "offer": "Offer the slot",
+    "resolve": "Remove from list"
+  },
+  "reliability": {
+    "watch": "{missed} of {total} missed",
+    "atRisk": "Often misses ({missed}/{total})"
+  },
+  "plans": {
+    "title_": "Plan name",
+    "titleHint": "e.g. Upper left quadrant restoration",
+    "new": "New plan",
+    "edit": "Edit plan",
+    "steps": "Steps",
+    "stepsHint": "One per line. You can add, reorder and edit them afterwards.",
+    "status": "Status",
+    "status_ACTIVE": "In progress",
+    "status_COMPLETED": "Finished",
+    "status_CANCELLED": "Cancelled",
+    "empty": "No treatment plans for this patient yet.",
+    "progress": "{done} of {total} done",
+    "addStep": "Add step",
+    "editStep": "Edit step",
+    "stepTitle": "What will be done",
+    "toothHint": "Tooth number 1–32, if this step is about one tooth.",
+    "markDone": "Done",
+    "skip": "Skip this step",
+    "reopen": "Reopen",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
+  },
+  "documents": {
+    "new": "Add file",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "file": "File",
+    "fileHint": "X-ray, photo or PDF, up to {max} MB.",
+    "kind": "Type",
+    "kind_XRAY": "X-ray",
+    "kind_PHOTO": "Photo",
+    "kind_CONSENT": "Consent form",
+    "kind_OTHER": "Other",
+    "empty": "No files for this patient yet.",
+    "errorNoFile": "Choose a file to upload.",
+    "errorTooLarge": "That file is larger than {max} MB.",
+    "errorType": "Only images and PDF files can be attached."
+  },
+  "prescriptions": {
+    "new": "Write prescription",
+    "issue": "Issue",
+    "template": "Start from a template",
+    "templateHint": "Picking one fills the box; you can edit it freely afterwards.",
+    "templateNone": "Blank",
+    "body": "Prescription",
+    "forPatient": "For {name}",
+    "empty": "No prescriptions issued to this patient yet.",
+    "print": "Print",
+    "sheetTitle": "Prescription",
+    "sheetPatient": "Patient",
+    "sheetSignature": "Signature",
+    "templatesTitle": "Prescription templates",
+    "templatesSubtitle": "Standard wording, ready to reuse",
+    "templatesEmpty": "No templates yet. Add the ones you write most often.",
+    "newTemplate": "New template",
+    "editTemplate": "Edit template",
+    "templateName": "Template name",
+    "templateBodyHint": "The wording that will be filled in. Edit per patient when issuing."
+  },
+  "reorder": {
+    "title": "Suggested order",
+    "subtitle": "{count, plural, one {# item to reorder} other {# items to reorder}}",
+    "urgent": "Urgent",
+    "monthlyUse": "{qty} {unit}/month",
+    "daysLeft": "{days, plural, =0 {Out today} one {# day left} other {# days left}}",
+    "noUsage": "No recorded use",
+    "suggested": "to order",
+    "send": "Send the list",
+    "messageHeading": "Order for the dental clinic:"
+  },
+  "digest": {
+    "title": "Today",
+    "print": "Print",
+    "copy": "Copy",
+    "copied": "Copied",
+    "send": "Send",
+    "scheduleTitle": "Today's list",
+    "scheduleSubtitle": "{count, plural, =0 {Nothing booked} one {# appointment} other {# appointments}}",
+    "scheduleEmpty": "Nothing booked for today.",
+    "gapsTitle": "Free time",
+    "gapsSubtitle": "Gaps someone could still be fitted into",
+    "gapsNone": "The day is full.",
+    "min": "min",
+    "callToConfirm": "Call to confirm",
+    "confirmHint": "Worth confirming before the day starts: {names}.",
+    "callTitle": "People to call",
+    "callSubtitle": "{count, plural, =0 {Nobody today} one {# patient} other {# patients}}",
+    "callEmpty": "Nobody is overdue for a check-up.",
+    "stockTitle": "Materials",
+    "stockSubtitle": "{count, plural, =0 {All above minimum} one {# below minimum} other {# below minimum}}",
+    "stockEmpty": "Nothing to reorder.",
+    "reorderHint": "{count, plural, one {# item has} other {# items have}} a suggested order on the stock page."
+  },
+  "confirm": {
+    "title": "Confirm your appointment",
+    "greeting": "Hello {name}",
+    "intro": "Please let us know whether you can make it.",
+    "when": "When",
+    "what": "What",
+    "yes": "Yes, I'll be there",
+    "no": "No, I can't make it",
+    "thanksConfirmed": "Thank you — we have you down for that time. See you then.",
+    "thanksDeclined": "Thank you for telling us. We have freed the slot; call us to rebook.",
+    "changeMind": "Changed your mind? Just tap the other button.",
+    "closed": "This appointment has already passed.",
+    "invalidTitle": "This link is not valid",
+    "invalidText": "It may have expired or been mistyped. Please call the clinic.",
+    "errorInvalid": "This link is not valid.",
+    "errorPast": "This appointment has already passed.",
+    "errorGeneric": "Something went wrong. Please call the clinic."
+  },
+  "backup": {
+    "title": "Backup",
+    "description": "Download every record as one file. Keep a copy somewhere other than this computer.",
+    "passphrase": "Encrypt with a passphrase",
+    "passphraseHint": "Leave blank for a plain, readable JSON file.",
+    "warning": "If you set a passphrase and forget it, the backup cannot be recovered. Staff PINs and uploaded files are not included.",
+    "download": "Download backup"
   }
 }

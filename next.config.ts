@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
     // lockfiles in the parent directories.
     root: path.resolve(import.meta.dirname),
   },
+
+  // Patient files are read by a path computed at runtime (`src/lib/files.ts`),
+  // which makes the build tracer assume it needs to ship the entire project.
+  // These are the directories it must never pull in — above all `storage`,
+  // which holds real radiographs and belongs nowhere near a deploy artifact.
+  outputFileTracingExcludes: {
+    '**/*': ['./storage/**', './.next/cache/**'],
+  },
 };
 
 export default withNextIntl(nextConfig);

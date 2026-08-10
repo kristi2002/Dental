@@ -12,6 +12,7 @@ export function ReminderLinks({
   email,
   date,
   startTime,
+  confirmLink,
   size = 'sm',
 }: {
   patientName: string;
@@ -20,6 +21,8 @@ export function ReminderLinks({
   /** `YYYY-MM-DD` */
   date: string;
   startTime: string;
+  /** When given, the message asks the patient to confirm and includes the link. */
+  confirmLink?: string;
   size?: 'sm' | 'md';
 }) {
   const t = useTranslations('appointments');
@@ -33,9 +36,15 @@ export function ReminderLinks({
   });
 
   const values = { name: patientName, date: readableDate, time: startTime };
-  const whatsapp = phone ? whatsappLink(phone, tr('whatsappTemplate', values)) : null;
+  // The ask is appended rather than woven in, so a clinic that never sets
+  // NEXT_PUBLIC_APP_URL still sends a perfectly good plain reminder.
+  const confirmAsk = confirmLink ? `\n\n${tr('confirmAsk', { link: confirmLink })}` : '';
+
+  const whatsapp = phone
+    ? whatsappLink(phone, `${tr('whatsappTemplate', values)}${confirmAsk}`)
+    : null;
   const mail = email
-    ? mailtoLink(email, tr('emailSubject', values), tr('emailBody', values))
+    ? mailtoLink(email, tr('emailSubject', values), `${tr('emailBody', values)}${confirmAsk}`)
     : null;
 
   const buttonClass = size === 'sm' ? 'btn btn-secondary btn-sm' : 'btn btn-secondary';

@@ -25,15 +25,12 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <div className="px-3 pb-3 lg:pb-4">
-      <p className="mb-1.5 flex items-center gap-1.5 text-[0.85rem] font-semibold text-ink-faint">
-        <Languages size={16} aria-hidden />
-        {t('language')}
-      </p>
+    <div className="flex items-center gap-2">
+      <Languages size={18} aria-hidden className="hidden text-white/85 sm:block" />
       <div
         role="group"
         aria-label={t('language')}
-        className="grid grid-cols-3 gap-1 rounded-lg border-2 border-line-strong p-1"
+        className="flex gap-0.5 rounded-lg border border-white/35 p-0.5"
       >
         {locales.map((locale) => (
           <button
@@ -44,10 +41,12 @@ export function LanguageSwitcher() {
             aria-pressed={locale === active}
             onClick={() => switchTo(locale)}
             className={cn(
-              'min-h-10 rounded-md px-1 text-[0.9rem] font-bold transition-colors',
+              // Sitting on teal, so focus is ringed in white rather than in the
+              // brand colour it would otherwise disappear into.
+              'min-h-9 rounded-md px-2.5 text-[0.85rem] font-bold transition-colors focus-visible:outline-white',
               locale === active
-                ? 'bg-ink text-white'
-                : 'text-ink-soft hover:bg-paper hover:text-ink',
+                ? 'bg-white text-brand-deep'
+                : 'text-white/85 hover:bg-white/15 hover:text-white',
             )}
           >
             {localeLabels[locale]}

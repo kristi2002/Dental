@@ -22,3 +22,6 @@ yarn-error.log*
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# Patient files (X-rays, photos, consent forms) — real medical data, never in git
+/storage

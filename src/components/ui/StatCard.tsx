@@ -17,16 +17,22 @@ export function StatCard({
 }) {
   const body = (
     <>
+      {/* A tinted tile with no outline at all — the fill is the shape. */}
       <span
         className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-2',
-          tone === 'warn' ? 'border-warn bg-warn-soft text-warn' : 'border-line bg-paper text-brand',
+          'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+          tone === 'warn' ? 'bg-accent-soft text-warn' : 'bg-brand-soft text-brand-deep',
         )}
       >
         <Icon size={22} aria-hidden />
       </span>
       <span className="min-w-0">
-        <span className="block text-[2rem] leading-none font-bold tabular-nums text-ink">
+        <span
+          className={cn(
+            'block text-[2rem] leading-none font-bold tabular-nums',
+            tone === 'warn' ? 'text-warn' : 'text-brand-deep',
+          )}
+        >
           {value}
         </span>
         <span className="mt-1 block text-[0.95rem] font-semibold text-ink-soft">{label}</span>
@@ -35,8 +41,8 @@ export function StatCard({
   );
 
   const className = cn(
-    'card flex items-center gap-4 px-5 py-4 no-underline transition-colors',
-    href && 'hover:border-brand',
+    'card flex items-center gap-4 px-5 py-4 no-underline transition-shadow transition-colors',
+    href && 'hover:border-brand hover:shadow-pop',
   );
 
   return href ? (

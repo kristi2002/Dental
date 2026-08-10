@@ -3,36 +3,73 @@
 /*
  * DentOrganizer visual language
  * -----------------------------
- * The brief is a dentist who trusts paper. So: a warm paper background, near-black
- * ink, one confident blue for anything clickable, and borders you can actually see.
- * No gradients, no low-contrast grey-on-grey, no decorative chrome.
+ * A calm clinical workspace: cool near-white surfaces, blue-grey ink, and one
+ * teal that carries every primary action. Peach is the second voice — it marks
+ * "add something new" and nothing else.
+ *
+ * Colour is kept quiet on purpose. Weight comes from hairlines and soft shadow,
+ * not from saturation or thick borders. Every value that ever sits under text
+ * is checked to at least 4.5:1 on white, so "softer" never means "harder to
+ * read" — the tokens with real contrast headroom are the ones text uses, and
+ * the bright ones are reserved for fills, icons and rules.
  */
 @theme {
-  --color-paper: #fbfaf7;
+  /* Surfaces */
+  --color-paper: #f4f6f7;
   --color-surface: #ffffff;
+  --color-surface-soft: #fafbfc;
 
-  --color-ink: #14181f;
-  --color-ink-soft: #4a5361;
-  --color-ink-faint: #6b7480;
+  /* Ink — blue-grey rather than black. Only two useful tiers below it: `faint`
+   * sits on real content (notes, timestamps, field hints), so it cannot go much
+   * paler than `soft` without dropping under 4.5:1 on the paper background.
+   * A genuinely light grey is available as `line-strong`, for rules and
+   * decoration that no one has to read. */
+  --color-ink: #37474f;
+  --color-ink-soft: #5f7178;
+  --color-ink-faint: #63737a;
 
-  --color-line: #ddd9d1;
-  --color-line-strong: #a8a39a;
+  /* Hairlines, not fences. */
+  --color-line: #e7ecee;
+  --color-line-strong: #cdd8dc;
 
-  --color-brand: #0b5cd5;
-  --color-brand-dark: #083f96;
-  --color-brand-soft: #e8f0fd;
+  /*
+   * Teal, in three weights:
+   *   brand      bright, for fills, icons, rules — never under small text
+   *   brand-dark 4.7:1, the solid button and the focus ring
+   *   brand-deep 6.0:1, teal text on a light background
+   */
+  --color-brand: #14a89e;
+  --color-brand-dark: #0c817a;
+  --color-brand-deep: #0b6f6a;
+  --color-brand-soft: #e3f5f3;
 
-  --color-ok: #157347;
-  --color-ok-soft: #e4f4ea;
-  --color-warn: #b45309;
-  --color-warn-soft: #fdf1e0;
-  --color-danger: #c02626;
-  --color-danger-soft: #fbe9e9;
+  /* Peach — the "new record" accent. Too light to carry white text, so
+   * anything on it is inked. */
+  --color-accent: #f5a262;
+  --color-accent-dark: #e2884a;
+  --color-accent-soft: #fdeddf;
 
+  /* Status hues are darker than they look like they need to be. Each one has to
+   * clear 4.5:1 against its OWN soft tint, not just against white — that tint is
+   * what a badge actually puts it on. */
+  --color-ok: #256f46;
+  --color-ok-soft: #e7f5ec;
+  --color-warn: #8f5f0d;
+  --color-warn-soft: #fdf2db;
+  --color-danger: #bf2f45;
+  --color-danger-soft: #fdecef;
+
+  /* Poppins is injected by next/font (see app/fonts.ts); the stack behind it is
+   * what renders during `display: swap` and if the font ever fails to load. */
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    var(--font-poppins), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
 
-  --radius-card: 0.75rem;
+  --radius-card: 0.875rem;
+
+  /* Depth is barely there — enough to lift a card off the page, no more. */
+  --shadow-card: 0 1px 2px rgb(55 71 79 / 0.04), 0 2px 8px rgb(55 71 79 / 0.05);
+  --shadow-pop: 0 4px 10px rgb(55 71 79 / 0.08), 0 16px 32px rgb(55 71 79 / 0.1);
 }
 
 @layer base {
@@ -49,15 +86,17 @@
     line-height: 1.55;
   }
 
-  /* One obvious focus treatment everywhere — keyboard users are never lost. */
+  /* One obvious focus treatment everywhere — keyboard users are never lost.
+   * brand-dark, not brand: the ring has to clear 3:1 against white itself. */
   :focus-visible {
-    outline: 3px solid var(--color-brand);
+    outline: 3px solid var(--color-brand-dark);
     outline-offset: 2px;
     border-radius: 4px;
   }
 
+  /* ink-soft, not ink-faint: a hint the user cannot read is not a hint. */
   ::placeholder {
-    color: var(--color-ink-faint);
+    color: var(--color-ink-soft);
   }
 
   /* Comfortable hit targets on touch screens and shaky hands alike. */
@@ -71,39 +110,45 @@
   }
 
   dialog::backdrop {
-    background: rgb(20 24 31 / 0.55);
+    background: rgb(55 71 79 / 0.45);
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-[var(--radius-card)] border-2 border-line bg-surface;
+    @apply rounded-[var(--radius-card)] border border-line bg-surface shadow-card;
   }
 
   .field-label {
     @apply mb-1.5 block text-[0.95rem] font-semibold text-ink;
   }
 
-  /* Inputs are tall, boxed and high-contrast — never a bare underline. */
+  /* Still tall and boxed — only the border got quieter. */
   .field-input {
-    @apply block w-full rounded-lg border-2 border-line-strong bg-surface px-3.5 py-2.5
+    @apply block w-full rounded-lg border border-line-strong bg-surface px-3.5 py-2.5
       text-[1.02rem] text-ink transition-colors
-      hover:border-ink-faint focus:border-brand focus:outline-none
+      hover:border-ink-faint focus:border-brand-dark focus:outline-none
       disabled:cursor-not-allowed disabled:bg-paper disabled:text-ink-faint;
   }
 
   .btn {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border-2
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border
       px-4 py-2 text-[1rem] font-semibold transition-colors
       disabled:cursor-not-allowed disabled:opacity-55;
   }
 
   .btn-primary {
-    @apply border-brand-dark bg-brand text-white hover:bg-brand-dark;
+    @apply border-brand-dark bg-brand-dark text-white hover:border-brand-deep hover:bg-brand-deep;
+  }
+
+  /* Peach reads as light no matter what, so it takes ink — white on peach is
+   * roughly 2:1 and unreadable. */
+  .btn-accent {
+    @apply border-accent bg-accent text-ink hover:border-accent-dark hover:bg-accent-dark;
   }
 
   .btn-secondary {
-    @apply border-line-strong bg-surface text-ink hover:border-ink hover:bg-paper;
+    @apply border-line-strong bg-surface text-ink hover:border-ink-faint hover:bg-paper;
   }
 
   .btn-danger {
@@ -120,5 +165,63 @@
 
   .btn-lg {
     @apply min-h-16 px-5 text-[1.1rem];
+  }
+
+  /* --- App chrome ---------------------------------------------------- */
+
+  /* The masthead: teal deepening to the left, so the wordmark sits on the
+   * densest part of the gradient and stays legible. */
+  .app-header {
+    background-image: linear-gradient(100deg, #0b8f86 0%, #16a89d 46%, #3cc4b8 100%);
+  }
+
+  /* A flat spectrum rule under the masthead, teal walking round to peach.
+   * Purely decorative, hence aria-hidden wherever it is used. */
+  .app-spectrum {
+    height: 6px;
+    background-image: linear-gradient(
+      90deg,
+      #0b8f86 0% 14%,
+      #2bb3a8 14% 28%,
+      #63cbc1 28% 42%,
+      #a9e0da 42% 56%,
+      #f7dccb 56% 70%,
+      #f6bfa8 70% 85%,
+      #f0a291 85% 100%
+    );
+  }
+
+  /* Header controls live on teal, so they are outlined in white at low alpha
+   * rather than in a line colour that would vanish. */
+  .on-brand-control {
+    @apply border border-white/35 text-white transition-colors hover:bg-white/15;
+  }
+}
+
+/* --- Print -------------------------------------------------------------
+ * Prescription sheets and the daily digest are printed on real paper. The app
+ * chrome is navigation, not content, so it never reaches the page — anything
+ * marked `data-print-hide` disappears along with the header, nav and footer. */
+@media print {
+  .app-header,
+  .app-spectrum,
+  nav,
+  footer,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  /* Borders survive the trip to a monochrome printer; shadows do not. */
+  .card {
+    border-color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  body {
+    background: #fff !important;
   }
 }

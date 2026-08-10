@@ -14,7 +14,8 @@ type Props = {
   triggerTitle?: string;
   title: string;
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
-  children: ReactNode;
+  /** A function form receives the action state, for fields that react to an error. */
+  children: ReactNode | ((state: ActionState) => ReactNode);
   submitLabel: string;
   pendingLabel: string;
   cancelLabel: string;
@@ -44,8 +45,19 @@ export function FormDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const handledTs = useRef<number | undefined>(undefined);
-  const [state, formAction] = useActionState(action, IDLE_STATE);
+  const submitted = useRef<FormData | null>(null);
   const titleId = useId();
+
+  // React 19 clears an uncontrolled form once its action resolves. That is right
+  // after a save and wrong after a refusal — nobody wants to retype a visit
+  // because the slot clashed — so the submitted values are kept and put back.
+  const [state, formAction] = useActionState(
+    async (previous: ActionState, formData: FormData) => {
+      submitted.current = formData;
+      return action(previous, formData);
+    },
+    IDLE_STATE,
+  );
 
   useEffect(() => {
     if (state.status !== 'ok' || state.ts === handledTs.current) return;
@@ -53,6 +65,29 @@ export function FormDialog({
     if (resetOnSuccess) formRef.current?.reset();
     dialogRef.current?.close();
   }, [state, resetOnSuccess]);
+
+  useEffect(() => {
+    if (state.status !== 'error' || state.ts === handledTs.current) return;
+    handledTs.current = state.ts;
+
+    const form = formRef.current;
+    const values = submitted.current;
+    if (!form || !values) return;
+
+    for (const [name, value] of values.entries()) {
+      // React's own action bookkeeping fields, and anything non-textual.
+      if (name.startsWith('$') || typeof value !== 'string') continue;
+
+      const field = form.elements.namedItem(name);
+      if (
+        (field instanceof HTMLInputElement && field.type !== 'checkbox' && field.type !== 'radio') ||
+        field instanceof HTMLSelectElement ||
+        field instanceof HTMLTextAreaElement
+      ) {
+        field.value = value;
+      }
+    }
+  }, [state]);
 
   return (
     <>
@@ -71,12 +106,12 @@ export function FormDialog({
         onClose={onClose}
         className={cn(
           'm-auto w-[min(92vw,34rem)] max-h-[88vh] overflow-visible rounded-[var(--radius-card)]',
-          'border-2 border-ink bg-surface p-0 text-ink',
+          'border border-line bg-surface p-0 text-ink shadow-pop',
           wide && 'w-[min(94vw,52rem)]',
         )}
       >
         <div className="flex max-h-[88vh] flex-col">
-          <header className="flex items-center justify-between gap-4 border-b-2 border-line px-5 py-4">
+          <header className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
             <h2 id={titleId} className="text-xl font-bold">
               {title}
             </h2>
@@ -92,18 +127,18 @@ export function FormDialog({
 
           <form ref={formRef} action={formAction} className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
-              {children}
+              {typeof children === 'function' ? children(state) : children}
               {state.status === 'error' ? (
                 <p
                   role="alert"
-                  className="rounded-lg border-2 border-danger bg-danger-soft px-3 py-2 font-semibold text-danger"
+                  className="rounded-lg border border-danger bg-danger-soft px-3 py-2 font-semibold text-danger"
                 >
                   {state.message}
                 </p>
               ) : null}
             </div>
 
-            <footer className="flex items-center justify-end gap-3 border-t-2 border-line px-5 py-4">
+            <footer className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">
               <button
                 type="button"
                 className="btn btn-secondary"

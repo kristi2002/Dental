@@ -3,8 +3,8 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { AppShell } from '@/components/layout/AppShell';
 import { routing } from '@/i18n/routing';
+import { poppins } from '../fonts';
 import '../globals.css';
 
 export function generateStaticParams() {
@@ -38,12 +38,12 @@ export default async function LocaleLayout({
   }
   setRequestLocale(locale);
 
+  // The signed-in chrome lives in `(app)/layout.tsx`; the login screen renders
+  // inside this document without it.
   return (
-    <html lang={locale}>
+    <html lang={locale} className={poppins.variable}>
       <body>
-        <NextIntlClientProvider>
-          <AppShell>{children}</AppShell>
-        </NextIntlClientProvider>
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
     </html>
   );

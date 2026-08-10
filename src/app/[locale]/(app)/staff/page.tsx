@@ -1,0 +1,202 @@
+import { LockOpen, Power, ShieldCheck, Users } from 'lucide-react';
+import type { Metadata } from 'next';
+import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
+import { RoleBadge } from '@/components/auth/RoleBadge';
+import { BackupCard } from '@/components/staff/BackupCard';
+import { StaffFormDialog } from '@/components/staff/StaffFormDialog';
+import { ActionForm } from '@/components/ui/ActionForm';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Role } from '@/generated/prisma/enums';
+import { setStaffActive, unlockStaff } from '@/lib/actions/staff';
+import { requirePermission } from '@/lib/auth/guard';
+import { ROLE_ORDER, ROLE_PERMISSIONS } from '@/lib/auth/permissions';
+import { prisma } from '@/lib/prisma';
+import { cn, initials } from '@/lib/utils';
+
+export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'staff' });
+  return { title: t('title') };
+}
+
+export default async function StaffPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const currentUser = await requirePermission('staff.manage');
+
+  const t = await getTranslations('staff');
+  const tp = await getTranslations('permissions');
+  const format = await getFormatter();
+
+  const staff = await prisma.staffUser.findMany({
+    orderBy: [{ active: 'desc' }, { role: 'asc' }, { firstName: 'asc' }],
+  });
+
+  const now = new Date();
+  const activeOwners = staff.filter((s) => s.role === Role.OWNER && s.active).length;
+
+  return (
+    <>
+      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={<StaffFormDialog />} />
+
+      <div className="space-y-6">
+        <Card>
+          <CardHeader title={t('people')} icon={<Users size={22} aria-hidden />} />
+
+          <ul className="divide-y-2 divide-line">
+            {staff.map((person) => {
+              const locked = Boolean(person.lockedUntil && person.lockedUntil > now);
+              // Never offer the click that would leave nobody able to manage staff.
+              const isLastOwner = person.role === Role.OWNER && person.active && activeOwners === 1;
+
+              return (
+                <li
+                  key={person.id}
+                  className={cn(
+                    'flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4',
+                    !person.active && 'opacity-60',
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-[1.05rem] font-bold text-brand-deep"
+                    >
+                      {initials(person.firstName, person.lastName)}
+                    </span>
+
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-[1.12rem] font-bold text-ink">
+                          {person.firstName} {person.lastName}
+                        </span>
+                        <RoleBadge role={person.role} />
+                        {person.id === currentUser.id ? (
+                          <Badge tone="neutral">{t('you')}</Badge>
+                        ) : null}
+                        {!person.active ? <Badge tone="danger">{t('disabled')}</Badge> : null}
+                        {locked ? <Badge tone="warn">{t('locked')}</Badge> : null}
+                      </p>
+                      <p className="mt-0.5 text-[0.93rem] text-ink-soft">
+                        {person.lastLoginAt
+                          ? t('lastSeen', {
+                              when: format.dateTime(person.lastLoginAt, {
+                                day: 'numeric',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              }),
+                            })
+                          : t('neverSignedIn')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StaffFormDialog
+                      staff={{
+                        id: person.id,
+                        firstName: person.firstName,
+                        lastName: person.lastName,
+                        role: person.role,
+                      }}
+                    />
+
+                    {locked ? (
+                      <ActionForm action={unlockStaff} values={{ id: person.id }}>
+                        <button type="submit" className="btn btn-secondary btn-sm">
+                          <LockOpen size={17} aria-hidden />
+                          {t('unlock')}
+                        </button>
+                      </ActionForm>
+                    ) : null}
+
+                    {isLastOwner ? (
+                      <span className="text-[0.9rem] text-ink-faint">{t('lastOwnerHint')}</span>
+                    ) : (
+                      <ActionForm
+                        action={setStaffActive}
+                        values={{ id: person.id, active: person.active ? '0' : '1' }}
+                        confirmMessage={person.active ? t('confirmDisable') : undefined}
+                      >
+                        <button
+                          type="submit"
+                          className={cn(
+                            'btn btn-sm',
+                            person.active ? 'btn-danger' : 'btn-secondary',
+                          )}
+                        >
+                          <Power size={17} aria-hidden />
+                          {person.active ? t('disable') : t('enable')}
+                        </button>
+                      </ActionForm>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+
+        {/* The permission matrix, visible rather than buried in code — the owner
+            can answer "can the receptionist see medical notes?" without asking. */}
+        <Card>
+          <CardHeader title={t('matrixTitle')} icon={<ShieldCheck size={22} aria-hidden />} />
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[40rem] border-collapse text-left">
+              <thead>
+                <tr className="border-b-2 border-line">
+                  <th className="px-5 py-3 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+                    {t('capability')}
+                  </th>
+                  {ROLE_ORDER.map((role) => (
+                    <th key={role} className="px-3 py-3 text-center">
+                      <RoleBadge role={role} />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ROLE_PERMISSIONS[Role.OWNER].map((permission) => (
+                  <tr key={permission} className="border-b border-line last:border-b-0">
+                    <td className="px-5 py-2.5 text-[1rem] text-ink">{tp(permission)}</td>
+                    {ROLE_ORDER.map((role) => {
+                      const allowed = ROLE_PERMISSIONS[role].includes(permission);
+                      return (
+                        <td key={role} className="px-3 py-2.5 text-center">
+                          <span
+                            className={cn(
+                              'text-[1.15rem] font-bold',
+                              allowed ? 'text-ok' : 'text-line-strong',
+                            )}
+                          >
+                            {allowed ? '✓' : '—'}
+                          </span>
+                          <span className="sr-only">
+                            {allowed ? t('allowed') : t('notAllowed')}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {currentUser.permissions.includes('backup.export') ? <BackupCard /> : null}
+      </div>
+    </>
+  );
+}

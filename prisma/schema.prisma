@@ -12,6 +12,72 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
+/// Who may do what. One row per person who touches the app; there is no
+/// self-service signup — the owner creates every account from the Staff page.
+model StaffUser {
+  id        String  @id @default(uuid())
+  firstName String
+  lastName  String
+  role      Role    @default(RECEPTIONIST)
+  /// scrypt digest of the PIN, hex. Never the PIN itself.
+  pinHash   String
+  pinSalt   String
+  /// Deactivating keeps the audit trail intact; deleting a person would not.
+  active    Boolean @default(true)
+
+  /// Brute-force guard for a 4–6 digit secret: lock the account, not the device.
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditEntries   AuditLog[]
+  visitRecords   VisitRecord[]
+  stockMovements StockMovement[]
+  documents      PatientDocument[]
+  prescriptions  Prescription[]
+
+  @@index([active])
+}
+
+enum Role {
+  /// Owner / dentist — everything, including staff and statistics.
+  OWNER
+  /// Assistant / nurse — clinical work, no business figures, no deletions.
+  ASSISTANT
+  /// Front desk — scheduling and contact details, no clinical record.
+  RECEPTIONIST
+  /// Locum or accountant — looks, changes nothing.
+  READONLY
+}
+
+/// Append-only record of who changed what. Written by the action guard, never
+/// edited, and readable only by the owner.
+model AuditLog {
+  id      String     @id @default(uuid())
+  actorId String?
+  actor   StaffUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  /// Name and role are snapshotted so the trail still reads correctly after a
+  /// person is renamed, demoted or removed.
+  actorName String
+  /// Null when the actor is not staff — a patient answering their own
+  /// confirmation link has a name but no role in the practice.
+  actorRole Role?
+
+  action   String // create · update · delete · login · logout · denied
+  entity   String // patient · appointment · visit · tooth · stock · service · staff · session
+  entityId String?
+  summary  String // already composed for display
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity])
+  @@index([actorId])
+}
+
 model Patient {
   id           String        @id @default(uuid())
   firstName    String
@@ -22,9 +88,20 @@ model Patient {
   medicalNotes String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-  appointments Appointment[]
-  visitRecords VisitRecord[]
-  teethRecords ToothRecord[]
+  appointments  Appointment[]
+  visitRecords  VisitRecord[]
+  teethRecords  ToothRecord[]
+  waitlist      WaitlistEntry[]
+  plans         TreatmentPlan[]
+  documents     PatientDocument[]
+  prescriptions Prescription[]
+
+  /// Recall: how often this patient should be seen. 0 disables recall for them.
+  recallMonths Int @default(6)
+  /// Set by "remind me later" so a declined patient stops resurfacing daily.
+  recallSnoozedUntil DateTime?
+  /// Stamped when the recall message is opened, so the list stops nagging.
+  lastRecallAt       DateTime?
 }
 
 model Appointment {
@@ -39,7 +116,121 @@ model Appointment {
   serviceName String?
   createdAt   DateTime          @default(now())
 
+  /// Set when the patient answers the confirmation link themselves. No token is
+  /// stored — it is derived from the id, so a leaked row reveals no way in.
+  confirmedAt DateTime?
+  declinedAt  DateTime?
+
+  /// The plan step this appointment fulfils, when it came from a treatment plan.
+  planStep TreatmentStep?
+
   @@index([date])
+  @@index([patientId])
+}
+
+/// A course of treatment that spans several visits. The point is that a
+/// half-finished plan stays visible instead of being remembered by one person.
+model TreatmentPlan {
+  id        String            @id @default(uuid())
+  patientId String
+  patient   Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  title     String
+  notes     String?
+  status    TreatmentPlanStatus @default(ACTIVE)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  steps TreatmentStep[]
+
+  @@index([patientId])
+  @@index([status])
+}
+
+enum TreatmentPlanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model TreatmentStep {
+  id     String        @id @default(uuid())
+  planId String
+  plan   TreatmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  /// Position in the sequence, 1-based. Gaps are fine; only the order matters.
+  position    Int
+  title       String
+  toothNum    Int?
+  notes       String?
+  status      TreatmentStepStatus @default(PENDING)
+  completedAt DateTime?
+
+  /// Booking the step links it here, so "3 of 5 done" and the calendar agree.
+  appointmentId String?      @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([planId])
+}
+
+enum TreatmentStepStatus {
+  PENDING
+  DONE
+  SKIPPED
+}
+
+/// X-rays, photos and signed forms. The bytes live on disk (see `src/lib/files.ts`);
+/// this row is the index, and the only thing the backup export carries.
+model PatientDocument {
+  id        String       @id @default(uuid())
+  patientId String
+  patient   Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  kind      DocumentKind @default(OTHER)
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+  /// Opaque on-disk name. Never the original filename — that is user input.
+  storageKey String  @unique
+  toothNum   Int?
+  notes      String?
+
+  uploadedById String?
+  uploadedBy   StaffUser? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+
+  @@index([patientId])
+}
+
+enum DocumentKind {
+  XRAY
+  PHOTO
+  CONSENT
+  OTHER
+}
+
+/// Reusable wording for the handful of things a dentist prescribes weekly.
+model PrescriptionTemplate {
+  id       String  @id @default(uuid())
+  name     String
+  category String?
+  body     String
+
+  prescriptions Prescription[]
+}
+
+model Prescription {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  templateId String?
+  template   PrescriptionTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  /// The final text as issued — a later template edit must not rewrite history.
+  body String
+
+  issuedById String?
+  issuedBy   StaffUser? @relation(fields: [issuedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime   @default(now())
+
   @@index([patientId])
 }
 
@@ -58,6 +249,10 @@ model VisitRecord {
   notes     String
   services  String // JSON string or comma-separated list of services done
   createdAt DateTime @default(now())
+
+  /// Who recorded it — shown on the timeline, kept when the account is disabled.
+  staffUserId String?
+  staffUser   StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
 
   @@index([patientId])
   @@index([visitDate])
@@ -84,7 +279,8 @@ model StockItem {
   unit      String   @default("pcs")
   updatedAt DateTime @updatedAt
 
-  movements StockMovement[]
+  movements  StockMovement[]
+  usedBy     ServiceMaterial[]
 }
 
 /// Append-only log of quantity changes — powers the "stock usage" analytics chart
@@ -97,6 +293,9 @@ model StockMovement {
   reason    String? // e.g. "manual", "restock", "used in visit"
   createdAt DateTime @default(now())
 
+  staffUserId String?
+  staffUser   StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
+
   @@index([itemId])
   @@index([createdAt])
 }
@@ -106,4 +305,39 @@ model Service {
   name        String
   category    String?
   durationMin Int     @default(30)
+
+  materials ServiceMaterial[]
+}
+
+/// The bill of materials for a treatment. Recording a visit that includes the
+/// service automatically logs the matching StockMovements, so consumption is
+/// captured without anyone tapping −1 ten times.
+model ServiceMaterial {
+  id        String    @id @default(uuid())
+  serviceId String
+  service   Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantity  Int       @default(1)
+
+  @@unique([serviceId, itemId])
+  @@index([serviceId])
+}
+
+/// Patients who want an earlier slot. When an appointment is cancelled the app
+/// offers the freed slot to whoever on this list actually fits it.
+model WaitlistEntry {
+  id          String  @id @default(uuid())
+  patientId   String
+  patient     Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  serviceName String?
+  durationMin Int     @default(30)
+  note        String?
+  urgent      Boolean @default(false)
+
+  createdAt  DateTime  @default(now())
+  /// Set when the person is booked or the request is dropped.
+  resolvedAt DateTime?
+
+  @@index([resolvedAt])
 }

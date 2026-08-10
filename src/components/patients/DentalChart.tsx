@@ -28,9 +28,12 @@ function statusOf(records: ToothRecordMap, toothNum: number): ToothStatus {
 export function DentalChart({
   patientId,
   records,
+  readOnly = false,
 }: {
   patientId: string;
   records: ToothRecordMap;
+  /** A locum can study the chart; only clinical staff may change it. */
+  readOnly?: boolean;
 }) {
   const t = useTranslations('teeth');
   const tc = useTranslations('common');
@@ -82,14 +85,14 @@ export function DentalChart({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border-2 border-line bg-paper px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-line bg-paper px-4 py-3">
         <span className="text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</span>
         {TOOTH_STATUSES.map((status) => (
           <span key={status} className="flex items-center gap-2 text-[0.95rem] text-ink">
             <span
               aria-hidden
               className={cn(
-                'inline-flex h-6 w-6 items-center justify-center rounded border-2 text-[0.75rem] font-bold',
+                'inline-flex h-6 w-6 items-center justify-center rounded border text-[0.75rem] font-bold',
                 TOOTH_STATUS_STYLE[status].swatch,
               )}
             >
@@ -105,12 +108,12 @@ export function DentalChart({
       <dialog
         ref={dialogRef}
         aria-labelledby={`${uid}-title`}
-        className="m-auto w-[min(92vw,32rem)] rounded-[var(--radius-card)] border-2 border-ink bg-surface p-0 text-ink"
+        className="m-auto w-[min(92vw,32rem)] rounded-[var(--radius-card)] border border-line bg-surface p-0 text-ink shadow-pop"
         onClose={() => setSelected(null)}
       >
         {selected === null ? null : (
           <>
-            <header className="flex items-center justify-between gap-4 border-b-2 border-line px-5 py-4">
+            <header className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
               <h2 id={`${uid}-title`} className="text-xl font-bold">
                 {t('tooth', { num: selected })}
               </h2>
@@ -124,80 +127,114 @@ export function DentalChart({
               </button>
             </header>
 
-            <form action={formAction}>
-              <div className="space-y-4 px-5 py-5">
-                <input type="hidden" name="patientId" value={patientId} />
-                <input type="hidden" name="toothNum" value={selected} />
-
-                <fieldset>
-                  <legend className="field-label">{t('condition')}</legend>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {TOOTH_STATUSES.map((status) => (
-                      <label
-                        key={status}
-                        className={cn(
-                          'flex cursor-pointer items-center gap-2 rounded-lg border-2 border-line-strong px-2.5 py-2',
-                          'text-[0.92rem] font-semibold hover:border-ink',
-                          'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-dark',
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          name="status"
-                          value={status}
-                          defaultChecked={statusOf(records, selected) === status}
-                          className="sr-only"
-                        />
-                        <span
-                          aria-hidden
-                          className={cn(
-                            'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 text-[0.7rem] font-bold',
-                            TOOTH_STATUS_STYLE[status].swatch,
-                          )}
-                        >
-                          {TOOTH_STATUS_STYLE[status].short}
-                        </span>
-                        {t(`status_${status}`)}
-                      </label>
-                    ))}
+            {readOnly ? (
+              <>
+                <div className="space-y-4 px-5 py-5">
+                  <div>
+                    <p className="field-label">{t('condition')}</p>
+                    <p className="text-[1.05rem] font-semibold text-ink">
+                      {t(`status_${statusOf(records, selected)}`)}
+                    </p>
                   </div>
-                </fieldset>
-
-                <div>
-                  <label className="field-label" htmlFor={`${uid}-notes`}>
-                    {t('notes')}
-                    <span className="ml-1.5 font-normal text-ink-faint">({tc('optional')})</span>
-                  </label>
-                  <textarea
-                    id={`${uid}-notes`}
-                    name="notes"
-                    rows={3}
-                    className="field-input min-h-20 resize-y"
-                    defaultValue={current?.notes ?? ''}
-                  />
+                  <div>
+                    <p className="field-label">{t('notes')}</p>
+                    <p
+                      className={cn(
+                        'text-[1.02rem] whitespace-pre-line',
+                        current?.notes ? 'text-ink' : 'text-ink-faint',
+                      )}
+                    >
+                      {current?.notes || tc('none')}
+                    </p>
+                  </div>
                 </div>
 
-                {state.status === 'error' ? (
-                  <p
-                    role="alert"
-                    className="rounded-lg border-2 border-danger bg-danger-soft px-3 py-2 font-semibold text-danger"
+                <footer className="flex items-center justify-end border-t border-line px-5 py-4">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => dialogRef.current?.close()}
                   >
-                    {state.message}
-                  </p>
-                ) : null}
-              </div>
+                    {tc('close')}
+                  </button>
+                </footer>
+              </>
+            ) : (
+              <form action={formAction}>
+                <div className="space-y-4 px-5 py-5">
+                  <input type="hidden" name="patientId" value={patientId} />
+                  <input type="hidden" name="toothNum" value={selected} />
 
-              <footer className="flex items-center justify-end gap-3 border-t-2 border-line px-5 py-4">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => dialogRef.current?.close()}
-                >
-                  {tc('cancel')}
-                </button>
-                <SubmitButton label={tc('save')} pendingLabel={tc('saving')} />
-              </footer>
-            </form>
+                  <fieldset>
+                    <legend className="field-label">{t('condition')}</legend>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {TOOTH_STATUSES.map((status) => (
+                        <label
+                          key={status}
+                          className={cn(
+                            'flex cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-2.5 py-2',
+                            'text-[0.92rem] font-semibold hover:border-ink',
+                            'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="status"
+                            value={status}
+                            defaultChecked={statusOf(records, selected) === status}
+                            className="sr-only"
+                          />
+                          <span
+                            aria-hidden
+                            className={cn(
+                              'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[0.7rem] font-bold',
+                              TOOTH_STATUS_STYLE[status].swatch,
+                            )}
+                          >
+                            {TOOTH_STATUS_STYLE[status].short}
+                          </span>
+                          {t(`status_${status}`)}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <div>
+                    <label className="field-label" htmlFor={`${uid}-notes`}>
+                      {t('notes')}
+                      <span className="ml-1.5 font-normal text-ink-faint">({tc('optional')})</span>
+                    </label>
+                    <textarea
+                      id={`${uid}-notes`}
+                      name="notes"
+                      rows={3}
+                      className="field-input min-h-20 resize-y"
+                      defaultValue={current?.notes ?? ''}
+                    />
+                  </div>
+
+                  {state.status === 'error' ? (
+                    <p
+                      role="alert"
+                      className="rounded-lg border border-danger bg-danger-soft px-3 py-2 font-semibold text-danger"
+                    >
+                      {state.message}
+                    </p>
+                  ) : null}
+                </div>
+
+                <footer className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => dialogRef.current?.close()}
+                  >
+                    {tc('cancel')}
+                  </button>
+                  <SubmitButton label={tc('save')} pendingLabel={tc('saving')} />
+                </footer>
+              </form>
+            )}
           </>
         )}
       </dialog>
@@ -245,7 +282,7 @@ function Arch({
                   onClick={() => onSelect(toothNum)}
                   aria-label={toothLabel(toothNum)}
                   className={cn(
-                    'relative flex h-14 w-full flex-col items-center justify-center rounded-md border-2 font-bold transition-colors',
+                    'relative flex h-14 w-full flex-col items-center justify-center rounded-md border font-bold transition-colors',
                     style.button,
                   )}
                 >

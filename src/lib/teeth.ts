@@ -25,50 +25,55 @@ export function isToothStatus(value: string): value is ToothStatus {
   return (TOOTH_STATUSES as readonly string[]).includes(value);
 }
 
-/** High-contrast fills — each one also carries a distinct letter, so the chart
- *  stays readable without relying on colour alone. */
+/** Pale fills carrying dark, same-hue text. This reads quieter than the saturated
+ *  blocks it replaces AND lands better contrast on the tooth number, which used to
+ *  be white on mid-tone red. Each status also carries a distinct letter, so the
+ *  chart never depends on colour alone.
+ *
+ *  EXTRACTED stays the one dark chip — it is the status you want to spot from
+ *  across the room. */
 export const TOOTH_STATUS_STYLE: Record<
   ToothStatus,
   { swatch: string; button: string; short: string }
 > = {
   HEALTHY: {
-    swatch: 'bg-white border-slate-400',
-    button: 'bg-white border-slate-400 text-slate-900 hover:border-slate-900',
+    swatch: 'bg-white border-slate-300 text-slate-700',
+    button: 'bg-white border-slate-300 text-slate-700 hover:border-slate-500',
     short: '',
   },
   CARIES: {
-    swatch: 'bg-red-500 border-red-700',
-    button: 'bg-red-500 border-red-700 text-white hover:border-red-900',
+    swatch: 'bg-rose-100 border-rose-300 text-rose-800',
+    button: 'bg-rose-100 border-rose-300 text-rose-800 hover:border-rose-500',
     short: 'C',
   },
   FILLED: {
-    swatch: 'bg-blue-500 border-blue-700',
-    button: 'bg-blue-500 border-blue-700 text-white hover:border-blue-900',
+    swatch: 'bg-sky-100 border-sky-300 text-sky-800',
+    button: 'bg-sky-100 border-sky-300 text-sky-800 hover:border-sky-500',
     short: 'F',
   },
   CROWN: {
-    swatch: 'bg-amber-400 border-amber-600',
-    button: 'bg-amber-400 border-amber-600 text-slate-900 hover:border-amber-800',
+    swatch: 'bg-amber-100 border-amber-300 text-amber-800',
+    button: 'bg-amber-100 border-amber-300 text-amber-800 hover:border-amber-500',
     short: 'K',
   },
   ROOT_CANAL: {
-    swatch: 'bg-violet-500 border-violet-700',
-    button: 'bg-violet-500 border-violet-700 text-white hover:border-violet-900',
+    swatch: 'bg-violet-100 border-violet-300 text-violet-800',
+    button: 'bg-violet-100 border-violet-300 text-violet-800 hover:border-violet-500',
     short: 'R',
   },
   EXTRACTED: {
-    swatch: 'bg-slate-700 border-slate-900',
-    button: 'bg-slate-700 border-slate-900 text-white hover:border-black',
+    swatch: 'bg-slate-600 border-slate-700 text-white',
+    button: 'bg-slate-600 border-slate-700 text-white hover:border-slate-900',
     short: '×',
   },
   IMPLANT: {
-    swatch: 'bg-teal-500 border-teal-700',
-    button: 'bg-teal-500 border-teal-700 text-white hover:border-teal-900',
+    swatch: 'bg-teal-100 border-teal-300 text-teal-800',
+    button: 'bg-teal-100 border-teal-300 text-teal-800 hover:border-teal-500',
     short: 'I',
   },
   MISSING: {
-    swatch: 'bg-slate-200 border-slate-400',
-    button: 'bg-slate-200 border-slate-400 text-slate-500 hover:border-slate-700',
+    swatch: 'bg-slate-100 border-slate-300 text-slate-600',
+    button: 'bg-slate-100 border-slate-300 text-slate-600 hover:border-slate-500',
     short: '–',
   },
 };

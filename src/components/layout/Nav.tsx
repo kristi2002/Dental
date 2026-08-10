@@ -1,11 +1,13 @@
 'use client';
 
 import {
+  BellRing,
   CalendarDays,
   ChartColumn,
   LayoutDashboard,
   Package,
   Stethoscope,
+  Sun,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -13,24 +15,29 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
-const ITEMS: Array<{ href: string; key: string; Icon: LucideIcon }> = [
-  { href: '/', key: 'dashboard', Icon: LayoutDashboard },
-  { href: '/appointments', key: 'appointments', Icon: CalendarDays },
-  { href: '/patients', key: 'patients', Icon: Users },
-  { href: '/services', key: 'services', Icon: Stethoscope },
-  { href: '/stock', key: 'stock', Icon: Package },
-  { href: '/analytics', key: 'analytics', Icon: ChartColumn },
-];
+/** Every destination the bar can show, in order. What a given person sees is
+ *  decided on the server — see `NAV_DESTINATIONS` in `nav-destinations.ts`. */
+const ICONS: Record<string, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  digest: Sun,
+  appointments: CalendarDays,
+  patients: Users,
+  recalls: BellRing,
+  services: Stethoscope,
+  stock: Package,
+  analytics: ChartColumn,
+};
 
-export function Nav() {
+export function Nav({ items }: { items: Array<{ href: string; key: string }> }) {
   const t = useTranslations('nav');
   const pathname = usePathname();
 
   return (
-    <nav aria-label={t('menu')} className="lg:flex-1">
-      <ul className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:gap-1.5 lg:overflow-visible lg:px-3 lg:pb-0">
-        {ITEMS.map(({ href, key, Icon }) => {
+    <nav aria-label={t('menu')}>
+      <ul className="-mx-0.5 flex gap-0.5 overflow-x-auto">
+        {items.map(({ href, key }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+          const Icon = ICONS[key] ?? LayoutDashboard;
 
           return (
             <li key={href}>
@@ -38,13 +45,19 @@ export function Nav() {
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-12 items-center gap-2.5 rounded-lg border-2 px-3.5 py-2 text-[1rem] font-semibold whitespace-nowrap transition-colors',
+                  // The teal underbar, not just teal text — the current page has
+                  // to be findable without relying on colour alone.
+                  'relative flex min-h-14 items-center gap-2 px-2.5 py-2 text-[0.92rem] font-semibold whitespace-nowrap no-underline transition-colors',
+                  // The scroll container below would clip an outset focus ring,
+                  // so this one is drawn inside the item instead.
+                  'focus-visible:outline-offset-[-3px]',
+                  'after:absolute after:inset-x-2 after:bottom-0 after:h-[3px] after:rounded-t-full after:transition-colors',
                   active
-                    ? 'border-brand-dark bg-brand text-white'
-                    : 'border-transparent text-ink-soft hover:border-line-strong hover:bg-paper hover:text-ink',
+                    ? 'text-brand-deep after:bg-brand'
+                    : 'text-ink-soft after:bg-transparent hover:text-ink',
                 )}
               >
-                <Icon size={21} aria-hidden />
+                <Icon size={18} aria-hidden className={active ? undefined : 'text-brand'} />
                 {t(key)}
               </Link>
             </li>

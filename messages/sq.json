@@ -11,7 +11,9 @@
     "stock": "Inventari",
     "analytics": "Statistikat",
     "language": "Gjuha",
-    "menu": "Menuja"
+    "menu": "Menuja",
+    "recalls": "Rikthimet",
+    "digest": "Sot"
   },
   "common": {
     "save": "Ruaj",
@@ -42,7 +44,8 @@
     "minutes": "min",
     "noResults": "Nuk u gjet asgjë",
     "viewAll": "Shiko të gjitha",
-    "saving": "Duke ruajtur…"
+    "saving": "Duke ruajtur…",
+    "viewOnly": "Vetëm shikim"
   },
   "dashboard": {
     "title": "Paneli",
@@ -59,7 +62,8 @@
     "statWeek": "Këtë javë",
     "statLowStock": "Stok i ulët",
     "openCalendar": "Hap kalendarin",
-    "openStock": "Hap inventarin"
+    "openStock": "Hap inventarin",
+    "statRecalls": "Rikthime"
   },
   "patients": {
     "title": "Pacientët",
@@ -94,7 +98,19 @@
     "visitServices": "Shërbimet e kryera",
     "visitServicesHint": "Zgjidh nga katalogu ose shkruaj vetë, ndarë me presje.",
     "noAppointments": "Nuk ka takime për këtë pacient.",
-    "deleteWarning": "Fshirja e pacientit fshin edhe takimet, vizitat dhe skemën dentare të tij."
+    "deleteWarning": "Fshirja e pacientit fshin edhe takimet, vizitat dhe skemën dentare të tij.",
+    "recallTitle": "Rikthimi",
+    "recallEvery": "Rikthimi çdo",
+    "recallMonths": "{months} muaj",
+    "recallOff": "Asnjëherë",
+    "recallHint": "Sa shpesh duhet thirrur ky pacient për kontroll.",
+    "medicalHidden": "Shënimet mjekësore nuk janë të dukshme për rolin tuaj.",
+    "recordedBy": "Regjistruar nga {name}",
+    "willDeduct": "Ruajtja do të heqë nga magazina materialet për {services}.",
+    "ageLabel": "Mosha",
+    "tabPlans": "Planet e trajtimit",
+    "tabDocuments": "Skedarët",
+    "tabPrescriptions": "Recetat"
   },
   "appointments": {
     "title": "Takimet",
@@ -131,7 +147,10 @@
     "status_COMPLETED": "I përfunduar",
     "status_CANCELLED": "I anuluar",
     "status_NO_SHOW": "Nuk erdhi",
-    "noPatients": "Shto fillimisht një pacient, më pas mund të caktosh takime."
+    "noPatients": "Shto fillimisht një pacient, më pas mund të caktosh takime.",
+    "bookAnyway": "Cakto gjithsesi — e di që përplaset",
+    "confirmed": "Konfirmuar",
+    "declined": "Refuzuar"
   },
   "services": {
     "title": "Shërbimet",
@@ -142,7 +161,11 @@
     "category": "Kategoria",
     "duration": "Kohëzgjatja e parashikuar",
     "empty": "Ende nuk ka shërbime. Shto trajtimet që ofron.",
-    "uncategorized": "Pa kategori"
+    "uncategorized": "Pa kategori",
+    "materials": "Materialet e përdorura",
+    "materialsHint": "Zgjidhni çfarë konsumon ky trajtim. Regjistrimi i një vizite i zbret automatikisht nga magazina.",
+    "materialsNoStock": "Shtoni fillimisht materiale te faqja e magazinës.",
+    "materialQuantity": "Sasia e {name}"
   },
   "stock": {
     "title": "Inventari",
@@ -212,7 +235,15 @@
   "reminders": {
     "whatsappTemplate": "Përshëndetje {name}, ju kujtojmë takimin tuaj dentar më {date} në orën {time}. Ju presim!",
     "emailSubject": "Kujtesë për takimin — {date} në orën {time}",
-    "emailBody": "Përshëndetje {name},\n\nJu kujtojmë me mirësjellje takimin tuaj dentar më {date} në orën {time}.\n\nNëse keni nevojë ta shtyni, thjesht përgjigjuni këtij emaili ose na telefononi.\n\nMe respekt,\nKlinika dentare"
+    "emailBody": "Përshëndetje {name},\n\nJu kujtojmë me mirësjellje takimin tuaj dentar më {date} në orën {time}.\n\nNëse keni nevojë ta shtyni, thjesht përgjigjuni këtij emaili ose na telefononi.\n\nMe respekt,\nKlinika dentare",
+    "recallWhatsapp": "Përshëndetje {name}, kanë kaluar {months} muaj nga kontrolli juaj i fundit. Dëshironi të caktoni një takim? Do të na vinte mirë t’ju shihnim.",
+    "recallEmailSubject": "Koha për kontrollin tuaj dentar",
+    "recallEmailBody": "Përshëndetje {name},\n\nSipas të dhënave tona, vizita juaj e fundit ishte më {last}. Një kontroll çdo disa muaj i mban problemet e vogla të vogla.\n\nThjesht përgjigjuni këtij emaili ose na telefononi për të caktuar një orar që ju përshtatet.\n\nMe respekt,\nKlinika dentare",
+    "followUpWhatsapp": "Përshëndetje {name}, kanë kaluar {days} ditë nga trajtimi juaj. Si po ndiheni? Na tregoni nëse diçka ju shqetëson.",
+    "followUpEmailSubject": "Si po ndiheni pas trajtimit?",
+    "followUpEmailBody": "Përshëndetje {name},\n\nKanë kaluar {days} ditë nga trajtimi juaj ({services}). Donim të dinim si po ia kaloni.\n\nNëse keni dhimbje ose diçka nuk shkon, përgjigjuni këtij emaili ose na telefononi dhe do t’ju presim.\n\nMe respekt,\nKlinika dentare",
+    "waitlistWhatsapp": "Përshëndetje {name}, u lirua një orar më {day} në {time}. E dëshironi? Na tregoni dhe e mbajmë për ju.",
+    "confirmAsk": "Ju lutemi na tregoni nëse do të vini: {link}"
   },
   "errors": {
     "generic": "Diçka shkoi keq. Ju lutemi provoni sërish.",
@@ -220,6 +251,311 @@
     "fillRequired": "Ju lutemi plotësoni të gjitha fushat e detyrueshme.",
     "notFound": "Nuk u gjet",
     "notFoundText": "Faqja që kërkoni nuk ekziston.",
-    "backHome": "Kthehu te paneli"
+    "backHome": "Kthehu te paneli",
+    "forbidden": "Roli juaj nuk e lejon këtë.",
+    "overlap": "Ky takim përplaset me një ekzistues: {list}."
+  },
+  "roles": {
+    "OWNER": "Pronar / Dentist",
+    "ASSISTANT": "Asistent",
+    "RECEPTIONIST": "Recepsionist",
+    "READONLY": "Vetëm lexim"
+  },
+  "permissions": {
+    "patient": {
+      "view": "Sheh pacientët",
+      "edit": "Shton dhe ndryshon pacientë",
+      "delete": "Fshin pacientë",
+      "medical": {
+        "view": "Sheh shënimet mjekësore dhe kartelën dentare",
+        "edit": "Regjistron vizita dhe përditëson kartelën"
+      }
+    },
+    "appointment": {
+      "view": "Sheh kalendarin",
+      "edit": "Cakton dhe ndryshon takime",
+      "delete": "Fshin takime"
+    },
+    "service": {
+      "view": "Sheh katalogun e shërbimeve",
+      "edit": "Shton dhe ndryshon shërbime",
+      "delete": "Fshin shërbime"
+    },
+    "stock": {
+      "view": "Sheh materialet",
+      "edit": "Rregullon dhe shton materiale",
+      "delete": "Fshin materiale"
+    },
+    "analytics": {
+      "view": "Sheh statistikat"
+    },
+    "recall": {
+      "view": "Sheh listën e rikthimeve",
+      "send": "Kontakton pacientët për rikthim"
+    },
+    "waitlist": {
+      "view": "Sheh listën e pritjes",
+      "edit": "Menaxhon listën e pritjes"
+    },
+    "staff": {
+      "manage": "Menaxhon stafin dhe rolet"
+    },
+    "audit": {
+      "view": "Sheh regjistrin e aktivitetit"
+    },
+    "plan": {
+      "view": "Sheh planet e trajtimit",
+      "edit": "Krijon dhe përditëson plane trajtimi"
+    },
+    "document": {
+      "view": "Sheh radiografitë dhe skedarët",
+      "edit": "Ngarkon radiografi dhe skedarë",
+      "delete": "Fshin radiografi dhe skedarë"
+    },
+    "prescription": {
+      "view": "Sheh recetat",
+      "edit": "Shkruan receta"
+    },
+    "backup": {
+      "export": "Eksporton një kopje rezervë"
+    }
+  },
+  "auth": {
+    "signIn": "Hyr",
+    "signingIn": "Duke hyrë…",
+    "subtitle": "Zgjidhni emrin tuaj, pastaj shkruani PIN-in.",
+    "whoAreYou": "Kush po e përdor aplikacionin?",
+    "enterPin": "Shkruani PIN-in tuaj",
+    "changePerson": "Dikush tjetër",
+    "clear": "Pastro",
+    "backspace": "Fshi shifrën e fundit",
+    "digitsEntered": "{count} shifra të shkruara",
+    "pinHint": "PIN-i ka {min} deri {max} shifra.",
+    "noStaff": "Nuk ka ende llogari stafi. Ekzekutoni seed-in e bazës për të krijuar të parën.",
+    "errorMissing": "Zgjidhni një emër dhe shkruani PIN-in.",
+    "errorWrongPin": "PIN i gabuar. {left, plural, =0 {} one {# provë e mbetur.} other {# prova të mbetura.}}",
+    "errorLocked": "Shumë prova. Provoni sërish pas {minutes} minutash, ose kërkoni pronarit ta zhbllokojë.",
+    "manageStaff": "Stafi dhe rolet",
+    "activity": "Regjistri i aktivitetit",
+    "signOut": "Dil"
+  },
+  "staff": {
+    "title": "Stafi dhe rolet",
+    "subtitle": "Kush punon këtu dhe çfarë lejohet të bëjë secili",
+    "people": "Personat",
+    "new": "Person i ri",
+    "edit": "Ndrysho personin",
+    "firstName": "Emri",
+    "lastName": "Mbiemri",
+    "role": "Roli",
+    "roleAllows": "Ky rol mund të",
+    "pin": "PIN",
+    "pinHintNew": "{min} deri {max} shifra. Tregojani personalisht.",
+    "pinHintEdit": "Lëreni bosh për të mbajtur PIN-in aktual.",
+    "you": "Ju",
+    "disabled": "Çaktivizuar",
+    "locked": "Bllokuar",
+    "lastSeen": "Hyrja e fundit {when}",
+    "neverSignedIn": "Nuk ka hyrë asnjëherë",
+    "unlock": "Zhblloko",
+    "disable": "Çaktivizo",
+    "enable": "Aktivizo",
+    "confirmDisable": "Ta çaktivizoni këtë llogari? Personi nuk do të mund të hyjë.",
+    "lastOwnerHint": "Pronari i vetëm",
+    "matrixTitle": "Çfarë mund të bëjë secili rol",
+    "capability": "Veprimi",
+    "allowed": "Lejohet",
+    "notAllowed": "Nuk lejohet",
+    "errorPinRequired": "Një llogari e re ka nevojë për PIN.",
+    "errorPinFormat": "PIN-i duhet të ketë 4 deri 6 shifra.",
+    "errorLastOwner": "Ky është pronari i vetëm — dikush duhet të vazhdojë të menaxhojë stafin."
+  },
+  "activity": {
+    "title": "Regjistri i aktivitetit",
+    "subtitle": "Çdo ndryshim dhe kush e bëri",
+    "filterLabel": "Filtro sipas llojit",
+    "recent": "{count} hyrjet e fundit",
+    "empty": "Ende asgjë e regjistruar.",
+    "action_create": "Shtoi",
+    "action_update": "Ndryshoi",
+    "action_delete": "Fshiu",
+    "action_login": "Hyri",
+    "action_logout": "Doli",
+    "action_denied": "U bllokua",
+    "entity_patient": "Pacient",
+    "entity_appointment": "Takim",
+    "entity_visit": "Vizitë",
+    "entity_tooth": "Kartela dentare",
+    "entity_stock": "Magazina",
+    "entity_service": "Shërbim",
+    "entity_staff": "Staf",
+    "entity_recall": "Rikthim",
+    "entity_waitlist": "Lista e pritjes",
+    "entity_session": "Qasje",
+    "actorPatient": "Pacient",
+    "action_confirmed": "Konfirmoi",
+    "action_declined": "Refuzoi",
+    "entity_plan": "Plan trajtimi",
+    "entity_document": "Skedar",
+    "entity_prescription": "Recetë",
+    "entity_backup": "Kopje rezervë"
+  },
+  "recalls": {
+    "title": "Rikthimet",
+    "subtitle": "Pacientët që ia vlen t’i telefononi sot",
+    "dueTitle": "Për kontroll",
+    "dueSubtitle": "{count, plural, =0 {Askush nuk ka vonesë} one {# pacient} other {# pacientë}}",
+    "dueEmpty": "Askush nuk ka vonesë. Të gjithë janë ose të caktuar ose të parë së fundmi.",
+    "followUpTitle": "Ndjekje pas trajtimit",
+    "followUpSubtitle": "{count, plural, =0 {Askush për ndjekje} one {# pacient} other {# pacientë}}",
+    "followUpEmpty": "Nuk ka trajtime të fundit për ndjekje.",
+    "overdueBy": "{days, plural, =0 {Sot} one {# ditë vonesë} other {# ditë vonesë}}",
+    "daysAgo": "{days, plural, one {# ditë më parë} other {# ditë më parë}}",
+    "neverVisited": "Asnjë vizitë",
+    "noPhone": "Pa numër telefoni",
+    "markContacted": "U kontaktua",
+    "snoozeTitle": "Kujtomë sërish pas {days} ditësh",
+    "theTreatment": "trajtimi"
+  },
+  "waitlist": {
+    "title": "Lista e pritjes",
+    "subtitle": "{count, plural, =0 {Askush nuk pret} one {# person në pritje} other {# persona në pritje}}",
+    "new": "Shto në listë",
+    "empty": "Askush nuk pret për një orar më të hershëm.",
+    "patient": "Pacienti",
+    "selectPatient": "Zgjidhni një pacient",
+    "service": "Trajtimi",
+    "duration": "Koha e nevojshme",
+    "noteHint": "p.sh. vetëm paradite, ose me dhimbje",
+    "urgent": "Urgjent",
+    "freeOn": "I lirë më {day}:",
+    "fitsAt": "Përshtatet në {time}",
+    "noFit": "Pa hapësirë këtë ditë",
+    "offer": "Ofro orarin",
+    "resolve": "Hiq nga lista"
+  },
+  "reliability": {
+    "watch": "{missed} nga {total} të humbura",
+    "atRisk": "Shpesh nuk vjen ({missed}/{total})"
+  },
+  "plans": {
+    "title_": "Emri i planit",
+    "titleHint": "p.sh. Restaurim i kuadrantit të sipërm majtas",
+    "new": "Plan i ri",
+    "edit": "Ndrysho planin",
+    "steps": "Hapat",
+    "stepsHint": "Një për rresht. Mund t’i shtoni, rirendisni dhe ndryshoni më vonë.",
+    "status": "Statusi",
+    "status_ACTIVE": "Në vazhdim",
+    "status_COMPLETED": "Përfunduar",
+    "status_CANCELLED": "Anuluar",
+    "empty": "Ende nuk ka plane trajtimi për këtë pacient.",
+    "progress": "{done} nga {total} të kryera",
+    "addStep": "Shto hap",
+    "editStep": "Ndrysho hapin",
+    "stepTitle": "Çfarë do të bëhet",
+    "toothHint": "Numri i dhëmbit 1–32, nëse ky hap ka të bëjë me një dhëmb.",
+    "markDone": "U krye",
+    "skip": "Kalo këtë hap",
+    "reopen": "Rihap",
+    "moveUp": "Lëviz lart",
+    "moveDown": "Lëviz poshtë"
+  },
+  "documents": {
+    "new": "Shto skedar",
+    "upload": "Ngarko",
+    "uploading": "Duke ngarkuar…",
+    "file": "Skedari",
+    "fileHint": "Radiografi, foto ose PDF, deri në {max} MB.",
+    "kind": "Lloji",
+    "kind_XRAY": "Radiografi",
+    "kind_PHOTO": "Foto",
+    "kind_CONSENT": "Formular pëlqimi",
+    "kind_OTHER": "Tjetër",
+    "empty": "Ende nuk ka skedarë për këtë pacient.",
+    "errorNoFile": "Zgjidhni një skedar për ngarkim.",
+    "errorTooLarge": "Ai skedar është më i madh se {max} MB.",
+    "errorType": "Mund të bashkëngjiten vetëm imazhe dhe skedarë PDF."
+  },
+  "prescriptions": {
+    "new": "Shkruaj recetë",
+    "issue": "Lësho",
+    "template": "Nis nga një model",
+    "templateHint": "Zgjedhja e një modeli plotëson tekstin; mund ta ndryshoni lirisht më pas.",
+    "templateNone": "Bosh",
+    "body": "Receta",
+    "forPatient": "Për {name}",
+    "empty": "Ende nuk ka receta për këtë pacient.",
+    "print": "Printo",
+    "sheetTitle": "Recetë",
+    "sheetPatient": "Pacienti",
+    "sheetSignature": "Nënshkrimi",
+    "templatesTitle": "Modele recetash",
+    "templatesSubtitle": "Tekst standard, gati për t’u ripërdorur",
+    "templatesEmpty": "Ende pa modele. Shtoni ato që shkruani më shpesh.",
+    "newTemplate": "Model i ri",
+    "editTemplate": "Ndrysho modelin",
+    "templateName": "Emri i modelit",
+    "templateBodyHint": "Teksti që do të plotësohet. Ndryshojeni sipas pacientit kur e lëshoni."
+  },
+  "reorder": {
+    "title": "Porosi e sugjeruar",
+    "subtitle": "{count, plural, one {# artikull për porosi} other {# artikuj për porosi}}",
+    "urgent": "Urgjente",
+    "monthlyUse": "{qty} {unit}/muaj",
+    "daysLeft": "{days, plural, =0 {Mbaron sot} one {# ditë e mbetur} other {# ditë të mbetura}}",
+    "noUsage": "Pa përdorim të regjistruar",
+    "suggested": "për porosi",
+    "send": "Dërgo listën",
+    "messageHeading": "Porosi për klinikën dentare:"
+  },
+  "digest": {
+    "title": "Sot",
+    "print": "Printo",
+    "copy": "Kopjo",
+    "copied": "U kopjua",
+    "send": "Dërgo",
+    "scheduleTitle": "Lista e sotme",
+    "scheduleSubtitle": "{count, plural, =0 {Asgjë e caktuar} one {# takim} other {# takime}}",
+    "scheduleEmpty": "Asgjë e caktuar për sot.",
+    "gapsTitle": "Kohë e lirë",
+    "gapsSubtitle": "Hapësira ku dikush mund të futet ende",
+    "gapsNone": "Dita është e plotë.",
+    "min": "min",
+    "callToConfirm": "Telefono për konfirmim",
+    "confirmHint": "Ia vlen të konfirmohen para se të nisë dita: {names}.",
+    "callTitle": "Persona për të telefonuar",
+    "callSubtitle": "{count, plural, =0 {Askush sot} one {# pacient} other {# pacientë}}",
+    "callEmpty": "Askush nuk ka vonesë për kontroll.",
+    "stockTitle": "Materialet",
+    "stockSubtitle": "{count, plural, =0 {Të gjitha mbi minimum} one {# nën minimum} other {# nën minimum}}",
+    "stockEmpty": "Asgjë për porosi.",
+    "reorderHint": "{count, plural, one {# artikull ka} other {# artikuj kanë}} porosi të sugjeruar te faqja e magazinës."
+  },
+  "confirm": {
+    "title": "Konfirmoni takimin tuaj",
+    "greeting": "Përshëndetje {name}",
+    "intro": "Ju lutemi na tregoni nëse mund të vini.",
+    "when": "Kur",
+    "what": "Çfarë",
+    "yes": "Po, do të vij",
+    "no": "Jo, nuk mundem",
+    "thanksConfirmed": "Faleminderit — ju kemi shënuar për atë orar. Shihemi atëherë.",
+    "thanksDeclined": "Faleminderit që na njoftuat. E liruam orarin; na telefononi për ta ricaktuar.",
+    "changeMind": "Ndryshuat mendje? Thjesht shtypni butonin tjetër.",
+    "closed": "Ky takim ka kaluar tashmë.",
+    "invalidTitle": "Kjo lidhje nuk është e vlefshme",
+    "invalidText": "Mund të ketë skaduar ose të jetë shkruar gabim. Ju lutemi telefononi klinikën.",
+    "errorInvalid": "Kjo lidhje nuk është e vlefshme.",
+    "errorPast": "Ky takim ka kaluar tashmë.",
+    "errorGeneric": "Diçka shkoi keq. Ju lutemi telefononi klinikën."
+  },
+  "backup": {
+    "title": "Kopje rezervë",
+    "description": "Shkarkoni të gjitha të dhënat si një skedar. Mbani një kopje diku tjetër nga ky kompjuter.",
+    "passphrase": "Enkripto me një fjalëkalim",
+    "passphraseHint": "Lëreni bosh për një skedar JSON të lexueshëm.",
+    "warning": "Nëse vendosni një fjalëkalim dhe e harroni, kopja nuk mund të rikuperohet. PIN-et e stafit dhe skedarët e ngarkuar nuk përfshihen.",
+    "download": "Shkarko kopjen"
   }
 }

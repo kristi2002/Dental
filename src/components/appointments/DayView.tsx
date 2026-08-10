@@ -37,7 +37,7 @@ export function DayView({
   return (
     <div>
       {outside.length > 0 ? (
-        <div className="space-y-2 border-b-2 border-line p-3">
+        <div className="space-y-2 border-b border-line p-3">
           {outside.map((appointment) => (
             <AppointmentChip
               key={appointment.id}
@@ -57,11 +57,11 @@ export function DayView({
         return (
           <div
             key={hour}
-            className="grid grid-cols-[4.5rem_1fr] border-b-2 border-line last:border-b-0 sm:grid-cols-[6rem_1fr]"
+            className="grid grid-cols-[4.5rem_1fr] border-b border-line last:border-b-0 sm:grid-cols-[6rem_1fr]"
           >
             <div
               className={cn(
-                'border-r-2 border-line px-3 py-3 text-right text-[1.05rem] font-bold tabular-nums',
+                'border-r border-line px-3 py-3 text-right text-[1.05rem] font-bold tabular-nums',
                 slot.length > 0 ? 'text-ink' : 'text-ink-faint',
               )}
             >

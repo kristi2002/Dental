@@ -26,8 +26,9 @@ const AXIS = {
 const GRID_COLOR = 'var(--color-line)';
 
 const tooltipStyle = {
-  border: '2px solid var(--color-ink)',
-  borderRadius: 8,
+  border: '1px solid var(--color-line-strong)',
+  borderRadius: 10,
+  boxShadow: 'var(--shadow-pop)',
   background: 'var(--color-surface)',
   color: 'var(--color-ink)',
   fontWeight: 600,

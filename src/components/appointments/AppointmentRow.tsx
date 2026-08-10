@@ -1,15 +1,23 @@
 import { CircleCheck, Clock, Trash2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { Badge } from '@/components/ui/Badge';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Link } from '@/i18n/navigation';
 import { deleteAppointment, setAppointmentStatus } from '@/lib/actions/appointments';
+import { can } from '@/lib/auth/session';
+import { confirmationToken, confirmationUrl } from '@/lib/confirmations';
 import { minutesToTime, timeToMinutes } from '@/lib/dates';
 import { AppointmentFormDialog, type PatientOption, type ServiceOption } from './AppointmentFormDialog';
 import { AppointmentStatusBadge } from './AppointmentStatusBadge';
 import { ReminderLinks } from './ReminderLinks';
 import type { AppointmentView } from './types';
 
-export function AppointmentRow({
+/**
+ * Reads its own permissions rather than taking them as props: the row appears on
+ * four different screens, and threading two booleans through every one of them
+ * would be four chances to forget. `getCurrentUser` is cached per request.
+ */
+export async function AppointmentRow({
   appointment,
   patients,
   services,
@@ -20,92 +28,120 @@ export function AppointmentRow({
   services: ServiceOption[];
   showDate?: boolean;
 }) {
-  const t = useTranslations('appointments');
-  const tc = useTranslations('common');
+  const t = await getTranslations('appointments');
+  const tc = await getTranslations('common');
+  const [canEdit, canDelete, locale] = await Promise.all([
+    can('appointment.edit'),
+    can('appointment.delete'),
+    getLocale(),
+  ]);
+
+  // The link the patient taps to answer. Derived, not stored — see confirmations.ts.
+  const confirmLink = confirmationUrl(locale, await confirmationToken(appointment.id));
 
   const endTime = minutesToTime(timeToMinutes(appointment.startTime) + appointment.durationMin);
   const patientName = `${appointment.patient.firstName} ${appointment.patient.lastName}`;
 
   return (
-    <article className="flex flex-col gap-4 border-b-2 border-line px-5 py-4 last:border-b-0 lg:flex-row lg:items-start">
-      <div className="flex shrink-0 items-baseline gap-2 lg:w-40 lg:flex-col lg:gap-0.5">
-        <span className="text-2xl font-bold tabular-nums text-ink">{appointment.startTime}</span>
-        <span className="flex items-center gap-1 text-[0.9rem] text-ink-faint tabular-nums">
-          <Clock size={14} aria-hidden />
-          {endTime} · {t('durationValue', { min: appointment.durationMin })}
-        </span>
-        {showDate ? (
-          <span className="text-[0.9rem] font-semibold text-ink-soft">{appointment.date}</span>
-        ) : null}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Link
-            href={`/patients/${appointment.patient.id}`}
-            className="text-[1.15rem] font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-4 hover:decoration-brand"
-          >
-            {patientName}
-          </Link>
-          <AppointmentStatusBadge status={appointment.status} />
+    /* The row shows up in a full-width list and in the dashboard's narrower
+       column, so it sizes itself against its own container rather than the
+       viewport — a `lg:` breakpoint would give the dashboard a three-column
+       layout it has no room for. */
+    <div className="@container border-b border-line last:border-b-0">
+      <article className="grid items-baseline gap-x-4 gap-y-3 px-5 py-4 @[30rem]:grid-cols-[10.5rem_minmax(0,1fr)] @[58rem]:grid-cols-[10.5rem_minmax(0,1fr)_max-content]">
+        <div className="flex items-baseline gap-2 @[30rem]:flex-col @[30rem]:gap-0.5">
+          <span className="text-2xl font-bold tabular-nums text-ink">{appointment.startTime}</span>
+          <span className="flex items-center gap-1 text-[0.9rem] text-ink-faint tabular-nums">
+            <Clock size={14} aria-hidden />
+            {endTime} · {t('durationValue', { min: appointment.durationMin })}
+          </span>
+          {showDate ? (
+            <span className="text-[0.9rem] font-semibold text-ink-soft">{appointment.date}</span>
+          ) : null}
         </div>
 
-        {appointment.serviceName ? (
-          <p className="mt-1 text-[1.02rem] text-ink-soft">{appointment.serviceName}</p>
-        ) : null}
-        {appointment.notes ? (
-          <p className="mt-1 text-[0.95rem] text-ink-faint">{appointment.notes}</p>
-        ) : null}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <Link
+              href={`/patients/${appointment.patient.id}`}
+              className="text-[1.15rem]/8 font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-4 hover:decoration-brand"
+            >
+              {patientName}
+            </Link>
+            <AppointmentStatusBadge status={appointment.status} />
+            {/* Whether the patient has answered is separate from what the clinic
+                set — a scheduled-but-silent slot is the one worth chasing. */}
+            {appointment.confirmed ? (
+              <Badge tone="ok">{t('confirmed')}</Badge>
+            ) : appointment.declined ? (
+              <Badge tone="danger">{t('declined')}</Badge>
+            ) : null}
+          </div>
 
-        <div className="mt-3">
-          <ReminderLinks
-            patientName={patientName}
-            phone={appointment.patient.phone}
-            email={appointment.patient.email}
-            date={appointment.date}
-            startTime={appointment.startTime}
-          />
+          {appointment.serviceName ? (
+            <p className="mt-1 text-[1.02rem] text-ink-soft">{appointment.serviceName}</p>
+          ) : null}
+          {appointment.notes ? (
+            <p className="mt-1 text-[0.95rem] text-ink-faint">{appointment.notes}</p>
+          ) : null}
+
+          <div className="mt-3">
+            <ReminderLinks
+              patientName={patientName}
+              phone={appointment.patient.phone}
+              email={appointment.patient.email}
+              date={appointment.date}
+              startTime={appointment.startTime}
+              confirmLink={confirmLink}
+            />
+          </div>
         </div>
-      </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {appointment.status === 'SCHEDULED' ? (
-          <ActionForm action={setAppointmentStatus} values={{ id: appointment.id, status: 'COMPLETED' }}>
-            <button type="submit" className="btn btn-secondary btn-sm" title={t('markCompleted')}>
-              <CircleCheck size={18} aria-hidden />
-              <span className="sr-only lg:not-sr-only">{t('markCompleted')}</span>
-            </button>
-          </ActionForm>
-        ) : null}
+        {/* Sits under the details until the row is wide enough for a third
+            column, so the details never get squeezed into a sliver. */}
+        <div className="flex flex-wrap items-center gap-2 @[30rem]:col-start-2 @[30rem]:justify-end @[58rem]:col-start-3 @[58rem]:row-start-1 @[58rem]:self-start">
+          {canEdit && appointment.status === 'SCHEDULED' ? (
+            <ActionForm action={setAppointmentStatus} values={{ id: appointment.id, status: 'COMPLETED' }}>
+              <button type="submit" className="btn btn-secondary btn-sm" title={t('markCompleted')}>
+                <CircleCheck size={18} aria-hidden />
+                <span className="sr-only @[30rem]:not-sr-only">{t('markCompleted')}</span>
+              </button>
+            </ActionForm>
+          ) : null}
 
-        <AppointmentFormDialog
-          patients={patients}
-          services={services}
-          appointment={{
-            id: appointment.id,
-            patientId: appointment.patient.id,
-            date: appointment.date,
-            startTime: appointment.startTime,
-            durationMin: appointment.durationMin,
-            status: appointment.status,
-            serviceName: appointment.serviceName,
-            notes: appointment.notes,
-          }}
-          triggerClassName="btn btn-secondary btn-sm"
-          compact
-        />
+          {canEdit ? (
+            <AppointmentFormDialog
+              patients={patients}
+              services={services}
+              appointment={{
+                id: appointment.id,
+                patientId: appointment.patient.id,
+                date: appointment.date,
+                startTime: appointment.startTime,
+                durationMin: appointment.durationMin,
+                status: appointment.status,
+                serviceName: appointment.serviceName,
+                notes: appointment.notes,
+              }}
+              triggerClassName="btn btn-secondary btn-sm"
+              compact
+            />
+          ) : null}
 
-        <ActionForm
-          action={deleteAppointment}
-          values={{ id: appointment.id }}
-          confirmMessage={tc('confirmDelete')}
-        >
-          <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
-            <Trash2 size={18} aria-hidden />
-            <span className="sr-only">{tc('delete')}</span>
-          </button>
-        </ActionForm>
-      </div>
-    </article>
+          {canDelete ? (
+            <ActionForm
+              action={deleteAppointment}
+              values={{ id: appointment.id }}
+              confirmMessage={tc('confirmDelete')}
+            >
+              <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
+                <Trash2 size={18} aria-hidden />
+                <span className="sr-only">{tc('delete')}</span>
+              </button>
+            </ActionForm>
+          ) : null}
+        </div>
+      </article>
+    </div>
   );
 }

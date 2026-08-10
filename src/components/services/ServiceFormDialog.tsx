@@ -1,41 +1,69 @@
 'use client';
 
-import { Pencil, Plus } from 'lucide-react';
+import { Package, Pencil, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { saveService } from '@/lib/actions/services';
+import { cn } from '@/lib/utils';
+
+export type StockOption = { id: string; name: string; unit: string };
 
 export type ServiceDefaults = {
   id: string;
   name: string;
   category: string;
   durationMin: number;
+  /** Materials this treatment consumes, keyed by stock item id. */
+  materials: Array<{ itemId: string; quantity: number }>;
 };
 
 export function ServiceFormDialog({
   service,
   categories,
+  stockItems,
   triggerClassName,
   compact = false,
 }: {
   service?: ServiceDefaults;
   /** Existing categories, offered as autocomplete so spelling stays consistent. */
   categories: string[];
+  /** The cupboard, for building this treatment's bill of materials. */
+  stockItems: StockOption[];
   triggerClassName?: string;
   compact?: boolean;
 }) {
   const t = useTranslations('services');
   const tc = useTranslations('common');
-  const editing = Boolean(service);
   const uid = useId();
+  const editing = Boolean(service);
+
+  const [materials, setMaterials] = useState<Record<string, number>>(
+    Object.fromEntries((service?.materials ?? []).map((m) => [m.itemId, m.quantity])),
+  );
+
+  function toggleMaterial(itemId: string) {
+    setMaterials((current) => {
+      const { [itemId]: existing, ...rest } = current;
+      return existing ? rest : { ...current, [itemId]: 1 };
+    });
+  }
+
+  function setQuantity(itemId: string, quantity: number) {
+    setMaterials((current) => ({ ...current, [itemId]: Math.max(1, quantity) }));
+  }
 
   return (
     <FormDialog
       key={service?.id ?? 'new'}
       action={saveService}
       resetOnSuccess={!editing}
+      onClose={() =>
+        setMaterials(
+          Object.fromEntries((service?.materials ?? []).map((m) => [m.itemId, m.quantity])),
+        )
+      }
       title={editing ? t('edit') : t('new')}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
@@ -93,6 +121,63 @@ export function ServiceFormDialog({
         required
         defaultValue={service?.durationMin ?? 30}
       />
+
+      {/* Set this once and every recorded visit deducts it automatically —
+          the whole point of the feature is that nobody counts gloves by hand. */}
+      <fieldset>
+        <legend className="field-label flex items-center gap-2">
+          <Package size={17} aria-hidden className="text-brand" />
+          {t('materials')}
+        </legend>
+        <p className="mb-2 text-[0.9rem] text-ink-soft">{t('materialsHint')}</p>
+
+        {stockItems.length === 0 ? (
+          <p className="text-[0.95rem] text-ink-faint">{t('materialsNoStock')}</p>
+        ) : (
+          <ul className="max-h-56 space-y-1.5 overflow-y-auto rounded-lg border border-line p-2">
+            {stockItems.map((item) => {
+              const quantity = materials[item.id];
+              const on = quantity !== undefined;
+
+              return (
+                <li key={item.id} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleMaterial(item.id)}
+                    className={cn(
+                      'flex-1 rounded-md border px-2.5 py-1.5 text-left text-[0.95rem] font-semibold transition-colors',
+                      on
+                        ? 'border-brand bg-brand-soft text-brand-deep'
+                        : 'border-line-strong bg-surface text-ink-soft hover:border-ink hover:text-ink',
+                    )}
+                  >
+                    {item.name}
+                  </button>
+
+                  {on ? (
+                    <>
+                      <input
+                        type="number"
+                        min={1}
+                        max={999}
+                        value={quantity}
+                        aria-label={t('materialQuantity', { name: item.name })}
+                        onChange={(event) => setQuantity(item.id, Number(event.target.value))}
+                        className="field-input w-20 py-1.5 text-center"
+                      />
+                      <span className="w-12 shrink-0 text-[0.9rem] text-ink-soft">
+                        {item.unit}
+                      </span>
+                      <input type="hidden" name="material" value={`${item.id}:${quantity}`} />
+                    </>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </fieldset>
     </FormDialog>
   );
 }

@@ -1,0 +1,284 @@
+import { ChevronDown, ChevronUp, ListChecks, RotateCcw, SkipForward, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { ActionForm } from '@/components/ui/ActionForm';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
+import { deletePlan, deleteStep, moveStep, setStepStatus } from '@/lib/actions/plans';
+import { cn } from '@/lib/utils';
+import { PlanFormDialog } from './PlanFormDialog';
+import { StepFormDialog } from './StepFormDialog';
+
+export type PlanStepView = {
+  id: string;
+  position: number;
+  title: string;
+  toothNum: number | null;
+  notes: string;
+  status: TreatmentStepStatus;
+};
+
+export type PlanView = {
+  id: string;
+  title: string;
+  notes: string;
+  status: TreatmentPlanStatus;
+  steps: PlanStepView[];
+};
+
+const PLAN_TONES: Record<TreatmentPlanStatus, BadgeTone> = {
+  [TreatmentPlanStatus.ACTIVE]: 'brand',
+  [TreatmentPlanStatus.COMPLETED]: 'ok',
+  [TreatmentPlanStatus.CANCELLED]: 'neutral',
+};
+
+/**
+ * A course of treatment and where it has got to. The progress line is the
+ * feature: the reason plans get abandoned is that nobody can see how far in
+ * they are without reading every visit note.
+ */
+export function TreatmentPlans({
+  patientId,
+  plans,
+  canEdit,
+  canDelete,
+}: {
+  patientId: string;
+  plans: PlanView[];
+  canEdit: boolean;
+  canDelete: boolean;
+}) {
+  const t = useTranslations('plans');
+  const tc = useTranslations('common');
+  const tt = useTranslations('teeth');
+
+  if (plans.length === 0) {
+    return (
+      <EmptyState
+        icon={<ListChecks size={40} aria-hidden />}
+        title={t('empty')}
+        action={canEdit ? <PlanFormDialog patientId={patientId} /> : undefined}
+      />
+    );
+  }
+
+  return (
+    <div className="divide-y-2 divide-line">
+      {plans.map((plan) => {
+        const done = plan.steps.filter((s) => s.status === TreatmentStepStatus.DONE).length;
+        const relevant = plan.steps.filter(
+          (s) => s.status !== TreatmentStepStatus.SKIPPED,
+        ).length;
+        const percent = relevant === 0 ? 0 : Math.round((done / relevant) * 100);
+
+        return (
+          <section key={plan.id} className="px-5 py-4">
+            <header className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="flex flex-wrap items-center gap-2 text-[1.12rem] font-bold text-ink">
+                  {plan.title}
+                  <Badge tone={PLAN_TONES[plan.status]}>{t(`status_${plan.status}`)}</Badge>
+                </h3>
+                {plan.notes ? (
+                  <p className="mt-0.5 text-[0.95rem] whitespace-pre-line text-ink-soft">
+                    {plan.notes}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {canEdit ? (
+                  <PlanFormDialog
+                    patientId={patientId}
+                    plan={{
+                      id: plan.id,
+                      title: plan.title,
+                      notes: plan.notes,
+                      status: plan.status,
+                    }}
+                  />
+                ) : null}
+                {canDelete ? (
+                  <ActionForm
+                    action={deletePlan}
+                    values={{ id: plan.id }}
+                    confirmMessage={tc('confirmDelete')}
+                  >
+                    <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
+                      <Trash2 size={16} aria-hidden />
+                      <span className="sr-only">{tc('delete')}</span>
+                    </button>
+                  </ActionForm>
+                ) : null}
+              </div>
+            </header>
+
+            <div className="mt-3 flex items-center gap-3">
+              <div
+                className="h-2.5 flex-1 overflow-hidden rounded-full bg-paper"
+                role="progressbar"
+                aria-valuenow={percent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={t('progress', { done, total: relevant })}
+              >
+                <div
+                  className="h-full rounded-full bg-brand transition-[width]"
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+              <span className="shrink-0 text-[0.92rem] font-bold text-ink-soft tabular-nums">
+                {t('progress', { done, total: relevant })}
+              </span>
+            </div>
+
+            <ol className="mt-3 space-y-1.5">
+              {plan.steps.map((step, index) => {
+                const isDone = step.status === TreatmentStepStatus.DONE;
+                const isSkipped = step.status === TreatmentStepStatus.SKIPPED;
+
+                return (
+                  <li
+                    key={step.id}
+                    className={cn(
+                      'flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2',
+                      isDone
+                        ? 'border-ok/30 bg-ok-soft'
+                        : isSkipped
+                          ? 'border-line bg-paper opacity-70'
+                          : 'border-line-strong bg-surface',
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className="grid size-7 shrink-0 place-items-center rounded-full bg-surface text-[0.85rem] font-bold text-ink-soft"
+                    >
+                      {index + 1}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={cn(
+                          'text-[1.02rem] font-semibold',
+                          isDone ? 'text-ok' : isSkipped ? 'text-ink-faint line-through' : 'text-ink',
+                        )}
+                      >
+                        {step.title}
+                        {step.toothNum ? (
+                          <span className="ml-2 text-[0.9rem] font-normal text-ink-soft">
+                            {tt('tooth', { num: step.toothNum })}
+                          </span>
+                        ) : null}
+                      </p>
+                      {step.notes ? (
+                        <p className="text-[0.9rem] text-ink-soft">{step.notes}</p>
+                      ) : null}
+                    </div>
+
+                    {canEdit ? (
+                      <div className="flex items-center gap-1">
+                        {isDone || isSkipped ? (
+                          <ActionForm
+                            action={setStepStatus}
+                            values={{ id: step.id, status: TreatmentStepStatus.PENDING }}
+                          >
+                            <button
+                              type="submit"
+                              className="btn btn-ghost btn-sm"
+                              title={t('reopen')}
+                            >
+                              <RotateCcw size={16} aria-hidden />
+                              <span className="sr-only">{t('reopen')}</span>
+                            </button>
+                          </ActionForm>
+                        ) : (
+                          <>
+                            <ActionForm
+                              action={setStepStatus}
+                              values={{ id: step.id, status: TreatmentStepStatus.DONE }}
+                            >
+                              <button type="submit" className="btn btn-secondary btn-sm">
+                                {t('markDone')}
+                              </button>
+                            </ActionForm>
+                            <ActionForm
+                              action={setStepStatus}
+                              values={{ id: step.id, status: TreatmentStepStatus.SKIPPED }}
+                            >
+                              <button
+                                type="submit"
+                                className="btn btn-ghost btn-sm"
+                                title={t('skip')}
+                              >
+                                <SkipForward size={16} aria-hidden />
+                                <span className="sr-only">{t('skip')}</span>
+                              </button>
+                            </ActionForm>
+                          </>
+                        )}
+
+                        <ActionForm action={moveStep} values={{ id: step.id, direction: 'up' }}>
+                          <button
+                            type="submit"
+                            className="btn btn-ghost btn-sm"
+                            title={t('moveUp')}
+                            disabled={index === 0}
+                          >
+                            <ChevronUp size={16} aria-hidden />
+                            <span className="sr-only">{t('moveUp')}</span>
+                          </button>
+                        </ActionForm>
+                        <ActionForm action={moveStep} values={{ id: step.id, direction: 'down' }}>
+                          <button
+                            type="submit"
+                            className="btn btn-ghost btn-sm"
+                            title={t('moveDown')}
+                            disabled={index === plan.steps.length - 1}
+                          >
+                            <ChevronDown size={16} aria-hidden />
+                            <span className="sr-only">{t('moveDown')}</span>
+                          </button>
+                        </ActionForm>
+
+                        <StepFormDialog
+                          planId={plan.id}
+                          step={{
+                            id: step.id,
+                            title: step.title,
+                            toothNum: step.toothNum,
+                            notes: step.notes,
+                          }}
+                        />
+
+                        <ActionForm
+                          action={deleteStep}
+                          values={{ id: step.id }}
+                          confirmMessage={tc('confirmDelete')}
+                        >
+                          <button
+                            type="submit"
+                            className="btn btn-ghost btn-sm text-danger"
+                            title={tc('delete')}
+                          >
+                            <Trash2 size={16} aria-hidden />
+                            <span className="sr-only">{tc('delete')}</span>
+                          </button>
+                        </ActionForm>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ol>
+
+            {canEdit ? (
+              <div className="mt-2">
+                <StepFormDialog planId={plan.id} />
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
+    </div>
+  );
+}

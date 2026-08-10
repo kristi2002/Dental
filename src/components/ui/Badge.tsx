@@ -3,12 +3,14 @@ import { cn } from '@/lib/utils';
 
 export type BadgeTone = 'neutral' | 'brand' | 'ok' | 'warn' | 'danger';
 
+/* The border is a tinted whisper of the text colour, not the text colour itself —
+ * that alone takes most of the shout out of a row of badges. */
 const TONES: Record<BadgeTone, string> = {
   neutral: 'border-line-strong bg-paper text-ink-soft',
-  brand: 'border-brand bg-brand-soft text-brand-dark',
-  ok: 'border-ok bg-ok-soft text-ok',
-  warn: 'border-warn bg-warn-soft text-warn',
-  danger: 'border-danger bg-danger-soft text-danger',
+  brand: 'border-brand/30 bg-brand-soft text-brand-deep',
+  ok: 'border-ok/25 bg-ok-soft text-ok',
+  warn: 'border-warn/25 bg-warn-soft text-warn',
+  danger: 'border-danger/25 bg-danger-soft text-danger',
 };
 
 export function Badge({
@@ -23,7 +25,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border-2 px-2.5 py-0.5 text-[0.85rem] font-bold whitespace-nowrap',
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[0.85rem] font-bold whitespace-nowrap',
         TONES[tone],
         className,
       )}

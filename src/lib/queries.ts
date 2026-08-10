@@ -14,10 +14,20 @@ export async function getPatientOptions(): Promise<PatientOption[]> {
 }
 
 export async function getServiceOptions(): Promise<ServiceOption[]> {
-  return prisma.service.findMany({
+  const services = await prisma.service.findMany({
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, durationMin: true },
+    select: {
+      id: true,
+      name: true,
+      durationMin: true,
+      _count: { select: { materials: true } },
+    },
   });
+
+  return services.map(({ _count, ...service }) => ({
+    ...service,
+    materialCount: _count.materials,
+  }));
 }
 
 type AppointmentWithPatient = {
@@ -28,6 +38,8 @@ type AppointmentWithPatient = {
   status: string;
   notes: string | null;
   serviceName: string | null;
+  confirmedAt: Date | null;
+  declinedAt: Date | null;
   patient: {
     id: string;
     firstName: string;
@@ -46,6 +58,8 @@ export function toAppointmentView(appointment: AppointmentWithPatient): Appointm
     status: appointment.status,
     serviceName: appointment.serviceName ?? '',
     notes: appointment.notes ?? '',
+    confirmed: appointment.confirmedAt !== null,
+    declined: appointment.declinedAt !== null,
     patient: {
       id: appointment.patient.id,
       firstName: appointment.patient.firstName,
@@ -64,6 +78,8 @@ const APPOINTMENT_SELECT = {
   status: true,
   notes: true,
   serviceName: true,
+  confirmedAt: true,
+  declinedAt: true,
   patient: {
     select: { id: true, firstName: true, lastName: true, phone: true, email: true },
   },
