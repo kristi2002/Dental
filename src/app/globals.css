@@ -199,7 +199,7 @@
 }
 
 /* --- Print -------------------------------------------------------------
- * Prescription sheets and the daily digest are printed on real paper. The app
+ * Prescription sheets are printed on real paper. The app
  * chrome is navigation, not content, so it never reaches the page — anything
  * marked `data-print-hide` disappears along with the header, nav and footer. */
 @media print {
@@ -223,5 +223,27 @@
 
   body {
     background: #fff !important;
+  }
+
+  /* The day sheet is a table that must not be cut mid-patient, and whose
+     header should repeat if the day runs onto a second page. */
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  article {
+    break-inside: avoid;
+  }
+
+  /* A monochrome printer renders the danger colour as mid-grey, which is how a
+     penicillin allergy stops standing out. Bold and black is louder on paper. */
+  .text-danger {
+    color: #000 !important;
+    font-weight: 700 !important;
+  }
+
+  @page {
+    margin: 14mm;
   }
 }

@@ -6,18 +6,26 @@ import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { deletePrescriptionTemplate } from '@/lib/actions/prescriptions';
 import { deleteService } from '@/lib/actions/services';
 import { requirePermission } from '@/lib/auth/guard';
+import { byDepartment } from '@/lib/catalog';
 import { prisma } from '@/lib/prisma';
+import { matches } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
+/** Sentinel for "this service has no category" — a real category can never be empty. */
+const NO_CATEGORY = '__none__';
+
 export default async function ServicesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ q?: string; category?: string; materials?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -39,7 +47,7 @@ export default async function ServicesPage({
     ...new Set(templates.map((template) => template.category).filter(Boolean)),
   ] as string[];
 
-  const [services, stockItems] = await Promise.all([
+  const [allServices, stockItems] = await Promise.all([
     prisma.service.findMany({
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
       include: {
@@ -54,14 +62,35 @@ export default async function ServicesPage({
     }),
   ]);
 
-  const categories = [...new Set(services.map((s) => s.category).filter(Boolean))] as string[];
+  // Derived from the whole catalog, never from the filtered view: the dropdown
+  // has to keep offering the category you are about to switch to, and the new/edit
+  // dialogs suggest from the full set.
+  const categories = [...new Set(allServices.map((s) => s.category).filter(Boolean))] as string[];
 
-  // Group so the catalog reads like a printed price list — minus the prices.
-  const grouped = new Map<string, typeof services>();
-  for (const service of services) {
-    const key = service.category ?? '';
-    grouped.set(key, [...(grouped.get(key) ?? []), service]);
-  }
+  const { q, category, materials } = await searchParams;
+  const query = (q ?? '').trim();
+  const categoryFilter = category ?? '';
+  const materialsFilter = materials === 'with' || materials === 'none' ? materials : '';
+
+  const services = allServices.filter((service) => {
+    if (query && !matches(service.name, query) && !matches(service.category ?? '', query)) {
+      return false;
+    }
+    if (categoryFilter === NO_CATEGORY) {
+      if (service.category) return false;
+    } else if (categoryFilter && service.category !== categoryFilter) {
+      return false;
+    }
+    if (materialsFilter === 'with' && service.materials.length === 0) return false;
+    if (materialsFilter === 'none' && service.materials.length > 0) return false;
+    return true;
+  });
+
+  const isFiltered = Boolean(query || categoryFilter || materialsFilter);
+
+  // Grouped by department, so the catalog reads like a printed price list —
+  // minus the prices. The same split the booking and visit forms use.
+  const grouped = byDepartment(services.map((s) => ({ ...s, category: s.category ?? '' })));
 
   const newDialog = canEdit ? (
     <ServiceFormDialog categories={categories} stockItems={stockItems} />
@@ -71,20 +100,57 @@ export default async function ServicesPage({
     <>
       <PageHeader title={t('title')} subtitle={t('subtitle')} actions={newDialog} />
 
+      {/* Nothing to narrow down until the catalog exists. */}
+      {allServices.length > 0 ? (
+        <FilterBar
+          basePath="/services"
+          label={tc('filters')}
+          values={{ q: query, category: categoryFilter, materials: materialsFilter }}
+          chips={{
+            name: 'materials',
+            label: t('filterMaterialsLabel'),
+            options: [
+              { value: '', label: tc('all') },
+              { value: 'with', label: t('filterWithMaterials') },
+              { value: 'none', label: t('filterNoMaterials') },
+            ],
+          }}
+          search={{
+            name: 'q',
+            label: tc('search'),
+            placeholder: t('searchPlaceholder'),
+          }}
+          selects={[
+            {
+              name: 'category',
+              label: t('category'),
+              anyLabel: t('anyCategory'),
+              options: [
+                ...categories.map((value) => ({ value, label: value })),
+                { value: NO_CATEGORY, label: t('uncategorized') },
+              ],
+            },
+          ]}
+          submitLabel={tc('filter')}
+          clearLabel={tc('clearFilters')}
+          summary={t('showing', { count: services.length, total: allServices.length })}
+        />
+      ) : null}
+
       {services.length === 0 ? (
         <div className="card">
           <EmptyState
             icon={<Stethoscope size={40} aria-hidden />}
-            title={t('empty')}
-            action={newDialog}
+            title={isFiltered ? t('emptyFiltered') : t('empty')}
+            action={isFiltered ? null : newDialog}
           />
         </div>
       ) : (
         <div className="space-y-6">
-          {[...grouped.entries()].map(([category, items]) => (
-            <section key={category || 'uncategorized'}>
+          {grouped.map(({ department, items }) => (
+            <section key={department || 'uncategorized'}>
               <h2 className="mb-2 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
-                {category || t('uncategorized')}
+                {department || t('uncategorized')}
               </h2>
 
               <ul className="card divide-y-2 divide-line">

@@ -48,6 +48,12 @@ export function ReorderPanel({ lines }: { lines: ReorderLine[] }) {
               <p className="flex flex-wrap items-center gap-2">
                 <span className="truncate text-[1.05rem] font-bold text-ink">{line.name}</span>
                 {line.urgent ? <Badge tone="danger">{t('urgent')}</Badge> : null}
+                {/* Already answered: shown, not hidden, so nobody re-orders it
+                    and nobody forgets it is still not on the shelf. */}
+                {line.orderedAt ? <Badge tone="brand">{t('onOrder')}</Badge> : null}
+                {line.supplierName ? (
+                  <span className="text-[0.88rem] text-ink-faint">{line.supplierName}</span>
+                ) : null}
               </p>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[0.92rem] text-ink-soft">
                 <span className="flex items-center gap-1.5">

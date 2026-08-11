@@ -1,9 +1,10 @@
-import { CalendarClock, Check, Clock3, Mail, MessageCircle } from 'lucide-react';
+import { CalendarClock, Check, Clock3 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Link } from '@/i18n/navigation';
 import { markRecallContacted, snoozeRecall } from '@/lib/actions/patients';
+import { ReminderLinks } from '@/components/appointments/ReminderLinks';
 import { mailtoLink, whatsappLink } from '@/lib/reminders';
 
 /** How long "not now" hides someone for. Long enough to matter, short enough to return. */
@@ -79,24 +80,15 @@ export function RecallCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {whatsapp ? (
-          <a
-            href={whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary btn-sm"
-          >
-            <MessageCircle size={17} aria-hidden />
-            WhatsApp
-          </a>
-        ) : null}
-
-        {mail ? (
-          <a href={mail} className="btn btn-secondary btn-sm">
-            <Mail size={17} aria-hidden />
-            Email
-          </a>
-        ) : null}
+        {/* Reaching out is logged here too, so "we called them in March" is a
+            fact on the record rather than somebody’s recollection. */}
+        <ReminderLinks
+          patientId={id}
+          whatsapp={whatsapp}
+          mail={mail}
+          body={message}
+          purpose="RECALL"
+        />
 
         {canSend ? (
           <>

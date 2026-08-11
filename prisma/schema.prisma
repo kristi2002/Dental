@@ -34,10 +34,30 @@ model StaffUser {
   updatedAt DateTime @updatedAt
 
   auditEntries   AuditLog[]
-  visitRecords   VisitRecord[]
+  visitRecords   VisitRecord[]    @relation("VisitRecorder")
+  visitsPerformed VisitRecord[]   @relation("VisitPerformer")
   stockMovements StockMovement[]
   documents      PatientDocument[]
   prescriptions  Prescription[]
+  labCases       LabCase[]
+  appointments   Appointment[]
+  leave          Closure[]
+  contacts       Contact[]
+  alertsCreated  PatientAlert[]
+
+  @@index([active])
+}
+
+/// A chair. A two-chair practice can run two appointments at once, which the
+/// schedule cannot express while every booking belongs to "the clinic".
+model Operatory {
+  id     String  @id @default(uuid())
+  name   String
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  appointments Appointment[]
 
   @@index([active])
 }
@@ -96,6 +116,37 @@ model Patient {
   documents     PatientDocument[]
   prescriptions Prescription[]
 
+  contacts      Contact[]
+  alerts        PatientAlert[]
+  labCases      LabCase[]
+
+  /// Whether they have agreed to be messaged. Deliberately tri-state: `null`
+  /// means nobody has asked yet, which is a different thing from "no" and is
+  /// the honest state of every record that predates the question.
+  contactConsent   Boolean?
+  preferredChannel ContactChannel?
+  /// Which language to write to them in. Falls back to the app's default —
+  /// without it, reminders go out in whichever language the *receptionist*
+  /// happens to be using.
+  locale String?
+
+  /// A minor's phone number belongs to their parent, and the consent form has
+  /// to be signed by them. Without these a child's record is either wrong or
+  /// quietly holds an adult's details in the patient's own fields.
+  guardianName  String?
+  guardianPhone String?
+
+  /// Needed by anything printed — a consent form, a referral letter, a recall
+  /// card. `fiscalCode` is Italy's codice fiscale.
+  address    String?
+  fiscalCode String?
+
+  emergencyContact String?
+
+  /// "How did you hear about us" — the one CRM question an owner asks that the
+  /// statistics page currently cannot answer at all.
+  referralSource String?
+
   /// Recall: how often this patient should be seen. 0 disables recall for them.
   recallMonths Int @default(6)
   /// Set by "remind me later" so a declined patient stops resurfacing daily.
@@ -121,11 +172,32 @@ model Appointment {
   confirmedAt DateTime?
   declinedAt  DateTime?
 
+  /// Who is treating, and in which chair. Both optional: a practice with one
+  /// dentist and one room never has to answer, and every appointment booked
+  /// before this existed keeps working.
+  staffUserId String?
+  staffUser   StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
+  operatoryId String?
+  operatory   Operatory? @relation(fields: [operatoryId], references: [id], onDelete: SetNull)
+
+  /// Why it was called off, and by whom. Both null while it still stands.
+  cancelReason String?
+  cancelledBy  CancelledBy?
+
+  /// The appointment this one replaces. Makes "moved three times" visible
+  /// instead of leaving a trail of cancelled rows nobody connects.
+  rescheduledFromId String?      @unique
+  rescheduledFrom   Appointment? @relation("Reschedule", fields: [rescheduledFromId], references: [id], onDelete: SetNull)
+  rescheduledTo     Appointment? @relation("Reschedule")
+
   /// The plan step this appointment fulfils, when it came from a treatment plan.
   planStep TreatmentStep?
+  contacts Contact[]
 
   @@index([date])
   @@index([patientId])
+  /// The conflict search filters on both at once.
+  @@index([date, status])
 }
 
 /// A course of treatment that spans several visits. The point is that a
@@ -236,9 +308,19 @@ model Prescription {
 
 enum AppointmentStatus {
   SCHEDULED
+  /// They are in the waiting room. The front desk's most-pressed button, and
+  /// the only thing that turns the day list into a queue the dentist can work.
+  ARRIVED
   COMPLETED
   CANCELLED
   NO_SHOW
+}
+
+/// Who called it off. `reliability.ts` scores patients on missed appointments;
+/// without this, a slot the *clinic* cancelled counts against the patient.
+enum CancelledBy {
+  PATIENT
+  CLINIC
 }
 
 model VisitRecord {
@@ -250,9 +332,16 @@ model VisitRecord {
   services  String // JSON string or comma-separated list of services done
   createdAt DateTime @default(now())
 
+  toothRecords ToothRecord[]
+
   /// Who recorded it — shown on the timeline, kept when the account is disabled.
   staffUserId String?
-  staffUser   StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
+  staffUser   StaffUser? @relation("VisitRecorder", fields: [staffUserId], references: [id], onDelete: SetNull)
+
+  /// Who actually did the treatment. Diverges from the recorder the moment an
+  /// assistant writes up the dentist's work, which is most of the time.
+  performedById String?
+  performedBy   StaffUser? @relation("VisitPerformer", fields: [performedById], references: [id], onDelete: SetNull)
 
   @@index([patientId])
   @@index([visitDate])
@@ -262,12 +351,38 @@ model ToothRecord {
   id        String   @id @default(uuid())
   patientId String
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  toothNum  Int // 1 to 32
+  /// FDI notation — 11–48 permanent, 51–85 primary. See `src/lib/teeth.ts`.
+  /// Was Universal 1–32; `prisma/migrate-teeth-fdi.ts` converts existing rows.
+  toothNum  Int
   status    String // Healthy, Caries, Extracted, Crown, Root Canal, etc.
+  /// Which surfaces, as letters from `TOOTH_SURFACES` — e.g. `"MOD"`. Null when
+  /// the status is about the whole tooth (extracted, missing, implant).
+  surfaces  String?
   notes     String?
   updatedAt DateTime @updatedAt
 
+  /// The visit that put the tooth in this state, when it was recorded during
+  /// one. Turns a snapshot into something a timeline can explain.
+  visitRecordId String?
+  visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
+
   @@unique([patientId, toothNum])
+}
+
+/// Practice-wide preferences that are not opening hours. A single row — the id
+/// is fixed so there can only ever be one.
+model ClinicProfile {
+  id             String        @id @default("clinic")
+  name           String        @default("")
+  toothNumbering ToothNumbering @default(FDI)
+  updatedAt      DateTime      @updatedAt
+}
+
+enum ToothNumbering {
+  /// 11–48 / 51–85. What Europe teaches.
+  FDI
+  /// 1–32 and A–T. What North America teaches.
+  UNIVERSAL
 }
 
 model StockItem {
@@ -279,8 +394,53 @@ model StockItem {
   unit      String   @default("pcs")
   updatedAt DateTime @updatedAt
 
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  /// Set when an order goes out, cleared when it arrives. Without it the
+  /// reorder suggestion reappears every morning until the box physically
+  /// turns up, which trains everyone to ignore the list.
+  orderedAt  DateTime?
+  expectedAt DateTime?
+
   movements  StockMovement[]
   usedBy     ServiceMaterial[]
+  batches    StockBatch[]
+}
+
+/// Who the practice buys from. Enough to place the order, nothing more — there
+/// is no purchasing or invoicing in this app by design.
+model Supplier {
+  id    String  @id @default(uuid())
+  name  String
+  phone String?
+  email String?
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  items StockItem[]
+}
+
+/// A delivered lot of a material.
+///
+/// `StockItem.quantity` stays the authoritative count — these rows are *not* a
+/// second ledger to reconcile against it. They exist for the two questions the
+/// counter cannot answer: when does what we are holding expire, and which lot
+/// number was used, which is the one a recall notice asks for.
+model StockBatch {
+  id     String    @id @default(uuid())
+  itemId String
+  item   StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  lotNumber  String?
+  expiryDate DateTime?
+  /// How many arrived in this lot.
+  quantity  Int      @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([itemId, expiryDate])
 }
 
 /// Append-only log of quantity changes — powers the "stock usage" analytics chart
@@ -322,6 +482,186 @@ model ServiceMaterial {
 
   @@unique([serviceId, itemId])
   @@index([serviceId])
+}
+
+/// Work sent out to a dental laboratory: a crown, a bridge, a denture, a set of
+/// aligners. Nothing in the schema knew this existed, so it lived on a
+/// whiteboard — and the fitting appointment got booked for the day before the
+/// crown came back.
+model LabCase {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  /// The laboratory. A plain name rather than a table: a practice uses one or
+  /// two, and a `Supplier` row for each would be ceremony without a payoff.
+  labName String
+  /// Crown, bridge, denture, aligner… free text, because the list is endless
+  /// and every practice words it differently.
+  kind String
+  /// Which teeth, in FDI, comma-separated. Free-form on purpose — "upper arch"
+  /// is a legitimate answer for a denture.
+  teeth String?
+
+  status LabCaseStatus @default(SENT)
+  sentAt DateTime      @default(now())
+  /// When the lab promised it. This is what the "waiting on" list sorts by.
+  dueAt      DateTime?
+  receivedAt DateTime?
+  notes      String?
+
+  createdById String?
+  createdBy   StaffUser? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+
+  @@index([patientId])
+  @@index([status, dueAt])
+}
+
+enum LabCaseStatus {
+  SENT
+  RECEIVED
+  FITTED
+  CANCELLED
+}
+
+/// A contraindication, as data rather than as a sentence in a paragraph.
+///
+/// `medical.ts` scans free-text notes for "allerg" and shouts when it finds it.
+/// As a safety net over history that is already prose, that stays. As the *only*
+/// representation of "allergic to penicillin" it is not enough: a heuristic over
+/// wording cannot be cross-checked against a prescription, cannot be shown on
+/// the day list before the patient sits down, and quietly misses a note that
+/// says "reacts badly to amoxicillin".
+model PatientAlert {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  kind MedicalAlertKind
+  /// The drug or material itself, for the kinds where naming it is the point.
+  /// Matched against prescription text, so it is stored as typed.
+  substance String?
+  severity  AlertSeverity @default(IMPORTANT)
+  notes     String?
+
+  createdById String?
+  createdBy   StaffUser? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+
+  @@index([patientId])
+}
+
+enum MedicalAlertKind {
+  ALLERGY
+  ANTICOAGULANT
+  PREGNANCY
+  DIABETES
+  CARDIAC_PROPHYLAXIS
+  LATEX
+  PACEMAKER
+  BISPHOSPHONATE
+  OTHER
+}
+
+enum AlertSeverity {
+  /// Stop and check before treating.
+  CRITICAL
+  /// Changes the plan; must be read.
+  IMPORTANT
+  /// Worth knowing.
+  INFO
+}
+
+/// Every time somebody was actually contacted.
+///
+/// The app never sends anything itself — it opens WhatsApp or the mail client
+/// with the text ready. That is a deliberate choice and it stays, but it left
+/// the practice with no memory at all: no way to see that a patient was already
+/// reminded this morning, no way to tell "asked once" from "asked three times
+/// and heard nothing", and no answer when somebody says nobody told them.
+model Contact {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  /// The appointment it was about, when it was about one.
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  channel ContactChannel
+  purpose ContactPurpose
+
+  /// What was actually put in front of the patient, snapshotted — a later edit
+  /// to the message template must not rewrite what was said last March.
+  body String
+
+  actorId String?
+  actor   StaffUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([patientId, createdAt])
+  @@index([appointmentId])
+}
+
+enum ContactChannel {
+  WHATSAPP
+  EMAIL
+  PHONE
+  IN_PERSON
+}
+
+enum ContactPurpose {
+  REMINDER
+  RECALL
+  CONFIRMATION
+  FOLLOW_UP
+  OTHER
+}
+
+/// When the practice is open, one row per weekday. Kept as seven fixed rows
+/// rather than a free list of intervals: a dentist thinks "Tuesday, 8 to 6, shut
+/// for lunch", and every screen that lays out a day needs exactly that answer.
+///
+/// Times are the clinic's own wall clock (`CLINIC_TIME_ZONE`), not UTC — the
+/// practice opens at eight local, whatever the server thinks the hour is.
+model ClinicHours {
+  /// 0 = Sunday … 6 = Saturday, matching `Date#getUTCDay()`.
+  weekday Int @id
+
+  /// A closed weekday keeps its times, so reopening on Saturdays does not mean
+  /// retyping them.
+  open      Boolean @default(true)
+  openTime  String  @default("08:00")
+  closeTime String  @default("20:00")
+
+  /// The midday break, when there is one. Both null means straight through.
+  breakStart String?
+  breakEnd   String?
+
+  updatedAt DateTime @updatedAt
+}
+
+/// A day or run of days when the practice is shut — a public holiday, the August
+/// shutdown, a course. Separate from `ClinicHours` because it is an exception to
+/// the pattern rather than a change of pattern.
+model Closure {
+  id String @id @default(uuid())
+
+  /// Both UTC midnight, both inclusive: a single day has `from == to`.
+  from   DateTime
+  to     DateTime
+  reason String
+
+  /// Null means the whole practice is shut. Set, it is one person's leave — the
+  /// others still work, and only that dentist's slots disappear.
+  staffUserId String?
+  staffUser   StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([from, to])
 }
 
 /// Patients who want an earlier slot. When an appointment is cancelled the app

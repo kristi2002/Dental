@@ -24,6 +24,21 @@ export function initials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
+/**
+ * Case- and accent-insensitive substring test, for filtering a list in memory.
+ * Typing "cesh" has to find "Çështje" — nobody reaches for the diacritics when
+ * they are hunting for a row.
+ */
+export function matches(haystack: string, needle: string): boolean {
+  const fold = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLocaleLowerCase();
+
+  return fold(haystack).includes(fold(needle));
+}
+
 /** Visit records store services as a comma-separated list (per the schema comment). */
 export function parseServiceList(services: string): string[] {
   return services

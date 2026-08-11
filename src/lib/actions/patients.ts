@@ -2,17 +2,33 @@
 
 import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { ContactChannel } from '@/generated/prisma/enums';
 import { redirect } from '@/i18n/navigation';
+import { locales } from '@/i18n/routing';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
 import { toDay } from '@/lib/dates';
 import { consumeMaterialsForServices } from '@/lib/stock-consumption';
-import { DEFAULT_TOOTH_STATUS, isToothStatus } from '@/lib/teeth';
+import { DEFAULT_TOOTH_STATUS, formatSurfaces, isToothStatus, isValidTooth } from '@/lib/teeth';
 import { optionalString, requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
 function revalidateAll() {
   revalidatePath('/', 'layout');
+}
+
+/** `''` → null (never asked), `'1'` → yes, anything else → no. */
+function toConsent(value: string | null): boolean | null {
+  if (value === null || value === '') return null;
+  return value === '1';
+}
+
+function toChannel(value: string | null): ContactChannel | null {
+  return value && value in ContactChannel ? (value as ContactChannel) : null;
+}
+
+function toPatientLocale(value: string | null): string | null {
+  return value && (locales as readonly string[]).includes(value) ? value : null;
 }
 
 export async function savePatient(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -42,6 +58,17 @@ export async function savePatient(_prev: ActionState, formData: FormData): Promi
       ? { medicalNotes: optionalString(formData.get('medicalNotes')) }
       : {}),
     recallMonths: Math.min(60, Math.max(0, Number(formData.get('recallMonths') ?? 6) || 0)),
+    // Three states, not two: "" is nobody-asked, which is what an imported or
+    // pre-existing record honestly is.
+    contactConsent: toConsent(optionalString(formData.get('contactConsent'))),
+    preferredChannel: toChannel(optionalString(formData.get('preferredChannel'))),
+    locale: toPatientLocale(optionalString(formData.get('locale'))),
+    guardianName: optionalString(formData.get('guardianName')),
+    guardianPhone: optionalString(formData.get('guardianPhone')),
+    address: optionalString(formData.get('address')),
+    fiscalCode: optionalString(formData.get('fiscalCode')),
+    emergencyContact: optionalString(formData.get('emergencyContact')),
+    referralSource: optionalString(formData.get('referralSource')),
   };
 
   let savedId = id;
@@ -123,6 +150,9 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
         services,
         visitDate: visitDate ? new Date(`${visitDate}T00:00:00.000Z`) : toDay(new Date()),
         staffUserId: user.id,
+        // Who typed it and who did it are the same person often enough to
+        // default, and different often enough to ask.
+        performedById: optionalString(formData.get('performedById')) ?? user.id,
       },
       select: { id: true },
     });
@@ -194,21 +224,27 @@ export async function saveToothRecord(
   const rawStatus = requiredString(formData.get('status'));
   const notes = optionalString(formData.get('notes'));
 
-  if (!patientId || !Number.isInteger(toothNum) || toothNum < 1 || toothNum > 32) {
+  // FDI, so the valid set is not a contiguous range — 19 and 29 are not teeth.
+  if (!patientId || !Number.isInteger(toothNum) || !isValidTooth(toothNum)) {
     return actionError(t('generic'));
   }
   const status = isToothStatus(rawStatus) ? rawStatus : DEFAULT_TOOTH_STATUS;
 
+  // Normalised to anatomical order, so "DOM" and "MOD" are the same record.
+  const surfaces =
+    formatSurfaces(formData.getAll('surfaces').filter((v) => typeof v === 'string').join('')) ||
+    null;
+
   try {
-    if (status === DEFAULT_TOOTH_STATUS && !notes) {
+    if (status === DEFAULT_TOOTH_STATUS && !notes && !surfaces) {
       // "Healthy with no note" is the implicit default — drop the row instead of
       // storing noise, so the chart summary stays meaningful.
       await prisma.toothRecord.deleteMany({ where: { patientId, toothNum } });
     } else {
       await prisma.toothRecord.upsert({
         where: { patientId_toothNum: { patientId, toothNum } },
-        create: { patientId, toothNum, status, notes },
-        update: { status, notes },
+        create: { patientId, toothNum, status, notes, surfaces },
+        update: { status, notes, surfaces },
       });
     }
   } catch {
@@ -219,7 +255,7 @@ export async function saveToothRecord(
     action: 'update',
     entity: 'tooth',
     entityId: patientId,
-    summary: `#${toothNum} · ${status}`,
+    summary: `#${toothNum}${surfaces ? ` (${surfaces})` : ''} · ${status}`,
   });
 
   revalidateAll();

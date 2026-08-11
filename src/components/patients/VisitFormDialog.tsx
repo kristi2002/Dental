@@ -3,24 +3,35 @@
 import { NotebookPen, Package } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
-import type { ServiceOption } from '@/components/appointments/AppointmentFormDialog';
-import { TextAreaField, TextField } from '@/components/ui/Field';
+import type {
+  ServiceOption,
+  StaffOption,
+} from '@/components/appointments/AppointmentFormDialog';
+import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { saveVisit } from '@/lib/actions/patients';
+import { byDepartment } from '@/lib/catalog';
 import { cn, parseServiceList } from '@/lib/utils';
 
 export function VisitFormDialog({
   patientId,
   services: catalog,
+  staff = [],
+  currentUserId,
   today,
 }: {
   patientId: string;
   /** Service catalog, offered as one-tap chips. */
   services: ServiceOption[];
+  /** Dentists who could have done the work. Empty hides the question. */
+  staff?: StaffOption[];
+  /** Defaults the "treated by" answer to whoever is writing it up. */
+  currentUserId?: string;
   /** `YYYY-MM-DD` default for the visit date. */
   today: string;
 }) {
   const t = useTranslations('patients');
+  const ts = useTranslations('services');
   const tc = useTranslations('common');
   const uid = useId();
   const [services, setServices] = useState('');
@@ -60,14 +71,34 @@ export function VisitFormDialog({
       <input type="hidden" name="patientId" value={patientId} />
       <input type="hidden" name="serviceIds" value={selectedIds.join(',')} />
 
-      <TextField
-        id={`${uid}-date`}
-        name="visitDate"
-        type="date"
-        label={t('visitDate')}
-        required
-        defaultValue={today}
-      />
+      <div className={staff.length > 1 ? 'grid gap-4 sm:grid-cols-2' : undefined}>
+        <TextField
+          id={`${uid}-date`}
+          name="visitDate"
+          type="date"
+          label={t('visitDate')}
+          required
+          defaultValue={today}
+        />
+
+        {/* Recorded-by is stamped from the session; this is the separate question
+            of who held the handpiece, which an assistant writing up the dentist's
+            work would otherwise answer wrongly by omission. */}
+        {staff.length > 1 ? (
+          <SelectField
+            id={`${uid}-performedBy`}
+            name="performedById"
+            label={t('performedBy')}
+            defaultValue={currentUserId ?? ''}
+          >
+            {staff.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </SelectField>
+        ) : null}
+      </div>
 
       <TextAreaField
         id={`${uid}-notes`}
@@ -88,27 +119,38 @@ export function VisitFormDialog({
           onChange={(event) => setServices(event.target.value)}
         />
 
+        {/* Split by department: a dentist recording a root canal looks under
+            Endodontics, not down an alphabetical run of everything on offer. */}
         {catalog.length > 0 ? (
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            {catalog.map((service) => {
-              const active = selected.includes(service.name);
-              return (
-                <button
-                  key={service.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => toggleService(service.name)}
-                  className={cn(
-                    'rounded-full border px-3 py-1.5 text-[0.9rem] font-semibold transition-colors',
-                    active
-                      ? 'border-brand-dark bg-brand-dark text-white'
-                      : 'border-line-strong bg-surface text-ink-soft hover:border-ink hover:text-ink',
-                  )}
-                >
-                  {service.name}
-                </button>
-              );
-            })}
+          <div className="mt-2.5 space-y-3">
+            {byDepartment(catalog).map(({ department, items }) => (
+              <div key={department || 'none'}>
+                <p className="mb-1.5 text-[0.8rem] font-bold tracking-wide text-ink-faint uppercase">
+                  {department || ts('uncategorized')}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {items.map((service) => {
+                    const active = selected.includes(service.name);
+                    return (
+                      <button
+                        key={service.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => toggleService(service.name)}
+                        className={cn(
+                          'rounded-full border px-3 py-1.5 text-[0.9rem] font-semibold transition-colors',
+                          active
+                            ? 'border-brand-dark bg-brand-dark text-white'
+                            : 'border-line-strong bg-surface text-ink-soft hover:border-ink hover:text-ink',
+                        )}
+                      >
+                        {service.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         ) : null}
       </div>

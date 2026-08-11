@@ -39,13 +39,15 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
     <div className="flex min-h-screen flex-col bg-paper">
       <header className="app-header">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-8">
-          <span className="flex items-center gap-3">
+          <span className="flex min-w-0 items-center gap-3">
             <ToothMark className="text-white" />
-            <span>
-              <span className="block text-[1.3rem] leading-tight font-bold tracking-tight text-white">
+            <span className="min-w-0">
+              {/* No account button competing for room here, so the wordmark
+                  stays on phones — it just steps down a size to fit. */}
+              <span className="block truncate text-[1.1rem] leading-tight font-bold tracking-tight text-white sm:text-[1.3rem]">
                 {tApp('name')}
               </span>
-              <span className="hidden text-[0.8rem] text-white/85 sm:block">
+              <span className="hidden truncate text-[0.8rem] text-white/85 lg:block">
                 {tApp('tagline')}
               </span>
             </span>

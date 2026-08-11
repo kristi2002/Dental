@@ -14,6 +14,8 @@ export type VisitView = {
   services: string;
   /** Who wrote it. Empty for visits recorded before staff accounts existed. */
   recordedBy: string;
+  /** Who did the treatment. Only shown when it differs from who wrote it up. */
+  performedBy: string;
 };
 
 export function VisitTimeline({
@@ -48,7 +50,14 @@ export function VisitTimeline({
                   year: 'numeric',
                 })}
               </p>
-              {visit.recordedBy ? (
+              {/* Naming both only when they differ: "recorded by X, treated by X"
+                  is noise on every line of a solo practice's history. */}
+              {visit.performedBy && visit.performedBy !== visit.recordedBy ? (
+                <p className="text-[0.9rem] text-ink-faint">
+                  {t('treatedBy', { name: visit.performedBy })}
+                  {visit.recordedBy ? ` · ${t('recordedBy', { name: visit.recordedBy })}` : ''}
+                </p>
+              ) : visit.recordedBy ? (
                 <p className="text-[0.9rem] text-ink-faint">
                   {t('recordedBy', { name: visit.recordedBy })}
                 </p>

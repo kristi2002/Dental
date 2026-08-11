@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, LogOut, ScrollText, UserCog } from 'lucide-react';
+import { CalendarClock, ChevronDown, LogOut, ScrollText, UserCog } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
@@ -19,12 +19,14 @@ export function UserMenu({
   role,
   canManageStaff,
   canViewAudit,
+  canViewSettings,
 }: {
   firstName: string;
   lastName: string;
   role: Role;
   canManageStaff: boolean;
   canViewAudit: boolean;
+  canViewSettings: boolean;
 }) {
   const t = useTranslations('auth');
   const tr = useTranslations('roles');
@@ -84,6 +86,18 @@ export function UserMenu({
             </span>
             {tr(role)}
           </p>
+
+          {canViewSettings ? (
+            <Link
+              href="/settings"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-[1rem] font-semibold text-ink no-underline hover:bg-brand-soft"
+            >
+              <CalendarClock size={19} aria-hidden className="text-brand" />
+              {t('settings')}
+            </Link>
+          ) : null}
 
           {canManageStaff ? (
             <Link

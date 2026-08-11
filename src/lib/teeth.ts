@@ -1,9 +1,19 @@
 /**
- * Simplified 2D chart of the 32 permanent teeth, using the Universal Numbering
- * System that the Prisma schema encodes (`toothNum` 1–32).
+ * The dental chart, numbered the way its readers number teeth.
  *
- *  1–16  upper arch, patient's right → patient's left
- * 17–32  lower arch, patient's left  → patient's right
+ * This shipped using the **Universal** system (1–32) — the American one — in an
+ * app translated into Albanian and Italian, where every dentist is taught
+ * **FDI**. "Tooth 14" meant the upper-left first premolar to the schema and the
+ * upper-right first premolar to the person reading it. FDI is therefore what is
+ * stored; Universal survives as a display choice for a practice that wants it.
+ *
+ * FDI is two digits: quadrant, then position from the midline.
+ *
+ *   permanent   1x upper-right   2x upper-left   3x lower-left   4x lower-right
+ *   primary     5x upper-right   6x upper-left   7x lower-left   8x lower-right
+ *
+ * Primary teeth matter for the obvious reason: without them a child cannot be
+ * charted at all, and children are a large part of a general practice.
  */
 
 export const TOOTH_STATUSES = [
@@ -78,16 +88,95 @@ export const TOOTH_STATUS_STYLE: Record<
   },
 };
 
-export const UPPER_TEETH = Array.from({ length: 16 }, (_, i) => i + 1);
-export const LOWER_TEETH = Array.from({ length: 16 }, (_, i) => i + 17);
+export type Dentition = 'PERMANENT' | 'PRIMARY';
 
-/** The lower arch is numbered right-to-left, so mirror it to keep the patient's
- *  right side on the left of the screen in both arches. */
-export const LOWER_TEETH_DISPLAY = [...LOWER_TEETH].reverse();
+/** Quadrant order runs from the midline outwards, so 8 is the third molar. */
+function quadrant(prefix: number, count: number): number[] {
+  return Array.from({ length: count }, (_, i) => prefix * 10 + i + 1);
+}
 
-/** Teeth 1–8 / 25–32 sit on the patient's right; the rest on the left. */
+/**
+ * Display order for each row: the patient's right-hand side on the left of the
+ * screen, both arches, so the chart reads like the dentist is facing them.
+ */
+export const PERMANENT_UPPER = [...quadrant(1, 8)].reverse().concat(quadrant(2, 8));
+export const PERMANENT_LOWER = [...quadrant(4, 8)].reverse().concat(quadrant(3, 8));
+export const PRIMARY_UPPER = [...quadrant(5, 5)].reverse().concat(quadrant(6, 5));
+export const PRIMARY_LOWER = [...quadrant(8, 5)].reverse().concat(quadrant(7, 5));
+
+export const PERMANENT_TEETH = [...PERMANENT_UPPER, ...PERMANENT_LOWER];
+export const PRIMARY_TEETH = [...PRIMARY_UPPER, ...PRIMARY_LOWER];
+export const ALL_TEETH = [...PERMANENT_TEETH, ...PRIMARY_TEETH];
+
+export function dentitionOf(toothNum: number): Dentition {
+  return Math.floor(toothNum / 10) >= 5 ? 'PRIMARY' : 'PERMANENT';
+}
+
+export function isValidTooth(toothNum: number): boolean {
+  return ALL_TEETH.includes(toothNum);
+}
+
+/** Quadrants 1 and 4 (and 5, 8 for primary) are the patient's right. */
 export function isRightSide(toothNum: number): boolean {
-  return toothNum <= 8 || toothNum >= 25;
+  const q = Math.floor(toothNum / 10);
+  return q === 1 || q === 4 || q === 5 || q === 8;
+}
+
+/**
+ * Universal labels, for a practice that reads them. Permanent teeth are 1–32
+ * running upper-right to upper-left then lower-left to lower-right; primary
+ * teeth are the letters A–T over the same path.
+ */
+const UNIVERSAL_ORDER = [
+  ...[...quadrant(1, 8)].reverse(), ...quadrant(2, 8),
+  ...[...quadrant(3, 8)].reverse(), ...quadrant(4, 8),
+];
+const UNIVERSAL_PRIMARY_ORDER = [
+  ...[...quadrant(5, 5)].reverse(), ...quadrant(6, 5),
+  ...[...quadrant(7, 5)].reverse(), ...quadrant(8, 5),
+];
+
+export type ToothNumbering = 'FDI' | 'UNIVERSAL';
+
+export function toothLabel(toothNum: number, numbering: ToothNumbering = 'FDI'): string {
+  if (numbering === 'FDI') return String(toothNum);
+
+  const permanent = UNIVERSAL_ORDER.indexOf(toothNum);
+  if (permanent >= 0) return String(permanent + 1);
+
+  const primary = UNIVERSAL_PRIMARY_ORDER.indexOf(toothNum);
+  if (primary >= 0) return String.fromCharCode(65 + primary); // A–T
+
+  return String(toothNum);
+}
+
+/**
+ * The five surfaces of a tooth. Without them the chart can record that a tooth
+ * has caries but not *where*, which is the difference between a note and a
+ * treatment plan. Stored as a short string like `"MOD"`.
+ */
+export const TOOTH_SURFACES = ['M', 'O', 'D', 'B', 'L'] as const;
+export type ToothSurface = (typeof TOOTH_SURFACES)[number];
+
+/** Front teeth have an incisal edge where back teeth have an occlusal surface. */
+export function isAnterior(toothNum: number): boolean {
+  const position = toothNum % 10;
+  return position <= 3;
+}
+
+export function parseSurfaces(value: string | null | undefined): ToothSurface[] {
+  if (!value) return [];
+  const seen = new Set<string>();
+  for (const char of value.toUpperCase()) {
+    if ((TOOTH_SURFACES as readonly string[]).includes(char)) seen.add(char);
+  }
+  // Kept in anatomical order rather than typing order, so "DOM" and "MOD" are
+  // the same record.
+  return TOOTH_SURFACES.filter((surface) => seen.has(surface));
+}
+
+export function formatSurfaces(value: string | null | undefined): string {
+  return parseSurfaces(value).join('');
 }
 
 /** Anything other than "healthy" is worth flagging to the dentist. */

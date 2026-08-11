@@ -31,13 +31,21 @@ export type ReorderLine = {
   /** How many units to buy to reach the target cover. */
   suggested: number;
   urgent: boolean;
+  /** ISO date the order went out, or null. A line already on order is shown as
+   *  answered rather than asked again every morning. */
+  orderedAt: string | null;
+  expectedAt: string | null;
+  supplierName: string;
 };
 
 export async function getReorderSuggestions(): Promise<ReorderLine[]> {
   const since = addDays(today(), -WINDOW_DAYS);
 
   const [items, used] = await Promise.all([
-    prisma.stockItem.findMany({ orderBy: { name: 'asc' } }),
+    prisma.stockItem.findMany({
+      orderBy: { name: 'asc' },
+      include: { supplier: { select: { name: true } } },
+    }),
     prisma.stockMovement.groupBy({
       by: ['itemId'],
       // Only consumption counts. Restocking is not demand.
@@ -69,6 +77,8 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
     // Nothing to say about an item that is neither low nor running down.
     if (suggested <= 0 && !urgent) continue;
 
+    const onOrder = item.orderedAt !== null;
+
     lines.push({
       id: item.id,
       name: item.name,
@@ -78,12 +88,22 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
       monthlyUse: Math.round(monthlyUse * 10) / 10,
       daysLeft,
       suggested: Math.max(suggested, urgent && suggested === 0 ? item.minLimit : suggested),
-      urgent,
+      // Something already on its way is not urgent any more — the decision has
+      // been taken, and leaving it at the top of the list is what teaches people
+      // to skim past the top of the list.
+      urgent: urgent && !onOrder,
+      orderedAt: item.orderedAt ? item.orderedAt.toISOString() : null,
+      expectedAt: item.expectedAt ? item.expectedAt.toISOString() : null,
+      supplierName: item.supplier?.name ?? '',
     });
   }
 
-  // Most urgent first: soonest to run out, then biggest order.
+  // Most urgent first: soonest to run out, then biggest order. Anything already
+  // ordered sinks below everything still needing a decision.
   return lines.sort((a, b) => {
+    const aOrdered = a.orderedAt !== null;
+    const bOrdered = b.orderedAt !== null;
+    if (aOrdered !== bOrdered) return aOrdered ? 1 : -1;
     if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
     const aDays = a.daysLeft ?? Number.POSITIVE_INFINITY;
     const bDays = b.daysLeft ?? Number.POSITIVE_INFINITY;
@@ -93,8 +113,9 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
 
 /** The order list as plain text, for pasting into a WhatsApp message to a supplier. */
 export function reorderAsText(lines: ReorderLine[], heading: string): string {
+  // What is already coming does not belong on an order form.
   const body = lines
-    .filter((line) => line.suggested > 0)
+    .filter((line) => line.suggested > 0 && line.orderedAt === null)
     .map((line) => `• ${line.name}: ${line.suggested} ${line.unit}`)
     .join('\n');
 

@@ -6,6 +6,7 @@ import { useId, useState } from 'react';
 import { SelectField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { saveWaitlistEntry } from '@/lib/actions/waitlist';
+import { byDepartment } from '@/lib/catalog';
 import type { PatientOption, ServiceOption } from './AppointmentFormDialog';
 
 export function WaitlistFormDialog({
@@ -16,6 +17,7 @@ export function WaitlistFormDialog({
   services: ServiceOption[];
 }) {
   const t = useTranslations('waitlist');
+  const ts = useTranslations('services');
   const tc = useTranslations('common');
   const uid = useId();
   const [duration, setDuration] = useState(30);
@@ -61,10 +63,14 @@ export function WaitlistFormDialog({
           }}
         >
           <option value="">{tc('none')}</option>
-          {services.map((s) => (
-            <option key={s.id} value={s.name}>
-              {s.name}
-            </option>
+          {byDepartment(services).map(({ department, items }) => (
+            <optgroup key={department || 'none'} label={department || ts('uncategorized')}>
+              {items.map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name} · {s.durationMin} {tc('minutes')}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </SelectField>
 

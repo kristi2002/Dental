@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Package,
   Stethoscope,
-  Sun,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -19,7 +18,6 @@ import { cn } from '@/lib/utils';
  *  decided on the server — see `NAV_DESTINATIONS` in `nav-destinations.ts`. */
 const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
-  digest: Sun,
   appointments: CalendarDays,
   patients: Users,
   recalls: BellRing,

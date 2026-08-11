@@ -35,6 +35,8 @@ export const PERMISSIONS = [
   'document.delete',
   'prescription.view',
   'prescription.edit',
+  'settings.view',
+  'settings.edit',
   'staff.manage',
   'audit.view',
   'backup.export',
@@ -78,6 +80,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'document.view',
     'document.edit',
     'prescription.view',
+    'settings.view',
   ],
 
   /** Front desk — schedules and contacts people, never opens the chart. */
@@ -92,6 +95,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'recall.send',
     'waitlist.view',
     'waitlist.edit',
+    'settings.view',
   ],
 
   /** Locum or accountant — reads everything relevant, writes nothing. */
@@ -107,6 +111,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'plan.view',
     'document.view',
     'prescription.view',
+    'settings.view',
   ],
 };
 

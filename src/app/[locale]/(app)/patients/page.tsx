@@ -1,4 +1,4 @@
-import { Cake, Mail, Phone, Search, Users } from 'lucide-react';
+import { Cake, Mail, Phone, Search, TriangleAlert, Users } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { ReliabilityBadge } from '@/components/patients/ReliabilityBadge';
@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { age } from '@/lib/dates';
+import { hasAllergyNote } from '@/lib/medical';
 import { prisma } from '@/lib/prisma';
 import { getReliabilityMap } from '@/lib/reliability';
 import { initials } from '@/lib/utils';
@@ -129,9 +130,18 @@ export default async function PatientsPage({
 
                   <span className="mt-2 flex flex-wrap gap-1.5">
                     <ReliabilityBadge reliability={reliability.get(patient.id)} />
-                    {/* Even the existence of a note is clinical information. */}
+                    {/* Even the existence of a note is clinical information — and
+                        an allergy among them is worth spotting from the list,
+                        before anyone opens the record. */}
                     {canSeeMedical && patient.medicalNotes ? (
-                      <Badge tone="warn">{t('medicalNotes')}</Badge>
+                      hasAllergyNote(patient.medicalNotes) ? (
+                        <Badge tone="alert">
+                          <TriangleAlert size={14} aria-hidden />
+                          {t('allergyBadge')}
+                        </Badge>
+                      ) : (
+                        <Badge tone="warn">{t('medicalNotes')}</Badge>
+                      )
                     ) : null}
                     {patient._count.visitRecords > 0 ? (
                       <Badge>

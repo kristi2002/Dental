@@ -15,7 +15,6 @@ export const NAV_DESTINATIONS: ReadonlyArray<{
   permission: Permission | null;
 }> = [
   { href: '/', key: 'dashboard', permission: null },
-  { href: '/digest', key: 'digest', permission: null },
   { href: '/appointments', key: 'appointments', permission: 'appointment.view' },
   { href: '/patients', key: 'patients', permission: 'patient.view' },
   { href: '/recalls', key: 'recalls', permission: 'recall.view' },

@@ -1,4 +1,4 @@
-import { AppointmentStatus } from '@/generated/prisma/enums';
+import { AppointmentStatus, CancelledBy } from '@/generated/prisma/enums';
 import { prisma } from '@/lib/prisma';
 import { today } from '@/lib/dates';
 
@@ -59,7 +59,13 @@ function summarise(counts: StatusCount[]): Reliability {
 export async function getReliability(patientId: string): Promise<Reliability> {
   const counts = await prisma.appointment.groupBy({
     by: ['status'],
-    where: { patientId, date: { lt: today() } },
+    // A cancellation the practice made is not the patient's doing, and counting
+    // it against them was quietly unfair — the score drives who gets chased.
+    where: {
+      patientId,
+      date: { lt: today() },
+      NOT: { cancelledBy: CancelledBy.CLINIC },
+    },
     _count: { _all: true },
   });
 

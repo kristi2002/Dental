@@ -1,5 +1,5 @@
-import { CircleCheck, Mail, MessageCircle, Trash2 } from 'lucide-react';
-import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
+import { CircleCheck, Trash2 } from 'lucide-react';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Link } from '@/i18n/navigation';
@@ -7,9 +7,11 @@ import { deleteAppointment, setAppointmentStatus } from '@/lib/actions/appointme
 import { can } from '@/lib/auth/session';
 import { confirmationToken, confirmationUrl } from '@/lib/confirmations';
 import { minutesToTime, timeToMinutes } from '@/lib/dates';
-import { mailtoLink, whatsappLink } from '@/lib/reminders';
+import { getOperatoryOptions, getProviderOptions } from '@/lib/queries';
+import { composeReminder } from '@/lib/reminder-messages';
 import { cn } from '@/lib/utils';
 import { AppointmentFormDialog, type PatientOption, type ServiceOption } from './AppointmentFormDialog';
+import { ReminderLinks } from './ReminderLinks';
 import type { AppointmentView } from './types';
 
 const STATUS_STYLE: Record<string, string> = {
@@ -30,43 +32,34 @@ export async function AppointmentChip({
   services: ServiceOption[];
 }) {
   const t = await getTranslations('appointments');
-  const tr = await getTranslations('reminders');
   const tc = await getTranslations('common');
-  const format = await getFormatter();
-  const [canEdit, canDelete, locale] = await Promise.all([
+  // Fetched here rather than drilled through the grid: both are `cache()`d, so
+  // a day with thirty chips still costs one query each.
+  const [canEdit, canDelete, locale, staff, operatories] = await Promise.all([
     can('appointment.edit'),
     can('appointment.delete'),
     getLocale(),
+    getProviderOptions(),
+    getOperatoryOptions(),
   ]);
 
   const patientName = `${appointment.patient.firstName} ${appointment.patient.lastName}`;
   const endTime = minutesToTime(timeToMinutes(appointment.startTime) + appointment.durationMin);
 
-  const values = {
-    name: patientName,
-    date: format.dateTime(new Date(`${appointment.date}T00:00:00.000Z`), {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    }),
-    time: appointment.startTime,
-  };
   // Same ask as the row form, so a reminder sent from the day grid carries the
-  // confirmation link too.
-  const confirmAsk = `\n\n${tr('confirmAsk', {
-    link: confirmationUrl(locale, await confirmationToken(appointment.id)),
-  })}`;
-
-  const whatsapp = appointment.patient.phone
-    ? whatsappLink(appointment.patient.phone, `${tr('whatsappTemplate', values)}${confirmAsk}`)
-    : null;
-  const mail = appointment.patient.email
-    ? mailtoLink(
-        appointment.patient.email,
-        tr('emailSubject', values),
-        `${tr('emailBody', values)}${confirmAsk}`,
-      )
-    : null;
+  // confirmation link too — and is written in the patient's language.
+  const reminder = await composeReminder({
+    patientName,
+    phone: appointment.patient.phone,
+    email: appointment.patient.email,
+    date: appointment.date,
+    startTime: appointment.startTime,
+    patientLocale: appointment.patient.locale,
+    confirmLink: confirmationUrl(
+      appointment.patient.locale || locale,
+      await confirmationToken(appointment.id),
+    ),
+  });
 
   return (
     <article
@@ -92,6 +85,12 @@ export async function AppointmentChip({
         <p className="text-[0.95rem] text-ink-soft">{appointment.serviceName}</p>
       ) : null}
 
+      {appointment.staffName || appointment.operatoryName ? (
+        <p className="text-[0.95rem] font-semibold text-ink-soft">
+          {[appointment.staffName, appointment.operatoryName].filter(Boolean).join(' · ')}
+        </p>
+      ) : null}
+
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {canEdit && appointment.status === 'SCHEDULED' ? (
           <ActionForm
@@ -105,30 +104,22 @@ export async function AppointmentChip({
           </ActionForm>
         ) : null}
 
-        {whatsapp ? (
-          <a
-            href={whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary btn-sm"
-            title={t('remindWhatsapp')}
-          >
-            <MessageCircle size={16} aria-hidden />
-            <span className="sr-only">{t('remindWhatsapp')}</span>
-          </a>
-        ) : null}
-
-        {mail ? (
-          <a href={mail} className="btn btn-secondary btn-sm" title={t('remindEmail')}>
-            <Mail size={16} aria-hidden />
-            <span className="sr-only">{t('remindEmail')}</span>
-          </a>
+        {reminder.whatsapp || reminder.mail ? (
+          <ReminderLinks
+            patientId={appointment.patient.id}
+            appointmentId={appointment.id}
+            whatsapp={reminder.whatsapp}
+            mail={reminder.mail}
+            body={reminder.body}
+          />
         ) : null}
 
         {canEdit ? (
           <AppointmentFormDialog
             patients={patients}
             services={services}
+            staff={staff}
+            operatories={operatories}
             appointment={{
               id: appointment.id,
               patientId: appointment.patient.id,
@@ -138,6 +129,8 @@ export async function AppointmentChip({
               status: appointment.status,
               serviceName: appointment.serviceName,
               notes: appointment.notes,
+              staffUserId: appointment.staffUserId,
+              operatoryId: appointment.operatoryId,
             }}
             triggerClassName="btn btn-secondary btn-sm"
             compact

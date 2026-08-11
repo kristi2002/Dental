@@ -4,10 +4,57 @@
  * `src/i18n/request.ts`), which keeps server and client rendering identical.
  */
 
+/**
+ * The clinic's wall clock. Every "what day is it" and "what time is it" answer
+ * in the app comes from here rather than from the server's own clock, because
+ * the two are only the same on a machine that happens to sit in the practice.
+ * A container defaulting to UTC would otherwise shift the working day by an
+ * hour or two — silently, and only in summer.
+ */
+export const CLINIC_TIME_ZONE = process.env.CLINIC_TIME_ZONE || 'Europe/Tirane';
+
+const clinicClock = new Intl.DateTimeFormat('en-GB', {
+  timeZone: CLINIC_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+function clinicWallClock(now: Date): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+} {
+  const parts: Record<string, string> = {};
+  for (const part of clinicClock.formatToParts(now)) {
+    if (part.type !== 'literal') parts[part.type] = part.value;
+  }
+
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    // Some runtimes render midnight as "24" under hour12: false.
+    hour: Number(parts.hour) % 24,
+    minute: Number(parts.minute),
+  };
+}
+
 /** The clinic's current day, normalised to UTC midnight. */
-export function today(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+export function today(now: Date = new Date()): Date {
+  const wall = clinicWallClock(now);
+  return new Date(Date.UTC(wall.year, wall.month - 1, wall.day));
+}
+
+/** Minutes since midnight on the clinic's own clock — "how far into today". */
+export function clinicMinutesNow(now: Date = new Date()): number {
+  const wall = clinicWallClock(now);
+  return wall.hour * 60 + wall.minute;
 }
 
 /** Strip the time part of any date, keeping the same calendar day. */
@@ -100,7 +147,3 @@ export function minutesToTime(minutes: number): string {
   const m = minutes % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
-
-/** Clinic opening hours used to lay out the day and week grids. */
-export const DAY_START_HOUR = 8;
-export const DAY_END_HOUR = 20;

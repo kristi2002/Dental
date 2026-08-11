@@ -9,10 +9,11 @@ export type ActionState =
 
 /**
  * Machine-readable reason, for the few errors a form can offer to work around.
- * `overlap` is the only one so far: the appointment clashes, and the answer may
- * legitimately be "book it anyway".
+ * Both are "the app thinks this is wrong, and you may still be right":
+ * `overlap` is a clashing appointment, `allergy` a prescription naming
+ * something the patient is recorded as reacting to.
  */
-export type ActionErrorCode = 'overlap';
+export type ActionErrorCode = 'overlap' | 'allergy';
 
 export const IDLE_STATE: ActionState = { status: 'idle' };
 

@@ -10,6 +10,13 @@ export const localeLabels: Record<Locale, string> = {
   it: 'Italiano',
 };
 
+/** The same three, for phone-width mastheads where the endonyms don't fit. */
+export const localeShortLabels: Record<Locale, string> = {
+  sq: 'SQ',
+  en: 'EN',
+  it: 'IT',
+};
+
 export const routing = defineRouting({
   locales,
   defaultLocale: 'sq',

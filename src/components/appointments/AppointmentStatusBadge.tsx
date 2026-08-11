@@ -1,9 +1,10 @@
-import { Ban, CalendarClock, CircleCheck, UserX } from 'lucide-react';
+import { Ban, CalendarClock, CircleCheck, DoorOpen, UserX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 
 const STATUS_META: Record<string, { tone: BadgeTone; Icon: typeof CircleCheck }> = {
   SCHEDULED: { tone: 'brand', Icon: CalendarClock },
+  ARRIVED: { tone: 'warn', Icon: DoorOpen },
   COMPLETED: { tone: 'ok', Icon: CircleCheck },
   CANCELLED: { tone: 'neutral', Icon: Ban },
   NO_SHOW: { tone: 'warn', Icon: UserX },

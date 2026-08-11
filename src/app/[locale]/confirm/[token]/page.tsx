@@ -6,7 +6,9 @@ import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { ToothMark } from '@/components/layout/ToothMark';
 import { AppointmentStatus } from '@/generated/prisma/enums';
 import { verifyConfirmationToken } from '@/lib/confirmations';
+import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { clientKey, rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +42,20 @@ export default async function ConfirmPage({
   const t = await getTranslations('confirm');
   const tApp = await getTranslations('app');
   const format = await getFormatter();
+
+  // The only unauthenticated page in the app. Guessing at tokens is bounded
+  // here rather than left to the signature alone — a wrong guess costs the
+  // attacker a slot in a small per-address budget.
+  const limit = rateLimit(`confirm:${clientKey(await headers())}`, { limit: 12, windowMs: 60_000 });
+  if (!limit.allowed) {
+    return (
+      <main className="mx-auto max-w-md px-5 py-20 text-center">
+        <p role="alert" className="text-[1.1rem] font-semibold text-ink">
+          {t('tooMany')}
+        </p>
+      </main>
+    );
+  }
 
   const appointmentId = await verifyConfirmationToken(token);
   const appointment = appointmentId

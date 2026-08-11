@@ -2,7 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
+import { MedicalAlertKind } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { matchingAllergies } from '@/lib/medical';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -93,6 +95,26 @@ export async function issuePrescription(
   if (!patientId || !body) return actionError(t('fillRequired'));
 
   const templateId = optionalString(formData.get('templateId'));
+
+  // The check the structured alerts exist for: a prescription naming something
+  // this patient is recorded as allergic to is stopped once and reported, not
+  // silently written. It is overridable — a dentist may have a reason, and the
+  // match is a substring test, not clinical judgement — but it must be a
+  // deliberate second press.
+  if (requiredString(formData.get('force')) !== '1') {
+    const alerts = await prisma.patientAlert.findMany({
+      where: { patientId, kind: MedicalAlertKind.ALLERGY },
+      select: { kind: true, substance: true, severity: true },
+    });
+
+    const hits = matchingAllergies(body, alerts);
+    if (hits.length > 0) {
+      return actionError(
+        t('allergyClash', { list: hits.map((hit) => hit.substance).join(', ') }),
+        'allergy',
+      );
+    }
+  }
 
   let issuedId: string;
   try {

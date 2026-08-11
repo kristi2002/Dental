@@ -1,0 +1,94 @@
+'use client';
+
+import { PackagePlus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useId } from 'react';
+import { TextAreaField, TextField } from '@/components/ui/Field';
+import { FormDialog } from '@/components/ui/FormDialog';
+import { saveBatch } from '@/lib/actions/stock';
+
+/**
+ * Recording a delivery.
+ *
+ * This is deliberately the same action as restocking rather than a separate
+ * bookkeeping step: the quantity goes up, the ledger gets its movement and the
+ * "on order" flag clears, all on one press. Three separate steps would be three
+ * chances to do two of them.
+ */
+export function BatchFormDialog({
+  itemId,
+  itemName,
+  unit,
+  today,
+}: {
+  itemId: string;
+  itemName: string;
+  unit: string;
+  /** `YYYY-MM-DD`, only used to bound the expiry picker sensibly. */
+  today: string;
+}) {
+  const t = useTranslations('stock');
+  const tc = useTranslations('common');
+  const uid = useId();
+
+  return (
+    <FormDialog
+      action={saveBatch}
+      title={t('batchNew', { name: itemName })}
+      submitLabel={t('batchSave')}
+      pendingLabel={tc('saving')}
+      cancelLabel={tc('cancel')}
+      closeLabel={tc('close')}
+      triggerClassName="btn btn-secondary btn-sm"
+      triggerTitle={t('batchNewShort')}
+      trigger={
+        <>
+          <PackagePlus size={18} aria-hidden />
+          <span className="sr-only">{t('batchNewShort')}</span>
+        </>
+      }
+    >
+      <input type="hidden" name="itemId" value={itemId} />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          id={`${uid}-quantity`}
+          name="quantity"
+          type="number"
+          min={1}
+          step={1}
+          label={`${t('batchQuantity')} (${unit})`}
+          required
+          defaultValue={1}
+        />
+        {/* Blank is a legitimate answer — plenty of materials carry no date, and
+            treating a blank as a warning would make the whole signal noise. */}
+        <TextField
+          id={`${uid}-expiry`}
+          name="expiryDate"
+          type="date"
+          label={t('batchExpiry')}
+          optional={tc('optional')}
+          min={today}
+        />
+      </div>
+
+      {/* The number a recall notice asks for. Nothing else can answer it. */}
+      <TextField
+        id={`${uid}-lot`}
+        name="lotNumber"
+        label={t('batchLot')}
+        hint={t('batchLotHint')}
+        optional={tc('optional')}
+      />
+
+      <TextAreaField
+        id={`${uid}-notes`}
+        name="notes"
+        label={tc('notes')}
+        optional={tc('optional')}
+        rows={2}
+      />
+    </FormDialog>
+  );
+}

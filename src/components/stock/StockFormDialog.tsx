@@ -3,7 +3,7 @@
 import { Pencil, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
-import { TextField } from '@/components/ui/Field';
+import { SelectField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { saveStockItem } from '@/lib/actions/stock';
 
@@ -14,18 +14,22 @@ export type StockDefaults = {
   quantity: number;
   minLimit: number;
   unit: string;
+  supplierId: string;
 };
 
 export function StockFormDialog({
   item,
   categories,
   units,
+  suppliers = [],
   triggerClassName,
   compact = false,
 }: {
   item?: StockDefaults;
   categories: string[];
   units: string[];
+  /** Who this is bought from. Empty until the practice records any. */
+  suppliers?: Array<{ id: string; name: string }>;
   triggerClassName?: string;
   compact?: boolean;
 }) {
@@ -119,6 +123,25 @@ export function StockFormDialog({
           <option key={unit} value={unit} />
         ))}
       </datalist>
+
+      {/* Only worth asking once somebody has been recorded — otherwise it is an
+          empty select on every form. */}
+      {suppliers.length > 0 ? (
+        <SelectField
+          id={`${uid}-supplier`}
+          name="supplierId"
+          label={t('supplier')}
+          optional={tc('optional')}
+          defaultValue={item?.supplierId ?? ''}
+        >
+          <option value="">{tc('none')}</option>
+          {suppliers.map((supplier) => (
+            <option key={supplier.id} value={supplier.id}>
+              {supplier.name}
+            </option>
+          ))}
+        </SelectField>
+      ) : null}
     </FormDialog>
   );
 }

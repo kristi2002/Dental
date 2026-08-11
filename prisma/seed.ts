@@ -157,8 +157,30 @@ const PLACEHOLDER_PNG = Buffer.from(
 );
 
 const TOOTH_STATUSES = ['CARIES', 'FILLED', 'CROWN', 'ROOT_CANAL', 'EXTRACTED', 'IMPLANT', 'MISSING'];
+/** FDI permanent teeth — 11–18, 21–28, 31–38, 41–48. See src/lib/teeth.ts. */
+const FDI_PERMANENT = [1, 2, 3, 4].flatMap((q) => [1, 2, 3, 4, 5, 6, 7, 8].map((i) => q * 10 + i));
+/** Surfaces are only meaningful for the statuses that describe part of a tooth. */
+const SURFACE_STATUSES = new Set(['CARIES', 'FILLED', 'ROOT_CANAL']);
 const START_TIMES = ['08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
 const APPOINTMENT_STATUSES = ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
+
+const SUPPLIERS = [
+  { name: 'DentalMed Shpk', phone: '04 22 33 445', email: 'porosi@dentalmed.al' },
+  { name: 'Farmaceutika Tirana', phone: '04 25 61 890', email: null },
+];
+
+/**
+ * Which materials carry a lot number and an expiry date. Anaesthetics and
+ * composites do; cotton rolls and gloves do not, which is exactly the mix that
+ * makes a blank expiry an ordinary answer rather than a warning.
+ */
+const EXPIRING_MATERIALS = new Set([
+  'Anestezi Lidokainë 2%',
+  'Kompozit A2',
+  'Cimento qelqjonomer',
+  'Fije suture 4-0',
+  'Solucion dezinfektues',
+]);
 
 async function main() {
   console.log('Clearing existing data…');
@@ -178,6 +200,41 @@ async function main() {
   await prisma.stockItem.deleteMany();
   await prisma.service.deleteMany();
   await prisma.staffUser.deleteMany();
+  await prisma.closure.deleteMany();
+  await prisma.clinicHours.deleteMany();
+  await prisma.operatory.deleteMany();
+  await prisma.clinicProfile.deleteMany();
+  await prisma.stockBatch.deleteMany();
+  await prisma.supplier.deleteMany();
+
+  // The demo practice keeps ordinary hours: weekdays with a lunch break,
+  // Saturday mornings, Sunday shut. Seeded explicitly so the free-slot search
+  // and the day grid have something realistic to disagree about.
+  await prisma.clinicProfile.create({ data: { id: 'clinic', name: 'DentOrganizer' } });
+
+  console.log('Seeding opening hours…');
+  await prisma.clinicHours.createMany({
+    data: [
+      { weekday: 0, open: false, openTime: '09:00', closeTime: '13:00' },
+      ...[1, 2, 3, 4, 5].map((weekday) => ({
+        weekday,
+        open: true,
+        openTime: '08:00',
+        closeTime: '19:00',
+        breakStart: '13:00',
+        breakEnd: '14:00',
+      })),
+      { weekday: 6, open: true, openTime: '09:00', closeTime: '14:00' },
+    ],
+  });
+
+  await prisma.closure.create({
+    data: {
+      from: addDays(TODAY, 30),
+      to: addDays(TODAY, 44),
+      reason: 'Summer break',
+    },
+  });
 
   console.log('Seeding staff…');
   const staff = [];
@@ -204,10 +261,56 @@ async function main() {
     services.push(await prisma.service.create({ data: service }));
   }
 
+  console.log('Seeding suppliers…');
+  const suppliers: Array<{ id: string; name: string }> = [];
+  for (const supplier of SUPPLIERS) {
+    suppliers.push(await prisma.supplier.create({ data: supplier }));
+  }
+
   console.log('Seeding stock…');
   const stockItems = [];
-  for (const item of STOCK) {
-    stockItems.push(await prisma.stockItem.create({ data: item }));
+  for (const [index, item] of STOCK.entries()) {
+    const created = await prisma.stockItem.create({
+      data: {
+        ...item,
+        supplierId: suppliers[index % suppliers.length].id,
+        // One item already on order, so the reorder list has something in the
+        // "decision already taken" state to demonstrate.
+        ...(item.name === 'Gjilpëra anestezie'
+          ? { orderedAt: addDays(TODAY, -3), expectedAt: addDays(TODAY, 4) }
+          : {}),
+      },
+    });
+    stockItems.push(created);
+
+    // Lots only for the materials that really carry a date. One already past
+    // it, one inside the warning window, the rest comfortably ahead — so both
+    // banners on the stock page have something true to say.
+    if (EXPIRING_MATERIALS.has(item.name) && item.quantity > 0) {
+      const offsets =
+        item.name === 'Kompozit A2'
+          ? [-20, 45]
+          : item.name === 'Anestezi Lidokainë 2%'
+            ? [60, 400]
+            : [500];
+
+      let left = item.quantity;
+      for (const [batchIndex, offset] of offsets.entries()) {
+        const isLast = batchIndex === offsets.length - 1;
+        const quantity = isLast ? left : Math.max(1, Math.floor(item.quantity / offsets.length));
+        left -= quantity;
+        if (quantity <= 0) continue;
+
+        await prisma.stockBatch.create({
+          data: {
+            itemId: created.id,
+            lotNumber: `L${String(2600 + index * 7 + batchIndex)}`,
+            expiryDate: addDays(TODAY, offset),
+            quantity,
+          },
+        });
+      }
+    }
   }
 
   console.log('Seeding service materials…');
@@ -283,6 +386,8 @@ async function main() {
           notes: `${service.name} — pa komplikacione. Pacienti u këshillua për higjienë orale.`,
           services: `${service.name}${extra}`,
           staffUserId: pick([owner.id, assistant.id]),
+          // The dentist treats; whoever is at the keyboard writes it up.
+          performedById: owner.id,
         },
       });
     }
@@ -296,7 +401,8 @@ async function main() {
         visitDate: addDays(TODAY, -(index + 3)),
         notes: `${service.name} — përfunduar. Kontroll pas një jave nëse ka shqetësim.`,
         services: service.name,
-        staffUserId: owner.id,
+        staffUserId: assistant.id,
+        performedById: owner.id,
       },
     });
   }
@@ -306,19 +412,36 @@ async function main() {
     const affected = randomInt(1, 5);
     const used = new Set<number>();
     for (let i = 0; i < affected; i += 1) {
-      const toothNum = randomInt(1, 32);
+      const toothNum = pick(FDI_PERMANENT);
       if (used.has(toothNum)) continue;
       used.add(toothNum);
+      const toothStatus = pick(TOOTH_STATUSES);
       await prisma.toothRecord.create({
         data: {
           patientId: patient.id,
           toothNum,
-          status: pick(TOOTH_STATUSES),
+          status: toothStatus,
+          surfaces: SURFACE_STATUSES.has(toothStatus) ? pick(['M', 'MO', 'MOD', 'O', 'OD']) : null,
           notes: random() > 0.7 ? 'Për kontroll në vizitën e ardhshme.' : null,
         },
       });
     }
   }
+
+  // Two chairs, so the parallel-booking case the conflict check now understands
+  // is actually reachable in the demo data.
+  console.log('Seeding chairs…');
+  const operatories: Array<{ id: string }> = [];
+  for (const name of ['Karrigia 1', 'Karrigia 2']) {
+    operatories.push(await prisma.operatory.create({ data: { name } }));
+  }
+
+  // Whoever can be booked with: the dentist and the assistant, not the desk.
+  const providers = staff.filter((person) => person.role === 'OWNER' || person.role === 'ASSISTANT');
+  const assign = (index: number) => ({
+    staffUserId: providers.length > 0 ? providers[index % providers.length].id : null,
+    operatoryId: operatories[index % operatories.length].id,
+  });
 
   console.log('Seeding appointments…');
   // Today, so the dashboard is never empty on first launch.
@@ -333,6 +456,7 @@ async function main() {
         durationMin: service.durationMin,
         status: 'SCHEDULED',
         serviceName: service.name,
+        ...assign(index),
         // Two answered the confirmation link, two have not — so the digest has
         // something real to nag about.
         confirmedAt: index < 2 ? addDays(TODAY, -1) : null,
@@ -369,6 +493,7 @@ async function main() {
           durationMin: service.durationMin,
           status,
           serviceName: service.name,
+          ...assign(offset + i),
         },
       });
     }
@@ -389,8 +514,8 @@ async function main() {
       steps: {
         create: [
           { position: 1, title: 'Pastrim dhe vlerësim', status: 'DONE', completedAt: addDays(TODAY, -40) },
-          { position: 2, title: 'Mbushje kompozite', toothNum: 12, status: 'DONE', completedAt: addDays(TODAY, -12) },
-          { position: 3, title: 'Mbushje kompozite', toothNum: 13 },
+          { position: 2, title: 'Mbushje kompozite', toothNum: 22, status: 'DONE', completedAt: addDays(TODAY, -12) },
+          { position: 3, title: 'Mbushje kompozite', toothNum: 23 },
           { position: 4, title: 'Kontroll përfundimtar' },
         ],
       },
@@ -405,9 +530,9 @@ async function main() {
       steps: {
         create: [
           { position: 1, title: 'Radiografi dhe planifikim', status: 'DONE', completedAt: addDays(TODAY, -60) },
-          { position: 2, title: 'Heqje dhëmbi', toothNum: 30, status: 'DONE', completedAt: addDays(TODAY, -55) },
-          { position: 3, title: 'Vendosje implanti', toothNum: 30 },
-          { position: 4, title: 'Kurorë mbi implant', toothNum: 30 },
+          { position: 2, title: 'Heqje dhëmbi', toothNum: 46, status: 'DONE', completedAt: addDays(TODAY, -55) },
+          { position: 3, title: 'Vendosje implanti', toothNum: 46 },
+          { position: 4, title: 'Kurorë mbi implant', toothNum: 46 },
         ],
       },
     },
@@ -435,7 +560,7 @@ async function main() {
         mimeType: 'image/png',
         sizeBytes: PLACEHOLDER_PNG.byteLength,
         storageKey,
-        toothNum: index === 0 ? 30 : null,
+        toothNum: index === 0 ? 46 : null,
         notes: index === 0 ? 'Radiografi panoramike para ndërhyrjes.' : null,
         uploadedById: owner.id,
         createdAt: addDays(TODAY, -randomInt(5, 60)),

@@ -1,20 +1,27 @@
 'use client';
 
-import { CalendarPlus, Pencil, TriangleAlert } from 'lucide-react';
+import { CalendarPlus, Pencil, TriangleAlert, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { saveAppointment } from '@/lib/actions/appointments';
+import { NEW_PATIENT_VALUE } from '@/lib/booking';
+import { byDepartment } from '@/lib/catalog';
 
 export type PatientOption = { id: string; name: string };
 export type ServiceOption = {
   id: string;
   name: string;
+  /** Department this treatment belongs to. Empty when it has not been filed. */
+  category: string;
   durationMin: number;
   /** How many materials this service consumes — drives the deduction notice. */
   materialCount: number;
 };
+
+export type StaffOption = { id: string; name: string };
+export type OperatoryOption = { id: string; name: string };
 
 export type AppointmentDefaults = {
   id: string;
@@ -26,38 +33,75 @@ export type AppointmentDefaults = {
   status: string;
   serviceName: string;
   notes: string;
+  staffUserId: string;
+  operatoryId: string;
 };
 
-const STATUSES = ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
+/** A stretch of free time this booking is meant to fill. */
+export type BookingSlot = { startTime: string; endTime: string; minutes: number };
+
+const STATUSES = ['SCHEDULED', 'ARRIVED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
 
 export function AppointmentFormDialog({
   patients,
   services,
+  staff = [],
+  operatories = [],
   appointment,
   defaultDate,
+  defaultStartTime,
   defaultPatientId,
+  defaultStaffUserId,
+  slot,
+  canCreatePatient = false,
   triggerClassName,
+  triggerLabel,
   compact = false,
 }: {
   patients: PatientOption[];
   services: ServiceOption[];
+  /** Dentists this can be booked with. Empty in a single-dentist practice. */
+  staff?: StaffOption[];
+  /** Chairs. Empty until the practice defines more than one. */
+  operatories?: OperatoryOption[];
   appointment?: AppointmentDefaults;
+  /** Pre-selected dentist, e.g. when booking from a filtered calendar. */
+  defaultStaffUserId?: string;
   /** `YYYY-MM-DD` used when creating from a specific calendar day. */
   defaultDate?: string;
+  /** `HH:MM` used when creating from a specific slot in the day. */
+  defaultStartTime?: string;
   defaultPatientId?: string;
+  /** When booking into a known gap: bounds the time field and shows what is left. */
+  slot?: BookingSlot;
+  /** Offer "new patient" inline. Requires the person to be allowed to add patients. */
+  canCreatePatient?: boolean;
   triggerClassName?: string;
+  /** Overrides the trigger's text, for rows where "New appointment" is too long. */
+  triggerLabel?: string;
   compact?: boolean;
 }) {
   const t = useTranslations('appointments');
+  const tp = useTranslations('patients');
+  const ts = useTranslations('services');
   const tc = useTranslations('common');
   const editing = Boolean(appointment);
   const uid = useId();
 
+  // A new booking starts at half an hour, or at whatever a tight gap allows.
+  const initialDuration = appointment?.durationMin ?? Math.min(30, slot?.minutes ?? 30);
+
   // Picking a service pre-fills the duration — the dentist can still override it.
-  const [duration, setDuration] = useState(appointment?.durationMin ?? 30);
+  const [duration, setDuration] = useState(initialDuration);
   // Set only after the server reports a clash, and cleared as soon as the dialog
   // closes: overriding a double-booking should be a decision, never a default.
   const [force, setForce] = useState(false);
+  // The patient select mirrors itself into state so the inline fields can appear.
+  // It stays uncontrolled so that FormDialog can put values back after a refusal.
+  const [addingPatient, setAddingPatient] = useState(false);
+
+  // The whole point of showing a gap: booking into it leaves the rest bookable.
+  const remaining = slot ? slot.minutes - duration : 0;
 
   return (
     <FormDialog
@@ -65,8 +109,9 @@ export function AppointmentFormDialog({
       action={saveAppointment}
       resetOnSuccess={!editing}
       onClose={() => {
-        setDuration(appointment?.durationMin ?? 30);
+        setDuration(initialDuration);
         setForce(false);
+        setAddingPatient(false);
       }}
       title={editing ? t('edit') : t('new')}
       submitLabel={tc('save')}
@@ -84,7 +129,7 @@ export function AppointmentFormDialog({
         ) : (
           <>
             <CalendarPlus size={20} aria-hidden />
-            {t('new')}
+            {triggerLabel ?? t('new')}
           </>
         )
       }
@@ -94,7 +139,17 @@ export function AppointmentFormDialog({
           {appointment ? <input type="hidden" name="id" value={appointment.id} /> : null}
           {force ? <input type="hidden" name="force" value="1" /> : null}
 
-          {patients.length === 0 ? (
+          {slot ? (
+            <p className="rounded-lg border border-brand/30 bg-brand-soft px-3 py-2 font-semibold text-brand-deep">
+              {t('slotHint', {
+                from: slot.startTime,
+                to: slot.endTime,
+                minutes: slot.minutes,
+              })}
+            </p>
+          ) : null}
+
+          {patients.length === 0 && !canCreatePatient ? (
             <p className="rounded-lg border border-warn bg-warn-soft px-3 py-2 font-semibold text-warn">
               {t('noPatients')}
             </p>
@@ -106,16 +161,76 @@ export function AppointmentFormDialog({
             label={t('patient')}
             required
             defaultValue={appointment?.patientId ?? defaultPatientId ?? ''}
+            onChange={(event) => setAddingPatient(event.target.value === NEW_PATIENT_VALUE)}
           >
             <option value="" disabled>
               {t('selectPatient')}
             </option>
+            {/* Booking someone who has never been here is the common case at the
+                front desk, so it sits at the top rather than on another screen. */}
+            {canCreatePatient && !editing ? (
+              <option value={NEW_PATIENT_VALUE}>{t('newPatientOption')}</option>
+            ) : null}
             {patients.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </SelectField>
+
+          {addingPatient ? (
+            <fieldset className="space-y-4 rounded-lg border border-brand/40 bg-brand-soft/40 p-3.5">
+              <legend className="flex items-center gap-2 px-1 font-bold text-brand-deep">
+                <UserPlus size={18} aria-hidden />
+                {t('newPatientTitle')}
+              </legend>
+              <p className="text-[0.9rem] text-ink-soft">{t('newPatientHint')}</p>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField
+                  id={`${uid}-newFirstName`}
+                  name="newPatientFirstName"
+                  label={tp('firstName')}
+                  required
+                  autoComplete="off"
+                />
+                <TextField
+                  id={`${uid}-newLastName`}
+                  name="newPatientLastName"
+                  label={tp('lastName')}
+                  required
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField
+                  id={`${uid}-newPhone`}
+                  name="newPatientPhone"
+                  type="tel"
+                  inputMode="tel"
+                  label={tp('phone')}
+                  required
+                  placeholder="069 12 34 567"
+                />
+                <TextField
+                  id={`${uid}-newDateOfBirth`}
+                  name="newPatientDateOfBirth"
+                  type="date"
+                  label={tp('dateOfBirth')}
+                  optional={tc('optional')}
+                />
+              </div>
+
+              <TextField
+                id={`${uid}-newEmail`}
+                name="newPatientEmail"
+                type="email"
+                label={tp('email')}
+                optional={tc('optional')}
+              />
+            </fieldset>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-3">
             <TextField
@@ -133,7 +248,9 @@ export function AppointmentFormDialog({
               label={t('startTime')}
               required
               step={300}
-              defaultValue={appointment?.startTime ?? '09:00'}
+              min={slot?.startTime}
+              max={slot?.endTime}
+              defaultValue={appointment?.startTime ?? defaultStartTime ?? '09:00'}
             />
             <TextField
               id={`${uid}-duration`}
@@ -148,6 +265,24 @@ export function AppointmentFormDialog({
             />
           </div>
 
+          {/* The arithmetic the receptionist would otherwise do in their head:
+              an hour free, a half-hour treatment, half an hour still to sell. */}
+          {slot ? (
+            <p
+              className={
+                remaining < 0
+                  ? 'rounded-lg border border-warn bg-warn-soft px-3 py-2 font-semibold text-warn'
+                  : 'text-[0.95rem] font-semibold text-ink-soft'
+              }
+            >
+              {remaining > 0
+                ? t('slotRemaining', { used: duration, left: remaining })
+                : remaining === 0
+                  ? t('slotExact')
+                  : t('slotOverruns', { over: -remaining })}
+            </p>
+          ) : null}
+
           <SelectField
             id={`${uid}-service`}
             name="serviceName"
@@ -160,12 +295,62 @@ export function AppointmentFormDialog({
             }}
           >
             <option value="">{t('selectService')}</option>
-            {services.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
+            {byDepartment(services).map(({ department, items }) => (
+              <optgroup key={department || 'none'} label={department || ts('uncategorized')}>
+                {items.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name} · {s.durationMin} {tc('minutes')}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </SelectField>
+
+          {/* Only worth asking once there is a choice: a solo dentist with one
+              room would be answering the same question forever. */}
+          {staff.length > 1 || operatories.length > 1 ? (
+            <div
+              className={
+                staff.length > 1 && operatories.length > 1
+                  ? 'grid gap-4 sm:grid-cols-2'
+                  : undefined
+              }
+            >
+              {staff.length > 1 ? (
+                <SelectField
+                  id={`${uid}-staff`}
+                  name="staffUserId"
+                  label={t('provider')}
+                  optional={tc('optional')}
+                  defaultValue={appointment?.staffUserId ?? defaultStaffUserId ?? ''}
+                >
+                  <option value="">{t('selectProvider')}</option>
+                  {staff.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.name}
+                    </option>
+                  ))}
+                </SelectField>
+              ) : null}
+
+              {operatories.length > 1 ? (
+                <SelectField
+                  id={`${uid}-operatory`}
+                  name="operatoryId"
+                  label={t('operatory')}
+                  optional={tc('optional')}
+                  defaultValue={appointment?.operatoryId ?? ''}
+                >
+                  <option value="">{t('selectOperatory')}</option>
+                  {operatories.map((room) => (
+                    <option key={room.id} value={room.id}>
+                      {room.name}
+                    </option>
+                  ))}
+                </SelectField>
+              ) : null}
+            </div>
+          ) : null}
 
           <SelectField
             id={`${uid}-status`}

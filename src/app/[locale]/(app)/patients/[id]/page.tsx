@@ -1,4 +1,13 @@
-import { ArrowLeft, Cake, CalendarDays, Mail, Phone, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Cake,
+  CalendarDays,
+  Mail,
+  Phone,
+  ShieldAlert,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
@@ -8,6 +17,11 @@ import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialo
 import { DentalChart, type ToothRecordMap } from '@/components/patients/DentalChart';
 import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { ReliabilityBadge } from '@/components/patients/ReliabilityBadge';
+import { AlertFormDialog } from '@/components/patients/AlertFormDialog';
+import { LabCaseFormDialog } from '@/components/lab/LabCaseFormDialog';
+import { LabCaseList } from '@/components/lab/LabCaseList';
+import { ContactHistory } from '@/components/patients/ContactHistory';
+import { PatientAlerts } from '@/components/patients/PatientAlerts';
 import { VisitFormDialog } from '@/components/patients/VisitFormDialog';
 import { VisitTimeline } from '@/components/patients/VisitTimeline';
 import { PlanFormDialog } from '@/components/plans/PlanFormDialog';
@@ -15,6 +29,7 @@ import { TreatmentPlans } from '@/components/plans/TreatmentPlans';
 import { PrescriptionDialog } from '@/components/prescriptions/PrescriptionDialog';
 import { PrescriptionList } from '@/components/prescriptions/PrescriptionList';
 import { ActionForm } from '@/components/ui/ActionForm';
+import { Badge } from '@/components/ui/Badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Link } from '@/i18n/navigation';
@@ -22,8 +37,16 @@ import { deletePatient } from '@/lib/actions/patients';
 import { requirePermission } from '@/lib/auth/guard';
 import type { Permission } from '@/lib/auth/permissions';
 import { age, toDateKey, today } from '@/lib/dates';
+import { allergyLines } from '@/lib/medical';
 import { prisma } from '@/lib/prisma';
-import { getPatientAppointments, getPatientOptions, getServiceOptions } from '@/lib/queries';
+import {
+  getOperatoryOptions,
+  getPatientAppointments,
+  getPatientOptions,
+  getProviderOptions,
+  getServiceOptions,
+} from '@/lib/queries';
+import { getClinicProfile } from '@/lib/queries';
 import { getReliability } from '@/lib/reliability';
 import { cn, initials } from '@/lib/utils';
 
@@ -37,6 +60,8 @@ const TABS = [
   'documents',
   'prescriptions',
   'appointments',
+  'contacts',
+  'lab',
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -48,6 +73,8 @@ const TAB_LABEL: Record<Tab, string> = {
   documents: 'tabDocuments',
   prescriptions: 'tabPrescriptions',
   appointments: 'tabAppointments',
+  contacts: 'tabContacts',
+  lab: 'tabLab',
 };
 
 /**
@@ -61,6 +88,10 @@ const TAB_PERMISSION: Partial<Record<Tab, Permission>> = {
   plans: 'plan.view',
   documents: 'document.view',
   prescriptions: 'prescription.view',
+  // Who was messaged and when is diary information, not clinical — the front
+  // desk is exactly who needs it.
+  contacts: 'appointment.view',
+  lab: 'plan.view',
 };
 
 export default async function PatientDetailPage({
@@ -85,6 +116,9 @@ export default async function PatientDetailPage({
   const t = await getTranslations('patients');
   const tc = await getTranslations('common');
   const tt = await getTranslations('teeth');
+  const tcontacts = await getTranslations('contacts');
+  const ta = await getTranslations('alerts');
+  const tlab = await getTranslations('lab');
   const format = await getFormatter();
 
   // A tab the person may not open is not offered, and a hand-typed `?tab=chart`
@@ -99,10 +133,20 @@ export default async function PatientDetailPage({
   const patient = await prisma.patient.findUnique({
     where: { id },
     include: {
+      alerts: { orderBy: { createdAt: 'desc' } },
+      labCases: { orderBy: { sentAt: 'desc' } },
+      contacts: {
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: { actor: { select: { firstName: true, lastName: true } } },
+      },
       teethRecords: true,
       visitRecords: {
         orderBy: { visitDate: 'desc' },
-        include: { staffUser: { select: { firstName: true, lastName: true } } },
+        include: {
+          staffUser: { select: { firstName: true, lastName: true } },
+          performedBy: { select: { firstName: true, lastName: true } },
+        },
       },
       plans: {
         orderBy: { createdAt: 'desc' },
@@ -121,30 +165,64 @@ export default async function PatientDetailPage({
 
   if (!patient) notFound();
 
-  const [reliability, templates] = await Promise.all([
+  const [reliability, templates, clinicProfile, labRows, referralRows] = await Promise.all([
     getReliability(id),
     can('prescription.view')
       ? prisma.prescriptionTemplate.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] })
       : Promise.resolve([]),
+    getClinicProfile(),
+    // Distinct labs already used, so the name stays spelled the same way.
+    prisma.labCase.findMany({
+      distinct: ['labName'],
+      orderBy: { labName: 'asc' },
+      select: { labName: true },
+    }),
+    prisma.patient.findMany({
+      where: { referralSource: { not: null } },
+      distinct: ['referralSource'],
+      orderBy: { referralSource: 'asc' },
+      select: { referralSource: true },
+    }),
   ]);
 
   // Stripped once, here, rather than at each render site. The edit dialog is a
   // client component, so anything handed to it crosses to the browser whether or
   // not it is displayed — a hidden field is still a leak.
   const medicalNotes = canSeeMedical ? (patient.medicalNotes ?? '') : '';
+  const allergies = allergyLines(medicalNotes);
 
-  const [appointments, patientOptions, services] = await Promise.all([
+  // Loudest first, so the header reads worst-case-first and the card below it
+  // does not bury a CRITICAL row under three INFO ones.
+  const SEVERITY_ORDER = ['CRITICAL', 'IMPORTANT', 'INFO'];
+  const sortedAlerts = canSeeMedical
+    ? [...patient.alerts].sort(
+        (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
+      )
+    : [];
+
+  const [appointments, patientOptions, services, staff, operatories] = await Promise.all([
     getPatientAppointments(id),
     getPatientOptions(),
     getServiceOptions(),
+    getProviderOptions(),
+    getOperatoryOptions(),
   ]);
 
   const teeth: ToothRecordMap = Object.fromEntries(
     patient.teethRecords.map((record) => [
       record.toothNum,
-      { status: record.status, notes: record.notes ?? '' },
+      {
+        status: record.status,
+        notes: record.notes ?? '',
+        surfaces: record.surfaces ?? '',
+      },
     ]),
   );
+
+  const labNames = labRows.map((row) => row.labName);
+  const referralSources = referralRows
+    .map((row) => row.referralSource)
+    .filter((value): value is string => Boolean(value));
 
   const fullName = `${patient.lastName} ${patient.firstName}`;
 
@@ -169,6 +247,26 @@ export default async function PatientDetailPage({
         <div className="min-w-0 flex-1">
           <h1 className="flex flex-wrap items-center gap-3 text-3xl font-bold tracking-tight text-ink">
             {fullName}
+            {/* Visible from every tab, not just the one holding the notes.
+                Recorded alerts come first; the note-scanning badge stays as the
+                safety net for anything not promoted to a row yet. */}
+            {canSeeMedical
+              ? sortedAlerts
+                  .filter((alert) => alert.severity !== 'INFO')
+                  .map((alert) => (
+                    <Badge key={alert.id} tone={alert.severity === 'CRITICAL' ? 'alert' : 'warn'}>
+                      <TriangleAlert size={15} aria-hidden />
+                      {ta(`kind_${alert.kind}`)}
+                      {alert.substance ? `: ${alert.substance}` : ''}
+                    </Badge>
+                  ))
+              : null}
+            {allergies.length > 0 && sortedAlerts.length === 0 ? (
+              <Badge tone="alert">
+                <TriangleAlert size={15} aria-hidden />
+                {t('allergyBadge')}
+              </Badge>
+            ) : null}
             <ReliabilityBadge reliability={reliability} />
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[1.02rem] text-ink-soft">
@@ -208,6 +306,8 @@ export default async function PatientDetailPage({
             <AppointmentFormDialog
               patients={patientOptions}
               services={services}
+              staff={staff}
+              operatories={operatories}
               defaultPatientId={patient.id}
               defaultDate={toDateKey(today())}
             />
@@ -215,6 +315,7 @@ export default async function PatientDetailPage({
           {canEdit ? (
             <PatientFormDialog
               canEditMedical={canEditMedical}
+              referralSources={referralSources}
               patient={{
                 id: patient.id,
                 firstName: patient.firstName,
@@ -224,6 +325,16 @@ export default async function PatientDetailPage({
                 dateOfBirth: patient.dateOfBirth ? toDateKey(patient.dateOfBirth) : '',
                 medicalNotes,
                 recallMonths: patient.recallMonths,
+                contactConsent:
+                  patient.contactConsent === null ? '' : patient.contactConsent ? '1' : '0',
+                preferredChannel: patient.preferredChannel ?? '',
+                locale: patient.locale ?? '',
+                guardianName: patient.guardianName ?? '',
+                guardianPhone: patient.guardianPhone ?? '',
+                address: patient.address ?? '',
+                fiscalCode: patient.fiscalCode ?? '',
+                emergencyContact: patient.emergencyContact ?? '',
+                referralSource: patient.referralSource ?? '',
               }}
             />
           ) : null}
@@ -277,21 +388,90 @@ export default async function PatientDetailPage({
                     : tc('none')
                 }
               />
+              {/* Dosages and half the clinical judgement hang off the age, so it
+                  is worked out here rather than in the reader's head. */}
+              {patient.dateOfBirth ? (
+                <Detail label={t('ageLabel')} value={t('age', { age: age(patient.dateOfBirth) })} />
+              ) : null}
+              {patient.guardianName || patient.guardianPhone ? (
+                <Detail
+                  label={t('guardianTitle')}
+                  value={[patient.guardianName, patient.guardianPhone].filter(Boolean).join(' · ')}
+                />
+              ) : null}
+              {patient.address ? <Detail label={t('address')} value={patient.address} /> : null}
+              {patient.fiscalCode ? (
+                <Detail label={t('fiscalCode')} value={patient.fiscalCode} />
+              ) : null}
+              {patient.emergencyContact ? (
+                <Detail label={t('emergencyContact')} value={patient.emergencyContact} />
+              ) : null}
+              {patient.referralSource ? (
+                <Detail label={t('referralSource')} value={patient.referralSource} />
+              ) : null}
             </CardBody>
           </Card>
+
+          {/* Alerts as rows, not as a sentence someone has to notice. This is
+              what the prescription check reads, and what the header shouts. */}
+          {canSeeMedical ? (
+            <Card className="lg:col-span-2">
+              <CardHeader
+                title={ta('title')}
+                subtitle={ta('subtitle')}
+                icon={<ShieldAlert size={22} aria-hidden />}
+                action={
+                  canEditMedical ? <AlertFormDialog patientId={patient.id} /> : undefined
+                }
+              />
+              <PatientAlerts
+                patientId={patient.id}
+                canEdit={canEditMedical}
+                alerts={sortedAlerts.map((alert) => ({
+                  id: alert.id,
+                  kind: alert.kind,
+                  substance: alert.substance ?? '',
+                  severity: alert.severity,
+                  notes: alert.notes ?? '',
+                }))}
+              />
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader title={canSeeMedical ? t('medicalNotes') : t('recallTitle')} />
             <CardBody>
               {canSeeMedical ? (
-                <p
-                  className={cn(
-                    'whitespace-pre-line text-[1.05rem]',
-                    medicalNotes ? 'text-ink' : 'text-ink-faint',
-                  )}
-                >
-                  {medicalNotes || t('noNotes')}
-                </p>
+                <>
+                  {/* An allergy is the one note that must not be read past, so it
+                      is lifted out of the paragraph and given the loudest colour
+                      the palette has. */}
+                  {allergies.length > 0 ? (
+                    <p
+                      role="alert"
+                      className="mb-3 flex items-start gap-2.5 rounded-lg border-2 border-danger bg-danger-soft px-3.5 py-3 text-danger"
+                    >
+                      <TriangleAlert size={20} aria-hidden className="mt-0.5 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block text-[0.85rem] font-bold tracking-wide uppercase">
+                          {t('allergyBadge')}
+                        </span>
+                        <span className="block text-[1.05rem] font-bold">
+                          {allergies.join(' · ')}
+                        </span>
+                      </span>
+                    </p>
+                  ) : null}
+
+                  <p
+                    className={cn(
+                      'whitespace-pre-line text-[1.05rem]',
+                      medicalNotes ? 'text-ink' : 'text-ink-faint',
+                    )}
+                  >
+                    {medicalNotes || t('noNotes')}
+                  </p>
+                </>
               ) : (
                 <p className="text-[1.05rem] text-ink-faint">{t('medicalHidden')}</p>
               )}
@@ -313,7 +493,16 @@ export default async function PatientDetailPage({
         <Card>
           <CardHeader title={tt('title')} />
           <CardBody>
-            <DentalChart patientId={patient.id} records={teeth} readOnly={!canEditMedical} />
+            {/* Under thirteen the primary arches open by themselves — a child's
+                chart is unusable without them, and nobody should have to
+                remember to press a button first. */}
+            <DentalChart
+              patientId={patient.id}
+              records={teeth}
+              numbering={clinicProfile.toothNumbering}
+              showPrimary={patient.dateOfBirth ? age(patient.dateOfBirth) < 13 : false}
+              readOnly={!canEditMedical}
+            />
           </CardBody>
         </Card>
       ) : null}
@@ -327,6 +516,8 @@ export default async function PatientDetailPage({
                 <VisitFormDialog
                   patientId={patient.id}
                   services={services}
+                  staff={staff}
+                  currentUserId={user.id}
                   today={toDateKey(today())}
                 />
               ) : null
@@ -339,6 +530,9 @@ export default async function PatientDetailPage({
               visitDate: visit.visitDate.toISOString(),
               notes: visit.notes,
               services: visit.services,
+              performedBy: visit.performedBy
+                ? `${visit.performedBy.firstName} ${visit.performedBy.lastName}`
+                : '',
               recordedBy: visit.staffUser
                 ? `${visit.staffUser.firstName} ${visit.staffUser.lastName}`
                 : '',
@@ -455,6 +649,8 @@ export default async function PatientDetailPage({
                 <AppointmentFormDialog
                   patients={patientOptions}
                   services={services}
+                  staff={staff}
+                  operatories={operatories}
                   defaultPatientId={patient.id}
                   defaultDate={toDateKey(today())}
                   triggerClassName="btn btn-primary btn-sm"
@@ -478,6 +674,59 @@ export default async function PatientDetailPage({
               />
             ))
           )}
+        </Card>
+      ) : null}
+
+      {tab === 'lab' ? (
+        <Card>
+          <CardHeader
+            title={t('tabLab')}
+            subtitle={tlab('subtitle')}
+            action={
+              can('plan.edit') ? (
+                <LabCaseFormDialog
+                  patientId={patient.id}
+                  labNames={labNames}
+                  today={toDateKey(today())}
+                />
+              ) : undefined
+            }
+          />
+          <LabCaseList
+            cases={patient.labCases.map((labCase) => ({
+              id: labCase.id,
+              labName: labCase.labName,
+              kind: labCase.kind,
+              teeth: labCase.teeth ?? '',
+              status: labCase.status,
+              sentAt: toDateKey(labCase.sentAt),
+              dueAt: labCase.dueAt ? toDateKey(labCase.dueAt) : '',
+              receivedAt: labCase.receivedAt ? toDateKey(labCase.receivedAt) : '',
+              notes: labCase.notes ?? '',
+            }))}
+            patientId={patient.id}
+            labNames={labNames}
+            canEdit={can('plan.edit')}
+            canDelete={canDelete}
+          />
+        </Card>
+      ) : null}
+
+      {tab === 'contacts' ? (
+        <Card>
+          <CardHeader title={t('tabContacts')} subtitle={tcontacts('subtitle')} />
+          <ContactHistory
+            contacts={patient.contacts.map((contact) => ({
+              id: contact.id,
+              channel: contact.channel,
+              purpose: contact.purpose,
+              body: contact.body,
+              createdAt: contact.createdAt.toISOString(),
+              actorName: contact.actor
+                ? `${contact.actor.firstName} ${contact.actor.lastName}`
+                : '',
+            }))}
+          />
         </Card>
       ) : null}
     </>

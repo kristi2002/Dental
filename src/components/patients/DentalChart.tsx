@@ -8,15 +8,28 @@ import { saveToothRecord } from '@/lib/actions/patients';
 import { IDLE_STATE } from '@/lib/actions/types';
 import {
   DEFAULT_TOOTH_STATUS,
-  LOWER_TEETH_DISPLAY,
+  PERMANENT_LOWER,
+  PERMANENT_UPPER,
+  PRIMARY_LOWER,
+  PRIMARY_UPPER,
   TOOTH_STATUSES,
   TOOTH_STATUS_STYLE,
-  UPPER_TEETH,
+  TOOTH_SURFACES,
+  isAnterior,
+  parseSurfaces,
+  toothLabel as toothLabelFor,
+  type ToothNumbering,
   type ToothStatus,
 } from '@/lib/teeth';
 import { cn } from '@/lib/utils';
 
-export type ToothRecordMap = Record<number, { status: string; notes: string }>;
+export type ToothRecordMap = Record<
+  number,
+  { status: string; notes: string; surfaces: string }
+>;
+
+/** Statuses that describe the whole tooth, where naming a surface is nonsense. */
+const WHOLE_TOOTH_STATUSES = ['HEALTHY', 'EXTRACTED', 'MISSING', 'IMPLANT', 'CROWN'];
 
 function statusOf(records: ToothRecordMap, toothNum: number): ToothStatus {
   const raw = records[toothNum]?.status;
@@ -28,10 +41,16 @@ function statusOf(records: ToothRecordMap, toothNum: number): ToothStatus {
 export function DentalChart({
   patientId,
   records,
+  numbering = 'FDI',
+  showPrimary: initialShowPrimary = false,
   readOnly = false,
 }: {
   patientId: string;
   records: ToothRecordMap;
+  /** Which numbering the practice reads. Storage is always FDI. */
+  numbering?: ToothNumbering;
+  /** Start with the primary arches open — set for a patient young enough. */
+  showPrimary?: boolean;
   /** A locum can study the chart; only clinical staff may change it. */
   readOnly?: boolean;
 }) {
@@ -52,11 +71,27 @@ export function DentalChart({
 
   function openTooth(toothNum: number) {
     setSelected(toothNum);
+    setStatus(statusOf(records, toothNum));
     dialogRef.current?.showModal();
   }
 
+  // Primary teeth are hidden rather than absent: twenty empty milk teeth on an
+  // adult chart is noise, and a child's chart is unusable without them. Anything
+  // already recorded on one forces them open.
+  const [showPrimary, setShowPrimary] = useState(
+    initialShowPrimary ||
+      [...PRIMARY_UPPER, ...PRIMARY_LOWER].some(
+        (n) => records[n] && records[n].status !== DEFAULT_TOOTH_STATUS,
+      ),
+  );
+
+  // Which status is chosen decides whether surfaces make sense at all.
+  const [status, setStatus] = useState<ToothStatus>(DEFAULT_TOOTH_STATUS);
+  const surfacesApply = !WHOLE_TOOTH_STATUSES.includes(status);
+
   const flagged = Object.entries(records).filter(([, r]) => r.status !== DEFAULT_TOOTH_STATUS);
   const current = selected === null ? null : records[selected];
+  const label = (n: number) => toothLabelFor(n, numbering);
 
   return (
     <div className="space-y-6">
@@ -68,22 +103,58 @@ export function DentalChart({
             label={t('upper')}
             rightLabel={t('right')}
             leftLabel={t('left')}
-            teeth={UPPER_TEETH}
+            teeth={PERMANENT_UPPER}
             records={records}
             onSelect={openTooth}
-            toothLabel={(n) => t('tooth', { num: n })}
+            numberLabel={label}
+            toothLabel={(n) => t('tooth', { num: label(n) })}
           />
           <Arch
             label={t('lower')}
             rightLabel={t('right')}
             leftLabel={t('left')}
-            teeth={LOWER_TEETH_DISPLAY}
+            teeth={PERMANENT_LOWER}
             records={records}
             onSelect={openTooth}
-            toothLabel={(n) => t('tooth', { num: n })}
+            numberLabel={label}
+            toothLabel={(n) => t('tooth', { num: label(n) })}
           />
+
+          {showPrimary ? (
+            <>
+              <Arch
+                label={t('upperPrimary')}
+                rightLabel={t('right')}
+                leftLabel={t('left')}
+                teeth={PRIMARY_UPPER}
+                records={records}
+                onSelect={openTooth}
+                numberLabel={label}
+                toothLabel={(n) => t('tooth', { num: label(n) })}
+              />
+              <Arch
+                label={t('lowerPrimary')}
+                rightLabel={t('right')}
+                leftLabel={t('left')}
+                teeth={PRIMARY_LOWER}
+                records={records}
+                onSelect={openTooth}
+                numberLabel={label}
+                toothLabel={(n) => t('tooth', { num: label(n) })}
+              />
+            </>
+          ) : null}
         </div>
       </div>
+
+      <button
+        type="button"
+        className="btn btn-secondary btn-sm"
+        aria-expanded={showPrimary}
+        onClick={() => setShowPrimary((open) => !open)}
+      >
+        {showPrimary ? t('hidePrimary') : t('showPrimary')}
+      </button>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-line bg-paper px-4 py-3">
         <span className="text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</span>
@@ -115,7 +186,7 @@ export function DentalChart({
           <>
             <header className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
               <h2 id={`${uid}-title`} className="text-xl font-bold">
-                {t('tooth', { num: selected })}
+                {t('tooth', { num: label(selected) })}
               </h2>
               <button
                 type="button"
@@ -182,6 +253,7 @@ export function DentalChart({
                             name="status"
                             value={status}
                             defaultChecked={statusOf(records, selected) === status}
+                            onChange={() => setStatus(status)}
                             className="sr-only"
                           />
                           <span
@@ -198,6 +270,41 @@ export function DentalChart({
                       ))}
                     </div>
                   </fieldset>
+
+                  {/* "Caries on 14" is a note; "caries on the distal-occlusal of
+                      14" is a treatment plan. Hidden for the statuses where a
+                      surface makes no sense — a missing tooth has none. */}
+                  {surfacesApply ? (
+                    <fieldset>
+                      <legend className="field-label">{t('surfaces')}</legend>
+                      <div className="flex flex-wrap gap-2">
+                        {TOOTH_SURFACES.map((surface) => (
+                          <label
+                            key={surface}
+                            className={cn(
+                              'flex cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-3 py-2',
+                              'text-[0.92rem] font-semibold hover:border-ink',
+                              'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              name="surfaces"
+                              value={surface}
+                              defaultChecked={parseSurfaces(current?.surfaces).includes(surface)}
+                              className="sr-only"
+                            />
+                            <span aria-hidden className="font-bold">
+                              {surface}
+                            </span>
+                            {surface === 'O'
+                              ? t(isAnterior(selected) ? 'surface_I' : 'surface_O')
+                              : t(`surface_${surface}`)}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
 
                   <div>
                     <label className="field-label" htmlFor={`${uid}-notes`}>
@@ -249,6 +356,7 @@ function Arch({
   teeth,
   records,
   onSelect,
+  numberLabel,
   toothLabel,
 }: {
   label: string;
@@ -257,6 +365,8 @@ function Arch({
   teeth: number[];
   records: ToothRecordMap;
   onSelect: (toothNum: number) => void;
+  /** FDI or Universal, whichever the practice reads. */
+  numberLabel: (toothNum: number) => string;
   toothLabel: (toothNum: number) => string;
 }) {
   return (
@@ -276,7 +386,12 @@ function Arch({
             const hasNotes = Boolean(records[toothNum]?.notes);
 
             return (
-              <div key={toothNum} className={cn('flex-1', index === 7 && 'mr-4')}>
+              // The midline gap falls after the last tooth of the first
+              // quadrant, which is halfway along whichever row this is.
+              <div
+                key={toothNum}
+                className={cn('flex-1', index === teeth.length / 2 - 1 && 'mr-4')}
+              >
                 <button
                   type="button"
                   onClick={() => onSelect(toothNum)}
@@ -286,7 +401,7 @@ function Arch({
                     style.button,
                   )}
                 >
-                  <span className="text-[0.95rem] leading-none">{toothNum}</span>
+                  <span className="text-[0.95rem] leading-none">{numberLabel(toothNum)}</span>
                   {style.short ? (
                     <span aria-hidden className="mt-0.5 text-[0.78rem] leading-none opacity-90">
                       {style.short}
