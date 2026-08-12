@@ -39,7 +39,7 @@ Stages are defined in [§9](#9-suggested-build-order). Gap numbers refer to
 | **2 — Close the loops** | ✅ **complete.** G-13, G-14, G-21, G-23, G-06, G-07, G-05, G-16 all closed |
 | **3 — Wire the orphaned features** | ✅ **complete.** G-02, G-03, G-08, G-04, G-12, G-33, G-01 all closed |
 | **4 — Surface what is derived** | ✅ **complete.** G-09, G-10, G-11, G-15, G-31, G-17, G-42 closed, plus G-44 and G-45 |
-| **5 — Fix Bridge A** | ⬜ not started — G-25, G-43, G-36 |
+| **5 — Fix Bridge A** | ✅ **complete.** G-25, G-43, G-36 closed; `VisitService` added and backfilled |
 | **6 — Scale and operations** | 🟡 the index half is done (IMPROVEMENTS §3.2) plus §3.3, the recalls double-query |
 | **7 — Deferred by choice** | ⬜ deliberately deferred |
 
@@ -54,6 +54,13 @@ fitting. The receptionist now has both and still has no `plan.view`.
 
 **One page was added.** [`/plans`](../src/app/[locale]/(app)/plans/page.tsx) —
 every course of treatment across all patients, stalled ones first.
+
+**Bridge A is gone.** All three text references to a service now carry a key
+beside the name: `Appointment.serviceId`, `WaitlistEntry.serviceId`, and a
+`VisitService` join table replacing the comma-separated list. The name is kept
+as a snapshot in every case, for the reason `Prescription.body` is — renaming a
+service must not rewrite what a visit says was done. Existing rows were
+converted by [`prisma/backfill-services.ts`](../prisma/backfill-services.ts).
 
 Still outstanding from the stages already touched, and worth knowing before
 reading further:
@@ -1888,8 +1895,8 @@ Ranked by what it actually costs. 🔴 correctness · 🟠 a loop that cannot cl
 | **G-16** | 🟠 | Completing an appointment does not offer to record the visit | Appointments | Small | ✅ |
 | **G-47** | 🟠 | A closure is accepted over existing bookings with no warning | Settings | Medium |  |
 | **G-48** | 🟠 | Narrowing hours is accepted over existing bookings | Settings | Medium |  |
-| **G-25** | 🟠 | A service name containing a comma silently becomes two services | Services · Analytics | Bridge A |  |
-| **G-43** | 🟠 | Top services groups by typed text | Analytics | Bridge A |  |
+| **G-25** | 🟠 | A service name containing a comma silently becomes two services | Services · Analytics | Bridge A | ✅ |
+| **G-43** | 🟠 | Top services groups by typed text | Analytics | Bridge A | ✅ |
 | **G-01** | 🟠 | The receptionist cannot see the lab list | Lab · permissions | Small | ✅ |
 | **G-32** | 🟠 | `lastRecallAt` and the `Contact` log are two unreconciled memories | Recalls | Small |  |
 | **G-10** | ⚪ | Today's lab deliveries are not on the dashboard | Dashboard | Small | ✅ |
@@ -1899,7 +1906,7 @@ Ranked by what it actually costs. 🔴 correctness · 🟠 a loop that cannot cl
 | **G-30** | ⚪ | Contact rows must read as "composed", not "delivered" | Contacts | Copy |  |
 | **G-34** | ⚪ | A lab case cannot be tied to a plan step | Lab · Plans | Medium |  |
 | **G-35** | ⚪ | The lab has no phone number — "chase the lab" has no click | Lab | Small |  |
-| **G-36** | ⚪ | The service catalog cannot see its own consequences | Services | Medium |  |
+| **G-36** | ⚪ | The service catalog cannot see its own consequences | Services | Medium | ✅ |
 | **G-42** | ⚪ | Analytics mixes two unlabelled time horizons | Analytics | Trivial | ✅ |
 | **G-44** | ⚪ | Referral source is collected and never charted | Analytics | Small | ✅ |
 | **G-45** | ⚪ | No per-provider figures | Analytics | Small | ✅ |

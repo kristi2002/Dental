@@ -18,14 +18,19 @@ services:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://dental.testdemo.it}
         NEXT_PUBLIC_CLINIC_NAME: ${NEXT_PUBLIC_CLINIC_NAME:-Klinika Dentare}
     restart: unless-stopped
+    # Mapping form, not the `- KEY=value` list. Coolify re-serialises this file
+    # before building, and a bare list entry carrying no `=` (as
+    # SERVICE_FQDN_APP_3000 must) comes back out keyed by its list index —
+    # "non-string key in services.app.environment: 0", and the build never starts.
     environment:
-      # Tells Coolify to route the assigned domain to this service's port 3000.
-      - SERVICE_FQDN_APP_3000
-      - DATABASE_URL=postgresql://dent:${SERVICE_PASSWORD_POSTGRES}@db:5432/dentorganizer?schema=public
+      # Tells Coolify to route the assigned domain to this service's port 3000;
+      # the value is the path to serve it under.
+      SERVICE_FQDN_APP_3000: /
+      DATABASE_URL: postgresql://dent:${SERVICE_PASSWORD_POSTGRES}@db:5432/dentorganizer?schema=public
       # Signs the staff session cookie. Rotating it logs everyone out; it must
       # never change casually, which is why Coolify generates and keeps it.
-      - AUTH_SECRET=${SERVICE_PASSWORD_64_AUTHSECRET}
-      - FILE_STORAGE_DIR=/data/patient-files
+      AUTH_SECRET: ${SERVICE_PASSWORD_64_AUTHSECRET}
+      FILE_STORAGE_DIR: /data/patient-files
     volumes:
       # X-rays, photos and signed consent forms. The one piece of state Postgres
       # does not hold, and the one that no backup of the database would restore.
@@ -40,9 +45,9 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=dent
-      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
-      - POSTGRES_DB=dentorganizer
+      POSTGRES_USER: dent
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
+      POSTGRES_DB: dentorganizer
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:

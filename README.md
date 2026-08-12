@@ -184,9 +184,14 @@ node /app/docker/create-owner.mjs "Ilir" "Berisha"
 ```
 prisma/
   schema.prisma      StaffUser, AuditLog, Patient, Appointment, VisitRecord,
-                     ToothRecord, StockItem, StockMovement, Service,
-                     ServiceMaterial, WaitlistEntry
+                     VisitService, ToothRecord, StockItem, StockMovement,
+                     Service, ServiceMaterial, WaitlistEntry, TreatmentPlan,
+                     LabCase, PatientAlert, Contact, ClinicHours, Closure
   seed.ts            Demo data
+  migrate-teeth-fdi.ts     One-off: Universal 1–32 → FDI tooth numbers
+  backfill-services.ts     One-off: give existing rows their service ids,
+                           and turn each visit's typed list into VisitService
+                           rows. Dry run by default; --apply to write.
 prisma.config.ts     Prisma 7 config — holds DATABASE_URL and the seed command
 messages/            sq.json · en.json · it.json  (identical key sets)
 src/

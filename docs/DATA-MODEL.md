@@ -97,13 +97,27 @@ Read it as four clusters that barely touch:
    `StockItem` ⇄ `StockMovement`.
 4. **The diary** — `Appointment`, `WaitlistEntry`.
 
-The only bridge between cluster 2/4 and cluster 3 is *by text*, not by foreign
-key: `Appointment.serviceName` and `VisitRecord.services` are plain strings. The
-one place the link is made properly is at write time, in
-[`stock-consumption.ts`](../src/lib/stock-consumption.ts), which receives real
-`Service` ids from the visit form. This is the single most consequential
-modelling decision in the schema — see
-[IMPROVEMENTS.md §2.1](IMPROVEMENTS.md#21-services-are-referenced-by-text-not-by-key).
+Clusters 2/4 and 3 are joined **by key**, and each key carries a name snapshot
+beside it:
+
+| Reference | Key | Snapshot |
+| --- | --- | --- |
+| An appointment's treatment | `Appointment.serviceId` | `serviceName` |
+| A waiting person's treatment | `WaitlistEntry.serviceId` | `serviceName` |
+| What a visit actually did | `VisitService.serviceId` (one row each) | `VisitService.name` |
+
+All three were plain strings, and `VisitRecord.services` was the worst of them:
+a comma-separated list in one column, so a treatment whose name contained a
+comma silently became two, and the statistics page grouped by typed text rather
+than by catalogue entry. `VisitRecord.servicesText` survives as *display only* —
+the sentence somebody wrote, which the follow-up message quotes back — while the
+rows are the record. Same split as `Prescription.body` against its template:
+renaming a service must never rewrite what a visit says was done.
+
+Existing rows were converted by
+[`prisma/backfill-services.ts`](../prisma/backfill-services.ts), which matches
+names case- and accent-folded and leaves anything unmatched as free text with a
+null `serviceId` — the honest answer for a service since renamed or deleted.
 
 ---
 
@@ -190,7 +204,8 @@ What actually happened, written after the fact.
 | `patientId` | Cascade |
 | `visitDate` | UTC midnight |
 | `notes` | Required |
-| `services` | **String** — comma-separated names, per the schema comment. Parsed by `parseServiceList()` |
+| `servicesText` | String, DB column still `services`. **Display only** — the line as typed |
+| `services` | `VisitService[]` — one row per treatment. This is the record |
 | `staffUserId` | SetNull |
 
 Indexes: `patientId`, `visitDate`.
@@ -404,8 +419,11 @@ signature, and it touches exactly two columns on exactly one row. Declining sets
 [`analytics/page.tsx`](../src/app/[locale]/(app)/analytics/page.tsx)
 
 Six months of raw rows are pulled in parallel and bucketed by month in memory.
-Top services are counted by **splitting `VisitRecord.services` on commas** — so
-the chart groups by typed text, not by catalog id.
+Top services is a **`groupBy` over `VisitService.serviceId`**, labelled with the
+catalog's *current* name, so a service renamed last month shows its whole
+history under one bar. Anything typed by hand has no id and is counted by name,
+shown as itself rather than dropped. The appointment-status donut is windowed to
+the same six months as everything else on the page.
 
 ---
 

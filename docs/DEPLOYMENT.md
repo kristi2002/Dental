@@ -162,6 +162,7 @@ design, neither PIN hashes nor uploaded files.
 | Login page lists nobody | No staff accounts yet — see [First sign-in](#first-sign-in). |
 | Confirmation links point at `localhost` | `NEXT_PUBLIC_APP_URL` was not set as a **build** variable. Rebuild. |
 | Deploy fails on a schema change | The push refused to lose data. See [Schema changes](#schema-changes). |
+| Build never starts: `non-string key in services.app.environment: 0` | An `environment:` entry was written as a bare list item with no `=`. Coolify re-serialises the compose file and such an entry comes back keyed by its list index. Keep `environment:` in mapping (`KEY: value`) form. |
 
 Health endpoint: `GET /api/health` — reports whether the app can reach its
 database, and nothing about the practice. Coolify uses it to judge whether a
