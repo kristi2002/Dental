@@ -9,7 +9,7 @@ import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { age } from '@/lib/dates';
 import { hasAllergyNote } from '@/lib/medical';
-import { fold } from '@/lib/patient-search';
+import { fold, patientSearchClauses } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 import { getReliabilityMap } from '@/lib/reliability';
 import { initials } from '@/lib/utils';
@@ -44,17 +44,7 @@ export default async function PatientsPage({
   const folded = fold(query);
   const digits = query.replace(/\D/g, '');
   const patients = await prisma.patient.findMany({
-    where: query
-      ? {
-          OR: [
-            { searchKey: { contains: folded } },
-            // Only when something was actually typed as a number: an empty
-            // `contains` matches every row, which would turn a name search that
-            // happens to contain no digits into "show everyone".
-            ...(digits.length >= 3 ? [{ phone: { contains: digits } }] : []),
-          ],
-        }
-      : undefined,
+    where: query ? { OR: patientSearchClauses(query, folded, digits) } : undefined,
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     include: { _count: { select: { visitRecords: true, appointments: true } } },
   });

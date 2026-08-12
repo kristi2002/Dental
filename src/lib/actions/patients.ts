@@ -8,7 +8,12 @@ import { locales } from '@/i18n/routing';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { deleteStoredFile } from '@/lib/files';
 import type { PatientOption } from '@/components/appointments/AppointmentFormDialog';
-import { buildSearchKey, fold, phoneKey } from '@/lib/patient-search';
+import {
+  buildSearchKey,
+  fold,
+  patientSearchClauses,
+  phoneKey,
+} from '@/lib/patient-search';
 import { completeStepForAppointment } from '@/lib/plan-progress';
 import { prisma } from '@/lib/prisma';
 import { timeToMinutes, toDay } from '@/lib/dates';
@@ -55,12 +60,9 @@ export async function searchPatients(query: string): Promise<PatientOption[]> {
   if (folded.length < 2 && digits.length < 3) return [];
 
   const rows = await prisma.patient.findMany({
-    where: {
-      OR: [
-        { searchKey: { contains: folded } },
-        ...(digits.length >= 3 ? [{ phone: { contains: digits } }] : []),
-      ],
-    },
+    // Same fallback as the patient list: `searchKey` is filled by a backfill,
+    // and a deployment that has not run it yet must still find people.
+    where: { OR: patientSearchClauses(query, folded, digits) },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     // Enough to recognise the right person, few enough that the list stays a
     // list rather than becoming the drawer again.

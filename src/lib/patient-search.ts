@@ -36,6 +36,30 @@ export function buildSearchKey(patient: {
 }
 
 /**
+ * The `OR` clauses a patient search should use.
+ *
+ * `searchKey` is the good path — one folded column, one comparison, indexable.
+ * The raw columns are kept beside it deliberately, because `searchKey` is
+ * populated by a backfill and a deployment that has not run it yet would
+ * otherwise return *nothing* for every name typed. Basic search must not depend
+ * on a data migration having happened; it degrades to the old case-insensitive
+ * behaviour instead, and sharpens once the backfill runs.
+ *
+ * The phone clause is only added when digits were actually typed: an empty
+ * `contains` matches every row, which would turn a name search into
+ * "show everyone".
+ */
+export function patientSearchClauses(query: string, folded: string, digits: string) {
+  return [
+    { searchKey: { contains: folded } },
+    { lastName: { contains: query, mode: 'insensitive' as const } },
+    { firstName: { contains: query, mode: 'insensitive' as const } },
+    { email: { contains: query, mode: 'insensitive' as const } },
+    ...(digits.length >= 3 ? [{ phone: { contains: digits } }] : []),
+  ];
+}
+
+/**
  * Digits only, for deciding whether two people gave the same number.
  *
  * `069 12 34 567`, `+355 69 1234567` and `0691234567` are one number written
