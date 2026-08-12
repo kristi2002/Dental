@@ -8,6 +8,7 @@ import { describeRanges } from '@/lib/clinic-hours';
 import { fromDateKey, minutesToTime, timeToMinutes, toDateKey } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { getClinicProfile, getDaySchedule, getProviderOptions } from '@/lib/queries';
+import { findFreeGaps } from '@/lib/scheduling';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,7 @@ export default async function DaySheetPage({
   const providers = await getProviderOptions();
   const staffFilter = providers.some((person) => person.id === rawStaff) ? rawStaff! : '';
 
-  const [appointments, schedule, profile] = await Promise.all([
+  const [appointments, schedule, profile, freeGaps] = await Promise.all([
     prisma.appointment.findMany({
       where: {
         date: day,
@@ -88,6 +89,11 @@ export default async function DaySheetPage({
     }),
     getDaySchedule(day, staffFilter),
     getClinicProfile(),
+    // What is still sellable. The sheet on the wall is what the front desk reads
+    // when the screen is busy and somebody rings wanting to come in today —
+    // without the holes marked, the only way to answer is to go back to a
+    // computer, which is the moment the printed sheet stops being useful.
+    findFreeGaps({ date: day, staffUserId: staffFilter || undefined }),
   ]);
 
   const ordered = [...appointments].sort(
@@ -226,6 +232,26 @@ export default async function DaySheetPage({
             </tbody>
           </table>
         )}
+
+        {/* Under the list, not in it: these are not appointments and must never
+            be read as a line to tick off. */}
+        {freeGaps.length > 0 ? (
+          <footer className="mt-5 border-t-2 border-line pt-3">
+            <p className="text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+              {t('freeTitle')}
+            </p>
+            <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[1rem] font-semibold text-ink tabular-nums">
+              {freeGaps.map((gap) => (
+                <span key={gap.startTime}>
+                  {gap.startTime}–{gap.endTime}
+                  <span className="ml-1 font-normal text-ink-soft">
+                    ({ta('durationValue', { min: gap.minutes })})
+                  </span>
+                </span>
+              ))}
+            </p>
+          </footer>
+        ) : null}
       </article>
     </>
   );

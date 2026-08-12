@@ -1,14 +1,21 @@
-import { FlaskConical, Users } from 'lucide-react';
+import { FlaskConical, TriangleAlert, Users } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { LabCaseList } from '@/components/lab/LabCaseList';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
-import { toDateKey } from '@/lib/dates';
+import { toDateKey, today } from '@/lib/dates';
 import { LAB_STATUSES, isLabStatus } from '@/lib/lab';
 import { prisma } from '@/lib/prisma';
+import {
+  getOperatoryOptions,
+  getPatientOptions,
+  getProviderOptions,
+  getServiceOptions,
+} from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -30,8 +37,9 @@ export default async function LabPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const user = await requirePermission('plan.view');
-  const canEdit = user.permissions.includes('plan.edit');
+  const user = await requirePermission('lab.view');
+  const canEdit = user.permissions.includes('lab.edit');
+  const canBook = user.permissions.includes('appointment.edit');
   const canDelete = user.permissions.includes('patient.delete');
 
   const t = await getTranslations('lab');
@@ -50,9 +58,31 @@ export default async function LabPage({
 
   const labNames = [...new Set(cases.map((labCase) => labCase.labName))].sort();
 
+  // Late only counts while the work is still out. A crown that arrived a day
+  // after it was promised is not a problem any more — one that has not arrived
+  // at all is the practice's problem of the week, and nothing said so.
+  const now = today();
+  const overdue = cases.filter(
+    (labCase) => labCase.status === 'SENT' && labCase.dueAt !== null && labCase.dueAt < now,
+  ).length;
+
+  const [patients, services, providers, operatories] = await Promise.all([
+    canEdit ? getPatientOptions() : Promise.resolve([]),
+    canEdit ? getServiceOptions() : Promise.resolve([]),
+    canEdit ? getProviderOptions() : Promise.resolve([]),
+    canEdit ? getOperatoryOptions() : Promise.resolve([]),
+  ]);
+
   return (
     <div>
       <PageHeader title={t('title')} subtitle={t('subtitle')} />
+
+      {overdue > 0 ? (
+        <p className="mb-4 flex items-center gap-2 font-bold text-danger">
+          <TriangleAlert size={19} aria-hidden />
+          {t('overdueAlert', { count: overdue })}
+        </p>
+      ) : null}
 
       <nav className="mb-4 flex flex-wrap gap-2" aria-label={t('status')}>
         <FilterLink active={!filter} href="/lab" label={t('allCases')} />
@@ -98,6 +128,22 @@ export default async function LabPage({
             labNames={labNames}
             canEdit={canEdit}
             canDelete={canDelete}
+            bookFitting={
+              canEdit && canBook
+                ? (labCase) => (
+                    <AppointmentFormDialog
+                      patients={patients}
+                      services={services}
+                      staff={providers}
+                      operatories={operatories}
+                      defaultPatientId={labCase.patientId}
+                      defaultDate={toDateKey(today())}
+                      triggerClassName="btn btn-secondary btn-sm whitespace-nowrap"
+                      triggerLabel={t('bookFitting')}
+                    />
+                  )
+                : undefined
+            }
           />
         )}
       </Card>

@@ -26,6 +26,8 @@ export async function saveWaitlistEntry(
   const entry = await prisma.waitlistEntry.create({
     data: {
       patientId,
+      // The id to match against the catalogue, the name to show on the row.
+      serviceId: optionalString(formData.get('serviceId')),
       serviceName: optionalString(formData.get('serviceName')),
       durationMin: Math.max(5, toInt(formData.get('durationMin'), 30)),
       note: optionalString(formData.get('note')),

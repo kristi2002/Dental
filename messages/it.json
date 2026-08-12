@@ -13,7 +13,8 @@
     "language": "Lingua",
     "menu": "Menu",
     "recalls": "Richiami",
-    "lab": "Laboratorio"
+    "lab": "Laboratorio",
+    "plans": "Piani"
   },
   "common": {
     "save": "Salva",
@@ -119,6 +120,7 @@
     "willDeduct": "Salvando, i materiali per {services} verranno scalati dal magazzino.",
     "ageLabel": "Età",
     "tabPlans": "Piani di cura",
+    "bookStep": "Prenota",
     "tabDocuments": "File",
     "tabPrescriptions": "Ricette",
     "allergyBadge": "Allergia",
@@ -202,6 +204,10 @@
     "selectOperatory": "Non assegnata",
     "markArrived": "Arrivato",
     "markNoShow": "Non si è presentato",
+    "todaysAlertsTitle": "Leggere prima di trattare",
+    "todaysAlertsSubtitle": "Avvisi registrati per le persone in agenda oggi.",
+    "unrecordedTitle": "Trattati, senza nota",
+    "unrecordedSubtitle": "{count, plural, =1 {Un appuntamento concluso oggi non ha la nota di visita} other {# appuntamenti conclusi oggi non hanno la nota di visita}}.",
     "openPastTitle": "Ancora aperti dai giorni scorsi",
     "openPastSubtitle": "{count, plural, =1 {Un appuntamento non è mai stato chiuso} other {# appuntamenti non sono mai stati chiusi}} — indica cosa è successo, così la cartella e il punteggio delle assenze restano corretti.",
     "openPastMore": "Vengono mostrati i {shown} più vecchi su {total}.",
@@ -223,6 +229,8 @@
     "duration": "Durata stimata",
     "empty": "Ancora nessun servizio. Aggiungi i trattamenti che offri.",
     "uncategorized": "Senza categoria",
+    "performedCount": "{count, plural, one {eseguito una volta in 6 mesi} other {eseguito # volte in 6 mesi}}",
+    "performedNever": "non eseguito da 6 mesi",
     "materials": "Materiali usati",
     "materialsHint": "Scegli cosa consuma questo trattamento. Registrando una visita verrà scalato dal magazzino in automatico.",
     "materialsNoStock": "Aggiungi prima dei materiali nella pagina magazzino.",
@@ -309,6 +317,10 @@
     "topServices": "Servizi più eseguiti",
     "patientGrowth": "Nuovi pazienti per mese",
     "stockUsage": "Consumo materiali per mese",
+    "referralSources": "Come ci hanno trovato i pazienti",
+    "noReferralData": "Non è ancora stata registrata la provenienza di nessun paziente.",
+    "byProvider": "Appuntamenti per dentista",
+    "appointments": "Appuntamenti",
     "appointmentStatus": "Appuntamenti per stato",
     "noData": "Dati ancora insufficienti.",
     "visits": "Visite",
@@ -375,6 +387,7 @@
     "backHome": "Torna al pannello",
     "forbidden": "Il tuo ruolo non lo consente.",
     "overlap": "Si sovrappone a un appuntamento esistente: {list}.",
+    "labPending": "Il laboratorio non ha ancora promesso il rientro del lavoro di questo paziente: {list}.",
     "hoursInvalid": "Un giorno aperto deve chiudere dopo l’orario di apertura.",
     "rangeBackwards": "La data finale non può precedere quella iniziale.",
     "substanceRequired": "Indica la sostanza — un'allergia senza nome non può essere confrontata con una ricetta.",
@@ -431,6 +444,10 @@
     "plan": {
       "view": "Vede i piani di cura",
       "edit": "Crea e aggiorna piani di cura"
+    },
+    "lab": {
+      "view": "Vede i casi di laboratorio e le loro scadenze",
+      "edit": "Invia lavori al laboratorio e ne registra il rientro"
     },
     "document": {
       "view": "Vede radiografie e file",
@@ -562,7 +579,8 @@
     "fitsAt": "Entra alle {time}",
     "noFit": "Nessuno spazio quel giorno",
     "offer": "Offri il posto",
-    "resolve": "Togli dalla lista"
+    "resolve": "Togli dalla lista",
+    "fitsTodayCount": "{count, plural, =1 {Uno di loro entra in uno spazio ancora libero oggi} other {# di loro entrano negli spazi ancora liberi oggi}}"
   },
   "reliability": {
     "watch": "{missed} su {total} mancati",
@@ -589,7 +607,17 @@
     "skip": "Salta questa fase",
     "reopen": "Riapri",
     "moveUp": "Sposta su",
-    "moveDown": "Sposta giù"
+    "moveDown": "Sposta giù",
+    "allTitle": "Piani di cura",
+    "allSubtitle": "Tutte le cure in corso dello studio, prima quelle più trascurate.",
+    "allEmpty": "Non ci sono piani di cura in corso.",
+    "filter_open": "In corso",
+    "filter_stalled": "Fermi",
+    "filter_completed": "Conclusi",
+    "stalled": "Fermo",
+    "noneStalled": "Non è rimasto niente in sospeso. Ogni piano in corso si è mosso di recente oppure ha già la prossima visita fissata.",
+    "nextOn": "Prossima il {date} alle {time}",
+    "quietFor": "{days, plural, =0 {Niente fatto oggi} =1 {Niente fatto da un giorno} other {Niente fatto da # giorni}}"
   },
   "documents": {
     "new": "Aggiungi file",
@@ -777,6 +805,8 @@
     "receivedHint": "Lascia oggi, salvo che sia arrivato prima.",
     "markReceived": "È rientrato",
     "overdue": "In ritardo",
+    "overdueAlert": "{count, plural, =1 {Un caso ha superato la data promessa dal laboratorio} other {# casi hanno superato la data promessa dal laboratorio}}.",
+    "bookFitting": "Prenota la prova",
     "dueOn": "previsto {date}",
     "sentOn": "inviato {date}",
     "receivedOn": "rientrato {date}",
@@ -852,6 +882,7 @@
     "patient": "Paziente",
     "treatment": "Trattamento",
     "done": "Fatto",
-    "count": "{count, plural, =0 {niente in agenda} one {# appuntamento} other {# appuntamenti}}"
+    "count": "{count, plural, =0 {niente in agenda} one {# appuntamento} other {# appuntamenti}}",
+    "freeTitle": "Ancora libero oggi"
   }
 }

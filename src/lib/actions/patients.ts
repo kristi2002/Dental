@@ -7,11 +7,12 @@ import { redirect } from '@/i18n/navigation';
 import { locales } from '@/i18n/routing';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { deleteStoredFile } from '@/lib/files';
+import { completeStepForAppointment } from '@/lib/plan-progress';
 import { prisma } from '@/lib/prisma';
 import { timeToMinutes, toDay } from '@/lib/dates';
 import { consumeMaterialsForServices } from '@/lib/stock-consumption';
 import { DEFAULT_TOOTH_STATUS, formatSurfaces, isToothStatus, isValidTooth } from '@/lib/teeth';
-import { optionalString, requiredString } from '@/lib/utils';
+import { optionalString, parseServiceList, requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
 function revalidateAll() {
@@ -158,13 +159,33 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
 
   const day = visitDate ? new Date(`${visitDate}T00:00:00.000Z`) : toDay(new Date());
 
+  // What was done, as rows rather than as a sentence to be split on commas.
+  //
+  // The chips carry catalogue ids; anything typed by hand has none, and gets a
+  // row with a name and a null `serviceId` — which is honest, and is the same
+  // distinction that already decides whether stock is deducted. Ids are matched
+  // back to the text in the order the names were typed, so the line reads the
+  // way it was written.
+  const catalogue = await prisma.service.findMany({
+    where: { id: { in: serviceIds } },
+    select: { id: true, name: true },
+  });
+  const idByName = new Map(catalogue.map((service) => [service.name, service.id]));
+
+  const performed = parseServiceList(services).map((name, index) => ({
+    name,
+    serviceId: idByName.get(name) ?? null,
+    position: index + 1,
+  }));
+
   let visitId: string;
   try {
     const visit = await prisma.visitRecord.create({
       data: {
         patientId,
         notes,
-        services,
+        servicesText: services,
+        services: { create: performed },
         visitDate: day,
         staffUserId: user.id,
         // Who typed it and who did it are the same person often enough to
@@ -206,6 +227,18 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
         entityId: first.id,
         summary: `${first.startTime} → COMPLETED`,
       });
+
+      // Same consequence as pressing "completed" on the calendar — the visit
+      // note is just the other door into the same event.
+      const step = await completeStepForAppointment(first.id);
+      if (step) {
+        await recordAudit(user, {
+          action: 'update',
+          entity: 'plan',
+          entityId: step.planId,
+          summary: `${step.title} → DONE`,
+        });
+      }
     }
   }
 

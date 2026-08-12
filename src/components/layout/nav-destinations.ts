@@ -17,9 +17,10 @@ export const NAV_DESTINATIONS: ReadonlyArray<{
   { href: '/', key: 'dashboard', permission: null },
   { href: '/appointments', key: 'appointments', permission: 'appointment.view' },
   { href: '/patients', key: 'patients', permission: 'patient.view' },
+  { href: '/plans', key: 'plans', permission: 'plan.view' },
   { href: '/recalls', key: 'recalls', permission: 'recall.view' },
   { href: '/services', key: 'services', permission: 'service.view' },
-  { href: '/lab', key: 'lab', permission: 'plan.view' },
+  { href: '/lab', key: 'lab', permission: 'lab.view' },
   { href: '/stock', key: 'stock', permission: 'stock.view' },
   { href: '/analytics', key: 'analytics', permission: 'analytics.view' },
 ];

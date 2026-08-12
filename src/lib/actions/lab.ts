@@ -29,7 +29,7 @@ function toTime(value: string | null): string | null {
 export async function saveLabCase(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const t = await getTranslations('errors');
 
-  const user = await authorize('plan.edit');
+  const user = await authorize('lab.edit');
   if (!user) return actionError(t('forbidden'));
 
   const id = optionalString(formData.get('id'));
@@ -97,7 +97,7 @@ export async function saveLabCaseDetail(
 ): Promise<ActionState> {
   const t = await getTranslations('errors');
 
-  const user = await authorize('plan.edit');
+  const user = await authorize('lab.edit');
   if (!user) return actionError(t('forbidden'));
 
   const id = requiredString(formData.get('id'));
@@ -213,7 +213,7 @@ export async function saveLabCaseDetail(
 
 /** One-tap "it came back", from the waiting-on list. */
 export async function markLabCaseReceived(formData: FormData): Promise<void> {
-  const user = await authorize('plan.edit');
+  const user = await authorize('lab.edit');
   if (!user) return;
 
   const id = requiredString(formData.get('id'));

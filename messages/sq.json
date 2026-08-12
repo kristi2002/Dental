@@ -13,7 +13,8 @@
     "language": "Gjuha",
     "menu": "Menuja",
     "recalls": "Rikthimet",
-    "lab": "Laboratori"
+    "lab": "Laboratori",
+    "plans": "Planet"
   },
   "common": {
     "save": "Ruaj",
@@ -119,6 +120,7 @@
     "willDeduct": "Ruajtja do të heqë nga magazina materialet për {services}.",
     "ageLabel": "Mosha",
     "tabPlans": "Planet e trajtimit",
+    "bookStep": "Cakto",
     "tabDocuments": "Skedarët",
     "tabPrescriptions": "Recetat",
     "allergyBadge": "Alergji",
@@ -202,6 +204,10 @@
     "selectOperatory": "E pacaktuar",
     "markArrived": "Mbërriti",
     "markNoShow": "Nuk erdhi",
+    "todaysAlertsTitle": "Lexo para se të trajtosh",
+    "todaysAlertsSubtitle": "Sinjalizimet e regjistruara për personat e caktuar sot.",
+    "unrecordedTitle": "Trajtuar, pa shënim",
+    "unrecordedSubtitle": "{count, plural, =1 {Një takim i përfunduar sot nuk ka shënim vizite} other {# takime të përfunduara sot nuk kanë shënim vizite}}.",
     "openPastTitle": "Ende të hapura nga ditët e kaluara",
     "openPastSubtitle": "{count, plural, =1 {Një takim nuk u mbyll kurrë} other {# takime nuk u mbyllën kurrë}} — thuaj çfarë ndodhi, që kartela dhe rezultati i mungesave të mbeten të sakta.",
     "openPastMore": "Po shfaqen {shown} më të vjetrat nga {total}.",
@@ -223,6 +229,8 @@
     "duration": "Kohëzgjatja e parashikuar",
     "empty": "Ende nuk ka shërbime. Shto trajtimet që ofron.",
     "uncategorized": "Pa kategori",
+    "performedCount": "{count, plural, one {kryer një herë në 6 muaj} other {kryer # herë në 6 muaj}}",
+    "performedNever": "e pakryer prej 6 muajsh",
     "materials": "Materialet e përdorura",
     "materialsHint": "Zgjidhni çfarë konsumon ky trajtim. Regjistrimi i një vizite i zbret automatikisht nga magazina.",
     "materialsNoStock": "Shtoni fillimisht materiale te faqja e magazinës.",
@@ -309,6 +317,10 @@
     "topServices": "Shërbimet më të kryera",
     "patientGrowth": "Pacientë të rinj sipas muajit",
     "stockUsage": "Përdorimi i materialeve sipas muajit",
+    "referralSources": "Si na gjetën pacientët",
+    "noReferralData": "Ende nuk është regjistruar burimi i rekomandimit për asnjë pacient.",
+    "byProvider": "Takimet sipas dentistit",
+    "appointments": "Takime",
     "appointmentStatus": "Takimet sipas statusit",
     "noData": "Ende nuk ka të dhëna të mjaftueshme.",
     "visits": "Vizita",
@@ -375,6 +387,7 @@
     "backHome": "Kthehu te paneli",
     "forbidden": "Roli juaj nuk e lejon këtë.",
     "overlap": "Ky takim përplaset me një ekzistues: {list}.",
+    "labPending": "Laboratori nuk e ka premtuar ende kthimin e punës së këtij pacienti: {list}.",
     "hoursInvalid": "Një ditë e hapur duhet të mbyllet pas orës së hapjes.",
     "rangeBackwards": "Data e fundit nuk mund të jetë para asaj të fillimit.",
     "substanceRequired": "Shëno substancën — një alergji pa emër nuk mund të krahasohet me recetën.",
@@ -431,6 +444,10 @@
     "plan": {
       "view": "Sheh planet e trajtimit",
       "edit": "Krijon dhe përditëson plane trajtimi"
+    },
+    "lab": {
+      "view": "Sheh rastet e laboratorit dhe afatet e tyre",
+      "edit": "Dërgon punë në laborator dhe regjistron kthimin e saj"
     },
     "document": {
       "view": "Sheh radiografitë dhe skedarët",
@@ -562,7 +579,8 @@
     "fitsAt": "Përshtatet në {time}",
     "noFit": "Pa hapësirë këtë ditë",
     "offer": "Ofro orarin",
-    "resolve": "Hiq nga lista"
+    "resolve": "Hiq nga lista",
+    "fitsTodayCount": "{count, plural, =1 {Njëri prej tyre zë një hapësirë ende të lirë sot} other {# prej tyre zënë hapësira ende të lira sot}}"
   },
   "reliability": {
     "watch": "{missed} nga {total} të humbura",
@@ -589,7 +607,17 @@
     "skip": "Kalo këtë hap",
     "reopen": "Rihap",
     "moveUp": "Lëviz lart",
-    "moveDown": "Lëviz poshtë"
+    "moveDown": "Lëviz poshtë",
+    "allTitle": "Planet e trajtimit",
+    "allSubtitle": "Të gjitha trajtimet në vazhdim të klinikës, më të lënat pas dore të parat.",
+    "allEmpty": "Nuk ka plane trajtimi në vazhdim.",
+    "filter_open": "Në vazhdim",
+    "filter_stalled": "Të ngecura",
+    "filter_completed": "Të përfunduara",
+    "stalled": "E ngecur",
+    "noneStalled": "Asgjë nuk ka mbetur pezull. Çdo plan në vazhdim ose ka lëvizur së fundmi, ose e ka vizitën e radhës të caktuar.",
+    "nextOn": "Radhën më {date} në {time}",
+    "quietFor": "{days, plural, =0 {Asgjë e bërë sot} =1 {Asgjë e bërë prej një dite} other {Asgjë e bërë prej # ditësh}}"
   },
   "documents": {
     "new": "Shto skedar",
@@ -777,6 +805,8 @@
     "receivedHint": "Lëre sot, veç nëse ka ardhur më parë.",
     "markReceived": "U kthye",
     "overdue": "Me vonesë",
+    "overdueAlert": "{count, plural, =1 {Një rast e ka kaluar datën që premtoi laboratori} other {# raste e kanë kaluar datën që premtoi laboratori}}.",
+    "bookFitting": "Cakto vendosjen",
     "dueOn": "pritet {date}",
     "sentOn": "dërguar {date}",
     "receivedOn": "kthyer {date}",
@@ -852,6 +882,7 @@
     "patient": "Pacienti",
     "treatment": "Trajtimi",
     "done": "Kryer",
-    "count": "{count, plural, =0 {asgjë e planifikuar} one {# takim} other {# takime}}"
+    "count": "{count, plural, =0 {asgjë e planifikuar} one {# takim} other {# takime}}",
+    "freeTitle": "Ende të lira sot"
   }
 }

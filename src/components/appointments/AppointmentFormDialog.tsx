@@ -53,6 +53,7 @@ export function AppointmentFormDialog({
   defaultPatientId,
   defaultStaffUserId,
   slot,
+  planStepId,
   canCreatePatient = false,
   triggerClassName,
   triggerLabel,
@@ -74,6 +75,12 @@ export function AppointmentFormDialog({
   defaultPatientId?: string;
   /** When booking into a known gap: bounds the time field and shows what is left. */
   slot?: BookingSlot;
+  /**
+   * The treatment-plan step this booking fulfils. Saving binds the two, so
+   * completing the appointment ticks the step off without anybody saying so
+   * twice on two different screens.
+   */
+  planStepId?: string;
   /** Offer "new patient" inline. Requires the person to be allowed to add patients. */
   canCreatePatient?: boolean;
   triggerClassName?: string;
@@ -93,6 +100,12 @@ export function AppointmentFormDialog({
 
   // Picking a service pre-fills the duration — the dentist can still override it.
   const [duration, setDuration] = useState(initialDuration);
+  // Seeded by matching the stored name, so an appointment booked before the id
+  // existed acquires one the next time it is saved. A name that matches nothing
+  // — a service since renamed or removed — resolves to no id and keeps the name.
+  const [serviceId, setServiceId] = useState(
+    () => services.find((s) => s.name === appointment?.serviceName)?.id ?? '',
+  );
   // Set only after the server reports a clash, and cleared as soon as the dialog
   // closes: overriding a double-booking should be a decision, never a default.
   const [force, setForce] = useState(false);
@@ -110,6 +123,7 @@ export function AppointmentFormDialog({
       resetOnSuccess={!editing}
       onClose={() => {
         setDuration(initialDuration);
+        setServiceId(services.find((s) => s.name === appointment?.serviceName)?.id ?? '');
         setForce(false);
         setAddingPatient(false);
       }}
@@ -138,6 +152,7 @@ export function AppointmentFormDialog({
         <>
           {appointment ? <input type="hidden" name="id" value={appointment.id} /> : null}
           {force ? <input type="hidden" name="force" value="1" /> : null}
+          {planStepId ? <input type="hidden" name="planStepId" value={planStepId} /> : null}
 
           {slot ? (
             <p className="rounded-lg border border-brand/30 bg-brand-soft px-3 py-2 font-semibold text-brand-deep">
@@ -283,6 +298,15 @@ export function AppointmentFormDialog({
             </p>
           ) : null}
 
+          {/* The catalogue id travels beside the name.
+
+              The select still submits the name, because the name is the
+              snapshot the row prints and a service renamed later must not
+              rewrite what the diary says. The id is what anything counting
+              groups by — and it is resolved here, from the same list the option
+              came from, rather than matched back from text on the server. */}
+          <input type="hidden" name="serviceId" value={serviceId} />
+
           <SelectField
             id={`${uid}-service`}
             name="serviceName"
@@ -291,6 +315,7 @@ export function AppointmentFormDialog({
             defaultValue={appointment?.serviceName ?? ''}
             onChange={(event) => {
               const match = services.find((s) => s.name === event.target.value);
+              setServiceId(match?.id ?? '');
               if (match) setDuration(match.durationMin);
             }}
           >
@@ -374,9 +399,12 @@ export function AppointmentFormDialog({
             defaultValue={appointment?.notes}
           />
 
-          {/* The clash is reported, not enforced — squeezing in an emergency is a
-          real decision a dentist makes, so the override is one deliberate tap. */}
-          {state.status === 'error' && state.code === 'overlap' ? (
+          {/* Both warnings are reported, not enforced, and both are overridden
+              the same way — one deliberate tap. Squeezing in an emergency is a
+              real decision a dentist makes, and so is fitting a crown the lab
+              says it will deliver early. The message above says which it is. */}
+          {state.status === 'error' &&
+          (state.code === 'overlap' || state.code === 'labPending') ? (
             <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5 font-semibold text-warn">
               <input
                 type="checkbox"

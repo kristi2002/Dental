@@ -39,6 +39,7 @@ export async function LabCaseList({
   labNames,
   canEdit,
   canDelete,
+  bookFitting,
 }: {
   cases: LabCaseView[];
   /** Set on a patient's own tab, where the edit dialog knows whose it is. */
@@ -46,6 +47,12 @@ export async function LabCaseList({
   labNames: string[];
   canEdit: boolean;
   canDelete: boolean;
+  /**
+   * Renders the booking dialog for a case that has come back. Passed in for the
+   * same reason the plan list takes one: the diary's collections have no
+   * business being loaded by a lab list.
+   */
+  bookFitting?: (labCase: LabCaseView) => React.ReactNode;
 }) {
   const t = await getTranslations('lab');
   const tc = await getTranslations('common');
@@ -144,6 +151,12 @@ export async function LabCaseList({
                   </button>
                 </ActionForm>
               ) : null}
+
+              {/* The work is here, and the next thing that has to happen is the
+                  patient coming back for it. Offered at exactly the moment the
+                  answer is known, rather than left to whoever next opens the
+                  calendar and remembers. */}
+              {bookFitting && labCase.status === 'RECEIVED' ? bookFitting(labCase) : null}
 
               {canEdit && (patientId ?? labCase.patientId) ? (
                 <LabCaseFormDialog

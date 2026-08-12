@@ -1,4 +1,14 @@
-import { BellRing, CalendarDays, Package, TriangleAlert, Users } from 'lucide-react';
+import {
+  BellRing,
+  CalendarClock,
+  CalendarDays,
+  ListChecks,
+  NotebookPen,
+  Package,
+  ShieldAlert,
+  TriangleAlert,
+  Users,
+} from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { AppointmentRow } from '@/components/appointments/AppointmentRow';
@@ -10,7 +20,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { Link } from '@/i18n/navigation';
-import { LabCaseStatus } from '@/generated/prisma/enums';
+import {
+  AlertSeverity,
+  AppointmentStatus,
+  LabCaseStatus,
+} from '@/generated/prisma/enums';
 import { requireUser } from '@/lib/auth/guard';
 import { endOfWeek, startOfWeek, toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
@@ -19,15 +33,18 @@ import {
   getAppointmentsBetween,
   getLowStockItems,
   getOpenPastAppointments,
+  getOpenWaitlist,
   getOperatoryOptions,
   getPatientOptions,
   getProviderOptions,
   getServiceOptions,
+  getUnrecordedToday,
   getUnremindedTomorrow as getUnreminded,
 } from '@/lib/queries';
 import { LabCaseList } from '@/components/lab/LabCaseList';
 import { getRecalls } from '@/lib/recalls';
-import { findFreeGaps, nextSlotTime } from '@/lib/scheduling';
+import { findFreeGaps, nextSlotTime, type FreeGap } from '@/lib/scheduling';
+import { VisitFormDialog } from '@/components/patients/VisitFormDialog';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,12 +61,16 @@ export default async function DashboardPage({
   const canAddAppointment = user.permissions.includes('appointment.edit');
   const canEditMedical = user.permissions.includes('patient.medical.edit');
   const canSeeRecalls = user.permissions.includes('recall.view');
-  const canSeePlans = user.permissions.includes('plan.view');
+  const canSeeLab = user.permissions.includes('lab.view');
+  const canSeeMedical = user.permissions.includes('patient.medical.view');
+  const canSeeWaitlist = user.permissions.includes('waitlist.view');
 
   const t = await getTranslations('dashboard');
   const ta = await getTranslations('appointments');
   const ts = await getTranslations('stock');
   const tlab = await getTranslations('lab');
+  const talerts = await getTranslations('alerts');
+  const tw = await getTranslations('waitlist');
   const format = await getFormatter();
 
   const day = today();
@@ -70,6 +91,10 @@ export default async function DashboardPage({
     toRemind,
     openPast,
     openPastTotal,
+    todaysAlerts,
+    expiredCount,
+    unrecorded,
+    waiting,
   ] = await Promise.all([
       getAppointmentsBetween(day, day),
       prisma.appointment.count({
@@ -87,7 +112,7 @@ export default async function DashboardPage({
       findFreeGaps({ date: day, after: nextSlotTime() }),
       // Cases still at the lab, soonest promised first. The thing a whiteboard
       // was doing until now, and the reason a fitting gets booked too early.
-      canSeePlans
+      canSeeLab
         ? prisma.labCase.findMany({
             where: { status: LabCaseStatus.SENT },
             orderBy: [{ dueAt: 'asc' }, { sentAt: 'asc' }],
@@ -101,7 +126,56 @@ export default async function DashboardPage({
       // no-show score and the completion rate with it.
       canAddAppointment ? getOpenPastAppointments() : Promise.resolve([]),
       canAddAppointment ? countOpenPastAppointments() : Promise.resolve(0),
+      // What must not be missed today. The printed day sheet has carried these
+      // since it existed; the screen everybody actually reads did not, so an
+      // anticoagulant was visible only to whoever walked past the printer.
+      canSeeMedical
+        ? prisma.patientAlert.findMany({
+            where: {
+              severity: { in: [AlertSeverity.CRITICAL, AlertSeverity.IMPORTANT] },
+              patient: {
+                appointments: {
+                  some: {
+                    date: day,
+                    status: {
+                      in: [AppointmentStatus.SCHEDULED, AppointmentStatus.ARRIVED],
+                    },
+                  },
+                },
+              },
+            },
+            include: { patient: { select: { id: true, firstName: true, lastName: true } } },
+          })
+        : Promise.resolve([]),
+      // A second, independent way for the cupboard to be wrong: an expired box
+      // counts as stock in every other check on this page.
+      prisma.stockItem.count({
+        where: { archivedAt: null, batches: { some: { expiryDate: { lt: day } } } },
+      }),
+      // Treated but not written up. Asked here because the end of the day is
+      // exactly when nobody goes looking for it.
+      canEditMedical ? getUnrecordedToday() : Promise.resolve([]),
+      // Who would take a slot if one came free — which is what a cancellation
+      // just did, and what nothing outside the calendar page ever said.
+      canSeeWaitlist ? getOpenWaitlist() : Promise.resolve([]),
     ]);
+
+  // Past the date the lab promised it, and still not here. Counted from the
+  // cases already loaded rather than asked for again.
+  const labOverdue = labCases.filter(
+    (labCase) => labCase.dueAt !== null && labCase.dueAt < day,
+  ).length;
+
+  // Who the rest of today can actually hold. The matching is the useful part: a
+  // 60-minute root canal is not a candidate for a 20-minute hole, and offering
+  // it as one wastes a phone call.
+  const fitsToday = waiting
+    .map((entry) => ({
+      entry,
+      gap: freeGaps.find((candidate) => candidate.minutes >= entry.durationMin),
+    }))
+    .filter((row): row is { entry: (typeof waiting)[number]; gap: FreeGap } => row.gap !== undefined)
+    .slice(0, 5);
 
   return (
     <>
@@ -158,6 +232,46 @@ export default async function DashboardPage({
             />
           ) : null}
         </div>
+      ) : null}
+
+      {/* Before anything else on the page, because it is the only thing here
+          that changes what happens in the chair. One line per person, loudest
+          severity first, and gone entirely on a day with nothing to flag. */}
+      {todaysAlerts.length > 0 ? (
+        <Card className="mb-6 border-danger">
+          <CardHeader
+            title={ta('todaysAlertsTitle')}
+            subtitle={ta('todaysAlertsSubtitle')}
+            icon={<ShieldAlert size={22} aria-hidden className="text-danger" />}
+          />
+          <ul className="divide-y divide-line">
+            {[...todaysAlerts]
+              .sort((a, b) =>
+                a.severity === b.severity ? 0 : a.severity === 'CRITICAL' ? -1 : 1,
+              )
+              .map((alert) => (
+                <li
+                  key={alert.id}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3"
+                >
+                  <Link
+                    href={`/patients/${alert.patient.id}`}
+                    className="text-[1.05rem] font-bold text-ink"
+                  >
+                    {alert.patient.lastName} {alert.patient.firstName}
+                  </Link>
+                  <Badge tone={alert.severity === 'CRITICAL' ? 'alert' : 'warn'}>
+                    <TriangleAlert size={15} aria-hidden />
+                    {talerts(`kind_${alert.kind}`)}
+                    {alert.substance ? `: ${alert.substance}` : ''}
+                  </Badge>
+                  {alert.notes ? (
+                    <span className="text-[0.93rem] text-ink-soft">{alert.notes}</span>
+                  ) : null}
+                </li>
+              ))}
+          </ul>
+        </Card>
       ) : null}
 
       {/* Above everything, and the only panel on this page about work that has
@@ -232,6 +346,86 @@ export default async function DashboardPage({
             canCreatePatient={canAddPatient}
           />
 
+          {/* Somebody who would take a slot, and a slot going spare. The
+              calendar page has always matched the two; the dashboard is where
+              anybody looks after a cancellation, and it said nothing. */}
+          {canSeeWaitlist && fitsToday.length > 0 ? (
+            <Card>
+              <CardHeader
+                title={tw('title')}
+                subtitle={tw('fitsTodayCount', { count: fitsToday.length })}
+                icon={<ListChecks size={22} aria-hidden />}
+                action={
+                  <Link href="/appointments" className="btn btn-secondary btn-sm">
+                    {t('openCalendar')}
+                  </Link>
+                }
+              />
+              <ul className="divide-y divide-line">
+                {fitsToday.map(({ entry, gap }) => (
+                  <li
+                    key={entry.id}
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-3"
+                  >
+                    <span className="min-w-0">
+                      <Link
+                        href={`/patients/${entry.patient.id}`}
+                        className="text-[1.03rem] font-bold text-ink"
+                      >
+                        {entry.patient.lastName} {entry.patient.firstName}
+                      </Link>
+                      <span className="block text-[0.9rem] text-ink-soft">
+                        {entry.serviceName ? `${entry.serviceName} · ` : ''}
+                        {tw('fitsAt', { time: gap.startTime })}
+                      </span>
+                    </span>
+                    {entry.urgent ? <Badge tone="danger">{tw('urgent')}</Badge> : null}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
+          {/* Treated, but the note is still in somebody's head. */}
+          {canEditMedical && unrecorded.length > 0 ? (
+            <Card className="border-warn">
+              <CardHeader
+                title={ta('unrecordedTitle')}
+                subtitle={ta('unrecordedSubtitle', { count: unrecorded.length })}
+                icon={<NotebookPen size={22} aria-hidden />}
+              />
+              <ul className="divide-y divide-line">
+                {unrecorded.map((appointment) => (
+                  <li
+                    key={appointment.id}
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-3"
+                  >
+                    <span className="min-w-0">
+                      <Link
+                        href={`/patients/${appointment.patient.id}?tab=history`}
+                        className="text-[1.03rem] font-bold text-ink"
+                      >
+                        {appointment.patient.lastName} {appointment.patient.firstName}
+                      </Link>
+                      <span className="block text-[0.9rem] text-ink-soft tabular-nums">
+                        {appointment.startTime}
+                        {appointment.serviceName ? ` · ${appointment.serviceName}` : ''}
+                      </span>
+                    </span>
+                    <VisitFormDialog
+                      patientId={appointment.patient.id}
+                      services={services}
+                      staff={staff}
+                      currentUserId={user.id}
+                      today={dayKey}
+                      triggerClassName="btn btn-secondary btn-sm"
+                    />
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
           {/* Reminding used to happen only when somebody thought to work down
               the calendar. The contact log makes "who has not been told"
               answerable, so the dashboard asks instead of waiting to be asked. */}
@@ -258,9 +452,24 @@ export default async function DashboardPage({
 
           {/* Cases still out. Sits above stock because a crown that has not come
               back blocks an appointment; a low box of gloves blocks nothing. */}
-          {canSeePlans && labCases.length > 0 ? (
-            <Card>
-              <CardHeader title={tlab('waitingTitle')} subtitle={tlab('waitingSubtitle')} />
+          {canSeeLab && labCases.length > 0 ? (
+            <Card className={labOverdue > 0 ? 'border-danger' : undefined}>
+              <CardHeader
+                title={tlab('waitingTitle')}
+                // Late is the only thing on this card worth acting on today, so
+                // it replaces the standing description rather than sitting under
+                // it where a subtitle gets read once and then never again.
+                subtitle={
+                  labOverdue > 0
+                    ? tlab('overdueAlert', { count: labOverdue })
+                    : tlab('waitingSubtitle')
+                }
+                action={
+                  <Link href="/lab" className="btn btn-secondary btn-sm">
+                    {tlab('title')}
+                  </Link>
+                }
+              />
               <LabCaseList
                 cases={labCases.map((labCase) => ({
                   id: labCase.id,
@@ -292,8 +501,20 @@ export default async function DashboardPage({
                 </Link>
               }
             />
+            {/* Expiry is the other way for the cupboard to be wrong, and the
+                one the low-stock check cannot see: an expired box counts as
+                stock everywhere else. */}
+            {expiredCount > 0 ? (
+              <p className="flex items-center gap-2 border-b border-line px-5 py-3 font-bold text-danger">
+                <CalendarClock size={18} aria-hidden />
+                {ts('expiredAlert', { count: expiredCount })}
+              </p>
+            ) : null}
+
             {lowStock.length === 0 ? (
-              <EmptyState icon={<Package size={40} aria-hidden />} title={t('stockAllGood')} />
+              expiredCount > 0 ? null : (
+                <EmptyState icon={<Package size={40} aria-hidden />} title={t('stockAllGood')} />
+              )
             ) : (
               <ul>
                 {lowStock.map((item) => (

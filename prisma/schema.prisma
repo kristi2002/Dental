@@ -167,8 +167,18 @@ model Appointment {
   durationMin Int               @default(30)
   status      AppointmentStatus @default(SCHEDULED)
   notes       String?
+
+  /// The catalogue entry, and a snapshot of what it was called when booked.
+  ///
+  /// The name alone meant a service renamed in the catalogue left every slot in
+  /// the diary still saying the old thing, with no way to tell that they were
+  /// the same treatment. The id is what anything counting should group by; the
+  /// name is what the row should print.
+  serviceId   String?
+  service     Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   serviceName String?
-  createdAt   DateTime          @default(now())
+
+  createdAt DateTime @default(now())
 
   /// Set when the patient answers the confirmation link themselves. No token is
   /// stored — it is derived from the id, so a leaked row reveals no way in.
@@ -332,9 +342,20 @@ model VisitRecord {
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   visitDate DateTime @default(now())
   notes     String
-  services  String // JSON string or comma-separated list of services done
+
+  /// What was typed, as one line, exactly as it was worded on the day.
+  ///
+  /// **Display only.** This is the sentence a person wrote, and the follow-up
+  /// message quotes it back to the patient; it is not the record of what was
+  /// done. That is `services` below — the rows — because splitting this string
+  /// on commas made a treatment whose name contains one into two treatments,
+  /// and grouped the statistics page by typed text rather than by catalogue
+  /// entry. Same relationship as `Prescription.body` to its template.
+  servicesText String @map("services")
+
   createdAt DateTime @default(now())
 
+  services       VisitService[]
   toothRecords   ToothRecord[]
   stockMovements StockMovement[]
 
@@ -509,8 +530,45 @@ model Service {
   category    String?
   durationMin Int     @default(30)
 
-  materials ServiceMaterial[]
-  labItems  LabCaseItem[]
+  materials    ServiceMaterial[]
+  labItems     LabCaseItem[]
+  visits       VisitService[]
+  appointments Appointment[]
+  waitlist     WaitlistEntry[]
+}
+
+/// One treatment performed at one visit.
+///
+/// The single most consequential thing the schema did not have. Three columns
+/// named a service as free text — `Appointment.serviceName`,
+/// `VisitRecord.services`, `WaitlistEntry.serviceName` — and the worst of them
+/// was the visit's, because it was a *comma-separated list* in one column. A
+/// service called "Filling, composite" silently became two. Renaming a service
+/// split its own history into two bars on the statistics page. And nothing could
+/// answer "which visits used this material", because the only link from a visit
+/// to the catalogue was a string somebody typed.
+///
+/// The name is snapshotted anyway, for the same reason a prescription keeps its
+/// own text: renaming a service must not rewrite what a visit says was done.
+model VisitService {
+  id      String      @id @default(uuid())
+  visitId String
+  visit   VisitRecord @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  /// The catalogue entry, when the treatment matched one. Null for anything
+  /// typed by hand — which is exactly why stock deduction has always been
+  /// driven by ids rather than by the text.
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  /// What it was called on the day.
+  name String
+
+  /// Position in the line as it was typed, so the display order survives.
+  position Int @default(1)
+
+  @@index([visitId])
+  @@index([serviceId])
 }
 
 /// The bill of materials for a treatment. Recording a visit that includes the
@@ -764,11 +822,18 @@ model Closure {
 /// Patients who want an earlier slot. When an appointment is cancelled the app
 /// offers the freed slot to whoever on this list actually fits it.
 model WaitlistEntry {
-  id          String  @id @default(uuid())
-  patientId   String
-  patient     Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  /// Same pair as `Appointment`: the catalogue entry, plus what it was called.
+  /// The duration was copied rather than looked up, so a service whose length
+  /// was corrected left every waiting person still asking for the old one.
+  serviceId   String?
+  service     Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   serviceName String?
-  durationMin Int     @default(30)
+
+  durationMin Int @default(30)
   note        String?
   urgent      Boolean @default(false)
 

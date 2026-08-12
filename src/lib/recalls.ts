@@ -71,7 +71,7 @@ type PatientForRecall = {
   recallSnoozedUntil: Date | null;
   lastRecallAt: Date | null;
   contactConsent: boolean | null;
-  visitRecords: Array<{ visitDate: Date; services: string }>;
+  visitRecords: Array<{ visitDate: Date; servicesText: string }>;
   appointments: Array<{ id: string }>;
 };
 
@@ -100,7 +100,9 @@ const loadCandidates = cache(async (): Promise<PatientForRecall[]> => {
       visitRecords: {
         orderBy: { visitDate: 'desc' },
         take: 1,
-        select: { visitDate: true, services: true },
+        // The sentence, not the rows: the follow-up message quotes it back to
+        // the patient in their own words — "how is the upper left filling?"
+        select: { visitDate: true, servicesText: true },
       },
       // Anyone already booked is not overdue, whatever the calendar says.
       appointments: {
@@ -177,7 +179,7 @@ export async function getFollowUps(): Promise<FollowUpRow[]> {
       email: patient.email ?? '',
       lastVisit: toDateKey(visit.visitDate),
       daysSince,
-      services: visit.services,
+      services: visit.servicesText,
       contactConsent: patient.contactConsent,
     });
   }

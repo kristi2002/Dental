@@ -21,11 +21,17 @@ export function WaitlistFormDialog({
   const tc = useTranslations('common');
   const uid = useId();
   const [duration, setDuration] = useState(30);
+  // Same pair as the booking dialog: the name is what the row prints, the id is
+  // what anything counting groups by.
+  const [serviceId, setServiceId] = useState('');
 
   return (
     <FormDialog
       action={saveWaitlistEntry}
-      onClose={() => setDuration(30)}
+      onClose={() => {
+        setDuration(30);
+        setServiceId('');
+      }}
       title={t('new')}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
@@ -50,6 +56,8 @@ export function WaitlistFormDialog({
         ))}
       </SelectField>
 
+      <input type="hidden" name="serviceId" value={serviceId} />
+
       <div className="grid gap-4 sm:grid-cols-2">
         <SelectField
           id={`${uid}-service`}
@@ -59,6 +67,7 @@ export function WaitlistFormDialog({
           defaultValue=""
           onChange={(event) => {
             const match = services.find((s) => s.name === event.target.value);
+            setServiceId(match?.id ?? '');
             if (match) setDuration(match.durationMin);
           }}
         >

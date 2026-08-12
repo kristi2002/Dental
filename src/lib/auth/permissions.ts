@@ -30,6 +30,12 @@ export const PERMISSIONS = [
   'waitlist.edit',
   'plan.view',
   'plan.edit',
+  // Split out from `plan.*`: a lab case is logistics, not diagnosis. It records
+  // what was ordered from an outside supplier and when it came back, and the
+  // person who most needs to know a crown is not here yet is the person booking
+  // the fitting — who had no way to see the list while it rode on `plan.view`.
+  'lab.view',
+  'lab.edit',
   'document.view',
   'document.edit',
   'document.delete',
@@ -77,6 +83,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'waitlist.edit',
     'plan.view',
     'plan.edit',
+    'lab.view',
+    'lab.edit',
     'document.view',
     'document.edit',
     'prescription.view',
@@ -95,6 +103,11 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'recall.send',
     'waitlist.view',
     'waitlist.edit',
+    // The courier hands the box to reception, and the fitting is booked at
+    // reception. Withholding the lab list from the front desk is what made a
+    // crown's due date invisible to the one person scheduling around it.
+    'lab.view',
+    'lab.edit',
     'settings.view',
   ],
 
@@ -109,6 +122,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'recall.view',
     'waitlist.view',
     'plan.view',
+    'lab.view',
     'document.view',
     'prescription.view',
     'settings.view',

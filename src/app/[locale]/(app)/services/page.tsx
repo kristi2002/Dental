@@ -1,4 +1,4 @@
-import { Clock, Package, Pill, Stethoscope, Trash2 } from 'lucide-react';
+import { Activity, Clock, Package, Pill, Stethoscope, Trash2 } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { TemplateFormDialog } from '@/components/prescriptions/TemplateFormDialog';
 import { ServiceFormDialog } from '@/components/services/ServiceFormDialog';
@@ -12,9 +12,10 @@ import { deletePrescriptionTemplate } from '@/lib/actions/prescriptions';
 import { deleteService } from '@/lib/actions/services';
 import { requirePermission } from '@/lib/auth/guard';
 import { byDepartment } from '@/lib/catalog';
+import { addMonths, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { ACTIVE_STOCK } from '@/lib/queries';
-import { matches } from '@/lib/utils';
+import { cn, matches } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,11 @@ export default async function ServicesPage({
     ...new Set(templates.map((template) => template.category).filter(Boolean)),
   ] as string[];
 
-  const [allServices, stockItems] = await Promise.all([
+  // Six months, matching the statistics page, so the two never disagree about
+  // what "recently" means.
+  const since = addMonths(today(), -6);
+
+  const [allServices, stockItems, performed] = await Promise.all([
     prisma.service.findMany({
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
       include: {
@@ -64,7 +69,20 @@ export default async function ServicesPage({
       orderBy: { name: 'asc' },
       select: { id: true, name: true, unit: true, packSize: true },
     }),
+    // How often each treatment was actually performed. The catalogue is where an
+    // owner decides what to keep, what to reprice and what to stop offering, and
+    // it could not see a single consequence of any of those decisions — the
+    // question needed a join that did not exist until `VisitService` did.
+    prisma.visitService.groupBy({
+      by: ['serviceId'],
+      where: { serviceId: { not: null }, visit: { visitDate: { gte: since } } },
+      _count: { _all: true },
+    }),
   ]);
+
+  const timesPerformed = new Map(
+    performed.map((row) => [row.serviceId!, row._count._all]),
+  );
 
   // Derived from the whole catalog, never from the filtered view: the dropdown
   // has to keep offering the category you are about to switch to, and the new/edit
@@ -165,9 +183,25 @@ export default async function ServicesPage({
                   >
                     <div className="min-w-0">
                       <p className="text-[1.12rem] font-bold text-ink">{service.name}</p>
-                      <p className="mt-0.5 flex items-center gap-1.5 text-[0.95rem] text-ink-soft">
-                        <Clock size={15} aria-hidden />
-                        {service.durationMin} {tc('minutes')}
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.95rem] text-ink-soft">
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={15} aria-hidden />
+                          {service.durationMin} {tc('minutes')}
+                        </span>
+                        {/* Never performed is as much a fact about a catalogue
+                            entry as performed forty times, and the more useful
+                            one — so it says so rather than showing nothing. */}
+                        <span
+                          className={cn(
+                            'flex items-center gap-1.5',
+                            (timesPerformed.get(service.id) ?? 0) === 0 && 'text-ink-faint',
+                          )}
+                        >
+                          <Activity size={15} aria-hidden />
+                          {timesPerformed.get(service.id)
+                            ? t('performedCount', { count: timesPerformed.get(service.id)! })
+                            : t('performedNever')}
+                        </span>
                       </p>
 
                       {/* What this treatment eats, and therefore what recording

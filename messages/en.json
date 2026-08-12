@@ -13,7 +13,8 @@
     "language": "Language",
     "menu": "Menu",
     "recalls": "Recalls",
-    "lab": "Lab"
+    "lab": "Lab",
+    "plans": "Plans"
   },
   "common": {
     "save": "Save",
@@ -119,6 +120,7 @@
     "willDeduct": "Saving this will take the materials for {services} out of stock.",
     "ageLabel": "Age",
     "tabPlans": "Treatment plans",
+    "bookStep": "Book",
     "tabDocuments": "Files",
     "tabPrescriptions": "Prescriptions",
     "allergyBadge": "Allergy",
@@ -202,6 +204,10 @@
     "selectOperatory": "Not assigned",
     "markArrived": "Arrived",
     "markNoShow": "Did not come",
+    "todaysAlertsTitle": "Read before treating",
+    "todaysAlertsSubtitle": "Recorded alerts for the people booked in today.",
+    "unrecordedTitle": "Treated, not written up",
+    "unrecordedSubtitle": "{count, plural, =1 {One appointment finished today has no visit note} other {# appointments finished today have no visit note}}.",
     "openPastTitle": "Still open from before today",
     "openPastSubtitle": "{count, plural, =1 {One appointment was never closed off} other {# appointments were never closed off}} — say what happened so the record and the no-show score stay honest.",
     "openPastMore": "Showing the {shown} oldest of {total}.",
@@ -223,6 +229,8 @@
     "duration": "Estimated duration",
     "empty": "No services yet. Add the treatments you offer.",
     "uncategorized": "Uncategorized",
+    "performedCount": "{count, plural, one {done once in 6 months} other {done # times in 6 months}}",
+    "performedNever": "not done in 6 months",
     "materials": "Materials used",
     "materialsHint": "Pick what this treatment consumes. Recording a visit then deducts it from stock automatically.",
     "materialsNoStock": "Add materials to the stock page first.",
@@ -309,6 +317,10 @@
     "topServices": "Most performed services",
     "patientGrowth": "New patients per month",
     "stockUsage": "Material usage per month",
+    "referralSources": "How patients found us",
+    "noReferralData": "No referral source has been recorded on any patient yet.",
+    "byProvider": "Appointments per dentist",
+    "appointments": "Appointments",
     "appointmentStatus": "Appointments by status",
     "noData": "Not enough data yet.",
     "visits": "Visits",
@@ -375,6 +387,7 @@
     "backHome": "Back to dashboard",
     "forbidden": "Your role does not allow this.",
     "overlap": "This overlaps an existing appointment: {list}.",
+    "labPending": "The lab has not promised this patient's work back yet: {list}.",
     "hoursInvalid": "An open day needs a closing time later than its opening time.",
     "rangeBackwards": "The end date cannot be before the start date.",
     "substanceRequired": "Name the substance — an allergy without one cannot be checked against a prescription.",
@@ -431,6 +444,10 @@
     "plan": {
       "view": "See treatment plans",
       "edit": "Create and update treatment plans"
+    },
+    "lab": {
+      "view": "See lab cases and when they are due",
+      "edit": "Send work to the lab and record its return"
     },
     "document": {
       "view": "See X-rays and files",
@@ -562,7 +579,8 @@
     "fitsAt": "Fits at {time}",
     "noFit": "No gap this day",
     "offer": "Offer the slot",
-    "resolve": "Remove from list"
+    "resolve": "Remove from list",
+    "fitsTodayCount": "{count, plural, =1 {One of them fits a gap still open today} other {# of them fit gaps still open today}}"
   },
   "reliability": {
     "watch": "{missed} of {total} missed",
@@ -589,7 +607,17 @@
     "skip": "Skip this step",
     "reopen": "Reopen",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "allTitle": "Treatment plans",
+    "allSubtitle": "Every course of treatment the practice has going, worst-neglected first.",
+    "allEmpty": "No treatment plans are in progress.",
+    "filter_open": "In progress",
+    "filter_stalled": "Stalled",
+    "filter_completed": "Finished",
+    "stalled": "Stalled",
+    "noneStalled": "Nothing has been left hanging. Every plan in progress has either moved recently or has its next visit booked.",
+    "nextOn": "Next {date} at {time}",
+    "quietFor": "{days, plural, =0 {Nothing done yet today} =1 {Nothing done for a day} other {Nothing done for # days}}"
   },
   "documents": {
     "new": "Add file",
@@ -777,6 +805,8 @@
     "receivedHint": "Leave as today unless it arrived earlier.",
     "markReceived": "It's back",
     "overdue": "Late",
+    "overdueAlert": "{count, plural, =1 {One case is past the date the lab promised it} other {# cases are past the date the lab promised them}}.",
+    "bookFitting": "Book fitting",
     "dueOn": "due {date}",
     "sentOn": "sent {date}",
     "receivedOn": "back {date}",
@@ -852,6 +882,7 @@
     "patient": "Patient",
     "treatment": "Treatment",
     "done": "Done",
-    "count": "{count, plural, =0 {nothing booked} one {# appointment} other {# appointments}}"
+    "count": "{count, plural, =0 {nothing booked} one {# appointment} other {# appointments}}",
+    "freeTitle": "Still free today"
   }
 }

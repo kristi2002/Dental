@@ -260,6 +260,8 @@ async function main() {
   for (const service of SERVICES) {
     services.push(await prisma.service.create({ data: service }));
   }
+  /** Name → catalogue id, so recorded visits link to the real entry. */
+  const serviceIdByName = new Map(services.map((service) => [service.name, service.id]));
 
   console.log('Seeding suppliers…');
   const suppliers: Array<{ id: string; name: string }> = [];
@@ -376,7 +378,9 @@ async function main() {
     const visitCount = randomInt(1, 5);
     for (let i = 0; i < visitCount; i += 1) {
       const service = pick(SERVICES);
-      const extra = random() > 0.6 ? `, ${pick(SERVICES).name}` : '';
+      const second = random() > 0.6 ? pick(SERVICES) : null;
+      const performed = [service, ...(second ? [second] : [])];
+
       await prisma.visitRecord.create({
         data: {
           patientId: patient.id,
@@ -384,7 +388,15 @@ async function main() {
             ? addDays(TODAY, -randomInt(260, 400))
             : addDays(TODAY, -randomInt(20, 170)),
           notes: `${service.name} — pa komplikacione. Pacienti u këshillua për higjienë orale.`,
-          services: `${service.name}${extra}`,
+          servicesText: performed.map((s) => s.name).join(', '),
+          // The rows are the record; the line above is only how it was worded.
+          services: {
+            create: performed.map((s, index) => ({
+              name: s.name,
+              serviceId: serviceIdByName.get(s.name) ?? null,
+              position: index + 1,
+            })),
+          },
           staffUserId: pick([owner.id, assistant.id]),
           // The dentist treats; whoever is at the keyboard writes it up.
           performedById: owner.id,
@@ -400,7 +412,10 @@ async function main() {
         patientId: patient.id,
         visitDate: addDays(TODAY, -(index + 3)),
         notes: `${service.name} — përfunduar. Kontroll pas një jave nëse ka shqetësim.`,
-        services: service.name,
+        servicesText: service.name,
+        services: {
+          create: [{ name: service.name, serviceId: serviceIdByName.get(service.name) ?? null }],
+        },
         staffUserId: assistant.id,
         performedById: owner.id,
       },

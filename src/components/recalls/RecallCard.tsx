@@ -29,6 +29,7 @@ export function RecallCard({
   emailBody,
   canSend,
   contactConsent,
+  book,
 }: {
   id: string;
   firstName: string;
@@ -46,6 +47,12 @@ export function RecallCard({
   emailSubject: string;
   emailBody: string;
   canSend: boolean;
+  /**
+   * The booking dialog for this person. The entire purpose of this list is to
+   * turn into appointments, and until now the only route was: open the record,
+   * book, come back, find your place again.
+   */
+  book?: React.ReactNode;
 }) {
   const t = useTranslations('recalls');
   const tc = useTranslations('common');
@@ -93,6 +100,11 @@ export function RecallCard({
           consent={contactConsent}
           purpose="RECALL"
         />
+
+        {/* The outcome the whole list exists to produce, so it sits with the
+            other actions rather than two navigations away. Booking them also
+            drops them off this list on the next render, with nothing to press. */}
+        {book}
 
         {canSend ? (
           <>

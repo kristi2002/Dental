@@ -1,4 +1,12 @@
-import { ChevronDown, ChevronUp, ListChecks, RotateCcw, SkipForward, Trash2 } from 'lucide-react';
+import {
+  CalendarCheck,
+  ChevronDown,
+  ChevronUp,
+  ListChecks,
+  RotateCcw,
+  SkipForward,
+  Trash2,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
@@ -16,6 +24,8 @@ export type PlanStepView = {
   toothNum: number | null;
   notes: string;
   status: TreatmentStepStatus;
+  /** `YYYY-MM-DD HH:MM` of the slot this step is booked into, when it is. */
+  booked: string;
 };
 
 export type PlanView = {
@@ -42,11 +52,19 @@ export function TreatmentPlans({
   plans,
   canEdit,
   canDelete,
+  bookStep,
 }: {
   patientId: string;
   plans: PlanView[];
   canEdit: boolean;
   canDelete: boolean;
+  /**
+   * Renders the booking dialog for one step. Passed in rather than imported:
+   * `AppointmentFormDialog` needs the patient list, the catalogue, the providers
+   * and the chairs, and threading four server-loaded collections through this
+   * component to reach a button would make a plan list depend on the diary.
+   */
+  bookStep?: (step: PlanStepView) => React.ReactNode;
 }) {
   const t = useTranslations('plans');
   const tc = useTranslations('common');
@@ -173,6 +191,15 @@ export function TreatmentPlans({
                       {step.notes ? (
                         <p className="text-[0.9rem] text-ink-soft">{step.notes}</p>
                       ) : null}
+                      {/* The slot it is booked into. Without it the plan and the
+                          calendar are two accounts of the same treatment and
+                          only one of them is ever open. */}
+                      {step.booked ? (
+                        <p className="flex items-center gap-1.5 text-[0.9rem] font-semibold text-brand-deep tabular-nums">
+                          <CalendarCheck size={15} aria-hidden />
+                          {step.booked}
+                        </p>
+                      ) : null}
                     </div>
 
                     {canEdit ? (
@@ -193,6 +220,12 @@ export function TreatmentPlans({
                           </ActionForm>
                         ) : (
                           <>
+                            {/* Booking is offered only while the step is still
+                                outstanding and not already in the diary — the
+                                relation is one-to-one, so a second booking would
+                                have nothing to bind itself to. */}
+                            {bookStep && !step.booked ? bookStep(step) : null}
+
                             <ActionForm
                               action={setStepStatus}
                               values={{ id: step.id, status: TreatmentStepStatus.DONE }}

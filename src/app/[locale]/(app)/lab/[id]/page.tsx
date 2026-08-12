@@ -37,8 +37,8 @@ export default async function LabOrderPage({
   const { locale, id } = await params;
   setRequestLocale(locale);
 
-  const user = await requirePermission('plan.view');
-  const canEdit = user.permissions.includes('plan.edit');
+  const user = await requirePermission('lab.view');
+  const canEdit = user.permissions.includes('lab.edit');
 
   const t = await getTranslations('lab');
   const tc = await getTranslations('common');

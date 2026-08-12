@@ -25,7 +25,7 @@ export default async function LabWorkOrderSheet({
   const { locale, id } = await params;
   setRequestLocale(locale);
 
-  await requirePermission('plan.view');
+  await requirePermission('lab.view');
 
   const t = await getTranslations('lab');
   const tc = await getTranslations('common');

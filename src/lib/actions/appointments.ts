@@ -2,10 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
-import { AppointmentStatus, CancelledBy } from '@/generated/prisma/enums';
+import { AppointmentStatus, CancelledBy, LabCaseStatus } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { NEW_PATIENT_VALUE } from '@/lib/booking';
 import { toDateKey } from '@/lib/dates';
+import { completeStepForAppointment } from '@/lib/plan-progress';
 import { findConflicts } from '@/lib/scheduling';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
@@ -74,6 +75,10 @@ export async function saveAppointment(
     startTime,
     durationMin: Math.max(5, toInt(formData.get('durationMin'), 30)),
     status: toStatus(requiredString(formData.get('status'))),
+    // The pair: the id to group by, the name to print. Both may be absent —
+    // "no service" is a legitimate booking, and so is a name with no catalogue
+    // entry behind it, which is every appointment made before the id existed.
+    serviceId: optionalString(formData.get('serviceId')),
     serviceName: optionalString(formData.get('serviceName')),
     notes: optionalString(formData.get('notes')),
     // Both optional: a single-chair practice never fills them in, and the
@@ -108,11 +113,43 @@ export async function saveAppointment(
         .join(', ');
       return actionError(t('overlap', { list: names }), 'overlap');
     }
+
+    // The thing the lab feature was built to prevent, finally checked.
+    //
+    // A crown promised for the 14th cannot be fitted on the 12th, and until now
+    // nothing said so — the due date lived on a list nobody had open while
+    // booking. Same shape as the double-booking warning, and overridable for the
+    // same reason: labs deliver early, and the practice may know something the
+    // date does not.
+    //
+    // Skipped for a patient being created here, who cannot have a case yet.
+    if (patientId !== NEW_PATIENT_VALUE) {
+      const pending = await prisma.labCase.findMany({
+        where: {
+          patientId,
+          status: LabCaseStatus.SENT,
+          dueAt: { gt: data.date },
+        },
+        select: { kind: true, labName: true, dueAt: true },
+        orderBy: { dueAt: 'asc' },
+      });
+
+      if (pending.length > 0) {
+        const list = pending
+          .map((c) => `${c.kind} · ${c.labName} · ${toDateKey(c.dueAt!)}`)
+          .join(', ');
+        return actionError(t('labPending', { list }), 'labPending');
+      }
+    }
   }
+
+  // The plan step this booking fulfils, when it was started from one.
+  const planStepId = optionalString(formData.get('planStepId'));
 
   let savedId = id;
   let createdPatientId: string | null = null;
   let resolvedWaiting = 0;
+  let linkedStep = false;
   try {
     // One transaction: a patient record with no appointment is exactly the
     // orphan this feature exists to avoid creating by hand.
@@ -143,6 +180,25 @@ export async function saveAppointment(
               data: { resolvedAt: new Date() },
             })
           ).count;
+        }
+
+        // Booked from a treatment plan: bind the step to the slot.
+        //
+        // The schema has carried this relation, and a comment promising it,
+        // since plans existed — with nothing on either side writing it. Until it
+        // is set, "3 of 5 done" and the calendar are two separate accounts of
+        // the same course of treatment, and only one of them gets updated.
+        //
+        // `updateMany` scoped to a still-unbooked step, so a stale id from a
+        // step somebody else already booked matches nothing rather than
+        // stealing its link.
+        if (planStepId) {
+          linkedStep = (
+            await tx.treatmentStep.updateMany({
+              where: { id: planStepId, appointmentId: null },
+              data: { appointmentId: savedId },
+            })
+          ).count > 0;
         }
       }
     });
@@ -182,6 +238,15 @@ export async function saveAppointment(
       entity: 'waitlist',
       entityId: createdPatientId ?? patientId,
       summary: `${patientName} · booked`,
+    });
+  }
+
+  if (linkedStep) {
+    await recordAudit(user, {
+      action: 'update',
+      entity: 'plan',
+      entityId: planStepId,
+      summary: `${patientName} · ${date} ${startTime}`,
     });
   }
 
@@ -226,6 +291,21 @@ export async function setAppointmentStatus(formData: FormData): Promise<void> {
     entityId: id,
     summary: `${appointment.patient.firstName} ${appointment.patient.lastName} · ${toDateKey(appointment.date)} ${appointment.startTime} → ${status}`,
   });
+
+  // The step this slot was booked for is now done, and the plan closes itself
+  // if it was the last one. Nobody has to remember to say so on another screen.
+  if (status === AppointmentStatus.COMPLETED) {
+    const step = await completeStepForAppointment(id);
+    if (step) {
+      await recordAudit(user, {
+        action: 'update',
+        entity: 'plan',
+        entityId: step.planId,
+        summary: `${step.title} → DONE`,
+      });
+    }
+  }
+
   revalidateAll();
 }
 

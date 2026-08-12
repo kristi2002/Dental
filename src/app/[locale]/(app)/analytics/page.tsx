@@ -1,4 +1,12 @@
-import { CalendarCheck, ChartColumn, Package, Stethoscope, TrendingUp, Users } from 'lucide-react';
+import {
+  CalendarCheck,
+  ChartColumn,
+  Package,
+  Share2,
+  Stethoscope,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import {
   HorizontalBars,
@@ -15,7 +23,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { requirePermission } from '@/lib/auth/guard';
 import { addMonths, lastMonths, startOfMonth, toMonthKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
-import { parseServiceList } from '@/lib/utils';
+import { getProviderOptions } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,11 +54,24 @@ export default async function AnalyticsPage({
   const windowStart = months[0];
   const windowEnd = addMonths(startOfMonth(today()), 1);
 
-  const [visits, patients, movements, appointments, totalPatients, totalVisits] = await Promise.all(
+  const [
+    visits,
+    patients,
+    movements,
+    appointments,
+    totalPatients,
+    totalVisits,
+    referrals,
+    byProvider,
+    providers,
+    byService,
+    serviceNames,
+    freeTyped,
+  ] = await Promise.all(
     [
       prisma.visitRecord.findMany({
         where: { visitDate: { gte: windowStart, lt: windowEnd } },
-        select: { visitDate: true, services: true },
+        select: { visitDate: true },
       }),
       prisma.patient.findMany({
         where: { createdAt: { gte: windowStart, lt: windowEnd } },
@@ -60,9 +81,55 @@ export default async function AnalyticsPage({
         where: { createdAt: { gte: windowStart, lt: windowEnd }, delta: { lt: 0 } },
         select: { createdAt: true, delta: true },
       }),
-      prisma.appointment.groupBy({ by: ['status'], _count: { _all: true } }),
+      // Windowed like everything else on this page. Grouping over all time put
+      // a lifetime completion rate beside six months of visits and let a reader
+      // compare two different periods without being told they were different.
+      prisma.appointment.groupBy({
+        by: ['status'],
+        where: { date: { gte: windowStart, lt: windowEnd } },
+        _count: { _all: true },
+      }),
       prisma.patient.count(),
       prisma.visitRecord.count(),
+      // "Where do patients come from" — the one CRM question an owner asks, and
+      // the one this page could not answer at all even though the field for it
+      // has been on the patient form the whole time. All time, deliberately:
+      // a referral source is how somebody arrived, not something they do monthly.
+      prisma.patient.groupBy({
+        by: ['referralSource'],
+        where: { referralSource: { not: null } },
+        _count: { _all: true },
+      }),
+      // Appointments now carry a dentist, and nothing on this page split by one,
+      // so "how full is Dr B" stayed unanswerable after the column existed.
+      prisma.appointment.groupBy({
+        by: ['staffUserId'],
+        where: { date: { gte: windowStart, lt: windowEnd }, staffUserId: { not: null } },
+        _count: { _all: true },
+      }),
+      getProviderOptions(),
+      // Grouped by catalogue entry, not by typed text.
+      //
+      // This chart used to split `VisitRecord.services` on commas and tally the
+      // pieces in memory, so one typo, one extra space, or one entry made before
+      // a rename became its own bar — and a treatment whose name contains a
+      // comma became two treatments that never existed.
+      prisma.visitService.groupBy({
+        by: ['serviceId'],
+        where: { visit: { visitDate: { gte: windowStart, lt: windowEnd } } },
+        _count: { _all: true },
+      }),
+      prisma.service.findMany({ select: { id: true, name: true } }),
+      // Anything typed by hand has no catalogue entry to group by, so it is
+      // counted by name and shown as itself rather than silently dropped.
+      prisma.visitService.groupBy({
+        by: ['name'],
+        where: {
+          serviceId: null,
+          visit: { visitDate: { gte: windowStart, lt: windowEnd } },
+        },
+        _count: { _all: true },
+      }),
     ],
   );
 
@@ -85,17 +152,37 @@ export default async function AnalyticsPage({
     movements.map((m) => ({ date: m.createdAt, amount: Math.abs(m.delta) })),
   );
 
-  const serviceCounts = new Map<string, number>();
-  for (const visit of visits) {
-    for (const service of parseServiceList(visit.services)) {
-      serviceCounts.set(service, (serviceCounts.get(service) ?? 0) + 1);
-    }
-  }
-  const topServices: Point[] = [...serviceCounts.entries()]
-    .map(([label, value]) => ({ label, value }))
+  // The catalogue's own current name, so a service renamed last month shows its
+  // whole history under one label instead of splitting into before and after.
+  const nameById = new Map(serviceNames.map((service) => [service.id, service.name]));
+
+  const topServices: Point[] = [
+    ...byService
+      .filter((row) => row.serviceId !== null)
+      .map((row) => ({
+        label: nameById.get(row.serviceId!) ?? row.serviceId!,
+        value: row._count._all,
+      })),
+    ...freeTyped.map((row) => ({ label: row.name, value: row._count._all })),
+  ]
     .sort((a, b) => b.value - a.value)
     .slice(0, 8)
     .reverse(); // Recharts stacks a vertical layout bottom-up.
+
+  const referralPoints: Point[] = referrals
+    .map((row) => ({ label: row.referralSource!, value: row._count._all }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8)
+    .reverse(); // Recharts stacks a vertical layout bottom-up.
+
+  const providerName = new Map(providers.map((person) => [person.id, person.name]));
+  const providerPoints: Point[] = byProvider
+    .map((row) => ({
+      label: providerName.get(row.staffUserId!) ?? row.staffUserId!,
+      value: row._count._all,
+    }))
+    .sort((a, b) => b.value - a.value)
+    .reverse();
 
   const statusPoints = appointments.map((row) => ({
     label: ta(`status_${row.status}`),
@@ -120,7 +207,11 @@ export default async function AnalyticsPage({
         <StatCard label={t('totalPatients')} value={totalPatients} Icon={Users} />
         <StatCard label={t('totalVisits')} value={totalVisits} Icon={Stethoscope} />
         <StatCard label={t('avgPerMonth')} value={avgVisitsPerMonth} Icon={TrendingUp} />
-        <StatCard label={t('completionRate')} value={`${completionRate}%`} Icon={CalendarCheck} />
+        <StatCard
+          label={t('completionRate')}
+          value={`${completionRate}%`}
+          Icon={CalendarCheck}
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -155,6 +246,27 @@ export default async function AnalyticsPage({
             <MonthlyBars data={usagePoints} name={t('used')} />
           </CardBody>
         </Card>
+
+        <Card>
+          <CardHeader title={t('referralSources')} icon={<Share2 size={22} aria-hidden />} />
+          {referralPoints.length > 0 ? (
+            <CardBody>
+              <HorizontalBars data={referralPoints} name={t('patients')} />
+            </CardBody>
+          ) : (
+            <EmptyState icon={<Share2 size={40} aria-hidden />} title={t('noReferralData')} />
+          )}
+        </Card>
+
+        {/* Only worth a panel once there is more than one person to compare. */}
+        {providerPoints.length > 1 ? (
+          <Card>
+            <CardHeader title={t('byProvider')} icon={<Stethoscope size={22} aria-hidden />} />
+            <CardBody>
+              <HorizontalBars data={providerPoints} name={t('appointments')} />
+            </CardBody>
+          </Card>
+        ) : null}
 
         <Card className="xl:col-span-2">
           <CardHeader title={t('appointmentStatus')} icon={<CalendarCheck size={22} aria-hidden />} />

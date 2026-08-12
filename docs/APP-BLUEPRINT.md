@@ -36,12 +36,24 @@ Stages are defined in [§9](#9-suggested-build-order). Gap numbers refer to
 | Stage | State |
 | --- | --- |
 | **1 — Stop losing data** | ✅ **complete.** G-27, G-37, G-38, G-54, G-26, G-39 all closed |
-| **2 — Close the loops** | 🟡 **6 of 8.** G-13, G-14, G-21, G-23, G-06, G-07 closed. G-05/G-56 and G-16 remain |
-| **3 — Wire the orphaned features** | ⬜ not started |
-| **4 — Surface what is derived** | ⬜ not started |
-| **5 — Fix Bridge A** | ⬜ not started |
+| **2 — Close the loops** | ✅ **complete.** G-13, G-14, G-21, G-23, G-06, G-07, G-05, G-16 all closed |
+| **3 — Wire the orphaned features** | ✅ **complete.** G-02, G-03, G-08, G-04, G-12, G-33, G-01 all closed |
+| **4 — Surface what is derived** | ✅ **complete.** G-09, G-10, G-11, G-15, G-31, G-17, G-42 closed, plus G-44 and G-45 |
+| **5 — Fix Bridge A** | ⬜ not started — G-25, G-43, G-36 |
 | **6 — Scale and operations** | 🟡 the index half is done (IMPROVEMENTS §3.2) plus §3.3, the recalls double-query |
 | **7 — Deferred by choice** | ⬜ deliberately deferred |
+
+**Two structural edges were added to the graph in [§3.3](#33-what-is-not-connected-but-should-be):**
+plan step ⇄ appointment (both directions), and lab due date → the booking check.
+Both were promised by schema comments and neither existed.
+
+**One permission was split.** `lab.view` / `lab.edit` came out of `plan.*`
+([§2.2](#22-who-can-reach-what)): a lab case is logistics, not diagnosis, and the
+person who most needs to know a crown is not back is the person booking the
+fitting. The receptionist now has both and still has no `plan.view`.
+
+**One page was added.** [`/plans`](../src/app/[locale]/(app)/plans/page.tsx) —
+every course of treatment across all patients, stalled ones first.
 
 Still outstanding from the stages already touched, and worth knowing before
 reading further:
@@ -1854,54 +1866,54 @@ Ranked by what it actually costs. 🔴 correctness · 🟠 a loop that cannot cl
 | **G-39** | 🔴 | Deleting a material retroactively rewrites last quarter's usage | Stock | Schema + archive flag | ✅ |
 | **G-26** | 🔴 | Plan step tooth numbers validated as Universal 1–32 against an FDI chart | Plans | One function | ✅ |
 | **G-13** | 🟠 | Past appointments left `SCHEDULED` are never surfaced or closed | Dashboard | Medium | ✅ |
-| **G-05** | 🟠 | A freed slot never reaches the waiting list | Appointments · Confirm | Medium | |
-| **G-02** | 🟠 | A plan step cannot be booked; `appointmentId` is dead | Plans · Appointments | Medium | |
-| **G-03** | 🟠 | Completing an appointment never ticks the plan step | Appointments | Small (needs G-02) | |
-| **G-04** | 🟠 | A fitting can be booked before the lab case is due — the feature's own justification | Lab · Appointments | Medium | |
+| **G-05** | 🟠 | A freed slot never reaches the waiting list | Appointments · Confirm | Medium | ✅ |
+| **G-02** | 🟠 | A plan step cannot be booked; `appointmentId` is dead | Plans · Appointments | Medium | ✅ |
+| **G-03** | 🟠 | Completing an appointment never ticks the plan step | Appointments | Small (needs G-02) | ✅ |
+| **G-04** | 🟠 | A fitting can be booked before the lab case is due — the feature's own justification | Lab · Appointments | Medium | ✅ |
 | **G-06** | 🟠 | Tooth changes carry no `visitRecordId` — the chart can never become a timeline | Chart | Small | ✅ |
-| **G-08** | 🟠 | No cross-patient plan list — "which plans are stalled" is unanswerable | *missing page* | New page | |
+| **G-08** | 🟠 | No cross-patient plan list — "which plans are stalled" is unanswerable | *missing page* | New page | ✅ |
 | **G-14** | 🟠 | Booking from the waitlist does not resolve the entry | Appointments | Small | ✅ |
 | **G-21** | 🟠 | `contactConsent = false` is honoured in one query and ignored by every button | Recalls · Appointments | Small | ✅ |
 | **G-23** | 🟠 | Recording a visit does not close its appointment | Visit | Small | ✅ |
-| **G-40** | 🟠 | Expired lots still count as usable stock | Stock | Small | |
-| **G-41** | 🟠 | Batches are never drawn down — "which lot" is still unanswerable | Stock | Medium | |
+| **G-40** | 🟠 | Expired lots still count as usable stock | Stock | Small |  |
+| **G-41** | 🟠 | Batches are never drawn down — "which lot" is still unanswerable | Stock | Medium |  |
 | **G-07** | 🟠 | Stock movements cannot be traced to the visit that caused them | Visit · Stock | Schema + 1 line | ✅ |
-| **G-29** | 🟠 | The prescription allergy check ignores free-text notes | Prescriptions | Small |
-| **G-55** | 🟠 | A patient's own confirmation writes no `Contact` row | Confirm | Small |
-| **G-12** | 🟠 | Overdue lab cases are not flagged anywhere | Lab · Dashboard | Small |
-| **G-09** | 🟠 | Today's medical alerts are printed but not shown on screen | Dashboard | Small |
-| **G-15** | 🟠 | Alerts are invisible at booking time | Appointments | Small |
-| **G-31** | 🟠 | Cannot book from a recall row | Recalls | Small |
-| **G-33** | 🟠 | Receiving a lab case does not prompt the fitting | Lab | Small |
-| **G-16** | 🟠 | Completing an appointment does not offer to record the visit | Appointments | Small |
-| **G-47** | 🟠 | A closure is accepted over existing bookings with no warning | Settings | Medium |
-| **G-48** | 🟠 | Narrowing hours is accepted over existing bookings | Settings | Medium |
-| **G-25** | 🟠 | A service name containing a comma silently becomes two services | Services · Analytics | Bridge A |
-| **G-43** | 🟠 | Top services groups by typed text | Analytics | Bridge A |
-| **G-01** | 🟠 | The receptionist cannot see the lab list | Lab · permissions | Small |
-| **G-32** | 🟠 | `lastRecallAt` and the `Contact` log are two unreconciled memories | Recalls | Small |
-| **G-10** | ⚪ | Today's lab deliveries are not on the dashboard | Dashboard | Small |
-| **G-11** | ⚪ | Expired stock does not reach the dashboard | Dashboard | Small |
-| **G-22** | ⚪ | A tooth marked CARIES offers no plan step | Chart | Small |
-| **G-24** | ⚪ | Recording a visit does not say when the next recall falls | Visit | Small |
-| **G-30** | ⚪ | Contact rows must read as "composed", not "delivered" | Contacts | Copy |
-| **G-34** | ⚪ | A lab case cannot be tied to a plan step | Lab · Plans | Medium |
-| **G-35** | ⚪ | The lab has no phone number — "chase the lab" has no click | Lab | Small |
-| **G-36** | ⚪ | The service catalog cannot see its own consequences | Services | Medium |
-| **G-42** | ⚪ | Analytics mixes two unlabelled time horizons | Analytics | Trivial |
-| **G-44** | ⚪ | Referral source is collected and never charted | Analytics | Small |
-| **G-45** | ⚪ | No per-provider figures | Analytics | Small |
-| **G-46** | ⚪ | No no-show analysis | Analytics | Small |
-| **G-17** | ⚪ | The day sheet does not print free gaps | Day sheet | Small |
-| **G-18** | 🟡 | Patient search folds case but not diacritics, unlike the app's own helper | Patients | Medium |
-| **G-19** | 🟡 | Nothing flags a duplicate patient | Patients · Booking | Small |
-| **G-20** | 🟡 | The whole patient list is serialised into three pages | Dashboard · Appointments · Patient | Medium |
-| **G-28** | 🟡 | Document access is not scoped to a patient | API | Decision |
-| **G-49** | ⚪ | The backup has no restore path | Staff | Script |
-| **G-50** | ⚪ | The backup truncates the audit log silently | Staff | Trivial |
-| **G-51** | ⚪ | Nothing verifies `storage/` is being copied | Staff | Copy |
-| **G-52** | ⚪ | The audit log grows without bound | Activity | Decision + job |
-| **G-53** | ⚪ | No per-entity drill-through in the activity log | Activity | Small |
+| **G-29** | 🟠 | The prescription allergy check ignores free-text notes | Prescriptions | Small |  |
+| **G-55** | 🟠 | A patient's own confirmation writes no `Contact` row | Confirm | Small |  |
+| **G-12** | 🟠 | Overdue lab cases are not flagged anywhere | Lab · Dashboard | Small | ✅ |
+| **G-09** | 🟠 | Today's medical alerts are printed but not shown on screen | Dashboard | Small | ✅ |
+| **G-15** | 🟠 | Alerts are invisible at booking time | Appointments | Small | ✅ |
+| **G-31** | 🟠 | Cannot book from a recall row | Recalls | Small | ✅ |
+| **G-33** | 🟠 | Receiving a lab case does not prompt the fitting | Lab | Small | ✅ |
+| **G-16** | 🟠 | Completing an appointment does not offer to record the visit | Appointments | Small | ✅ |
+| **G-47** | 🟠 | A closure is accepted over existing bookings with no warning | Settings | Medium |  |
+| **G-48** | 🟠 | Narrowing hours is accepted over existing bookings | Settings | Medium |  |
+| **G-25** | 🟠 | A service name containing a comma silently becomes two services | Services · Analytics | Bridge A |  |
+| **G-43** | 🟠 | Top services groups by typed text | Analytics | Bridge A |  |
+| **G-01** | 🟠 | The receptionist cannot see the lab list | Lab · permissions | Small | ✅ |
+| **G-32** | 🟠 | `lastRecallAt` and the `Contact` log are two unreconciled memories | Recalls | Small |  |
+| **G-10** | ⚪ | Today's lab deliveries are not on the dashboard | Dashboard | Small | ✅ |
+| **G-11** | ⚪ | Expired stock does not reach the dashboard | Dashboard | Small | ✅ |
+| **G-22** | ⚪ | A tooth marked CARIES offers no plan step | Chart | Small |  |
+| **G-24** | ⚪ | Recording a visit does not say when the next recall falls | Visit | Small |  |
+| **G-30** | ⚪ | Contact rows must read as "composed", not "delivered" | Contacts | Copy |  |
+| **G-34** | ⚪ | A lab case cannot be tied to a plan step | Lab · Plans | Medium |  |
+| **G-35** | ⚪ | The lab has no phone number — "chase the lab" has no click | Lab | Small |  |
+| **G-36** | ⚪ | The service catalog cannot see its own consequences | Services | Medium |  |
+| **G-42** | ⚪ | Analytics mixes two unlabelled time horizons | Analytics | Trivial | ✅ |
+| **G-44** | ⚪ | Referral source is collected and never charted | Analytics | Small | ✅ |
+| **G-45** | ⚪ | No per-provider figures | Analytics | Small | ✅ |
+| **G-46** | ⚪ | No no-show analysis | Analytics | Small |  |
+| **G-17** | ⚪ | The day sheet does not print free gaps | Day sheet | Small | ✅ |
+| **G-18** | 🟡 | Patient search folds case but not diacritics, unlike the app's own helper | Patients | Medium |  |
+| **G-19** | 🟡 | Nothing flags a duplicate patient | Patients · Booking | Small |  |
+| **G-20** | 🟡 | The whole patient list is serialised into three pages | Dashboard · Appointments · Patient | Medium |  |
+| **G-28** | 🟡 | Document access is not scoped to a patient | API | Decision |  |
+| **G-49** | ⚪ | The backup has no restore path | Staff | Script |  |
+| **G-50** | ⚪ | The backup truncates the audit log silently | Staff | Trivial |  |
+| **G-51** | ⚪ | Nothing verifies `storage/` is being copied | Staff | Copy |  |
+| **G-52** | ⚪ | The audit log grows without bound | Activity | Decision + job |  |
+| **G-53** | ⚪ | No per-entity drill-through in the activity log | Activity | Small |  |
 
 ---
 

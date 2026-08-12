@@ -91,7 +91,9 @@ const TAB_PERMISSION: Partial<Record<Tab, Permission>> = {
   // Who was messaged and when is diary information, not clinical — the front
   // desk is exactly who needs it.
   contacts: 'appointment.view',
-  lab: 'plan.view',
+  // Logistics, not diagnosis — see `permissions.ts`. The front desk books the
+  // fitting, so the front desk needs the due date.
+  lab: 'lab.view',
 };
 
 export default async function PatientDetailPage({
@@ -150,7 +152,14 @@ export default async function PatientDetailPage({
       },
       plans: {
         orderBy: { createdAt: 'desc' },
-        include: { steps: { orderBy: { position: 'asc' } } },
+        include: {
+          steps: {
+            orderBy: { position: 'asc' },
+            // The slot a step is booked into, so the plan and the calendar
+            // finally show the same thing.
+            include: { appointment: { select: { date: true, startTime: true } } },
+          },
+        },
       },
       documents: {
         orderBy: { createdAt: 'desc' },
@@ -529,7 +538,7 @@ export default async function PatientDetailPage({
               id: visit.id,
               visitDate: visit.visitDate.toISOString(),
               notes: visit.notes,
-              services: visit.services,
+              services: visit.servicesText,
               performedBy: visit.performedBy
                 ? `${visit.performedBy.firstName} ${visit.performedBy.lastName}`
                 : '',
@@ -551,6 +560,26 @@ export default async function PatientDetailPage({
             patientId={patient.id}
             canEdit={can('plan.edit')}
             canDelete={canDelete}
+            // Booking a step is a diary action, so it needs the diary's own
+            // collections — handed down as a render prop rather than making the
+            // plan list load four things it has no other use for.
+            bookStep={
+              canBook
+                ? (step) => (
+                    <AppointmentFormDialog
+                      patients={patientOptions}
+                      services={services}
+                      staff={staff}
+                      operatories={operatories}
+                      defaultPatientId={patient.id}
+                      defaultDate={toDateKey(today())}
+                      planStepId={step.id}
+                      triggerClassName="btn btn-secondary btn-sm"
+                      triggerLabel={t('bookStep')}
+                    />
+                  )
+                : undefined
+            }
             plans={patient.plans.map((plan) => ({
               id: plan.id,
               title: plan.title,
@@ -563,6 +592,9 @@ export default async function PatientDetailPage({
                 toothNum: step.toothNum,
                 notes: step.notes ?? '',
                 status: step.status,
+                booked: step.appointment
+                  ? `${toDateKey(step.appointment.date)} ${step.appointment.startTime}`
+                  : '',
               })),
             }))}
           />
@@ -685,7 +717,7 @@ export default async function PatientDetailPage({
             title={t('tabLab')}
             subtitle={tlab('subtitle')}
             action={
-              can('plan.edit') ? (
+              can('lab.edit') ? (
                 <LabCaseFormDialog
                   patientId={patient.id}
                   labNames={labNames}
@@ -708,7 +740,7 @@ export default async function PatientDetailPage({
             }))}
             patientId={patient.id}
             labNames={labNames}
-            canEdit={can('plan.edit')}
+            canEdit={can('lab.edit')}
             canDelete={canDelete}
           />
         </Card>

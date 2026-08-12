@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { syncPlanStatus } from '@/lib/plan-progress';
 import { prisma } from '@/lib/prisma';
 import { isValidTooth } from '@/lib/teeth';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
@@ -193,16 +194,7 @@ export async function setStepStatus(formData: FormData): Promise<void> {
     select: { title: true, planId: true },
   });
 
-  const outstanding = await prisma.treatmentStep.count({
-    where: { planId: step.planId, status: TreatmentStepStatus.PENDING },
-  });
-
-  await prisma.treatmentPlan.update({
-    where: { id: step.planId },
-    data: {
-      status: outstanding === 0 ? TreatmentPlanStatus.COMPLETED : TreatmentPlanStatus.ACTIVE,
-    },
-  });
+  await syncPlanStatus(step.planId);
 
   await recordAudit(user, {
     action: 'update',

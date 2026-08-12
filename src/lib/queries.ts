@@ -303,6 +303,46 @@ export async function countOpenPastAppointments(): Promise<number> {
   });
 }
 
+/**
+ * Today's finished appointments that nobody has written up.
+ *
+ * Marking a slot COMPLETED and recording what happened in the chair are two
+ * halves of the same event, done on two different screens — so the second half
+ * gets left until the end of the day, and then until tomorrow. This is the
+ * closing half of the loop that `saveVisit` opens from the other side, where
+ * writing the note completes the appointment.
+ *
+ * Matched on the patient having *any* visit recorded today rather than on a
+ * link between the two rows, because no such link exists: a visit belongs to a
+ * patient and a date, not to a slot.
+ */
+export async function getUnrecordedToday(): Promise<AppointmentView[]> {
+  const day = today();
+
+  const rows = await prisma.appointment.findMany({
+    where: {
+      date: day,
+      status: AppointmentStatus.COMPLETED,
+      patient: { visitRecords: { none: { visitDate: day } } },
+    },
+    select: APPOINTMENT_SELECT,
+  });
+
+  return rows
+    .map(toAppointmentView)
+    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+}
+
+/** Everyone still waiting for an earlier slot, fairest order first. */
+export async function getOpenWaitlist() {
+  return prisma.waitlistEntry.findMany({
+    where: { resolvedAt: null },
+    // Urgent first, then oldest request — the fairest order to work down.
+    orderBy: [{ urgent: 'desc' }, { createdAt: 'asc' }],
+    include: { patient: { select: { id: true, firstName: true, lastName: true, phone: true } } },
+  });
+}
+
 export async function getPatientAppointments(patientId: string): Promise<AppointmentView[]> {
   const rows = await prisma.appointment.findMany({
     where: { patientId },

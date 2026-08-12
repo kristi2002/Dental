@@ -19,6 +19,7 @@ export function VisitFormDialog({
   staff = [],
   currentUserId,
   today,
+  triggerClassName,
 }: {
   patientId: string;
   /** Service catalog, offered as one-tap chips. */
@@ -29,6 +30,8 @@ export function VisitFormDialog({
   currentUserId?: string;
   /** `YYYY-MM-DD` default for the visit date. */
   today: string;
+  /** Lets a row render it as a small secondary button rather than a primary one. */
+  triggerClassName?: string;
 }) {
   const t = useTranslations('patients');
   const ts = useTranslations('services');
@@ -61,6 +64,7 @@ export function VisitFormDialog({
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
+      triggerClassName={triggerClassName}
       trigger={
         <>
           <NotebookPen size={20} aria-hidden />

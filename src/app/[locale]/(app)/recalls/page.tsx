@@ -5,7 +5,15 @@ import { RecallCard } from '@/components/recalls/RecallCard';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { requirePermission } from '@/lib/auth/guard';
+import { toDateKey, today } from '@/lib/dates';
+import {
+  getOperatoryOptions,
+  getPatientOptions,
+  getProviderOptions,
+  getServiceOptions,
+} from '@/lib/queries';
 import { getFollowUps, getRecalls } from '@/lib/recalls';
 
 export const dynamic = 'force-dynamic';
@@ -30,12 +38,36 @@ export default async function RecallsPage({
 
   const user = await requirePermission('recall.view');
   const canSend = user.permissions.includes('recall.send');
+  const canBook = user.permissions.includes('appointment.edit');
 
   const t = await getTranslations('recalls');
+  const ta = await getTranslations('appointments');
   const tr = await getTranslations('reminders');
   const format = await getFormatter();
 
-  const [recalls, followUps] = await Promise.all([getRecalls(), getFollowUps()]);
+  const [recalls, followUps, patients, services, staff, operatories] = await Promise.all([
+    getRecalls(),
+    getFollowUps(),
+    canBook ? getPatientOptions() : Promise.resolve([]),
+    canBook ? getServiceOptions() : Promise.resolve([]),
+    canBook ? getProviderOptions() : Promise.resolve([]),
+    canBook ? getOperatoryOptions() : Promise.resolve([]),
+  ]);
+
+  /** The one action this list exists to produce. */
+  const bookFor = (patientId: string) =>
+    canBook ? (
+      <AppointmentFormDialog
+        patients={patients}
+        services={services}
+        staff={staff}
+        operatories={operatories}
+        defaultPatientId={patientId}
+        defaultDate={toDateKey(today())}
+        triggerClassName="btn btn-secondary btn-sm"
+        triggerLabel={ta('new')}
+      />
+    ) : undefined;
 
   return (
     <>
@@ -77,6 +109,7 @@ export default async function RecallsPage({
                     emailSubject={tr('recallEmailSubject', values)}
                     emailBody={tr('recallEmailBody', values)}
                     canSend={canSend}
+                    book={bookFor(row.id)}
                   />
                 );
               })}
@@ -112,6 +145,7 @@ export default async function RecallsPage({
                     emailSubject={tr('followUpEmailSubject', values)}
                     emailBody={tr('followUpEmailBody', values)}
                     canSend={canSend}
+                    book={bookFor(row.id)}
                   />
                 );
               })}
