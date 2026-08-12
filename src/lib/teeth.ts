@@ -96,13 +96,35 @@ function quadrant(prefix: number, count: number): number[] {
 }
 
 /**
+ * The four quadrants, each in *display* order — outwards from the midline for
+ * the left-hand quadrants, inwards for the right-hand ones, so that laying them
+ * side by side puts the midline in the middle of the page.
+ *
+ *   upper right 18→11 │ 21→28 upper left
+ *   lower right 48→41 │ 31→38 lower left
+ *
+ * The odontogram draws each of these as its own block either side of the
+ * midline, which is why they are exported separately rather than only as the
+ * concatenated rows below.
+ */
+export const PERMANENT_UPPER_RIGHT = [...quadrant(1, 8)].reverse();
+export const PERMANENT_UPPER_LEFT = quadrant(2, 8);
+export const PERMANENT_LOWER_RIGHT = [...quadrant(4, 8)].reverse();
+export const PERMANENT_LOWER_LEFT = quadrant(3, 8);
+
+export const PRIMARY_UPPER_RIGHT = [...quadrant(5, 5)].reverse();
+export const PRIMARY_UPPER_LEFT = quadrant(6, 5);
+export const PRIMARY_LOWER_RIGHT = [...quadrant(8, 5)].reverse();
+export const PRIMARY_LOWER_LEFT = quadrant(7, 5);
+
+/**
  * Display order for each row: the patient's right-hand side on the left of the
  * screen, both arches, so the chart reads like the dentist is facing them.
  */
-export const PERMANENT_UPPER = [...quadrant(1, 8)].reverse().concat(quadrant(2, 8));
-export const PERMANENT_LOWER = [...quadrant(4, 8)].reverse().concat(quadrant(3, 8));
-export const PRIMARY_UPPER = [...quadrant(5, 5)].reverse().concat(quadrant(6, 5));
-export const PRIMARY_LOWER = [...quadrant(8, 5)].reverse().concat(quadrant(7, 5));
+export const PERMANENT_UPPER = [...PERMANENT_UPPER_RIGHT, ...PERMANENT_UPPER_LEFT];
+export const PERMANENT_LOWER = [...PERMANENT_LOWER_RIGHT, ...PERMANENT_LOWER_LEFT];
+export const PRIMARY_UPPER = [...PRIMARY_UPPER_RIGHT, ...PRIMARY_UPPER_LEFT];
+export const PRIMARY_LOWER = [...PRIMARY_LOWER_RIGHT, ...PRIMARY_LOWER_LEFT];
 
 export const PERMANENT_TEETH = [...PERMANENT_UPPER, ...PERMANENT_LOWER];
 export const PRIMARY_TEETH = [...PRIMARY_UPPER, ...PRIMARY_LOWER];
@@ -151,6 +173,32 @@ export function toothLabel(toothNum: number, numbering: ToothNumbering = 'FDI'):
 }
 
 /**
+ * The inverse, for reading anything still written in Universal: a permanent
+ * `1`–`32`, or a primary `"A"`–`"T"`.
+ *
+ * Storage moved to FDI and `prisma/migrate-teeth-fdi.ts` converted the rows that
+ * existed, so nothing in the database needs this. It is here for the edges that
+ * migration cannot reach — an imported file, a pasted treatment plan, a practice
+ * whose previous software exported Universal — where a number has to be
+ * translated before it can be trusted.
+ *
+ * Returns null rather than guessing, because a wrong tooth number is worse than
+ * a missing one.
+ */
+export function universalToFdi(value: string | number): number | null {
+  if (typeof value === 'string') {
+    const letter = value.trim().toUpperCase();
+    if (/^[A-T]$/.test(letter)) {
+      return UNIVERSAL_PRIMARY_ORDER[letter.charCodeAt(0) - 65] ?? null;
+    }
+  }
+
+  const position = typeof value === 'number' ? value : Number.parseInt(value.trim(), 10);
+  if (!Number.isInteger(position) || position < 1 || position > 32) return null;
+  return UNIVERSAL_ORDER[position - 1] ?? null;
+}
+
+/**
  * The five surfaces of a tooth. Without them the chart can record that a tooth
  * has caries but not *where*, which is the difference between a note and a
  * treatment plan. Stored as a short string like `"MOD"`.
@@ -179,7 +227,159 @@ export function formatSurfaces(value: string | null | undefined): string {
   return parseSurfaces(value).join('');
 }
 
+/**
+ * The same five surfaces as a flag per face, which is what a drawn target wants
+ * — it asks "is this segment marked?" five times per tooth and a `string.includes`
+ * for each is both slower and easier to get subtly wrong (`"MO".includes("O")`
+ * is fine, but the habit is not).
+ *
+ * `"MOD"` on the wire, this in the component. Storage stays the string.
+ */
+export interface ToothSurfaceState {
+  /** Mesial — the face towards the midline. */
+  M: boolean;
+  /** Occlusal on a back tooth, incisal on a front one. */
+  O: boolean;
+  /** Distal — the face away from the midline. */
+  D: boolean;
+  /** Buccal / labial — the cheek side. */
+  B: boolean;
+  /** Lingual / palatal — the tongue side. */
+  L: boolean;
+}
+
+export const NO_SURFACES: ToothSurfaceState = { M: false, O: false, D: false, B: false, L: false };
+
+export function toSurfaceState(value: string | null | undefined): ToothSurfaceState {
+  const marked = parseSurfaces(value);
+  return {
+    M: marked.includes('M'),
+    O: marked.includes('O'),
+    D: marked.includes('D'),
+    B: marked.includes('B'),
+    L: marked.includes('L'),
+  };
+}
+
+/** Back to the stored form, in anatomical order. */
+export function fromSurfaceState(state: ToothSurfaceState): string {
+  return TOOTH_SURFACES.filter((surface) => state[surface]).join('');
+}
+
 /** Anything other than "healthy" is worth flagging to the dentist. */
 export function needsAttention(status: string): boolean {
   return status !== 'HEALTHY';
+}
+
+/* ------------------------------------------------------------------ *
+ * Anatomy, for the drawn chart
+ * ------------------------------------------------------------------ */
+
+/** Which of the four silhouettes a tooth is drawn with. */
+export type ToothShape = 'INCISOR' | 'CANINE' | 'PREMOLAR' | 'MOLAR';
+
+/** Quadrants 1, 2 (and primary 5, 6) hang from the upper jaw. */
+export function isUpperArch(toothNum: number): boolean {
+  const q = Math.floor(toothNum / 10);
+  return q === 1 || q === 2 || q === 5 || q === 6;
+}
+
+/**
+ * Position within the quadrant decides the shape. Primary quadrants stop at
+ * five, where the fourth and fifth are already molars — a milk dentition has no
+ * premolars at all, and drawing one there would be a picture of a tooth the
+ * child does not have.
+ */
+export function toothShape(toothNum: number): ToothShape {
+  const position = toothNum % 10;
+  const primary = dentitionOf(toothNum) === 'PRIMARY';
+
+  if (position <= 2) return 'INCISOR';
+  if (position === 3) return 'CANINE';
+  if (primary) return 'MOLAR';
+  return position <= 5 ? 'PREMOLAR' : 'MOLAR';
+}
+
+/* ------------------------------------------------------------------ *
+ * Which surface sits where on the chart
+ * ------------------------------------------------------------------ */
+
+/** The four outer segments of the surface wheel, as drawn. */
+export type WheelPosition = 'top' | 'right' | 'bottom' | 'left';
+
+export const WHEEL_POSITIONS: readonly WheelPosition[] = ['top', 'right', 'bottom', 'left'];
+
+/**
+ * Turn a place on the chart into the surface it means.
+ *
+ * Two conventions, both of them about the reader rather than the data:
+ *
+ *  - **Buccal points away from the occlusal plane.** The upper row is drawn at
+ *    the top of the page, so its cheek side is up; the lower row is drawn
+ *    beneath, so its cheek side is down. Anyone reading an odontogram expects
+ *    the two arches mirrored like this.
+ *  - **Mesial points at the midline.** The patient's right-hand quadrants are
+ *    drawn on the left of the screen, so for them mesial is to the *right*.
+ *
+ * Get either backwards and the chart records the wrong side of the tooth, which
+ * no amount of care further down can recover.
+ */
+export function surfaceAt(toothNum: number, position: WheelPosition): ToothSurface {
+  const upper = isUpperArch(toothNum);
+
+  if (position === 'top') return upper ? 'B' : 'L';
+  if (position === 'bottom') return upper ? 'L' : 'B';
+
+  const mesialIsRight = isRightSide(toothNum);
+  if (position === 'right') return mesialIsRight ? 'M' : 'D';
+  return mesialIsRight ? 'D' : 'M';
+}
+
+/* ------------------------------------------------------------------ *
+ * Selecting teeth and surfaces, for a lab order
+ * ------------------------------------------------------------------ */
+
+/**
+ * Which teeth a piece of work covers, and — where it matters — which surfaces
+ * of them. A tooth mapped to no surfaces is the whole tooth, because that is
+ * what a crown, an implant or an extraction actually is.
+ */
+export type ToothSelection = Record<number, ToothSurface[]>;
+
+/**
+ * Read `"22:MO, 27:B, 32"` — and, unchanged, the plain `"46, 47"` that lab
+ * cases were written with before surfaces existed. Anything unrecognisable is
+ * dropped rather than guessed at.
+ */
+export function parseToothSelection(value: string | null | undefined): ToothSelection {
+  if (!value) return {};
+
+  const selection: ToothSelection = {};
+  for (const part of value.split(',')) {
+    const [rawTooth, rawSurfaces] = part.split(':');
+    const toothNum = Number.parseInt(rawTooth.trim(), 10);
+    if (!Number.isFinite(toothNum) || !isValidTooth(toothNum)) continue;
+
+    // A repeated tooth merges rather than replaces, so "16:M,16:D" survives a
+    // round trip as "16:MD" instead of losing the first half.
+    const surfaces = new Set([...(selection[toothNum] ?? []), ...parseSurfaces(rawSurfaces)]);
+    selection[toothNum] = TOOTH_SURFACES.filter((surface) => surfaces.has(surface));
+  }
+  return selection;
+}
+
+/** The inverse, in chart order so the string reads the way the row does. */
+export function formatToothSelection(selection: ToothSelection): string {
+  return ALL_TEETH.filter((toothNum) => selection[toothNum] !== undefined)
+    .map((toothNum) => {
+      const surfaces = selection[toothNum];
+      return surfaces.length > 0 ? `${toothNum}:${surfaces.join('')}` : String(toothNum);
+    })
+    .join(',');
+}
+
+/** Just the numbers, for the places that show a case in one line. */
+export function selectedTeeth(value: string | null | undefined): number[] {
+  const selection = parseToothSelection(value);
+  return ALL_TEETH.filter((toothNum) => selection[toothNum] !== undefined);
 }

@@ -40,9 +40,16 @@ function AnswerButton({
 }
 
 /**
- * Two buttons and nothing else. The patient may change their mind — answering
- * again simply overwrites the previous answer — so the form stays available
- * after a response rather than locking them out of correcting a mis-tap.
+ * Two buttons and nothing else.
+ *
+ * A patient who has confirmed may still change their mind — answering "no"
+ * overwrites the "yes" — so the buttons stay available rather than locking
+ * somebody out of correcting a mis-tap.
+ *
+ * A cancellation is where that stops. Once the slot is given up it may already
+ * have been offered to somebody else, so re-confirming it here would silently
+ * double-book the chair. The server refuses; this must not offer the button,
+ * because a button that always returns an error is worse than no button.
  */
 export function ConfirmForm({
   token,
@@ -68,6 +75,22 @@ export function ConfirmForm({
   }
 
   const answered = state.status === 'ok' ? picked : alreadyConfirmed ? 'yes' : alreadyDeclined ? 'no' : null;
+
+  // Declined on this visit, or already cancelled when the page loaded. Either
+  // way the slot is gone and the next move is a phone call, not a tap.
+  if (alreadyDeclined || (state.status === 'ok' && picked === 'no')) {
+    return (
+      <div className="space-y-3">
+        <p
+          role="status"
+          className="rounded-lg border border-line-strong bg-paper px-4 py-3 text-[1.05rem] font-semibold text-ink-soft"
+        >
+          {t('thanksDeclined')}
+        </p>
+        <p className="text-center text-[0.95rem] text-ink-soft">{t('cancelledNotice')}</p>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="space-y-4">

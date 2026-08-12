@@ -1,10 +1,12 @@
-import { Check, FlaskConical, Trash2 } from 'lucide-react';
+import { Check, FlaskConical, SquarePen, Trash2 } from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Link } from '@/i18n/navigation';
 import { deleteLabCase, markLabCaseReceived } from '@/lib/actions/lab';
 import { today } from '@/lib/dates';
+import { selectedTeeth } from '@/lib/teeth';
 import { cn } from '@/lib/utils';
 import { LabCaseFormDialog } from './LabCaseFormDialog';
 
@@ -71,17 +73,29 @@ export async function LabCaseList({
           labCase.dueAt !== '' &&
           new Date(`${labCase.dueAt}T00:00:00.000Z`) < now;
 
+        // The stored string may name surfaces — "22:MO" — which is detail for
+        // the order sheet, not for a row. Here it is the teeth that matter.
+        const teeth = selectedTeeth(labCase.teeth);
+
         return (
           <li
             key={labCase.id}
-            className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-5 py-3.5"
+            className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-5 py-3.5"
           >
-            <div className="min-w-0 flex-1">
+            {/* A basis wide enough to read at keeps the two halves from sharing
+                a line in a narrow column — the dashboard card is half the width
+                of the lab page, and there the buttons drop underneath. */}
+            <div className="min-w-0 flex-1 basis-64">
               <p className="flex flex-wrap items-center gap-2">
-                <span className="text-[1.08rem] font-bold text-ink">{labCase.kind}</span>
-                {labCase.teeth ? (
+                <Link
+                  href={`/lab/${labCase.id}`}
+                  className="text-[1.08rem] font-bold text-ink no-underline hover:underline"
+                >
+                  {labCase.kind}
+                </Link>
+                {teeth.length > 0 ? (
                   <span className="text-[0.95rem] text-ink-soft tabular-nums">
-                    {t('teethShort', { teeth: labCase.teeth })}
+                    {t('teethShort', { teeth: teeth.join(', ') })}
                   </span>
                 ) : null}
                 <Badge tone={STATUS_TONE[labCase.status] ?? 'neutral'}>
@@ -90,7 +104,7 @@ export async function LabCaseList({
                 {overdue ? <Badge tone="danger">{t('overdue')}</Badge> : null}
               </p>
 
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[0.93rem] text-ink-soft">
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.93rem] text-ink-soft">
                 {labCase.patientName ? (
                   <span className="font-semibold text-ink">{labCase.patientName}</span>
                 ) : null}
@@ -109,10 +123,22 @@ export async function LabCaseList({
               ) : null}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* The way to the order sheet — and to the chart, which is the
+                  only place the teeth are drawn. The work name above is the
+                  same link, but a bold heading does not read as one. */}
+              <Link href={`/lab/${labCase.id}`} className="btn btn-secondary btn-sm whitespace-nowrap">
+                <SquarePen size={17} aria-hidden />
+                {t('openOrder')}
+              </Link>
+
               {canEdit && labCase.status === 'SENT' ? (
                 <ActionForm action={markLabCaseReceived} values={{ id: labCase.id }}>
-                  <button type="submit" className="btn btn-secondary btn-sm" title={t('markReceived')}>
+                  <button
+                    type="submit"
+                    className="btn btn-secondary btn-sm whitespace-nowrap"
+                    title={t('markReceived')}
+                  >
                     <Check size={17} aria-hidden />
                     {t('markReceived')}
                   </button>

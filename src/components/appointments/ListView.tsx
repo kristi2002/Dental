@@ -35,16 +35,18 @@ export function ListView({
               month: 'long',
             })}
           </h3>
-          {appointments
-            .filter((a) => a.date === day)
-            .map((appointment) => (
-              <AppointmentRow
-                key={appointment.id}
-                appointment={appointment}
-                patients={patients}
-                services={services}
-              />
-            ))}
+          <div className="space-y-3 p-3">
+            {appointments
+              .filter((a) => a.date === day)
+              .map((appointment) => (
+                <AppointmentRow
+                  key={appointment.id}
+                  appointment={appointment}
+                  patients={patients}
+                  services={services}
+                />
+              ))}
+          </div>
         </section>
       ))}
     </div>

@@ -13,6 +13,7 @@ import { deleteService } from '@/lib/actions/services';
 import { requirePermission } from '@/lib/auth/guard';
 import { byDepartment } from '@/lib/catalog';
 import { prisma } from '@/lib/prisma';
+import { ACTIVE_STOCK } from '@/lib/queries';
 import { matches } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -56,9 +57,12 @@ export default async function ServicesPage({
         },
       },
     }),
+    // A retired material must not be offered as something a new treatment
+    // consumes; existing bills of materials that name one keep working.
     prisma.stockItem.findMany({
+      where: ACTIVE_STOCK,
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, unit: true },
+      select: { id: true, name: true, unit: true, packSize: true },
     }),
   ]);
 

@@ -112,6 +112,7 @@ export async function saveAppointment(
 
   let savedId = id;
   let createdPatientId: string | null = null;
+  let resolvedWaiting = 0;
   try {
     // One transaction: a patient record with no appointment is exactly the
     // orphan this feature exists to avoid creating by hand.
@@ -130,6 +131,19 @@ export async function saveAppointment(
             select: { id: true },
           })
         ).id;
+
+        // Booking somebody IS resolving their request for an earlier slot.
+        // Leaving it open meant the list kept offering slots to people who had
+        // already been given one, which is how a waiting list stops being read.
+        // Only on create: editing an existing appointment is not a new offer.
+        if (data.status === AppointmentStatus.SCHEDULED) {
+          resolvedWaiting = (
+            await tx.waitlistEntry.updateMany({
+              where: { patientId: targetPatientId, resolvedAt: null },
+              data: { resolvedAt: new Date() },
+            })
+          ).count;
+        }
       }
     });
   } catch {
@@ -161,6 +175,15 @@ export async function saveAppointment(
     entityId: savedId,
     summary: `${patientName} · ${date} ${startTime}`,
   });
+
+  if (resolvedWaiting > 0) {
+    await recordAudit(user, {
+      action: 'update',
+      entity: 'waitlist',
+      entityId: createdPatientId ?? patientId,
+      summary: `${patientName} · booked`,
+    });
+  }
 
   revalidateAll();
   return actionOk();

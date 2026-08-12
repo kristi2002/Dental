@@ -153,6 +153,9 @@ model Patient {
   recallSnoozedUntil DateTime?
   /// Stamped when the recall message is opened, so the list stops nagging.
   lastRecallAt       DateTime?
+
+  /// Every patient list in the app orders by this pair, and nothing served it.
+  @@index([lastName, firstName])
 }
 
 model Appointment {
@@ -332,7 +335,8 @@ model VisitRecord {
   services  String // JSON string or comma-separated list of services done
   createdAt DateTime @default(now())
 
-  toothRecords ToothRecord[]
+  toothRecords   ToothRecord[]
+  stockMovements StockMovement[]
 
   /// Who recorded it — shown on the timeline, kept when the account is disabled.
   staffUserId String?
@@ -394,6 +398,23 @@ model StockItem {
   unit      String   @default("pcs")
   updatedAt DateTime @updatedAt
 
+  /// How many pieces are in one `unit` — 100 gloves in a box.
+  ///
+  /// Used only to print the order form in the count the supplier sells by. The
+  /// shelf is counted, and the ledger written, in whole `unit`s: a part-used box
+  /// is not tracked, because nobody in a practice writes one down. Storing the
+  /// piece count instead would mean rendering "5.4 boxes", which is not a number
+  /// anyone can act on.
+  packSize Int @default(1)
+
+  /// How many `unit`s to buy once the minimum is reached.
+  ///
+  /// Bulk stock is bought the same amount every time, and an item nobody logs
+  /// per-use has no consumption history to project from — asking the owner once
+  /// beats guessing from a burn rate that is mostly noise. When set, this
+  /// replaces the projection in `reorder.ts` entirely.
+  orderQty Int?
+
   supplierId String?
   supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
@@ -402,6 +423,15 @@ model StockItem {
   /// turns up, which trains everyone to ignore the list.
   orderedAt  DateTime?
   expectedAt DateTime?
+
+  /// Discontinued, not erased — the same rule staff already live under.
+  ///
+  /// The ledger is the asset; this row is only its label. Deleting a material
+  /// the practice has stopped buying used to take every `StockMovement` that
+  /// ever named it with it, so last quarter's usage figures changed
+  /// retroactively and nothing said so. An archived item leaves every list and
+  /// every picker, and its history stays exactly where it was.
+  archivedAt DateTime?
 
   movements  StockMovement[]
   usedBy     ServiceMaterial[]
@@ -446,9 +476,12 @@ model StockBatch {
 /// Append-only log of quantity changes — powers the "stock usage" analytics chart
 /// and gives the dentist a plain audit trail of what was consumed and when.
 model StockMovement {
-  id        String   @id @default(uuid())
-  itemId    String
-  item      StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  id     String    @id @default(uuid())
+  itemId String
+  /// `Restrict`, not `Cascade`: the ledger outlives the label. See
+  /// `StockItem.archivedAt` — a discontinued material is archived, and the
+  /// database refuses the delete that would rewrite history behind it.
+  item      StockItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
   delta     Int // negative = used / removed, positive = restocked
   reason    String? // e.g. "manual", "restock", "used in visit"
   createdAt DateTime @default(now())
@@ -456,8 +489,18 @@ model StockMovement {
   staffUserId String?
   staffUser   StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
 
-  @@index([itemId])
+  /// The visit that consumed it, when a visit did.
+  ///
+  /// `reason` said "used in visit" and nothing more, which made "why did we burn
+  /// 40 syringes in March?" unanswerable and left a mis-recorded visit's
+  /// deductions impossible to find, let alone reverse.
+  visitRecordId String?
+  visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
+
   @@index([createdAt])
+  /// `reorder.ts` groups a date window by item. `itemId` leads, so this also
+  /// serves the plain "movements for this material" lookup.
+  @@index([itemId, createdAt])
 }
 
 model Service {
@@ -467,6 +510,7 @@ model Service {
   durationMin Int     @default(30)
 
   materials ServiceMaterial[]
+  labItems  LabCaseItem[]
 }
 
 /// The bill of materials for a treatment. Recording a visit that includes the
@@ -497,10 +541,15 @@ model LabCase {
   /// two, and a `Supplier` row for each would be ceremony without a payoff.
   labName String
   /// Crown, bridge, denture, aligner… free text, because the list is endless
-  /// and every practice words it differently.
+  /// and every practice words it differently. Stays the case's one-line
+  /// headline even once `items` describes the work properly.
   kind String
-  /// Which teeth, in FDI, comma-separated. Free-form on purpose — "upper arch"
-  /// is a legitimate answer for a denture.
+  /// Which teeth, and which surfaces of them, as `"22:MO,27:B,32"` — FDI number,
+  /// then optionally `:` and letters from `TOOTH_SURFACES`. A bare number means
+  /// the whole tooth, which is what a crown or an extraction actually is.
+  ///
+  /// Still free-form, and still parses the old plain `"46, 47"` unchanged, so
+  /// "upper arch" remains a legitimate answer for a denture.
   teeth String?
 
   status LabCaseStatus @default(SENT)
@@ -510,12 +559,60 @@ model LabCase {
   receivedAt DateTime?
   notes      String?
 
+  /// The try-in, where the work has one. A bridge is fitted twice — once in wax
+  /// to check it, once for real — and the appointment book cannot tell the two
+  /// apart while the case only knows a single date.
+  tryInAt DateTime?
+
+  /// The delivery window on `dueAt`, as `HH:mm` on the clinic's own clock. Kept
+  /// as two strings for the same reason `ClinicHours` does: a courier slot is
+  /// wall-clock time, not an instant.
+  deliveryFrom String?
+  deliveryTo   String?
+
+  /// Aftercare handed to the patient at fitting. The wording is chosen from a
+  /// short list rather than typed, so what a patient is told about a zirconia
+  /// crown does not depend on who was at the desk.
+  careInstructions String?
+
+  items LabCaseItem[]
+
   createdById String?
   createdBy   StaffUser? @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime   @default(now())
 
   @@index([patientId])
   @@index([status, dueAt])
+}
+
+/// One piece of work on a case. `LabCase.kind` is a single line of text, which
+/// is enough for "crown" and wrong the moment an order is a crown on 26 *and* a
+/// post on 27 — the two come back together, on one docket, and the practice has
+/// no way to say so.
+///
+/// Deliberately carries no price. The app models what was ordered, never what it
+/// cost; see the note at the top of this file.
+model LabCaseItem {
+  id        String  @id @default(uuid())
+  labCaseId String
+  labCase   LabCase @relation(fields: [labCaseId], references: [id], onDelete: Cascade)
+
+  /// The catalogue entry, when the work matches one. Optional because a lab
+  /// makes things the practice does not sell as a treatment.
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  /// Snapshotted from the service, or typed. Renaming a service later must not
+  /// rewrite an order that has already gone out.
+  name  String
+  notes String?
+
+  /// Position in the docket, 1-based.
+  position Int @default(1)
+
+  createdAt DateTime @default(now())
+
+  @@index([labCaseId])
 }
 
 enum LabCaseStatus {
@@ -680,4 +777,6 @@ model WaitlistEntry {
   resolvedAt DateTime?
 
   @@index([resolvedAt])
+  /// Booking somebody resolves their open entry, which looks them up by person.
+  @@index([patientId])
 }

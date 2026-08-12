@@ -62,8 +62,11 @@ export function StepFormDialog({ planId, step }: { planId: string; step?: StepDe
         id={`${uid}-tooth`}
         name="toothNum"
         type="number"
-        min={1}
-        max={32}
+        // FDI, matching the chart: 11–48 permanent, 51–85 primary. The range is
+        // not contiguous, so these bounds only stop the obviously wrong — the
+        // server checks actual set membership.
+        min={11}
+        max={85}
         label={tt('title')}
         optional={tc('optional')}
         hint={t('toothHint')}

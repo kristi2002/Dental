@@ -8,7 +8,7 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { saveService } from '@/lib/actions/services';
 import { cn } from '@/lib/utils';
 
-export type StockOption = { id: string; name: string; unit: string };
+export type StockOption = { id: string; name: string; unit: string; packSize: number };
 
 export type ServiceDefaults = {
   id: string;
@@ -138,21 +138,35 @@ export function ServiceFormDialog({
             {stockItems.map((item) => {
               const quantity = materials[item.id];
               const on = quantity !== undefined;
+              // Deduction happens in whole units, and a box-counted item's unit
+              // *is* a box — so a `1` here would take a hundred gloves off the
+              // shelf per visit. Already-selected rows stay clickable so an
+              // entry made before the item was counted in boxes can be removed.
+              const byTheBox = item.packSize > 1 && !on;
 
               return (
                 <li key={item.id} className="flex items-center gap-2">
                   <button
                     type="button"
                     aria-pressed={on}
+                    disabled={byTheBox}
+                    title={byTheBox ? t('materialByTheBox', { unit: item.unit }) : undefined}
                     onClick={() => toggleMaterial(item.id)}
                     className={cn(
                       'flex-1 rounded-md border px-2.5 py-1.5 text-left text-[0.95rem] font-semibold transition-colors',
-                      on
-                        ? 'border-brand bg-brand-soft text-brand-deep'
-                        : 'border-line-strong bg-surface text-ink-soft hover:border-ink hover:text-ink',
+                      byTheBox
+                        ? 'cursor-not-allowed border-line bg-surface text-ink-faint'
+                        : on
+                          ? 'border-brand bg-brand-soft text-brand-deep'
+                          : 'border-line-strong bg-surface text-ink-soft hover:border-ink hover:text-ink',
                     )}
                   >
                     {item.name}
+                    {byTheBox ? (
+                      <span className="ml-2 font-normal">
+                        · {t('materialByTheBoxShort', { unit: item.unit })}
+                      </span>
+                    ) : null}
                   </button>
 
                   {on ? (

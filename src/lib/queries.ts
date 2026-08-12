@@ -237,6 +237,72 @@ export async function getAppointmentsBetween(
     );
 }
 
+/**
+ * How many appointments sit on each day of `[from, to]`, keyed by `YYYY-MM-DD`.
+ *
+ * The month calendar in the sidebar needs a whole month of days at once but
+ * none of their detail, so it asks for counts rather than pulling six weeks of
+ * appointments through `getAppointmentsBetween` to throw all but the length
+ * away. Days with nothing booked are simply absent from the map.
+ */
+export async function getAppointmentCountsByDay(
+  from: Date,
+  to: Date,
+  staffUserId?: string | null,
+  statuses?: readonly AppointmentStatus[],
+): Promise<Record<string, number>> {
+  const rows = await prisma.appointment.groupBy({
+    by: ['date'],
+    where: {
+      date: { gte: from, lte: to },
+      ...(staffUserId ? { staffUserId } : {}),
+      ...(statuses && statuses.length > 0 ? { status: { in: [...statuses] } } : {}),
+    },
+    _count: { _all: true },
+  });
+
+  return Object.fromEntries(rows.map((row) => [toDateKey(row.date), row._count._all]));
+}
+
+/**
+ * Appointments whose day has passed and which nobody ever closed out.
+ *
+ * An unclosed slot is the one failure in this app that costs nothing today and
+ * corrupts three things quietly afterwards: the reliability score never learns
+ * about a no-show, the completion rate on the statistics page counts a slot that
+ * never happened as still pending, and the day it sat on stops being a record of
+ * what the practice actually did.
+ *
+ * Nothing marks them automatically. A missed appointment and a treatment nobody
+ * wrote up look identical from here, and only the person who was in the room
+ * knows which it was — so this asks rather than deciding.
+ */
+export async function getOpenPastAppointments(limit = 12): Promise<AppointmentView[]> {
+  const rows = await prisma.appointment.findMany({
+    where: {
+      date: { lt: today() },
+      status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.ARRIVED] },
+    },
+    select: APPOINTMENT_SELECT,
+    // Oldest first: the longest-standing loose end is the one most likely to be
+    // forgotten, and the one whose answer is hardest to recover.
+    orderBy: { date: 'asc' },
+    take: limit,
+  });
+
+  return rows.map(toAppointmentView);
+}
+
+/** How many there are in total, so the panel can say what it is not showing. */
+export async function countOpenPastAppointments(): Promise<number> {
+  return prisma.appointment.count({
+    where: {
+      date: { lt: today() },
+      status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.ARRIVED] },
+    },
+  });
+}
+
 export async function getPatientAppointments(patientId: string): Promise<AppointmentView[]> {
   const rows = await prisma.appointment.findMany({
     where: { patientId },
@@ -250,9 +316,18 @@ export async function getPatientAppointments(patientId: string): Promise<Appoint
 /**
  * Materials at or below their minimum. Prisma cannot compare two columns portably,
  * and a clinic's catalog is small, so the comparison happens in memory.
+ *
+ * `ACTIVE_STOCK` is the shared "not retired" filter — a discontinued material
+ * keeps its ledger (see `StockItem.archivedAt`) but must not show up as
+ * something to count, order or run out of.
  */
+export const ACTIVE_STOCK = { archivedAt: null } as const;
+
 export async function getLowStockItems() {
-  const items = await prisma.stockItem.findMany({ orderBy: { name: 'asc' } });
+  const items = await prisma.stockItem.findMany({
+    where: ACTIVE_STOCK,
+    orderBy: { name: 'asc' },
+  });
   return items.filter((item) => item.quantity <= item.minLimit);
 }
 

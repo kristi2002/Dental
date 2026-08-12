@@ -1,0 +1,42 @@
+# Patient files — radiographs, photos, signed consent forms. Real medical data.
+# This is the single most important line in the file: without it the build
+# context, and every layer built from it, would carry the practice's records.
+storage/
+
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Build output and local caches — regenerated inside the image
+.next/
+out/
+build/
+dist/
+node_modules/
+src/generated/
+*.tsbuildinfo
+next-env.d.ts
+
+# VCS and tooling
+.git/
+.gitignore
+.gitattributes
+.github/
+.claude/
+.vscode/
+.idea/
+
+# Docs and local-only compose — not needed to build the app
+README.md
+docs/
+docker-compose.yml
+docker-compose.prod.yml
+
+# Misc
+.DS_Store
+*.pem
+npm-debug.log*
+yarn-error.log*
+.vercel

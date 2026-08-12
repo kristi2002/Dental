@@ -15,8 +15,10 @@ import { requireUser } from '@/lib/auth/guard';
 import { endOfWeek, startOfWeek, toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import {
+  countOpenPastAppointments,
   getAppointmentsBetween,
   getLowStockItems,
+  getOpenPastAppointments,
   getOperatoryOptions,
   getPatientOptions,
   getProviderOptions,
@@ -45,6 +47,7 @@ export default async function DashboardPage({
   const canSeePlans = user.permissions.includes('plan.view');
 
   const t = await getTranslations('dashboard');
+  const ta = await getTranslations('appointments');
   const ts = await getTranslations('stock');
   const tlab = await getTranslations('lab');
   const format = await getFormatter();
@@ -65,6 +68,8 @@ export default async function DashboardPage({
     freeGaps,
     labCases,
     toRemind,
+    openPast,
+    openPastTotal,
   ] = await Promise.all([
       getAppointmentsBetween(day, day),
       prisma.appointment.count({
@@ -91,6 +96,11 @@ export default async function DashboardPage({
           })
         : Promise.resolve([]),
       canAddAppointment ? getUnreminded() : Promise.resolve([]),
+      // Yesterday's loose ends. Nothing else in the app ever looks backwards, so
+      // an appointment nobody closed simply ages out of sight — taking the
+      // no-show score and the completion rate with it.
+      canAddAppointment ? getOpenPastAppointments() : Promise.resolve([]),
+      canAddAppointment ? countOpenPastAppointments() : Promise.resolve(0),
     ]);
 
   return (
@@ -150,6 +160,36 @@ export default async function DashboardPage({
         </div>
       ) : null}
 
+      {/* Above everything, and the only panel on this page about work that has
+          already gone wrong rather than work still to do. It disappears the
+          moment the last one is answered, so a practice that closes its days
+          never sees it. */}
+      {openPast.length > 0 ? (
+        <Card className="mb-6 border-warn">
+          <CardHeader
+            title={ta('openPastTitle')}
+            subtitle={ta('openPastSubtitle', { count: openPastTotal })}
+            icon={<TriangleAlert size={22} aria-hidden className="text-warn" />}
+          />
+          <div className="space-y-3 p-3">
+            {openPast.map((appointment) => (
+              <AppointmentRow
+                key={appointment.id}
+                appointment={appointment}
+                patients={patients}
+                services={services}
+                showDate
+              />
+            ))}
+            {openPastTotal > openPast.length ? (
+              <p className="px-1 pb-1 text-[0.92rem] text-ink-soft">
+                {ta('openPastMore', { shown: openPast.length, total: openPastTotal })}
+              </p>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
+
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <Card>
           <CardHeader
@@ -167,7 +207,7 @@ export default async function DashboardPage({
               title={t('noAppointmentsToday')}
             />
           ) : (
-            <div>
+            <div className="space-y-3 p-3">
               {todayAppointments.map((appointment) => (
                 <AppointmentRow
                   key={appointment.id}
@@ -202,7 +242,7 @@ export default async function DashboardPage({
                 subtitle={t('toRemindSubtitle', { count: toRemind.length })}
                 icon={<BellRing size={22} aria-hidden />}
               />
-              <div>
+              <div className="space-y-3 p-3">
                 {toRemind.map((appointment) => (
                   <AppointmentRow
                     key={appointment.id}

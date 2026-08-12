@@ -6,6 +6,12 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
+  // Emit `.next/standalone`: a self-contained server with only the traced
+  // dependencies, so the deployed image carries neither the toolchain nor the
+  // 700-odd MB of `node_modules` behind it.
+  output: 'standalone',
+
   turbopack: {
     // Pin the workspace root — otherwise Turbopack walks up and finds unrelated
     // lockfiles in the parent directories.

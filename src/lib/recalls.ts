@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { AppointmentStatus } from '@/generated/prisma/enums';
 import { addMonths, today, toDateKey } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
@@ -33,6 +34,8 @@ export type RecallRow = {
   /** How far past due, in days. Sorted on this, longest first. */
   overdueDays: number;
   recallMonths: number;
+  /** Tri-state: `null` is "nobody asked", which is not a refusal. */
+  contactConsent: boolean | null;
 };
 
 export type FollowUpRow = {
@@ -44,6 +47,7 @@ export type FollowUpRow = {
   lastVisit: string;
   daysSince: number;
   services: string;
+  contactConsent: boolean | null;
 };
 
 function daysBetween(from: Date, to: Date): number {
@@ -66,11 +70,17 @@ type PatientForRecall = {
   recallMonths: number;
   recallSnoozedUntil: Date | null;
   lastRecallAt: Date | null;
+  contactConsent: boolean | null;
   visitRecords: Array<{ visitDate: Date; services: string }>;
   appointments: Array<{ id: string }>;
 };
 
-async function loadCandidates(): Promise<PatientForRecall[]> {
+/**
+ * Cached per request: the recalls page asks for both lists in one `Promise.all`,
+ * and this is the heaviest query either of them makes. Without `cache()` it runs
+ * twice per render for exactly the same rows.
+ */
+const loadCandidates = cache(async (): Promise<PatientForRecall[]> => {
   const now = today();
 
   return prisma.patient.findMany({
@@ -86,6 +96,7 @@ async function loadCandidates(): Promise<PatientForRecall[]> {
       recallMonths: true,
       recallSnoozedUntil: true,
       lastRecallAt: true,
+      contactConsent: true,
       visitRecords: {
         orderBy: { visitDate: 'desc' },
         take: 1,
@@ -99,7 +110,7 @@ async function loadCandidates(): Promise<PatientForRecall[]> {
       },
     },
   });
-}
+});
 
 export async function getRecalls(): Promise<RecallRow[]> {
   const now = today();
@@ -133,6 +144,7 @@ export async function getRecalls(): Promise<RecallRow[]> {
       monthsSince: monthsBetween(reference, now),
       overdueDays: daysBetween(dueDate, now),
       recallMonths: patient.recallMonths,
+      contactConsent: patient.contactConsent,
     });
   }
 
@@ -166,6 +178,7 @@ export async function getFollowUps(): Promise<FollowUpRow[]> {
       lastVisit: toDateKey(visit.visitDate),
       daysSince,
       services: visit.services,
+      contactConsent: patient.contactConsent,
     });
   }
 

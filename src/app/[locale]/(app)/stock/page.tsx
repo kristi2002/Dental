@@ -1,5 +1,6 @@
 import {
   CalendarClock,
+  ClipboardCheck,
   Minus,
   Package,
   Plus,
@@ -25,10 +26,13 @@ import {
   deleteStockItem,
   deleteSupplier,
   markOrdered,
+  restoreStockItem,
 } from '@/lib/actions/stock';
 import { requirePermission } from '@/lib/auth/guard';
+import { Link } from '@/i18n/navigation';
 import { toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
+import { ACTIVE_STOCK } from '@/lib/queries';
 import { summariseBatches } from '@/lib/expiry';
 import { getReorderSuggestions } from '@/lib/reorder';
 import { cn, matches } from '@/lib/utils';
@@ -57,8 +61,9 @@ export default async function StockPage({
   const tsup = await getTranslations('suppliers');
   const format = await getFormatter();
 
-  const [allItems, reorderLines, suppliers] = await Promise.all([
+  const [allItems, reorderLines, suppliers, archived] = await Promise.all([
     prisma.stockItem.findMany({
+      where: ACTIVE_STOCK,
       orderBy: [{ name: 'asc' }],
       include: {
         supplier: { select: { id: true, name: true } },
@@ -70,6 +75,16 @@ export default async function StockPage({
       orderBy: { name: 'asc' },
       include: { _count: { select: { items: true } } },
     }),
+    // Retired materials keep their ledger, so the usage chart and the burn rate
+    // still read correctly. They are listed only so one archived by mistake is
+    // recoverable without a database client.
+    canEdit
+      ? prisma.stockItem.findMany({
+          where: { archivedAt: { not: null } },
+          orderBy: { name: 'asc' },
+          select: { id: true, name: true, unit: true, quantity: true, archivedAt: true },
+        })
+      : Promise.resolve([]),
   ]);
   const lowCount = allItems.filter((item) => item.quantity <= item.minLimit).length;
 
@@ -110,7 +125,15 @@ export default async function StockPage({
         subtitle={t('subtitle')}
         actions={
           canEdit ? (
-            <StockFormDialog categories={categories} units={units} suppliers={suppliers} />
+            <>
+              {/* Counting the room is the interaction bulk stock actually gets,
+                  so it sits beside "new material" rather than buried in a menu. */}
+              <Link href="/stock/stocktake" className="btn btn-secondary">
+                <ClipboardCheck size={18} aria-hidden />
+                {t('stocktake')}
+              </Link>
+              <StockFormDialog categories={categories} units={units} suppliers={suppliers} />
+            </>
           ) : null
         }
       />
@@ -234,6 +257,50 @@ export default async function StockPage({
         </details>
       ) : null}
 
+      {/* Retired materials. Folded away and last, because the point of retiring
+          one is that it stops being part of the daily list — but recoverable,
+          because "archived by mistake" must not need a database client. */}
+      {canEdit && archived.length > 0 ? (
+        <details className="card mb-6">
+          <summary className="cursor-pointer list-none px-5 py-4 text-[1.1rem] font-bold text-ink">
+            {t('archivedTitle')}
+            <span className="ml-2 font-normal text-ink-soft">({archived.length})</span>
+          </summary>
+
+          <ul className="divide-y divide-line border-t border-line">
+            {archived.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-[1.05rem] font-bold text-ink">{item.name}</p>
+                  <p className="text-[0.92rem] text-ink-soft">
+                    {t('inStock', { qty: item.quantity, unit: item.unit })}
+                    {item.archivedAt
+                      ? ` · ${t('archivedOn', {
+                          date: format.dateTime(item.archivedAt, {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          }),
+                        })}`
+                      : ''}
+                  </p>
+                </div>
+
+                <ActionForm action={restoreStockItem} values={{ id: item.id }}>
+                  <button type="submit" className="btn btn-secondary btn-sm">
+                    <Undo2 size={17} aria-hidden />
+                    {t('restore')}
+                  </button>
+                </ActionForm>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
       {items.length === 0 ? (
         <div className="card">
           <EmptyState
@@ -272,6 +339,11 @@ export default async function StockPage({
                   <p className="mt-0.5 text-[0.95rem] text-ink-soft">
                     {item.supplier ? `${item.supplier.name} · ` : ''}
                     {item.category || t('uncategorized')} · {t('minShort', { min: item.minLimit })} ·{' '}
+                    {/* What the box holds, so the count on the right is read as
+                        boxes rather than pieces without anyone having to ask. */}
+                    {item.packSize > 1
+                      ? `${t('packOf', { count: item.packSize, unit: item.unit })} · `
+                      : ''}
                     {t('lastUpdated', {
                       date: format.dateTime(item.updatedAt, {
                         day: 'numeric',
@@ -390,6 +462,8 @@ export default async function StockPage({
                         quantity: item.quantity,
                         minLimit: item.minLimit,
                         unit: item.unit,
+                        packSize: item.packSize,
+                        orderQty: item.orderQty === null ? '' : String(item.orderQty),
                         supplierId: item.supplierId ?? '',
                       }}
                       categories={categories}
@@ -401,7 +475,7 @@ export default async function StockPage({
                     <ActionForm
                       action={deleteStockItem}
                       values={{ id: item.id }}
-                      confirmMessage={tc('confirmDelete')}
+                      confirmMessage={t('confirmRetire')}
                     >
                       <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
                         <Trash2 size={17} aria-hidden />

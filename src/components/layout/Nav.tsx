@@ -4,6 +4,7 @@ import {
   BellRing,
   CalendarDays,
   ChartColumn,
+  FlaskConical,
   LayoutDashboard,
   Package,
   Stethoscope,
@@ -22,6 +23,7 @@ const ICONS: Record<string, LucideIcon> = {
   patients: Users,
   recalls: BellRing,
   services: Stethoscope,
+  lab: FlaskConical,
   stock: Package,
   analytics: ChartColumn,
 };

@@ -1,0 +1,58 @@
+# Production stack — the app and its database.
+#
+# In Coolify: create a resource → "Docker Compose", point it at this file, and
+# set the domain to https://dental.testdemo.it. The SERVICE_* names below are
+# Coolify's: it generates each secret once, stores it, and injects it here.
+#
+# For local dev use `docker-compose.yml` instead — it starts only Postgres and
+# leaves the app to `npm run dev`.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Inlined into the browser bundle at build time — see the Dockerfile.
+        # Change the domain here, not in the runtime environment.
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://dental.testdemo.it}
+        NEXT_PUBLIC_CLINIC_NAME: ${NEXT_PUBLIC_CLINIC_NAME:-Klinika Dentare}
+    restart: unless-stopped
+    environment:
+      # Tells Coolify to route the assigned domain to this service's port 3000.
+      - SERVICE_FQDN_APP_3000
+      - DATABASE_URL=postgresql://dent:${SERVICE_PASSWORD_POSTGRES}@db:5432/dentorganizer?schema=public
+      # Signs the staff session cookie. Rotating it logs everyone out; it must
+      # never change casually, which is why Coolify generates and keeps it.
+      - AUTH_SECRET=${SERVICE_PASSWORD_64_AUTHSECRET}
+      - FILE_STORAGE_DIR=/data/patient-files
+    volumes:
+      # X-rays, photos and signed consent forms. The one piece of state Postgres
+      # does not hold, and the one that no backup of the database would restore.
+      - patient-files:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - '3000'
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=dent
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      - POSTGRES_DB=dentorganizer
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # The app's entrypoint pushes the schema before serving, so it must not
+      # start until Postgres is actually accepting connections.
+      test: ['CMD-SHELL', 'pg_isready -U dent -d dentorganizer']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-data:
+  patient-files:

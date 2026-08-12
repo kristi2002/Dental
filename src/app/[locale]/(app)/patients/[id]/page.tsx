@@ -14,7 +14,7 @@ import { AppointmentFormDialog } from '@/components/appointments/AppointmentForm
 import { AppointmentRow } from '@/components/appointments/AppointmentRow';
 import { DocumentGallery } from '@/components/documents/DocumentGallery';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
-import { DentalChart, type ToothRecordMap } from '@/components/patients/DentalChart';
+import { DentalChart, type ToothRecordMap } from '@/components/dental/DentalChart';
 import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { ReliabilityBadge } from '@/components/patients/ReliabilityBadge';
 import { AlertFormDialog } from '@/components/patients/AlertFormDialog';
@@ -664,15 +664,17 @@ export default async function PatientDetailPage({
               title={t('noAppointments')}
             />
           ) : (
-            appointments.map((appointment) => (
-              <AppointmentRow
-                key={appointment.id}
-                appointment={appointment}
-                patients={patientOptions}
-                services={services}
-                showDate
-              />
-            ))
+            <div className="space-y-3 p-3">
+              {appointments.map((appointment) => (
+                <AppointmentRow
+                  key={appointment.id}
+                  appointment={appointment}
+                  patients={patientOptions}
+                  services={services}
+                  showDate
+                />
+              ))}
+            </div>
           )}
         </Card>
       ) : null}

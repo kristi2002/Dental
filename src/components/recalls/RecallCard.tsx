@@ -28,12 +28,15 @@ export function RecallCard({
   emailSubject,
   emailBody,
   canSend,
+  contactConsent,
 }: {
   id: string;
   firstName: string;
   lastName: string;
   phone: string;
   email: string;
+  /** Tri-state: `null` is "nobody asked", which is not a refusal. */
+  contactConsent: boolean | null;
   /** `YYYY-MM-DD`, or null when never seen. */
   lastVisit: string | null;
   /** The "8 months overdue" / "3 days ago" line. */
@@ -87,6 +90,7 @@ export function RecallCard({
           whatsapp={whatsapp}
           mail={mail}
           body={message}
+          consent={contactConsent}
           purpose="RECALL"
         />
 

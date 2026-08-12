@@ -10,10 +10,17 @@ export type ConsumedLine = { itemId: string; name: string; quantity: number; uni
  * log reads as one line per material per visit rather than a scatter of −1s.
  * Quantity is floored at zero: a cupboard cannot hold −3 gloves, and refusing to
  * record the treatment because the count drifted would be the wrong trade.
+ *
+ * The floor is enforced **inside the write**, not by a figure read beforehand.
+ * Clamping against a stale `onHand` lets two visits recorded at the same moment
+ * both pass the check for the last two syringes and both decrement, landing at
+ * −2 — exactly the state this function's own comment says is impossible.
  */
 export async function consumeMaterialsForServices(
   serviceIds: string[],
   staffUserId: string,
+  /** The visit that caused it, so the ledger can explain itself later. */
+  visitRecordId?: string | null,
 ): Promise<ConsumedLine[]> {
   if (serviceIds.length === 0) return [];
 
@@ -21,12 +28,12 @@ export async function consumeMaterialsForServices(
     where: { serviceId: { in: serviceIds } },
     select: {
       quantity: true,
-      item: { select: { id: true, name: true, quantity: true, unit: true } },
+      item: { select: { id: true, name: true, unit: true } },
     },
   });
   if (materials.length === 0) return [];
 
-  const totals = new Map<string, ConsumedLine & { onHand: number }>();
+  const totals = new Map<string, ConsumedLine>();
   for (const material of materials) {
     const existing = totals.get(material.item.id);
     if (existing) {
@@ -37,32 +44,56 @@ export async function consumeMaterialsForServices(
         name: material.item.name,
         quantity: material.quantity,
         unit: material.item.unit,
-        onHand: material.item.quantity,
       });
     }
   }
 
-  const lines = [...totals.values()]
-    .map((line) => ({ ...line, quantity: Math.min(line.quantity, line.onHand) }))
-    .filter((line) => line.quantity > 0);
-  if (lines.length === 0) return [];
+  const consumed: ConsumedLine[] = [];
 
-  await prisma.$transaction(
-    lines.flatMap((line) => [
-      prisma.stockItem.update({
-        where: { id: line.itemId },
+  await prisma.$transaction(async (tx) => {
+    for (const line of totals.values()) {
+      // Take the whole amount when the shelf holds it. One statement, so no
+      // other transaction can slip between the check and the decrement.
+      let applied = line.quantity;
+      let taken = await tx.stockItem.updateMany({
+        where: { id: line.itemId, quantity: { gte: line.quantity } },
         data: { quantity: { decrement: line.quantity } },
-      }),
-      prisma.stockMovement.create({
+      });
+
+      if (taken.count === 0) {
+        // Not enough on hand: take what is there instead of refusing to record
+        // the treatment. Read inside the transaction, and still write it as a
+        // guarded decrement so a concurrent visit cannot push it under zero.
+        const current = await tx.stockItem.findUnique({
+          where: { id: line.itemId },
+          select: { quantity: true },
+        });
+        applied = Math.min(line.quantity, current?.quantity ?? 0);
+        if (applied <= 0) continue;
+
+        taken = await tx.stockItem.updateMany({
+          where: { id: line.itemId, quantity: { gte: applied } },
+          data: { quantity: { decrement: applied } },
+        });
+        if (taken.count === 0) continue;
+      }
+
+      await tx.stockMovement.create({
         data: {
           itemId: line.itemId,
-          delta: -line.quantity,
+          delta: -applied,
           reason: 'used in visit',
           staffUserId,
+          // `reason` was the only trace, and it is prose. With the id, "why did
+          // we burn 40 syringes in March?" is a query rather than a guess, and a
+          // mis-recorded visit can have its deductions found and reversed.
+          visitRecordId: visitRecordId ?? null,
         },
-      }),
-    ]),
-  );
+      });
 
-  return lines.map(({ itemId, name, quantity, unit }) => ({ itemId, name, quantity, unit }));
+      consumed.push({ ...line, quantity: applied });
+    }
+  });
+
+  return consumed;
 }

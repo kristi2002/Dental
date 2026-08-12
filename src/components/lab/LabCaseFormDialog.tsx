@@ -6,8 +6,7 @@ import { useId, useState } from 'react';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { saveLabCase } from '@/lib/actions/lab';
-
-export const LAB_STATUSES = ['SENT', 'RECEIVED', 'FITTED', 'CANCELLED'] as const;
+import { LAB_STATUSES } from '@/lib/lab';
 
 export type LabCaseDefaults = {
   id: string;

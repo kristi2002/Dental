@@ -254,8 +254,15 @@ rewrite what a patient was actually handed.
 out of scope by design. No uniqueness on `name`.
 
 #### `StockItem`
-`name`, `category?`, `quantity`, `minLimit` (default 5), `unit` (default `pcs`).
-No indexes.
+`name`, `category?`, `quantity`, `minLimit` (default 5), `unit` (default `pcs`),
+`packSize` (default 1), `orderQty?`. No indexes.
+
+`quantity` is counted in whole `unit`s — for bulk stock that unit is the box, and
+a part-used box is not represented at all. `packSize` is the pieces inside one
+unit and is used **only** to print the order form in the count the supplier sells
+by; nothing else in the app converts between the two. `orderQty` is the owner's
+stated "buy this many when low", which replaces the projection in `reorder.ts`
+and, when set, also silences the line until the minimum is actually reached.
 
 #### `ServiceMaterial` — the bill of materials
 The only true join table in the schema.
@@ -278,7 +285,7 @@ analytics and reorder features actually read.
 | --- | --- |
 | `itemId` | FK → `StockItem`, **Cascade** |
 | `delta` | Int. Negative = consumed, positive = restocked |
-| `reason` | **free String**: `manual` · `used` · `restock` · `used in visit` |
+| `reason` | **free String**: `manual` · `used` · `restock` · `used in visit` · `delivery` · `delivery reversed` · `stocktake` |
 | `staffUserId` | SetNull |
 
 Indexes: `itemId`, `createdAt`.
@@ -481,7 +488,8 @@ on their next click, and a deactivated account stops working mid-shift.
 | --- | --- |
 | A calendar day is one exact value | Everything normalises to UTC midnight; formatting pins `timeZone: 'UTC'` |
 | A healthy tooth with no note stores no row | `saveToothRecord` deletes instead of upserting |
-| Every quantity change has a matching `StockMovement` | All three write paths (`saveStockItem`, `adjustStock`, `consumeMaterialsForServices`) pair the update and the movement in one transaction |
+| Every quantity change has a matching `StockMovement` | Every write path (`saveStockItem`, `adjustStock`, `consumeMaterialsForServices`, `saveBatch`, `deleteBatch`, `saveStocktake`) pairs the update and the movement in one transaction |
+| A stocktake only asserts what was counted | `StocktakeForm` submits edited rows only, and `saveStocktake` derives each delta inside the transaction from the row's real quantity — never the figure the browser was shown |
 | An issued prescription's text never changes | `Prescription.body` is its own column; `templateId` is `SetNull` |
 | The audit trail keeps reading after a person leaves | `actorName`/`actorRole` snapshots + `SetNull` + "deactivate, never delete" |
 | There is always one active owner | `isLastActiveOwner()` blocks the last demotion and the last deactivation |

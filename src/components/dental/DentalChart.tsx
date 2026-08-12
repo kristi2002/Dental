@@ -3,15 +3,21 @@
 import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useActionState, useEffect, useId, useRef, useState } from 'react';
+import { SurfaceTarget, SURFACE_UNMARKED } from '@/components/dental/SurfaceTarget';
+import { ToothDefs, ToothGlyph } from '@/components/dental/ToothGlyph';
 import { SubmitButton } from '@/components/ui/SubmitButton';
 import { saveToothRecord } from '@/lib/actions/patients';
 import { IDLE_STATE } from '@/lib/actions/types';
 import {
   DEFAULT_TOOTH_STATUS,
-  PERMANENT_LOWER,
-  PERMANENT_UPPER,
-  PRIMARY_LOWER,
-  PRIMARY_UPPER,
+  PERMANENT_LOWER_LEFT,
+  PERMANENT_LOWER_RIGHT,
+  PERMANENT_UPPER_LEFT,
+  PERMANENT_UPPER_RIGHT,
+  PRIMARY_LOWER_LEFT,
+  PRIMARY_LOWER_RIGHT,
+  PRIMARY_UPPER_LEFT,
+  PRIMARY_UPPER_RIGHT,
   TOOTH_STATUSES,
   TOOTH_STATUS_STYLE,
   TOOTH_SURFACES,
@@ -20,8 +26,27 @@ import {
   toothLabel as toothLabelFor,
   type ToothNumbering,
   type ToothStatus,
+  type ToothSurface,
 } from '@/lib/teeth';
 import { cn } from '@/lib/utils';
+
+/**
+ * The chart as an odontogram: each tooth drawn as itself, with the five-surface
+ * target beneath it and its number under that, the two arches meeting at a
+ * crosshair on the midline.
+ *
+ * This replaced a grid of coloured buttons. The grid could say "14 has caries";
+ * it could not say *where* on 14, which is the difference between a note and a
+ * treatment plan — and the surface was already being stored. Reading it off a
+ * row of squares also meant counting along to find the tooth, which is how the
+ * wrong one gets clicked.
+ *
+ * Clicking the tooth opens its record. Clicking a segment of the target opens
+ * the same record with that surface already ticked, so the common path —
+ * "distal-occlusal of 46" — is two clicks and not a hunt through a checkbox
+ * list. Both go through the one authorised server action, so there is a single
+ * save path and a single audit entry.
+ */
 
 export type ToothRecordMap = Record<
   number,
@@ -29,13 +54,64 @@ export type ToothRecordMap = Record<
 >;
 
 /** Statuses that describe the whole tooth, where naming a surface is nonsense. */
-const WHOLE_TOOTH_STATUSES = ['HEALTHY', 'EXTRACTED', 'MISSING', 'IMPLANT', 'CROWN'];
+const WHOLE_TOOTH_STATUSES: readonly ToothStatus[] = [
+  'HEALTHY',
+  'EXTRACTED',
+  'MISSING',
+  'IMPLANT',
+  'CROWN',
+];
+
+/**
+ * The status hues as flat colour, for the SVG target.
+ *
+ * A single red for everything marked would have been less code and less
+ * information: the chart distinguishes eight conditions, and a technician
+ * glancing at it should be able to tell a filling from a caries without opening
+ * anything. These are the 500-weight of each family the legend already uses, so
+ * the target and the swatch beside it agree. Caries — the one the brief named —
+ * is red-500.
+ */
+const STATUS_HUE: Record<ToothStatus, string> = {
+  HEALTHY: SURFACE_UNMARKED,
+  CARIES: '#EF4444', // red-500
+  FILLED: '#0EA5E9', // sky-500
+  CROWN: '#F59E0B', // amber-500
+  ROOT_CANAL: '#8B5CF6', // violet-500
+  EXTRACTED: '#475569', // slate-600
+  IMPLANT: '#14B8A6', // teal-500
+  MISSING: '#94A3B8', // slate-400
+};
+
+/** One tooth is one cell wide on every row, so the arches stay in column. */
+const CELL = 'w-11 shrink-0';
+/** Eight cells — a full permanent quadrant, and the width the shorter primary
+ *  quadrants are padded to so every midline on the page lines up. */
+const HALF = 'w-[22rem] shrink-0';
 
 function statusOf(records: ToothRecordMap, toothNum: number): ToothStatus {
   const raw = records[toothNum]?.status;
   return raw && (TOOTH_STATUSES as readonly string[]).includes(raw)
     ? (raw as ToothStatus)
     : DEFAULT_TOOTH_STATUS;
+}
+
+/**
+ * A healthy tooth's target is blank. Otherwise the recorded surfaces carry the
+ * status hue — and a status that names no surface, either because it is about
+ * the whole tooth or because none was recorded, fills all five rather than
+ * leaving a flagged tooth looking untouched.
+ */
+function surfaceFill(
+  status: ToothStatus,
+  surfaces: string | undefined,
+  surface: ToothSurface,
+): string {
+  if (status === 'HEALTHY') return SURFACE_UNMARKED;
+
+  const marked = parseSurfaces(surfaces);
+  if (WHOLE_TOOTH_STATUSES.includes(status) || marked.length === 0) return STATUS_HUE[status];
+  return marked.includes(surface) ? STATUS_HUE[status] : SURFACE_UNMARKED;
 }
 
 export function DentalChart({
@@ -60,6 +136,8 @@ export function DentalChart({
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  /** Set when the record was opened by clicking a segment rather than the tooth. */
+  const [focusSurface, setFocusSurface] = useState<ToothSurface | null>(null);
   const [state, formAction] = useActionState(saveToothRecord, IDLE_STATE);
   const handledTs = useRef<number | undefined>(undefined);
 
@@ -69,9 +147,24 @@ export function DentalChart({
     dialogRef.current?.close();
   }, [state]);
 
-  function openTooth(toothNum: number) {
+  // Which status is chosen decides whether surfaces make sense at all.
+  const [status, setStatus] = useState<ToothStatus>(DEFAULT_TOOTH_STATUS);
+
+  function openTooth(toothNum: number, surface: ToothSurface | null = null) {
+    if (readOnly && surface !== null) return;
+
+    const recorded = statusOf(records, toothNum);
+    // Naming a surface on a tooth whose status has none is a contradiction, and
+    // the surface list is hidden for those statuses — so the click would vanish.
+    // Clicking a segment says the finding is on that face, and caries is far and
+    // away the most common reason to say so. It is a starting position, not a
+    // decision: the radio is right there.
+    const opening =
+      surface !== null && WHOLE_TOOTH_STATUSES.includes(recorded) ? 'CARIES' : recorded;
+
     setSelected(toothNum);
-    setStatus(statusOf(records, toothNum));
+    setFocusSurface(surface);
+    setStatus(opening);
     dialogRef.current?.showModal();
   }
 
@@ -80,70 +173,58 @@ export function DentalChart({
   // already recorded on one forces them open.
   const [showPrimary, setShowPrimary] = useState(
     initialShowPrimary ||
-      [...PRIMARY_UPPER, ...PRIMARY_LOWER].some(
-        (n) => records[n] && records[n].status !== DEFAULT_TOOTH_STATUS,
-      ),
+      [
+        ...PRIMARY_UPPER_RIGHT,
+        ...PRIMARY_UPPER_LEFT,
+        ...PRIMARY_LOWER_RIGHT,
+        ...PRIMARY_LOWER_LEFT,
+      ].some((n) => records[n] && records[n].status !== DEFAULT_TOOTH_STATUS),
   );
 
-  // Which status is chosen decides whether surfaces make sense at all.
-  const [status, setStatus] = useState<ToothStatus>(DEFAULT_TOOTH_STATUS);
   const surfacesApply = !WHOLE_TOOTH_STATUSES.includes(status);
-
   const flagged = Object.entries(records).filter(([, r]) => r.status !== DEFAULT_TOOTH_STATUS);
   const current = selected === null ? null : records[selected];
   const label = (n: number) => toothLabelFor(n, numbering);
 
+  const rowProps = {
+    records,
+    readOnly,
+    onSelect: openTooth,
+    numberLabel: label,
+    toothLabel: (n: number) => t('tooth', { num: label(n) }),
+  };
+
   return (
     <div className="space-y-6">
+      <ToothDefs />
       <p className="text-[1.02rem] text-ink-soft">{t('subtitle')}</p>
 
       <div className="overflow-x-auto pb-2">
-        <div className="min-w-[46rem] space-y-5">
-          <Arch
-            label={t('upper')}
-            rightLabel={t('right')}
-            leftLabel={t('left')}
-            teeth={PERMANENT_UPPER}
-            records={records}
-            onSelect={openTooth}
-            numberLabel={label}
-            toothLabel={(n) => t('tooth', { num: label(n) })}
-          />
-          <Arch
-            label={t('lower')}
-            rightLabel={t('right')}
-            leftLabel={t('left')}
-            teeth={PERMANENT_LOWER}
-            records={records}
-            onSelect={openTooth}
-            numberLabel={label}
-            toothLabel={(n) => t('tooth', { num: label(n) })}
-          />
+        {/* Sized to its contents rather than the viewport, so the arches keep
+            their proportions and the page scrolls instead of the chart
+            squashing — a compressed odontogram is an unreadable one. */}
+        <div className="w-max">
+          <div className="flex justify-between px-1 pb-1">
+            <span className="text-[0.85rem] font-bold text-ink-faint">{t('right')}</span>
+            <span className="text-[0.85rem] font-bold text-ink-faint">{t('left')}</span>
+          </div>
 
-          {showPrimary ? (
-            <>
-              <Arch
-                label={t('upperPrimary')}
-                rightLabel={t('right')}
-                leftLabel={t('left')}
-                teeth={PRIMARY_UPPER}
-                records={records}
-                onSelect={openTooth}
-                numberLabel={label}
-                toothLabel={(n) => t('tooth', { num: label(n) })}
-              />
-              <Arch
-                label={t('lowerPrimary')}
-                rightLabel={t('right')}
-                leftLabel={t('left')}
-                teeth={PRIMARY_LOWER}
-                records={records}
-                onSelect={openTooth}
-                numberLabel={label}
-                toothLabel={(n) => t('tooth', { num: label(n) })}
-              />
-            </>
-          ) : null}
+          {/* The upper arch's bottom edge and the midline are the same cyan, and
+              cross at the centre of the mouth — the reference point every other
+              tooth on the chart is read against. */}
+          <div className="border-b-2 border-cyan-400 pb-2">
+            <ArchRow upper right={PERMANENT_UPPER_RIGHT} left={PERMANENT_UPPER_LEFT} {...rowProps} />
+            {showPrimary ? (
+              <ArchRow upper primary right={PRIMARY_UPPER_RIGHT} left={PRIMARY_UPPER_LEFT} {...rowProps} />
+            ) : null}
+          </div>
+
+          <div className="pt-2">
+            {showPrimary ? (
+              <ArchRow primary right={PRIMARY_LOWER_RIGHT} left={PRIMARY_LOWER_LEFT} {...rowProps} />
+            ) : null}
+            <ArchRow right={PERMANENT_LOWER_RIGHT} left={PERMANENT_LOWER_LEFT} {...rowProps} />
+          </div>
         </div>
       </div>
 
@@ -180,7 +261,10 @@ export function DentalChart({
         ref={dialogRef}
         aria-labelledby={`${uid}-title`}
         className="m-auto w-[min(92vw,32rem)] rounded-[var(--radius-card)] border border-line bg-surface p-0 text-ink shadow-pop"
-        onClose={() => setSelected(null)}
+        onClose={() => {
+          setSelected(null);
+          setFocusSurface(null);
+        }}
       >
         {selected === null ? null : (
           <>
@@ -231,7 +315,10 @@ export function DentalChart({
                 </footer>
               </>
             ) : (
-              <form action={formAction}>
+              // Keyed so the uncontrolled radios and checkboxes remount when a
+              // different tooth — or the same tooth by a different surface — is
+              // opened. Without it the previous tooth's ticks stay on screen.
+              <form action={formAction} key={`${selected}-${focusSurface ?? ''}`}>
                 <div className="space-y-4 px-5 py-5">
                   <input type="hidden" name="patientId" value={patientId} />
                   <input type="hidden" name="toothNum" value={selected} />
@@ -239,9 +326,9 @@ export function DentalChart({
                   <fieldset>
                     <legend className="field-label">{t('condition')}</legend>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {TOOTH_STATUSES.map((status) => (
+                      {TOOTH_STATUSES.map((option) => (
                         <label
-                          key={status}
+                          key={option}
                           className={cn(
                             'flex cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-2.5 py-2',
                             'text-[0.92rem] font-semibold hover:border-ink',
@@ -251,21 +338,21 @@ export function DentalChart({
                           <input
                             type="radio"
                             name="status"
-                            value={status}
-                            defaultChecked={statusOf(records, selected) === status}
-                            onChange={() => setStatus(status)}
+                            value={option}
+                            defaultChecked={status === option}
+                            onChange={() => setStatus(option)}
                             className="sr-only"
                           />
                           <span
                             aria-hidden
                             className={cn(
                               'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[0.7rem] font-bold',
-                              TOOTH_STATUS_STYLE[status].swatch,
+                              TOOTH_STATUS_STYLE[option].swatch,
                             )}
                           >
-                            {TOOTH_STATUS_STYLE[status].short}
+                            {TOOTH_STATUS_STYLE[option].short}
                           </span>
-                          {t(`status_${status}`)}
+                          {t(`status_${option}`)}
                         </label>
                       ))}
                     </div>
@@ -273,7 +360,11 @@ export function DentalChart({
 
                   {/* "Caries on 14" is a note; "caries on the distal-occlusal of
                       14" is a treatment plan. Hidden for the statuses where a
-                      surface makes no sense — a missing tooth has none. */}
+                      surface makes no sense — a missing tooth has none.
+
+                      These are also the accessible form of the target above: it
+                      is a mouse shortcut and hidden from assistive technology,
+                      so the same five surfaces have to be reachable here. */}
                   {surfacesApply ? (
                     <fieldset>
                       <legend className="field-label">{t('surfaces')}</legend>
@@ -291,7 +382,10 @@ export function DentalChart({
                               type="checkbox"
                               name="surfaces"
                               value={surface}
-                              defaultChecked={parseSurfaces(current?.surfaces).includes(surface)}
+                              defaultChecked={
+                                surface === focusSurface ||
+                                parseSurfaces(current?.surfaces).includes(surface)
+                              }
                               className="sr-only"
                             />
                             <span aria-hidden className="font-bold">
@@ -349,80 +443,132 @@ export function DentalChart({
   );
 }
 
-function Arch({
-  label,
-  rightLabel,
-  leftLabel,
-  teeth,
-  records,
-  onSelect,
-  numberLabel,
-  toothLabel,
+/**
+ * One arch: two quadrants either side of the midline. The right-hand quadrant is
+ * packed against the midline and the left-hand one away from it, so a five-tooth
+ * primary row still meets the permanent row's centre line exactly.
+ */
+function ArchRow({
+  right,
+  left,
+  upper = false,
+  primary = false,
+  ...cell
 }: {
-  label: string;
-  rightLabel: string;
-  leftLabel: string;
-  teeth: number[];
+  right: number[];
+  left: number[];
+  upper?: boolean;
+  primary?: boolean;
+} & Omit<ToothCellProps, 'toothNum' | 'upper' | 'primary'>) {
+  return (
+    <div className="flex items-stretch">
+      <div className={cn(HALF, 'flex justify-end')}>
+        {right.map((toothNum) => (
+          <ToothCell key={toothNum} toothNum={toothNum} upper={upper} primary={primary} {...cell} />
+        ))}
+      </div>
+
+      <div className="w-0.5 shrink-0 bg-cyan-400" role="presentation" />
+
+      <div className={cn(HALF, 'flex justify-start')}>
+        {left.map((toothNum) => (
+          <ToothCell key={toothNum} toothNum={toothNum} upper={upper} primary={primary} {...cell} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type ToothCellProps = {
+  toothNum: number;
   records: ToothRecordMap;
-  onSelect: (toothNum: number) => void;
+  readOnly: boolean;
+  /** Crown down, root up — and the number sits beneath the target. */
+  upper?: boolean;
+  primary?: boolean;
+  onSelect: (toothNum: number, surface?: ToothSurface | null) => void;
   /** FDI or Universal, whichever the practice reads. */
   numberLabel: (toothNum: number) => string;
   toothLabel: (toothNum: number) => string;
-}) {
+};
+
+function ToothCell({
+  toothNum,
+  records,
+  readOnly,
+  upper = false,
+  primary = false,
+  onSelect,
+  numberLabel,
+  toothLabel,
+}: ToothCellProps) {
+  const record = records[toothNum];
+  const status = statusOf(records, toothNum);
+  const style = TOOTH_STATUS_STYLE[status];
+  const marked = parseSurfaces(record?.surfaces);
+  const whole = status !== 'HEALTHY' && (WHOLE_TOOTH_STATUSES.includes(status) || marked.length === 0);
+
+  const glyph = (
+    <button
+      type="button"
+      onClick={() => onSelect(toothNum)}
+      aria-label={toothLabel(toothNum)}
+      className={cn(
+        'relative block w-full rounded-md transition-colors hover:bg-brand-soft/60',
+        primary ? 'h-12' : 'h-16',
+      )}
+    >
+      <ToothGlyph toothNum={toothNum} surfaces={marked} whole={whole} />
+      {record?.notes ? (
+        <span aria-hidden className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-ink-faint" />
+      ) : null}
+    </button>
+  );
+
+  const target = (
+    <div className="mx-auto h-9 w-9">
+      <SurfaceTarget
+        toothNum={toothNum}
+        readOnly={readOnly}
+        fillOf={(surface) => surfaceFill(status, record?.surfaces, surface)}
+        onSurfaceClick={(surface) => onSelect(toothNum, surface)}
+      />
+    </div>
+  );
+
+  // The status letter rides with the number so the condition never depends on
+  // colour alone — the same reason the legend carries one.
+  const number = (
+    <span
+      className={cn(
+        'block text-center text-[0.85rem] leading-5 font-bold tabular-nums',
+        status === 'HEALTHY' ? 'text-ink-faint' : 'text-ink',
+      )}
+    >
+      {numberLabel(toothNum)}
+      {style.short ? (
+        <span aria-hidden className="ml-0.5 text-[0.7rem] opacity-80">
+          {style.short}
+        </span>
+      ) : null}
+    </span>
+  );
+
   return (
-    <section>
-      <h3 className="mb-2 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
-        {label}
-      </h3>
-      <div className="flex items-center gap-3">
-        <span className="w-6 shrink-0 text-center text-[0.85rem] font-bold text-ink-faint">
-          {rightLabel.charAt(0)}
-        </span>
-
-        <div className="flex flex-1 items-stretch gap-1.5">
-          {teeth.map((toothNum, index) => {
-            const status = statusOf(records, toothNum);
-            const style = TOOTH_STATUS_STYLE[status];
-            const hasNotes = Boolean(records[toothNum]?.notes);
-
-            return (
-              // The midline gap falls after the last tooth of the first
-              // quadrant, which is halfway along whichever row this is.
-              <div
-                key={toothNum}
-                className={cn('flex-1', index === teeth.length / 2 - 1 && 'mr-4')}
-              >
-                <button
-                  type="button"
-                  onClick={() => onSelect(toothNum)}
-                  aria-label={toothLabel(toothNum)}
-                  className={cn(
-                    'relative flex h-14 w-full flex-col items-center justify-center rounded-md border font-bold transition-colors',
-                    style.button,
-                  )}
-                >
-                  <span className="text-[0.95rem] leading-none">{numberLabel(toothNum)}</span>
-                  {style.short ? (
-                    <span aria-hidden className="mt-0.5 text-[0.78rem] leading-none opacity-90">
-                      {style.short}
-                    </span>
-                  ) : null}
-                  {hasNotes ? (
-                    <span
-                      aria-hidden
-                      className="absolute top-1 right-1 h-2 w-2 rounded-full bg-current"
-                    />
-                  ) : null}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        <span className="w-6 shrink-0 text-center text-[0.85rem] font-bold text-ink-faint">
-          {leftLabel.charAt(0)}
-        </span>
-      </div>
-    </section>
+    <div className={cn(CELL, 'flex flex-col gap-1 px-0.5')}>
+      {upper ? (
+        <>
+          {glyph}
+          {target}
+          {number}
+        </>
+      ) : (
+        <>
+          {number}
+          {target}
+          {glyph}
+        </>
+      )}
+    </div>
   );
 }

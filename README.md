@@ -146,6 +146,26 @@ npm run dev
 Open <http://localhost:3000> — you land on `/sq`. Switch language from the rail
 at the bottom-left.
 
+## Deploying
+
+`Dockerfile` builds the production image and `docker-compose.prod.yml` describes
+the deployed stack — the app, Postgres, and the volume holding patient files.
+The container reconciles its own schema on boot and refuses to start without
+`DATABASE_URL` and `AUTH_SECRET`.
+
+See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the Coolify walkthrough. Two
+things there are easy to get wrong and expensive to discover later: `/data` must
+be a mounted volume or every uploaded X-ray dies with the container, and
+`NEXT_PUBLIC_*` values are compiled into the browser bundle, so they are build
+variables rather than runtime ones.
+
+A fresh database has no staff accounts and the app has no signup, so the first
+Owner is created once with:
+
+```bash
+node /app/docker/create-owner.mjs "Ilir" "Berisha"
+```
+
 ## Scripts
 
 | Script | Purpose |

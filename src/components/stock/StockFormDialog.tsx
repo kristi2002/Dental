@@ -14,6 +14,9 @@ export type StockDefaults = {
   quantity: number;
   minLimit: number;
   unit: string;
+  packSize: number;
+  /** Empty string when nothing has been stated — the list projects one instead. */
+  orderQty: string;
   supplierId: string;
 };
 
@@ -123,6 +126,31 @@ export function StockFormDialog({
           <option key={unit} value={unit} />
         ))}
       </datalist>
+
+      {/* Bulk stock is counted in boxes and ordered in pieces. These two fields
+          are the whole bridge: nothing else in the app converts between them. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          id={`${uid}-packSize`}
+          name="packSize"
+          type="number"
+          min={1}
+          label={t('packSize')}
+          hint={t('packSizeHint')}
+          required
+          defaultValue={item?.packSize ?? 1}
+        />
+        <TextField
+          id={`${uid}-orderQty`}
+          name="orderQty"
+          type="number"
+          min={1}
+          label={t('orderQty')}
+          hint={t('orderQtyHint')}
+          optional={tc('optional')}
+          defaultValue={item?.orderQty ?? ''}
+        />
+      </div>
 
       {/* Only worth asking once somebody has been recorded — otherwise it is an
           empty select on every form. */}

@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
+import { isValidTooth } from '@/lib/teeth';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
@@ -24,10 +25,18 @@ function toStepStatus(value: string): TreatmentStepStatus {
     : TreatmentStepStatus.PENDING;
 }
 
-/** 1–32, or null for work that is not about one specific tooth. */
+/**
+ * An FDI tooth, or null for work that is not about one specific tooth.
+ *
+ * Set membership, not a range: FDI is not contiguous — 19 and 29 are not teeth,
+ * and 33–48 sit above the old Universal ceiling of 32. Validating `1..32` here
+ * silently dropped every step written for a lower-left or lower-right tooth,
+ * and accepted numbers that mean a different tooth to the chart than to whoever
+ * typed them.
+ */
 function toToothNum(value: FormDataEntryValue | null): number | null {
   const parsed = toInt(value, 0);
-  return parsed >= 1 && parsed <= 32 ? parsed : null;
+  return isValidTooth(parsed) ? parsed : null;
 }
 
 export async function savePlan(_prev: ActionState, formData: FormData): Promise<ActionState> {

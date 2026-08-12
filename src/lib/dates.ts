@@ -109,8 +109,25 @@ export function weekDays(date: Date): Date[] {
   return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 }
 
+/**
+ * The 42 cells a month calendar draws: whole weeks, Monday-first, padded with
+ * the tail of the previous month and the head of the next.
+ *
+ * Always six rows, never five — a grid that changes height as the months are
+ * paged through makes everything under it jump, and the sidebar it sits in is
+ * next to a calendar people are reading.
+ */
+export function monthGrid(date: Date): Date[] {
+  const start = startOfWeek(startOfMonth(date));
+  return Array.from({ length: 42 }, (_, i) => addDays(start, i));
+}
+
 export function isSameDay(a: Date, b: Date): boolean {
   return toDateKey(a) === toDateKey(b);
+}
+
+export function isSameMonth(a: Date, b: Date): boolean {
+  return a.getUTCFullYear() === b.getUTCFullYear() && a.getUTCMonth() === b.getUTCMonth();
 }
 
 /** `YYYY-MM` — the bucket key used by the statistics page. */

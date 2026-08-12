@@ -14,8 +14,12 @@ import { AppointmentFormDialog, type PatientOption, type ServiceOption } from '.
 import { ReminderLinks } from './ReminderLinks';
 import type { AppointmentView } from './types';
 
+/* The same five tints the week grid uses, so a status means one colour wherever
+ * it is read. Arrived takes peach at full strength rather than a faded tint —
+ * it is the one row on the grid with somebody sitting in the waiting room. */
 const STATUS_STYLE: Record<string, string> = {
   SCHEDULED: 'border-brand/40 bg-brand-soft',
+  ARRIVED: 'border-accent bg-accent-soft',
   COMPLETED: 'border-ok/30 bg-ok-soft',
   CANCELLED: 'border-line-strong bg-paper opacity-70',
   NO_SHOW: 'border-warn/30 bg-warn-soft',
@@ -62,9 +66,12 @@ export async function AppointmentChip({
   });
 
   return (
+    /* Same deal as the list row: the whole chip opens the patient, so `relative`
+       is what the patient link's overlay stretches against. The hover lift is a
+       shadow rather than a border change — the border here carries the status. */
     <article
       className={cn(
-        'rounded-lg border px-3 py-2.5',
+        'relative rounded-lg border px-3 py-2.5 transition-shadow hover:shadow-card',
         STATUS_STYLE[appointment.status] ?? STATUS_STYLE.SCHEDULED,
       )}
     >
@@ -74,7 +81,7 @@ export async function AppointmentChip({
         </span>
         <Link
           href={`/patients/${appointment.patient.id}`}
-          className="text-[1.05rem] font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-2 hover:decoration-brand"
+          className="text-[1.05rem] font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-2 after:absolute after:inset-0 after:rounded-lg hover:decoration-brand"
         >
           {patientName}
         </Link>
@@ -91,8 +98,12 @@ export async function AppointmentChip({
         </p>
       ) : null}
 
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {canEdit && appointment.status === 'SCHEDULED' ? (
+      {/* `relative` lifts the controls back above the chip-wide patient link. */}
+      <div className="relative mt-2 flex flex-wrap items-center gap-1.5">
+        {/* Arrived counts as still-open work, same as the list row: otherwise
+            walking someone in from the dashboard leaves the day grid with no way
+            to close them out. */}
+        {canEdit && (appointment.status === 'SCHEDULED' || appointment.status === 'ARRIVED') ? (
           <ActionForm
             action={setAppointmentStatus}
             values={{ id: appointment.id, status: 'COMPLETED' }}

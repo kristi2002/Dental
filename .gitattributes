@@ -1,0 +1,7 @@
+# The container's entrypoint is authored on Windows and executed on Alpine. A
+# CRLF line ending survives the checkout, reaches the shebang, and the kernel
+# then looks for an interpreter called "/bin/sh\r" — which fails with the
+# spectacularly unhelpful "no such file or directory". Force LF.
+*.sh text eol=lf
+docker/* text eol=lf
+Dockerfile text eol=lf

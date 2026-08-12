@@ -1,4 +1,4 @@
-import { CircleCheck, Clock, DoorOpen, Trash2 } from 'lucide-react';
+import { CircleCheck, Clock, DoorOpen, Trash2, UserX } from 'lucide-react';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Badge } from '@/components/ui/Badge';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -6,7 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { deleteAppointment, setAppointmentStatus } from '@/lib/actions/appointments';
 import { can } from '@/lib/auth/session';
 import { confirmationToken, confirmationUrl } from '@/lib/confirmations';
-import { minutesToTime, timeToMinutes } from '@/lib/dates';
+import { minutesToTime, timeToMinutes, toDateKey, today } from '@/lib/dates';
 import { getOperatoryOptions, getProviderOptions } from '@/lib/queries';
 import { composeReminder } from '@/lib/reminder-messages';
 import { AppointmentFormDialog, type PatientOption, type ServiceOption } from './AppointmentFormDialog';
@@ -42,6 +42,8 @@ export async function AppointmentRow({
 
   const endTime = minutesToTime(timeToMinutes(appointment.startTime) + appointment.durationMin);
   const patientName = `${appointment.patient.firstName} ${appointment.patient.lastName}`;
+  // Both are `YYYY-MM-DD`, which compares correctly as text.
+  const isPast = appointment.date < toDateKey(today());
 
   // The link the patient taps to answer. Derived, not stored — see confirmations.ts.
   // It points at *their* language, not the reader's, so the confirmation page
@@ -63,9 +65,14 @@ export async function AppointmentRow({
     /* The row shows up in a full-width list and in the dashboard's narrower
        column, so it sizes itself against its own container rather than the
        viewport — a `lg:` breakpoint would give the dashboard a three-column
-       layout it has no room for. */
-    <div className="@container border-b border-line last:border-b-0">
-      <article className="grid items-baseline gap-x-4 gap-y-3 px-5 py-4 @[30rem]:grid-cols-[10.5rem_minmax(0,1fr)] @[75rem]:grid-cols-[10.5rem_minmax(0,1fr)_max-content]">
+       layout it has no room for.
+
+       A bordered card rather than a hairline-separated row: an appointment is
+       one object you act on, and the box says where it starts and stops. The
+       whole box opens the patient — `relative` here is what the patient link's
+       overlay stretches against. */
+    <div className="@container relative rounded-[var(--radius-card)] border border-line bg-surface transition-colors hover:border-line-strong hover:shadow-card">
+      <article className="grid items-baseline gap-x-4 gap-y-3 px-4 py-3.5 @[30rem]:grid-cols-[10.5rem_minmax(0,1fr)] @[75rem]:grid-cols-[10.5rem_minmax(0,1fr)_max-content]">
         <div className="flex items-baseline gap-2 @[30rem]:flex-col @[30rem]:gap-0.5">
           <span className="text-2xl font-bold tabular-nums text-ink">{appointment.startTime}</span>
           <span className="flex items-center gap-1 text-[0.9rem] text-ink-faint tabular-nums">
@@ -79,9 +86,12 @@ export async function AppointmentRow({
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {/* One link, stretched over the whole card by its own ::after, so
+                anywhere on the box opens the patient — the name still carries
+                the accessible label and the focus ring. */}
             <Link
               href={`/patients/${appointment.patient.id}`}
-              className="text-[1.15rem]/8 font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-4 hover:decoration-brand"
+              className="text-[1.15rem]/8 font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-4 after:absolute after:inset-0 after:rounded-[var(--radius-card)] hover:decoration-brand"
             >
               {patientName}
             </Link>
@@ -113,14 +123,18 @@ export async function AppointmentRow({
             lines made the row look twice as busy as it is. Sits under the details
             until the row is wide enough for a third column, so the details never
             get squeezed into a sliver — five buttons need noticeably more room
-            than three, hence the later breakpoint. */}
-        <div className="flex flex-wrap items-center gap-2 @[30rem]:col-start-2 @[30rem]:justify-end @[75rem]:col-start-3 @[75rem]:row-start-1 @[75rem]:self-start">
+            than three, hence the later breakpoint.
+
+            `relative` lifts the strip back above the card-wide patient link, so
+            marking someone arrived does not navigate away instead. */}
+        <div className="relative flex flex-wrap items-center gap-2 @[30rem]:col-start-2 @[30rem]:justify-end @[75rem]:col-start-3 @[75rem]:row-start-1 @[75rem]:self-start">
           <ReminderLinks
             patientId={appointment.patient.id}
             appointmentId={appointment.id}
             whatsapp={reminder.whatsapp}
             mail={reminder.mail}
             body={reminder.body}
+            consent={appointment.patient.contactConsent}
           />
 
           {/* The front desk’s most-pressed button. Without it the day list is a
@@ -139,6 +153,23 @@ export async function AppointmentRow({
               <button type="submit" className="btn btn-secondary btn-sm" title={t('markCompleted')}>
                 <CircleCheck size={18} aria-hidden />
                 <span className="sr-only @[30rem]:not-sr-only">{t('markCompleted')}</span>
+              </button>
+            </ActionForm>
+          ) : null}
+
+          {/* Only once the day has passed. "Did not come" is not a thing anybody
+              can know at half past nine, and offering it beside "arrived" all day
+              is how a slot gets written off ten minutes before its patient walks
+              in — but a week later it is the only honest answer left, and without
+              it the row stays open forever. */}
+          {canEdit && isPast && appointment.status !== 'COMPLETED' ? (
+            <ActionForm
+              action={setAppointmentStatus}
+              values={{ id: appointment.id, status: 'NO_SHOW' }}
+            >
+              <button type="submit" className="btn btn-secondary btn-sm" title={t('markNoShow')}>
+                <UserX size={18} aria-hidden />
+                <span className="sr-only @[30rem]:not-sr-only">{t('markNoShow')}</span>
               </button>
             </ActionForm>
           ) : null}

@@ -1,6 +1,6 @@
 'use client';
 
-import { Mail, MessageCircle } from 'lucide-react';
+import { BellOff, Mail, MessageCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 import { logContact } from '@/lib/actions/contacts';
@@ -19,6 +19,7 @@ export function ReminderLinks({
   whatsapp,
   mail,
   body,
+  consent = null,
   purpose = 'REMINDER',
   size = 'sm',
 }: {
@@ -28,6 +29,12 @@ export function ReminderLinks({
   whatsapp: string | null;
   mail: string | null;
   body: string;
+  /**
+   * Tri-state, matching `Patient.contactConsent`. `null` is "nobody has asked",
+   * which is not a refusal — the honest state of every record that predates the
+   * question, and messaging is still offered. Only an explicit `false` closes it.
+   */
+  consent?: boolean | null;
   purpose?: 'REMINDER' | 'RECALL' | 'CONFIRMATION' | 'FOLLOW_UP' | 'OTHER';
   size?: 'sm' | 'md';
 }) {
@@ -36,6 +43,18 @@ export function ReminderLinks({
 
   const buttonClass = size === 'sm' ? 'btn btn-secondary btn-sm' : 'btn btn-secondary';
   const iconSize = size === 'sm' ? 17 : 19;
+
+  // Asking somebody who said not to is worse than not asking at all. The
+  // dashboard's chase list already honoured this in its query; every other
+  // screen offered the button anyway, which made the setting decorative.
+  if (consent === false) {
+    return (
+      <p className="flex items-center gap-1.5 text-[0.9rem] font-semibold text-ink-faint">
+        <BellOff size={iconSize} aria-hidden />
+        {t('optedOut')}
+      </p>
+    );
+  }
 
   // Fire-and-forget: the log must never delay or block the message. The link's
   // own navigation is left alone, so this works the same whether WhatsApp opens

@@ -1,5 +1,6 @@
 import { addDays, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
+import { ACTIVE_STOCK } from '@/lib/queries';
 
 /**
  * What to order, worked out from what was actually used.
@@ -24,12 +25,16 @@ export type ReorderLine = {
   unit: string;
   quantity: number;
   minLimit: number;
+  /** Pieces per unit. 1 for anything counted singly. */
+  packSize: number;
   /** Units consumed per 30 days over the window. */
   monthlyUse: number;
   /** `null` when nothing is being used — stock that never moves never runs out. */
   daysLeft: number | null;
-  /** How many units to buy to reach the target cover. */
+  /** How many units to buy: the owner's stated quantity, else the projection. */
   suggested: number;
+  /** True when the quantity was stated rather than projected. */
+  stated: boolean;
   urgent: boolean;
   /** ISO date the order went out, or null. A line already on order is shown as
    *  answered rather than asked again every morning. */
@@ -43,6 +48,7 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
 
   const [items, used] = await Promise.all([
     prisma.stockItem.findMany({
+      where: ACTIVE_STOCK,
       orderBy: { name: 'asc' },
       include: { supplier: { select: { name: true } } },
     }),
@@ -69,13 +75,19 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
     // Cover the next stretch and still land on the minimum level, then round up
     // to something a person would actually write on an order form.
     const target = Math.ceil(dailyUse * COVER_DAYS) + item.minLimit;
-    const suggested = Math.max(0, target - item.quantity);
+    const projected = Math.max(0, target - item.quantity);
 
     const urgent =
       item.quantity <= item.minLimit || (daysLeft !== null && daysLeft <= URGENT_DAYS);
 
     // Nothing to say about an item that is neither low nor running down.
-    if (suggested <= 0 && !urgent) continue;
+    //
+    // A stated order quantity has no projection behind it — bulk stock is
+    // counted on the shelf every few months, so its consumption is lumpy and
+    // "days left" is noise. The minimum level is the entire signal, and the
+    // line stays quiet until the shelf actually reaches it.
+    const worthSaying = item.orderQty !== null ? urgent : urgent || projected > 0;
+    if (!worthSaying) continue;
 
     const onOrder = item.orderedAt !== null;
 
@@ -85,9 +97,14 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
       unit: item.unit,
       quantity: item.quantity,
       minLimit: item.minLimit,
+      packSize: item.packSize,
       monthlyUse: Math.round(monthlyUse * 10) / 10,
       daysLeft,
-      suggested: Math.max(suggested, urgent && suggested === 0 ? item.minLimit : suggested),
+      // The owner's own figure wins. Falling back to `minLimit` when there is
+      // nothing to project from is a guess, but a guess on the order form is
+      // better than a zero — it is the number `orderQty` exists to replace.
+      suggested: item.orderQty ?? (urgent && projected === 0 ? item.minLimit : projected),
+      stated: item.orderQty !== null,
       // Something already on its way is not urgent any more — the decision has
       // been taken, and leaving it at the top of the list is what teaches people
       // to skim past the top of the list.
@@ -111,12 +128,26 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
   });
 }
 
+/**
+ * How much to ask the supplier for.
+ *
+ * The shelf is counted in boxes but the supplier sells pieces, so a box-counted
+ * line is printed as both — pieces first, because that is the number said out
+ * loud when the order is placed. "500 (5 boxes)", not "5 box".
+ */
+export function orderAmount(line: Pick<ReorderLine, 'suggested' | 'unit' | 'packSize'>): string {
+  if (line.packSize > 1) {
+    return `${line.suggested * line.packSize} (${line.suggested} ${line.unit})`;
+  }
+  return `${line.suggested} ${line.unit}`;
+}
+
 /** The order list as plain text, for pasting into a WhatsApp message to a supplier. */
 export function reorderAsText(lines: ReorderLine[], heading: string): string {
   // What is already coming does not belong on an order form.
   const body = lines
     .filter((line) => line.suggested > 0 && line.orderedAt === null)
-    .map((line) => `• ${line.name}: ${line.suggested} ${line.unit}`)
+    .map((line) => `• ${line.name}: ${orderAmount(line)}`)
     .join('\n');
 
   return `${heading}\n${body}`;

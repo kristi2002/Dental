@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
 import type { ReorderLine } from '@/lib/reorder';
-import { reorderAsText } from '@/lib/reorder';
+import { orderAmount, reorderAsText } from '@/lib/reorder';
 import { cn } from '@/lib/utils';
 
 /**
@@ -56,25 +56,41 @@ export function ReorderPanel({ lines }: { lines: ReorderLine[] }) {
                 ) : null}
               </p>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[0.92rem] text-ink-soft">
-                <span className="flex items-center gap-1.5">
-                  <TrendingDown size={15} aria-hidden />
-                  {t('monthlyUse', { qty: line.monthlyUse, unit: line.unit })}
-                </span>
-                <span
-                  className={cn(
-                    line.daysLeft !== null && line.daysLeft <= 14 ? 'font-bold text-warn' : '',
-                  )}
-                >
-                  {line.daysLeft === null
-                    ? t('noUsage')
-                    : t('daysLeft', { days: line.daysLeft })}
-                </span>
+                {/* Bulk stock is counted on the shelf every few months, so its
+                    burn rate is lumpy and "days left" would be a made-up
+                    number. What is on the shelf against the minimum is the only
+                    honest thing to show for it. */}
+                {line.stated ? (
+                  <span>
+                    {t('onShelf', {
+                      qty: line.quantity,
+                      unit: line.unit,
+                      min: line.minLimit,
+                    })}
+                  </span>
+                ) : (
+                  <>
+                    <span className="flex items-center gap-1.5">
+                      <TrendingDown size={15} aria-hidden />
+                      {t('monthlyUse', { qty: line.monthlyUse, unit: line.unit })}
+                    </span>
+                    <span
+                      className={cn(
+                        line.daysLeft !== null && line.daysLeft <= 14 ? 'font-bold text-warn' : '',
+                      )}
+                    >
+                      {line.daysLeft === null
+                        ? t('noUsage')
+                        : t('daysLeft', { days: line.daysLeft })}
+                    </span>
+                  </>
+                )}
               </p>
             </div>
 
             <p className="shrink-0 text-right">
               <span className="block text-[1.15rem] font-bold text-brand-deep tabular-nums">
-                +{line.suggested} {line.unit}
+                +{orderAmount(line)}
               </span>
               <span className="block text-[0.85rem] text-ink-faint">{t('suggested')}</span>
             </p>
