@@ -9,6 +9,7 @@ import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { age } from '@/lib/dates';
 import { hasAllergyNote } from '@/lib/medical';
+import { fold } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 import { getReliabilityMap } from '@/lib/reliability';
 import { initials } from '@/lib/utils';
@@ -36,14 +37,21 @@ export default async function PatientsPage({
   const { q } = await searchParams;
   const query = (q ?? '').trim();
 
+  // One folded column, one comparison — the same answer the in-memory `matches()`
+  // helper gives, so typing the same thing into any box in the app finds the
+  // same people. Digits are matched against the phone directly, because folding
+  // does not help a number and `searchKey` holds it as typed.
+  const folded = fold(query);
+  const digits = query.replace(/\D/g, '');
   const patients = await prisma.patient.findMany({
     where: query
       ? {
           OR: [
-            { firstName: { contains: query, mode: 'insensitive' } },
-            { lastName: { contains: query, mode: 'insensitive' } },
-            { phone: { contains: query } },
-            { email: { contains: query, mode: 'insensitive' } },
+            { searchKey: { contains: folded } },
+            // Only when something was actually typed as a number: an empty
+            // `contains` matches every row, which would turn a name search that
+            // happens to contain no digits into "show everyone".
+            ...(digits.length >= 3 ? [{ phone: { contains: digits } }] : []),
           ],
         }
       : undefined,

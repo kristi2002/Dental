@@ -1,8 +1,8 @@
 'use client';
 
-import { Pencil, Plus } from 'lucide-react';
+import { Pencil, Plus, TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { SelectField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { saveClosure } from '@/lib/actions/settings';
@@ -27,12 +27,14 @@ export function ClosureFormDialog({
   const tc = useTranslations('common');
   const uid = useId();
   const editing = Boolean(closure);
+  const [force, setForce] = useState(false);
 
   return (
     <FormDialog
       key={closure?.id ?? 'new'}
       action={saveClosure}
       resetOnSuccess={!editing}
+      onClose={() => setForce(false)}
       title={editing ? t('closureEdit') : t('closureNew')}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
@@ -54,7 +56,10 @@ export function ClosureFormDialog({
         )
       }
     >
+      {(state) => (
+        <>
       {closure ? <input type="hidden" name="id" value={closure.id} /> : null}
+      {force ? <input type="hidden" name="force" value="1" /> : null}
 
       <TextField
         id={`${uid}-reason`}
@@ -104,6 +109,25 @@ export function ClosureFormDialog({
           ))}
         </SelectField>
       ) : null}
+
+      {/* Reported, not enforced: declaring the shutdown before moving the
+          bookings is a normal order to work in — but it has to be seen. */}
+      {state.status === 'error' && state.code === 'bookedOver' ? (
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5 font-semibold text-warn">
+          <input
+            type="checkbox"
+            checked={force}
+            onChange={(event) => setForce(event.target.checked)}
+            className="mt-1 size-4 shrink-0 accent-current"
+          />
+          <span className="flex items-start gap-1.5">
+            <TriangleAlert size={18} aria-hidden className="mt-0.5 shrink-0" />
+            {tc('saveAnyway')}
+          </span>
+        </label>
+      ) : null}
+        </>
+      )}
     </FormDialog>
   );
 }

@@ -2,7 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
-import { AppointmentStatus } from '@/generated/prisma/enums';
+import {
+  AppointmentStatus,
+  ContactChannel,
+  ContactPurpose,
+} from '@/generated/prisma/enums';
 import { recordPatientAudit } from '@/lib/auth/guard';
 import { verifyConfirmationToken } from '@/lib/confirmations';
 import { today, toDateKey } from '@/lib/dates';
@@ -37,7 +41,7 @@ export async function respondToAppointment(
       startTime: true,
       status: true,
       declinedAt: true,
-      patient: { select: { firstName: true, lastName: true } },
+      patient: { select: { id: true, firstName: true, lastName: true } },
     },
   });
   if (!appointment) return actionError(t('errorInvalid'));
@@ -91,6 +95,29 @@ export async function respondToAppointment(
     entityId: appointmentId,
     summary: `${toDateKey(appointment.date)} ${appointment.startTime}`,
   });
+
+  // The patient's own answer belongs in the contact history.
+  //
+  // Every other exchange with this person is on that tab, and this is the one
+  // the clinic can be most certain of — it is not "a message was put in front of
+  // them", it is them replying. Leaving it out meant the one screen that exists
+  // to answer "nobody told me" was missing the strongest evidence there is.
+  //
+  // No actor: nobody at the practice did this.
+  try {
+    await prisma.contact.create({
+      data: {
+        patientId: appointment.patient.id,
+        appointmentId,
+        channel: ContactChannel.WHATSAPP,
+        purpose: ContactPurpose.CONFIRMATION,
+        body: coming ? t('thanksConfirmed') : t('thanksDeclined'),
+      },
+    });
+  } catch (error) {
+    // Never allowed to undo an answer the patient has already given.
+    console.error('[confirmations] could not record the reply', error);
+  }
 
   revalidatePath('/', 'layout');
   return actionOk();

@@ -1,6 +1,7 @@
 'use client';
 
-import { useFormatter, useTranslations } from 'next-intl';
+import { TriangleAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useActionState, useId, useState } from 'react';
 import { SubmitButton } from '@/components/ui/SubmitButton';
 import { saveClinicHours } from '@/lib/actions/settings';
@@ -14,27 +15,36 @@ import { cn } from '@/lib/utils';
  * shape of the whole week, and seven dialogs to set it up would be seven
  * chances to leave one day wrong.
  */
-export function ClinicHoursForm({ week, canEdit }: { week: DayHours[]; canEdit: boolean }) {
+export function ClinicHoursForm({
+  week,
+  canEdit,
+  weekdayNames,
+}: {
+  week: DayHours[];
+  canEdit: boolean;
+  /**
+   * Weekday label per index, rendered on the server.
+   *
+   * Formatting them here instead made this component the one place in the app
+   * where a date string was produced in the browser, and Node's ICU and the
+   * browser's do not always agree on how an Albanian weekday is capitalised —
+   * which surfaced as a hydration mismatch on every load of this page.
+   */
+  weekdayNames: Record<number, string>;
+}) {
   const t = useTranslations('settings');
   const tc = useTranslations('common');
-  const format = useFormatter();
   const uid = useId();
 
   const [state, formAction] = useActionState(saveClinicHours, IDLE_STATE);
+  // Cleared whenever the form reports something new, so an override never
+  // carries silently into the next save.
+  const [force, setForce] = useState(false);
   const [open, setOpen] = useState<Record<number, boolean>>(
     Object.fromEntries(week.map((day) => [day.weekday, day.open])),
   );
 
   const byWeekday = new Map(week.map((day) => [day.weekday, day]));
-
-  /**
-   * Weekday names come from the locale's own calendar data rather than the
-   * message catalogue — three more lists to translate by hand would be three
-   * more places for "Mërkurë" to be misspelled. 2024-01-07 was a Sunday, so
-   * adding the weekday index lands on the right day.
-   */
-  const weekdayName = (weekday: number) =>
-    format.dateTime(new Date(Date.UTC(2024, 0, 7 + weekday)), { weekday: 'long' });
 
   return (
     <form action={formAction}>
@@ -82,7 +92,7 @@ export function ClinicHoursForm({ week, canEdit }: { week: DayHours[]; canEdit: 
                         }
                         className="size-5 accent-[var(--brand)]"
                       />
-                      {weekdayName(weekday)}
+                      {weekdayNames[weekday]}
                     </label>
                   </td>
 
@@ -145,11 +155,32 @@ export function ClinicHoursForm({ week, canEdit }: { week: DayHours[]; canEdit: 
       </div>
 
       {canEdit ? (
-        <div className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line px-5 py-4">
+          {force ? <input type="hidden" name="force" value="1" /> : null}
+
           {state.status === 'error' ? (
             <p role="alert" className="mr-auto font-semibold text-danger">
               {state.message}
             </p>
+          ) : null}
+
+          {/* Narrowing the week does not move the people already booked into
+              the hours being removed — it only stops the calendar drawing them.
+              Overridable, because shrinking the week and then rebooking is a
+              normal order to work in. */}
+          {state.status === 'error' && state.code === 'bookedOver' ? (
+            <label className="flex w-full cursor-pointer items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5 font-semibold text-warn">
+              <input
+                type="checkbox"
+                checked={force}
+                onChange={(event) => setForce(event.target.checked)}
+                className="mt-1 size-4 shrink-0 accent-current"
+              />
+              <span className="flex items-start gap-1.5">
+                <TriangleAlert size={18} aria-hidden className="mt-0.5 shrink-0" />
+                {tc('saveAnyway')}
+              </span>
+            </label>
           ) : null}
           {state.status === 'ok' ? (
             <p role="status" className="mr-auto font-semibold text-ok">

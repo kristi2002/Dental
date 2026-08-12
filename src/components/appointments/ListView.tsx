@@ -8,11 +8,9 @@ import type { AppointmentView } from './types';
 /** A flat agenda for the whole month, grouped by day. */
 export function ListView({
   appointments,
-  patients,
   services,
 }: {
   appointments: AppointmentView[];
-  patients: PatientOption[];
   services: ServiceOption[];
 }) {
   const t = useTranslations('appointments');
@@ -42,7 +40,6 @@ export function ListView({
                 <AppointmentRow
                   key={appointment.id}
                   appointment={appointment}
-                  patients={patients}
                   services={services}
                 />
               ))}

@@ -35,7 +35,6 @@ import {
   getOpenPastAppointments,
   getOpenWaitlist,
   getOperatoryOptions,
-  getPatientOptions,
   getProviderOptions,
   getServiceOptions,
   getUnrecordedToday,
@@ -81,7 +80,6 @@ export default async function DashboardPage({
     weekCount,
     patientCount,
     lowStock,
-    patients,
     services,
     staff,
     operatories,
@@ -102,7 +100,6 @@ export default async function DashboardPage({
       }),
       prisma.patient.count(),
       getLowStockItems(),
-      getPatientOptions(),
       getServiceOptions(),
       getProviderOptions(),
       getOperatoryOptions(),
@@ -222,7 +219,6 @@ export default async function DashboardPage({
           ) : null}
           {canAddAppointment ? (
             <AppointmentFormDialog
-              patients={patients}
               services={services}
               staff={staff}
               operatories={operatories}
@@ -290,7 +286,6 @@ export default async function DashboardPage({
               <AppointmentRow
                 key={appointment.id}
                 appointment={appointment}
-                patients={patients}
                 services={services}
                 showDate
               />
@@ -326,7 +321,6 @@ export default async function DashboardPage({
                 <AppointmentRow
                   key={appointment.id}
                   appointment={appointment}
-                  patients={patients}
                   services={services}
                 />
               ))}
@@ -340,7 +334,6 @@ export default async function DashboardPage({
           <FreeTimeCard
             gaps={freeGaps}
             date={dayKey}
-            patients={patients}
             services={services}
             canBook={canAddAppointment}
             canCreatePatient={canAddPatient}
@@ -441,7 +434,6 @@ export default async function DashboardPage({
                   <AppointmentRow
                     key={appointment.id}
                     appointment={appointment}
-                    patients={patients}
                     services={services}
                     showDate
                   />

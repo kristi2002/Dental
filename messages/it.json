@@ -146,6 +146,7 @@
     "fiscalCode": "Codice fiscale",
     "emergencyContact": "Contatto d’emergenza",
     "referralSource": "Come ci ha trovati",
+    "addAnyway": "Aggiungilo comunque — è un'altra persona",
     "referralSourceHint": "Passaparola, di passaggio, un altro dentista — quello che ha detto."
   },
   "appointments": {
@@ -379,6 +380,7 @@
     "confirmAsk": "Ci faccia sapere se verrà: {link}"
   },
   "errors": {
+    "duplicatePhone": "Esiste già un paziente con questo numero: {list}.",
     "generic": "Qualcosa è andato storto. Riprova.",
     "required": "Questo campo è obbligatorio.",
     "fillRequired": "Compila tutti i campi obbligatori.",
@@ -388,6 +390,8 @@
     "forbidden": "Il tuo ruolo non lo consente.",
     "overlap": "Si sovrappone a un appuntamento esistente: {list}.",
     "labPending": "Il laboratorio non ha ancora promesso il rientro del lavoro di questo paziente: {list}.",
+    "closureClash": "Qualcuno è già in agenda in questi giorni: {list}.",
+    "hoursClash": "{count, plural, one {# appuntamento cade} other {# appuntamenti cadono}} fuori dal nuovo orario: {list}.",
     "hoursInvalid": "Un giorno aperto deve chiudere dopo l’orario di apertura.",
     "rangeBackwards": "La data finale non può precedere quella iniziale.",
     "substanceRequired": "Indica la sostanza — un'allergia senza nome non può essere confrontata con una ricetta.",
@@ -670,6 +674,21 @@
     "onShelf": "{qty} {unit} in magazzino · minimo {min}",
     "onOrder": "Ordinato"
   },
+  "setup": {
+    "title": "Configura lo studio",
+    "subtitle": "Questo database non ha ancora account. Crea l'account del titolare — questa pagina non sarà più disponibile.",
+    "pin": "PIN",
+    "confirmPin": "Ripeti il PIN",
+    "pinHint": "Da {min} a {max} cifre. Lo userai per accedere.",
+    "createOwner": "Crea l'account del titolare",
+    "afterHint": "Accederai subito. Tutti gli altri si aggiungono dalla pagina Personale, dove puoi anche cambiare i PIN.",
+    "errorNames": "Inserisci nome e cognome.",
+    "errorPinFormat": "Il PIN deve avere da 4 a 6 cifre.",
+    "errorPinMismatch": "I due PIN non coincidono.",
+    "errorAlreadySetUp": "Questo studio ha già un account. Accedi invece.",
+    "errorGeneric": "Qualcosa è andato storto. Riprova.",
+    "tooMany": "Troppi tentativi. Attendi un minuto e riprova."
+  },
   "confirm": {
     "title": "Conferma il tuo appuntamento",
     "greeting": "Buongiorno {name}",
@@ -712,6 +731,7 @@
     "saved": "Salvato",
     "closuresTitle": "Chiusure",
     "closuresSubtitle": "Festività e ferie — hanno la precedenza sulla settimana.",
+    "saveAnyway": "Salva comunque — sposterò quegli appuntamenti",
     "closuresEmpty": "Nessuna chiusura in programma.",
     "closureNew": "Aggiungi chiusura",
     "closureEdit": "Modifica chiusura",

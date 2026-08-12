@@ -88,8 +88,21 @@ Slightly more clicking, but you get Coolify's database backup UI.
 ## First sign-in
 
 A fresh database has **no staff accounts**, and the app has no self-service
-signup — so nobody can sign in until you create the first Owner. Run this once,
-in the container (Coolify's terminal for the app, or `docker exec`):
+signup — so nobody can sign in until the first Owner exists.
+
+**Open the site.** With an empty staff table you land on `/setup`, which asks for
+a name and a PIN, creates the Owner and signs you in. Add everyone else from the
+Staff page afterwards.
+
+Do it straight after deploying. The page is only reachable while the practice has
+nobody in it — it redirects to sign-in the moment an account exists, and the
+insert behind it is conditional on the table still being empty, so a second
+submission arriving at the same instant creates nothing. But between the deploy
+finishing and you setting up, that door is open to whoever knows the URL.
+
+If you would rather not have it open at all, create the Owner from a shell first
+(Coolify's terminal for the app, or `docker exec`) — one account is enough to
+close `/setup` permanently:
 
 ```bash
 node /app/docker/create-owner.mjs "Ilir" "Berisha"

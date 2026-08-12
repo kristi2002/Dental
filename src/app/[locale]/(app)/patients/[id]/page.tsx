@@ -42,7 +42,6 @@ import { prisma } from '@/lib/prisma';
 import {
   getOperatoryOptions,
   getPatientAppointments,
-  getPatientOptions,
   getProviderOptions,
   getServiceOptions,
 } from '@/lib/queries';
@@ -209,9 +208,8 @@ export default async function PatientDetailPage({
       )
     : [];
 
-  const [appointments, patientOptions, services, staff, operatories] = await Promise.all([
+  const [appointments, services, staff, operatories] = await Promise.all([
     getPatientAppointments(id),
-    getPatientOptions(),
     getServiceOptions(),
     getProviderOptions(),
     getOperatoryOptions(),
@@ -313,11 +311,10 @@ export default async function PatientDetailPage({
         <div className="flex flex-wrap items-center gap-2">
           {canBook ? (
             <AppointmentFormDialog
-              patients={patientOptions}
               services={services}
               staff={staff}
               operatories={operatories}
-              defaultPatientId={patient.id}
+              defaultPatient={{ id: patient.id, name: fullName, phone: patient.phone }}
               defaultDate={toDateKey(today())}
             />
           ) : null}
@@ -567,11 +564,10 @@ export default async function PatientDetailPage({
               canBook
                 ? (step) => (
                     <AppointmentFormDialog
-                      patients={patientOptions}
                       services={services}
                       staff={staff}
                       operatories={operatories}
-                      defaultPatientId={patient.id}
+                      defaultPatient={{ id: patient.id, name: fullName, phone: patient.phone }}
                       defaultDate={toDateKey(today())}
                       planStepId={step.id}
                       triggerClassName="btn btn-secondary btn-sm"
@@ -679,11 +675,10 @@ export default async function PatientDetailPage({
             action={
               canBook ? (
                 <AppointmentFormDialog
-                  patients={patientOptions}
                   services={services}
                   staff={staff}
                   operatories={operatories}
-                  defaultPatientId={patient.id}
+                  defaultPatient={{ id: patient.id, name: fullName, phone: patient.phone }}
                   defaultDate={toDateKey(today())}
                   triggerClassName="btn btn-primary btn-sm"
                 />
@@ -701,7 +696,6 @@ export default async function PatientDetailPage({
                 <AppointmentRow
                   key={appointment.id}
                   appointment={appointment}
-                  patients={patientOptions}
                   services={services}
                   showDate
                 />

@@ -5,15 +5,14 @@ import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { SelectField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
+import { PatientPicker } from '@/components/patients/PatientPicker';
 import { saveWaitlistEntry } from '@/lib/actions/waitlist';
 import { byDepartment } from '@/lib/catalog';
-import type { PatientOption, ServiceOption } from './AppointmentFormDialog';
+import type { ServiceOption } from './AppointmentFormDialog';
 
 export function WaitlistFormDialog({
-  patients,
   services,
 }: {
-  patients: PatientOption[];
   services: ServiceOption[];
 }) {
   const t = useTranslations('waitlist');
@@ -45,16 +44,7 @@ export function WaitlistFormDialog({
         </>
       }
     >
-      <SelectField id={`${uid}-patient`} name="patientId" label={t('patient')} required defaultValue="">
-        <option value="" disabled>
-          {t('selectPatient')}
-        </option>
-        {patients.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </SelectField>
+      <PatientPicker name="patientId" label={t('patient')} required />
 
       <input type="hidden" name="serviceId" value={serviceId} />
 

@@ -40,7 +40,8 @@ Stages are defined in [§9](#9-suggested-build-order). Gap numbers refer to
 | **3 — Wire the orphaned features** | ✅ **complete.** G-02, G-03, G-08, G-04, G-12, G-33, G-01 all closed |
 | **4 — Surface what is derived** | ✅ **complete.** G-09, G-10, G-11, G-15, G-31, G-17, G-42 closed, plus G-44 and G-45 |
 | **5 — Fix Bridge A** | ✅ **complete.** G-25, G-43, G-36 closed; `VisitService` added and backfilled |
-| **6 — Scale and operations** | 🟡 the index half is done (IMPROVEMENTS §3.2) plus §3.3, the recalls double-query |
+| **6 — Scale and operations** | ✅ **complete.** G-18, G-19, G-20, G-49, G-50, G-52 closed, indexes done, migrations baselined, 92 tests added |
+| **Follow-up pass** | ✅ G-29, G-55, G-47, G-48, G-40, G-41 closed. `StockBatch` now draws down oldest-expiry-first and expired lots stop counting as stock |
 | **7 — Deferred by choice** | ⬜ deliberately deferred |
 
 **Two structural edges were added to the graph in [§3.3](#33-what-is-not-connected-but-should-be):**
@@ -62,15 +63,22 @@ as a snapshot in every case, for the reason `Prescription.body` is — renaming 
 service must not rewrite what a visit says was done. Existing rows were
 converted by [`prisma/backfill-services.ts`](../prisma/backfill-services.ts).
 
-Still outstanding from the stages already touched, and worth knowing before
-reading further:
+**The schema is under migration control.** `prisma/migrations/0_init` is the
+baseline; everything since is numbered. `npm run db:deploy` is the release step
+and needs no shadow database — which matters here, because the database role
+cannot create one, so `migrate dev` fails locally and migrations are authored
+with `migrate diff --from-config-datasource`.
 
-- **No migration history.** The schema changes above went in via `db push`. The
-  baseline (`prisma migrate dev --name init`) is still owed before this runs
-  anywhere real — see [IMPROVEMENTS §4.1](IMPROVEMENTS.md#41-no-migration-history).
-- **No tests.** Every fix in stage 1 is exactly the kind of thing a six-file
-  `node:test` suite would hold in place — see
-  [IMPROVEMENTS §4.4](IMPROVEMENTS.md#44-there-are-no-tests).
+**The whole patient list no longer crosses the wire.** `getPatientOptions()` is
+gone; `PatientPicker` searches server-side against the folded `searchKey`. The
+booking dialog, the waiting-list dialog and the six components that threaded the
+list to reach them all stopped carrying it.
+
+**There are 92 tests** (`npm test`, `node:test`, no database). They found a real
+bug on their first run: `addMonths` used `setUTCMonth` with no clamping, so 31
+January plus one month was 3 March — which skipped February entirely when paging
+the month calendar from a date on the 29th–31st, and pushed recall due dates past
+the month they belonged to.
 
 ---
 
@@ -1882,19 +1890,19 @@ Ranked by what it actually costs. 🔴 correctness · 🟠 a loop that cannot cl
 | **G-14** | 🟠 | Booking from the waitlist does not resolve the entry | Appointments | Small | ✅ |
 | **G-21** | 🟠 | `contactConsent = false` is honoured in one query and ignored by every button | Recalls · Appointments | Small | ✅ |
 | **G-23** | 🟠 | Recording a visit does not close its appointment | Visit | Small | ✅ |
-| **G-40** | 🟠 | Expired lots still count as usable stock | Stock | Small |  |
-| **G-41** | 🟠 | Batches are never drawn down — "which lot" is still unanswerable | Stock | Medium |  |
+| **G-40** | 🟠 | Expired lots still count as usable stock | Stock | Small | ✅ |
+| **G-41** | 🟠 | Batches are never drawn down — "which lot" is still unanswerable | Stock | Medium | ✅ |
 | **G-07** | 🟠 | Stock movements cannot be traced to the visit that caused them | Visit · Stock | Schema + 1 line | ✅ |
-| **G-29** | 🟠 | The prescription allergy check ignores free-text notes | Prescriptions | Small |  |
-| **G-55** | 🟠 | A patient's own confirmation writes no `Contact` row | Confirm | Small |  |
+| **G-29** | 🟠 | The prescription allergy check ignores free-text notes | Prescriptions | Small | ✅ |
+| **G-55** | 🟠 | A patient's own confirmation writes no `Contact` row | Confirm | Small | ✅ |
 | **G-12** | 🟠 | Overdue lab cases are not flagged anywhere | Lab · Dashboard | Small | ✅ |
 | **G-09** | 🟠 | Today's medical alerts are printed but not shown on screen | Dashboard | Small | ✅ |
 | **G-15** | 🟠 | Alerts are invisible at booking time | Appointments | Small | ✅ |
 | **G-31** | 🟠 | Cannot book from a recall row | Recalls | Small | ✅ |
 | **G-33** | 🟠 | Receiving a lab case does not prompt the fitting | Lab | Small | ✅ |
 | **G-16** | 🟠 | Completing an appointment does not offer to record the visit | Appointments | Small | ✅ |
-| **G-47** | 🟠 | A closure is accepted over existing bookings with no warning | Settings | Medium |  |
-| **G-48** | 🟠 | Narrowing hours is accepted over existing bookings | Settings | Medium |  |
+| **G-47** | 🟠 | A closure is accepted over existing bookings with no warning | Settings | Medium | ✅ |
+| **G-48** | 🟠 | Narrowing hours is accepted over existing bookings | Settings | Medium | ✅ |
 | **G-25** | 🟠 | A service name containing a comma silently becomes two services | Services · Analytics | Bridge A | ✅ |
 | **G-43** | 🟠 | Top services groups by typed text | Analytics | Bridge A | ✅ |
 | **G-01** | 🟠 | The receptionist cannot see the lab list | Lab · permissions | Small | ✅ |
@@ -1912,14 +1920,14 @@ Ranked by what it actually costs. 🔴 correctness · 🟠 a loop that cannot cl
 | **G-45** | ⚪ | No per-provider figures | Analytics | Small | ✅ |
 | **G-46** | ⚪ | No no-show analysis | Analytics | Small |  |
 | **G-17** | ⚪ | The day sheet does not print free gaps | Day sheet | Small | ✅ |
-| **G-18** | 🟡 | Patient search folds case but not diacritics, unlike the app's own helper | Patients | Medium |  |
-| **G-19** | 🟡 | Nothing flags a duplicate patient | Patients · Booking | Small |  |
-| **G-20** | 🟡 | The whole patient list is serialised into three pages | Dashboard · Appointments · Patient | Medium |  |
+| **G-18** | 🟡 | Patient search folds case but not diacritics, unlike the app's own helper | Patients | Medium | ✅ |
+| **G-19** | 🟡 | Nothing flags a duplicate patient | Patients · Booking | Small | ✅ |
+| **G-20** | 🟡 | The whole patient list is serialised into three pages | Dashboard · Appointments · Patient | Medium | ✅ |
 | **G-28** | 🟡 | Document access is not scoped to a patient | API | Decision |  |
-| **G-49** | ⚪ | The backup has no restore path | Staff | Script |  |
-| **G-50** | ⚪ | The backup truncates the audit log silently | Staff | Trivial |  |
+| **G-49** | ⚪ | The backup has no restore path | Staff | Script | ✅ |
+| **G-50** | ⚪ | The backup truncates the audit log silently | Staff | Trivial | ✅ |
 | **G-51** | ⚪ | Nothing verifies `storage/` is being copied | Staff | Copy |  |
-| **G-52** | ⚪ | The audit log grows without bound | Activity | Decision + job |  |
+| **G-52** | ⚪ | The audit log grows without bound | Activity | Decision + job | ✅ |
 | **G-53** | ⚪ | No per-entity drill-through in the activity log | Activity | Small |  |
 
 ---

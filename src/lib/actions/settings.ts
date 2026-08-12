@@ -2,10 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
-import { ToothNumbering } from '@/generated/prisma/enums';
+import { AppointmentStatus, ToothNumbering } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { DEFAULT_WEEK, rangesFor } from '@/lib/clinic-hours';
-import { toDateKey } from '@/lib/dates';
+import { timeToMinutes, toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -63,6 +63,57 @@ export async function saveClinicHours(
   const broken = rows.find((row) => row.open && rangesFor(row).length === 0);
   if (broken) return actionError(t('hoursInvalid'));
 
+  // Narrowing the week over appointments that already exist.
+  //
+  // Closing Saturday, or pulling the evening in by two hours, does not move the
+  // people already booked into that time — it just stops the calendar drawing
+  // the hours they sit in. Same treatment as a closure: said out loud once, and
+  // overridable, because shrinking the week before rebooking is a normal order
+  // to work in.
+  if (requiredString(formData.get('force')) !== '1') {
+    const byWeekday = new Map(rows.map((row) => [row.weekday, row]));
+
+    const upcoming = await prisma.appointment.findMany({
+      where: {
+        date: { gte: today() },
+        status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.ARRIVED] },
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      select: {
+        date: true,
+        startTime: true,
+        durationMin: true,
+        patient: { select: { firstName: true, lastName: true } },
+      },
+    });
+
+    const stranded = upcoming.filter((appointment) => {
+      const row = byWeekday.get(appointment.date.getUTCDay());
+      if (!row) return false;
+      if (!row.open) return true;
+
+      const start = timeToMinutes(appointment.startTime);
+      const end = start + appointment.durationMin;
+      // Inside *some* open stretch, in full. A booking straddling the new lunch
+      // break is as stranded as one outside the day entirely.
+      return !rangesFor(row).some((range) => start >= range.start && end <= range.end);
+    });
+
+    if (stranded.length > 0) {
+      const list = stranded
+        .slice(0, 5)
+        .map(
+          (a) =>
+            `${toDateKey(a.date)} ${a.startTime} ${a.patient.lastName} ${a.patient.firstName}`,
+        )
+        .join(', ');
+      return actionError(
+        t('hoursClash', { count: stranded.length, list }),
+        'bookedOver',
+      );
+    }
+  }
+
   try {
     await prisma.$transaction(
       rows.map((row) =>
@@ -107,12 +158,43 @@ export async function saveClosure(_prev: ActionState, formData: FormData): Promi
 
   const id = optionalString(formData.get('id'));
   // Empty means the whole practice; a staff id makes it one person's leave.
-  const data = {
-    from: fromDate,
-    to: toDate,
-    reason,
-    staffUserId: optionalString(formData.get('staffUserId')),
-  };
+  const staffUserId = optionalString(formData.get('staffUserId'));
+  const data = { from: fromDate, to: toDate, reason, staffUserId };
+
+  // Somebody is already booked in the days being closed.
+  //
+  // The closure used to be accepted in silence, and those appointments became
+  // invisible-but-real: the calendar draws the day as shut, free-gap search
+  // returns nothing, and the patients still turn up. Reported rather than
+  // refused — declaring the August shutdown before moving the bookings is a
+  // perfectly normal order to do things in — but it must be said out loud.
+  if (requiredString(formData.get('force')) !== '1') {
+    const clashes = await prisma.appointment.findMany({
+      where: {
+        date: { gte: fromDate, lte: toDate },
+        status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.ARRIVED] },
+        // One person's leave only clashes with that person's own list.
+        ...(staffUserId ? { staffUserId } : {}),
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      take: 5,
+      select: {
+        date: true,
+        startTime: true,
+        patient: { select: { firstName: true, lastName: true } },
+      },
+    });
+
+    if (clashes.length > 0) {
+      const list = clashes
+        .map(
+          (a) =>
+            `${toDateKey(a.date)} ${a.startTime} ${a.patient.lastName} ${a.patient.firstName}`,
+        )
+        .join(', ');
+      return actionError(t('closureClash', { list }), 'bookedOver');
+    }
+  }
 
   try {
     if (id) {

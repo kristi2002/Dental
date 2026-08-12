@@ -19,6 +19,14 @@ import { prisma } from '@/lib/prisma';
 
 const PBKDF2_ITERATIONS = 210_000;
 
+/**
+ * How many audit rows to carry. The trail is the one table with no natural
+ * bound, and a full year of it can dwarf everything else in the file — but a
+ * silent cut is worse than a small one, so the payload says when it happened.
+ * `prisma/prune-audit.ts` is where a long trail is meant to be archived.
+ */
+const AUDIT_LIMIT = 20_000;
+
 function encrypt(plaintext: string, passphrase: string): Buffer {
   const salt = randomBytes(16);
   const iv = randomBytes(12);
@@ -57,6 +65,17 @@ export async function POST(request: Request) {
     templates,
     waitlist,
     audit,
+    visitServices,
+    labCases,
+    alerts,
+    contacts,
+    suppliers,
+    batches,
+    operatories,
+    closures,
+    clinicHours,
+    clinicProfile,
+    auditTotal,
   ] = await Promise.all([
     prisma.staffUser.findMany({
       // Everything except the credentials.
@@ -82,16 +101,34 @@ export async function POST(request: Request) {
     prisma.prescription.findMany(),
     prisma.prescriptionTemplate.findMany(),
     prisma.waitlistEntry.findMany(),
-    prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 5000 }),
+    prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: AUDIT_LIMIT }),
+    // Everything added since this export was first written. A backup that
+    // restores two thirds of a practice is not a backup — it is a file that
+    // makes somebody believe they have one.
+    prisma.visitService.findMany(),
+    prisma.labCase.findMany({ include: { items: true } }),
+    prisma.patientAlert.findMany(),
+    prisma.contact.findMany(),
+    prisma.supplier.findMany(),
+    prisma.stockBatch.findMany(),
+    prisma.operatory.findMany(),
+    prisma.closure.findMany(),
+    prisma.clinicHours.findMany(),
+    prisma.clinicProfile.findMany(),
+    prisma.auditLog.count(),
   ]);
 
   const payload = JSON.stringify(
     {
       format: 'dentorganizer-backup',
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       exportedBy: user.fullName,
       note: 'Staff PIN hashes and uploaded files are not included — see README.',
+      // Stated rather than implied: a reader has no other way to tell a
+      // complete trail from a truncated one.
+      auditTruncated: auditTotal > audit.length,
+      auditTotal,
       data: {
         staff,
         patients,
@@ -108,6 +145,16 @@ export async function POST(request: Request) {
         templates,
         waitlist,
         audit,
+        visitServices,
+        labCases,
+        alerts,
+        contacts,
+        suppliers,
+        batches,
+        operatories,
+        closures,
+        clinicHours,
+        clinicProfile,
       },
     },
     null,

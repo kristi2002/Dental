@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import { MedicalAlertKind } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
-import { matchingAllergies } from '@/lib/medical';
+import { allergyLines, matchingAllergies } from '@/lib/medical';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -102,15 +102,34 @@ export async function issuePrescription(
   // match is a substring test, not clinical judgement — but it must be a
   // deliberate second press.
   if (requiredString(formData.get('force')) !== '1') {
-    const alerts = await prisma.patientAlert.findMany({
-      where: { patientId, kind: MedicalAlertKind.ALLERGY },
-      select: { kind: true, substance: true, severity: true },
-    });
+    const [alerts, patient] = await Promise.all([
+      prisma.patientAlert.findMany({
+        where: { patientId, kind: MedicalAlertKind.ALLERGY },
+        select: { kind: true, substance: true, severity: true },
+      }),
+      prisma.patient.findUnique({ where: { id: patientId }, select: { medicalNotes: true } }),
+    ]);
 
-    const hits = matchingAllergies(body, alerts);
+    // The notes count too.
+    //
+    // This read only the promoted `PatientAlert` rows, so a penicillin allergy
+    // written as a sentence — which is how every record predating the alerts
+    // feature holds it — passed the check in silence, while the patient's own
+    // header shouted about it two inches away. Each sentence the regex finds is
+    // offered as a substance in its own right; `matchingAllergies` then decides
+    // whether the prescription names it.
+    const fromNotes = allergyLines(patient?.medicalNotes).map((line) => ({
+      kind: 'ALLERGY',
+      substance: line,
+      severity: 'CRITICAL',
+    }));
+
+    const hits = matchingAllergies(body, [...alerts, ...fromNotes]);
     if (hits.length > 0) {
       return actionError(
-        t('allergyClash', { list: hits.map((hit) => hit.substance).join(', ') }),
+        t('allergyClash', {
+          list: [...new Set(hits.map((hit) => hit.substance))].join(', '),
+        }),
         'allergy',
       );
     }

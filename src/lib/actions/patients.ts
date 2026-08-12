@@ -7,6 +7,8 @@ import { redirect } from '@/i18n/navigation';
 import { locales } from '@/i18n/routing';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { deleteStoredFile } from '@/lib/files';
+import type { PatientOption } from '@/components/appointments/AppointmentFormDialog';
+import { buildSearchKey, fold, phoneKey } from '@/lib/patient-search';
 import { completeStepForAppointment } from '@/lib/plan-progress';
 import { prisma } from '@/lib/prisma';
 import { timeToMinutes, toDay } from '@/lib/dates';
@@ -33,6 +35,48 @@ function toPatientLocale(value: string | null): string | null {
   return value && (locales as readonly string[]).includes(value) ? value : null;
 }
 
+/**
+ * The handful of people matching what somebody has typed so far.
+ *
+ * Every booking screen used to receive the *entire* patient list as a prop, and
+ * three of them are the busiest pages in the app — so a practice with 3 000
+ * patients serialised a few hundred KB of names into every navigation, for a
+ * dropdown most visits never open. This is the same question asked properly.
+ *
+ * Two characters minimum: a single letter matches most of a file drawer, and
+ * answering it would be the same table dump by another route.
+ */
+export async function searchPatients(query: string): Promise<PatientOption[]> {
+  const user = await authorize('patient.view');
+  if (!user) return [];
+
+  const folded = fold(query);
+  const digits = query.replace(/\D/g, '');
+  if (folded.length < 2 && digits.length < 3) return [];
+
+  const rows = await prisma.patient.findMany({
+    where: {
+      OR: [
+        { searchKey: { contains: folded } },
+        ...(digits.length >= 3 ? [{ phone: { contains: digits } }] : []),
+      ],
+    },
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    // Enough to recognise the right person, few enough that the list stays a
+    // list rather than becoming the drawer again.
+    take: 20,
+    select: { id: true, firstName: true, lastName: true, phone: true },
+  });
+
+  return rows.map((patient) => ({
+    id: patient.id,
+    name: `${patient.lastName} ${patient.firstName}`,
+    // Two people genuinely share a name in a small town; the number is what
+    // tells them apart at the desk.
+    phone: patient.phone,
+  }));
+}
+
 export async function savePatient(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const t = await getTranslations('errors');
 
@@ -48,11 +92,31 @@ export async function savePatient(_prev: ActionState, formData: FormData): Promi
     return actionError(t('fillRequired'));
   }
 
+  // Two people can share a phone — a family does — so this warns rather than
+  // refuses, the same shape as a double-booking. What it stops is the silent
+  // second "Arta Krasniqi", created once at the front desk and once from a
+  // hurried booking, whose history is then split across two records.
+  if (!id && requiredString(formData.get('force')) !== '1') {
+    const key = phoneKey(phone);
+    if (key.length >= 6) {
+      const existing = await prisma.patient.findMany({
+        where: { phone: { endsWith: key } },
+        select: { firstName: true, lastName: true },
+        take: 5,
+      });
+      if (existing.length > 0) {
+        const names = existing.map((p) => `${p.lastName} ${p.firstName}`).join(', ');
+        return actionError(t('duplicatePhone', { list: names }), 'duplicate');
+      }
+    }
+  }
+
   const dob = optionalString(formData.get('dateOfBirth'));
   const data = {
     firstName,
     lastName,
     phone,
+    searchKey: buildSearchKey({ firstName, lastName, phone, email: formData.get('email')?.toString() }),
     email: optionalString(formData.get('email')),
     dateOfBirth: dob ? new Date(`${dob}T00:00:00.000Z`) : null,
     // The front desk keeps the diary; the chart belongs to whoever treats.

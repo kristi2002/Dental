@@ -9,7 +9,7 @@ import { resolveWaitlistEntry } from '@/lib/actions/waitlist';
 import type { FreeGap } from '@/lib/scheduling';
 import { whatsappLink } from '@/lib/reminders';
 import { cn } from '@/lib/utils';
-import type { PatientOption, ServiceOption } from './AppointmentFormDialog';
+import type { ServiceOption } from './AppointmentFormDialog';
 import { WaitlistFormDialog } from './WaitlistFormDialog';
 
 export type WaitlistRow = {
@@ -35,7 +35,6 @@ export function WaitlistPanel({
   entries,
   freeGaps,
   dayLabel,
-  patients,
   services,
   canEdit,
 }: {
@@ -43,7 +42,6 @@ export function WaitlistPanel({
   /** Empty stretches on the day currently in view. */
   freeGaps: FreeGap[];
   dayLabel: string;
-  patients: PatientOption[];
   services: ServiceOption[];
   canEdit: boolean;
 }) {
@@ -59,7 +57,7 @@ export function WaitlistPanel({
         title={t('title')}
         subtitle={t('subtitle', { count: entries.length })}
         icon={<ListChecks size={22} aria-hidden />}
-        action={canEdit ? <WaitlistFormDialog patients={patients} services={services} /> : null}
+        action={canEdit ? <WaitlistFormDialog services={services} /> : null}
       />
 
       {freeGaps.length > 0 ? (

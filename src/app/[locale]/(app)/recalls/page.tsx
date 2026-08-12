@@ -8,12 +8,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { requirePermission } from '@/lib/auth/guard';
 import { toDateKey, today } from '@/lib/dates';
-import {
-  getOperatoryOptions,
-  getPatientOptions,
-  getProviderOptions,
-  getServiceOptions,
-} from '@/lib/queries';
+import { getOperatoryOptions, getProviderOptions, getServiceOptions } from '@/lib/queries';
 import { getFollowUps, getRecalls } from '@/lib/recalls';
 
 export const dynamic = 'force-dynamic';
@@ -45,24 +40,26 @@ export default async function RecallsPage({
   const tr = await getTranslations('reminders');
   const format = await getFormatter();
 
-  const [recalls, followUps, patients, services, staff, operatories] = await Promise.all([
+  const [recalls, followUps, services, staff, operatories] = await Promise.all([
     getRecalls(),
     getFollowUps(),
-    canBook ? getPatientOptions() : Promise.resolve([]),
     canBook ? getServiceOptions() : Promise.resolve([]),
     canBook ? getProviderOptions() : Promise.resolve([]),
     canBook ? getOperatoryOptions() : Promise.resolve([]),
   ]);
 
   /** The one action this list exists to produce. */
-  const bookFor = (patientId: string) =>
+  const bookFor = (row: { id: string; firstName: string; lastName: string; phone: string }) =>
     canBook ? (
       <AppointmentFormDialog
-        patients={patients}
         services={services}
         staff={staff}
         operatories={operatories}
-        defaultPatientId={patientId}
+        defaultPatient={{
+          id: row.id,
+          name: `${row.lastName} ${row.firstName}`,
+          phone: row.phone,
+        }}
         defaultDate={toDateKey(today())}
         triggerClassName="btn btn-secondary btn-sm"
         triggerLabel={ta('new')}
@@ -109,7 +106,7 @@ export default async function RecallsPage({
                     emailSubject={tr('recallEmailSubject', values)}
                     emailBody={tr('recallEmailBody', values)}
                     canSend={canSend}
-                    book={bookFor(row.id)}
+                    book={bookFor(row)}
                   />
                 );
               })}
@@ -145,7 +142,7 @@ export default async function RecallsPage({
                     emailSubject={tr('followUpEmailSubject', values)}
                     emailBody={tr('followUpEmailBody', values)}
                     canSend={canSend}
-                    book={bookFor(row.id)}
+                    book={bookFor(row)}
                   />
                 );
               })}

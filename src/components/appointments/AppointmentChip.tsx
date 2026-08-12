@@ -10,7 +10,7 @@ import { minutesToTime, timeToMinutes } from '@/lib/dates';
 import { getOperatoryOptions, getProviderOptions } from '@/lib/queries';
 import { composeReminder } from '@/lib/reminder-messages';
 import { cn } from '@/lib/utils';
-import { AppointmentFormDialog, type PatientOption, type ServiceOption } from './AppointmentFormDialog';
+import { AppointmentFormDialog, type ServiceOption } from './AppointmentFormDialog';
 import { ReminderLinks } from './ReminderLinks';
 import type { AppointmentView } from './types';
 
@@ -28,11 +28,9 @@ const STATUS_STYLE: Record<string, string> = {
 /** The dense form of an appointment used inside the day grid. */
 export async function AppointmentChip({
   appointment,
-  patients,
   services,
 }: {
   appointment: AppointmentView;
-  patients: PatientOption[];
   services: ServiceOption[];
 }) {
   const t = await getTranslations('appointments');
@@ -127,7 +125,6 @@ export async function AppointmentChip({
 
         {canEdit ? (
           <AppointmentFormDialog
-            patients={patients}
             services={services}
             staff={staff}
             operatories={operatories}

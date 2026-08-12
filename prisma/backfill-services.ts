@@ -22,6 +22,7 @@
  */
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { buildSearchKey } from '../src/lib/patient-search';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -122,6 +123,25 @@ async function main() {
     }
   }
   console.log(`Waitlist entries named but unlinked: ${waiting.length} → ${waitLinked} linked`);
+
+  // ---- 4. Patient search keys ----------------------------------------------
+  //
+  // Folded name + phone + email, so the patient list and the app's own
+  // `matches()` helper finally answer the same question. Written on every save
+  // from here on; this catches everything that already existed.
+  const stale = await prisma.patient.findMany({
+    where: { searchKey: '' },
+    select: { id: true, firstName: true, lastName: true, phone: true, email: true },
+  });
+
+  for (const patient of stale) {
+    if (!APPLY) continue;
+    await prisma.patient.update({
+      where: { id: patient.id },
+      data: { searchKey: buildSearchKey(patient) },
+    });
+  }
+  console.log(`\nPatients without a search key: ${stale.length}`);
 
   console.log(
     APPLY ? '\nApplied.' : '\nDry run — nothing written. Re-run with --apply.',

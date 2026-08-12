@@ -6,6 +6,7 @@ import { AppointmentStatus, CancelledBy, LabCaseStatus } from '@/generated/prism
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { NEW_PATIENT_VALUE } from '@/lib/booking';
 import { toDateKey } from '@/lib/dates';
+import { buildSearchKey } from '@/lib/patient-search';
 import { completeStepForAppointment } from '@/lib/plan-progress';
 import { findConflicts } from '@/lib/scheduling';
 import { prisma } from '@/lib/prisma';
@@ -49,6 +50,7 @@ export async function saveAppointment(
     phone: string;
     email: string | null;
     dateOfBirth: Date | null;
+    searchKey: string;
   } | null = null;
 
   if (patientId === NEW_PATIENT_VALUE) {
@@ -60,12 +62,16 @@ export async function saveAppointment(
     if (!firstName || !lastName || !phone) return actionError(t('fillRequired'));
 
     const dob = optionalString(formData.get('newPatientDateOfBirth'));
+    const email = optionalString(formData.get('newPatientEmail'));
     newPatient = {
       firstName,
       lastName,
       phone,
-      email: optionalString(formData.get('newPatientEmail')),
+      email,
       dateOfBirth: dob ? new Date(`${dob}T00:00:00.000Z`) : null,
+      // Maintained here as well as in `savePatient`: a patient created inline
+      // during a booking is still a patient somebody will search for.
+      searchKey: buildSearchKey({ firstName, lastName, phone, email }),
     };
   }
 

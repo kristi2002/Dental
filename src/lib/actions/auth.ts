@@ -1,11 +1,14 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
+import { headers } from 'next/headers';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
-import { verifyPin } from '@/lib/auth/crypto';
-import { recordAudit } from '@/lib/auth/guard';
+import { hashPin, isValidPinFormat, verifyPin } from '@/lib/auth/crypto';
+import { recordAudit, recordPatientAudit } from '@/lib/auth/guard';
 import { createSession, destroySession, getCurrentUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
+import { clientKey, rateLimit } from '@/lib/rate-limit';
 import { requiredString } from '@/lib/utils';
 import { actionError, type ActionState } from './types';
 
@@ -67,6 +70,86 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
   );
 
   // Throws internally — must stay outside any try/catch.
+  redirect({ href: '/', locale: await getLocale() });
+}
+
+/**
+ * Create the practice's very first account, from the browser.
+ *
+ * A freshly deployed database has no staff, and the app has no signup — so
+ * until now the only way in was `docker/create-owner.mjs`, which needs a shell
+ * on the container. That is a reasonable thing to ask of a server admin and an
+ * unreasonable thing to ask of a dentist, which left a deployed instance that
+ * nobody could sign into.
+ *
+ * **This is a first-run door, not a signup.** It exists only while the staff
+ * table is empty and closes for good the moment it is not:
+ *
+ *  - the insert is conditional on the table being empty, in one statement, so
+ *    two people submitting at the same moment cannot both become owners;
+ *  - the page that renders it refuses to render once anybody exists;
+ *  - it is rate limited, like the other unauthenticated surface.
+ *
+ * Everyone after the first is created from the Staff page by the owner, which
+ * is the design decision this deliberately does not touch: an open signup on a
+ * database of medical records would be a very different application.
+ */
+export async function createFirstOwner(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('setup');
+
+  const limit = rateLimit(`setup:${clientKey(await headers())}`, {
+    limit: 5,
+    windowMs: 60_000,
+  });
+  if (!limit.allowed) return actionError(t('tooMany'));
+
+  const firstName = requiredString(formData.get('firstName'));
+  const lastName = requiredString(formData.get('lastName'));
+  const pin = requiredString(formData.get('pin'));
+  const confirm = requiredString(formData.get('confirmPin'));
+
+  if (!firstName || !lastName) return actionError(t('errorNames'));
+  if (!isValidPinFormat(pin)) return actionError(t('errorPinFormat'));
+  if (pin !== confirm) return actionError(t('errorPinMismatch'));
+
+  // Cheap pre-check so the common "somebody already set this up" case gets a
+  // clear message rather than a silent no-op from the insert below.
+  if ((await prisma.staffUser.count()) > 0) return actionError(t('errorAlreadySetUp'));
+
+  const { hash, salt } = await hashPin(pin);
+  const id = randomUUID();
+
+  // The whole guarantee, in one statement: the row is written only if the table
+  // is still empty when Postgres evaluates it. A count-then-create would leave a
+  // window in which two requests both see zero and both create an owner.
+  let created: number;
+  try {
+    created = await prisma.$executeRaw`
+      INSERT INTO "StaffUser" ("id", "firstName", "lastName", "role", "pinHash", "pinSalt", "active", "createdAt", "updatedAt")
+      SELECT ${id}, ${firstName}, ${lastName}, ${'OWNER'}::"Role", ${hash}, ${salt}, true, NOW(), NOW()
+      WHERE NOT EXISTS (SELECT 1 FROM "StaffUser")
+    `;
+  } catch {
+    return actionError(t('errorGeneric'));
+  }
+
+  if (created !== 1) return actionError(t('errorAlreadySetUp'));
+
+  await recordPatientAudit(`${firstName} ${lastName}`, {
+    action: 'create',
+    entity: 'staff',
+    entityId: id,
+    // Loud on purpose: this is the one account nobody authorised, and the trail
+    // should say so plainly if it is ever read after the fact.
+    summary: 'First owner created through first-run setup',
+  });
+
+  // Straight in — asking somebody to type the PIN they just chose, on the next
+  // screen, would be ceremony rather than security.
+  await createSession(id);
   redirect({ href: '/', locale: await getLocale() });
 }
 

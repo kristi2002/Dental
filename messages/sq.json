@@ -146,6 +146,7 @@
     "fiscalCode": "Kodi fiskal",
     "emergencyContact": "Kontakti i emergjencës",
     "referralSource": "Si na gjeti",
+    "addAnyway": "Shtoje gjithsesi — është person tjetër",
     "referralSourceHint": "Nga goja në gojë, kalimtar, një dentist tjetër — çfarë tha ai."
   },
   "appointments": {
@@ -379,6 +380,7 @@
     "confirmAsk": "Ju lutemi na tregoni nëse do të vini: {link}"
   },
   "errors": {
+    "duplicatePhone": "Ekziston tashmë një pacient me këtë numër: {list}.",
     "generic": "Diçka shkoi keq. Ju lutemi provoni sërish.",
     "required": "Kjo fushë është e detyrueshme.",
     "fillRequired": "Ju lutemi plotësoni të gjitha fushat e detyrueshme.",
@@ -388,6 +390,8 @@
     "forbidden": "Roli juaj nuk e lejon këtë.",
     "overlap": "Ky takim përplaset me një ekzistues: {list}.",
     "labPending": "Laboratori nuk e ka premtuar ende kthimin e punës së këtij pacienti: {list}.",
+    "closureClash": "Dikush është caktuar tashmë në këto ditë: {list}.",
+    "hoursClash": "{count, plural, one {# takim bie} other {# takime bien}} jashtë orarit të ri: {list}.",
     "hoursInvalid": "Një ditë e hapur duhet të mbyllet pas orës së hapjes.",
     "rangeBackwards": "Data e fundit nuk mund të jetë para asaj të fillimit.",
     "substanceRequired": "Shëno substancën — një alergji pa emër nuk mund të krahasohet me recetën.",
@@ -670,6 +674,21 @@
     "onShelf": "{qty} {unit} në raft · minimumi {min}",
     "onOrder": "Porositur"
   },
+  "setup": {
+    "title": "Konfiguro klinikën",
+    "subtitle": "Kjo bazë të dhënash ende nuk ka llogari. Krijo llogarinë e pronarit — kjo faqe nuk do të jetë më e disponueshme.",
+    "pin": "PIN",
+    "confirmPin": "Përsërit PIN-in",
+    "pinHint": "{min} deri {max} shifra. Këtë do të shkruash për të hyrë.",
+    "createOwner": "Krijo llogarinë e pronarit",
+    "afterHint": "Do të futesh menjëherë. Të gjithë të tjerët shtohen nga faqja e Stafit, ku mund të ndryshosh edhe PIN-et.",
+    "errorNames": "Shkruaj emrin dhe mbiemrin.",
+    "errorPinFormat": "PIN-i duhet të jetë 4 deri 6 shifra.",
+    "errorPinMismatch": "Të dy PIN-et nuk përputhen.",
+    "errorAlreadySetUp": "Kjo klinikë ka tashmë një llogari. Hyr në vend të kësaj.",
+    "errorGeneric": "Diçka shkoi keq. Provo përsëri.",
+    "tooMany": "Shumë përpjekje. Prit një minutë dhe provo përsëri."
+  },
   "confirm": {
     "title": "Konfirmoni takimin tuaj",
     "greeting": "Përshëndetje {name}",
@@ -712,6 +731,7 @@
     "saved": "U ruajt",
     "closuresTitle": "Mbylljet",
     "closuresSubtitle": "Festat dhe pushimet — kanë përparësi ndaj javës më sipër.",
+    "saveAnyway": "Ruaje gjithsesi — do t'i zhvendos ato takime",
     "closuresEmpty": "Asnjë mbyllje e planifikuar.",
     "closureNew": "Shto mbyllje",
     "closureEdit": "Ndrysho mbylljen",

@@ -26,6 +26,13 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
     redirect({ href: '/', locale });
   }
 
+  // A database with nobody in it cannot be signed into, and an empty picker is
+  // a dead end that looks like a bug. Send them to first-run setup instead —
+  // which closes itself the moment it has been used once.
+  if ((await prisma.staffUser.count()) === 0) {
+    redirect({ href: '/setup', locale });
+  }
+
   const t = await getTranslations('auth');
   const tApp = await getTranslations('app');
 

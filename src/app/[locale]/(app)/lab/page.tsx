@@ -10,12 +10,7 @@ import { requirePermission } from '@/lib/auth/guard';
 import { toDateKey, today } from '@/lib/dates';
 import { LAB_STATUSES, isLabStatus } from '@/lib/lab';
 import { prisma } from '@/lib/prisma';
-import {
-  getOperatoryOptions,
-  getPatientOptions,
-  getProviderOptions,
-  getServiceOptions,
-} from '@/lib/queries';
+import { getOperatoryOptions, getProviderOptions, getServiceOptions } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -66,8 +61,7 @@ export default async function LabPage({
     (labCase) => labCase.status === 'SENT' && labCase.dueAt !== null && labCase.dueAt < now,
   ).length;
 
-  const [patients, services, providers, operatories] = await Promise.all([
-    canEdit ? getPatientOptions() : Promise.resolve([]),
+  const [services, providers, operatories] = await Promise.all([
     canEdit ? getServiceOptions() : Promise.resolve([]),
     canEdit ? getProviderOptions() : Promise.resolve([]),
     canEdit ? getOperatoryOptions() : Promise.resolve([]),
@@ -132,11 +126,13 @@ export default async function LabPage({
               canEdit && canBook
                 ? (labCase) => (
                     <AppointmentFormDialog
-                      patients={patients}
                       services={services}
                       staff={providers}
                       operatories={operatories}
-                      defaultPatientId={labCase.patientId}
+                      defaultPatient={{
+                        id: labCase.patientId!,
+                        name: labCase.patientName!,
+                      }}
                       defaultDate={toDateKey(today())}
                       triggerClassName="btn btn-secondary btn-sm whitespace-nowrap"
                       triggerLabel={t('bookFitting')}

@@ -76,6 +76,29 @@ export function summariseBatches(
   };
 }
 
+/**
+ * How much of an item is actually usable.
+ *
+ * An expired box sits on the shelf and counts toward `StockItem.quantity` like
+ * any other, so the low-stock badge, the reorder projection and the dashboard
+ * all believed in stock that must not go near a patient. This is the number
+ * those three should be reading.
+ *
+ * Returns the counter untouched when nothing has expired, which is the common
+ * case and also the honest answer for an item that carries no lots at all.
+ */
+export function usableQuantity(
+  quantity: number,
+  batches: readonly BatchLike[],
+  now: Date = new Date(),
+): number {
+  const expired = batches.reduce(
+    (total, batch) => (expiryLevel(batch.expiryDate, now) === 'EXPIRED' ? total + batch.quantity : total),
+    0,
+  );
+  return Math.max(0, quantity - expired);
+}
+
 /** Oldest date first — what to reach for, and what to use up before it turns. */
 export function byExpiry<T extends BatchLike>(batches: readonly T[]): T[] {
   return [...batches].sort((a, b) => {

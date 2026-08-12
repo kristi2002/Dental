@@ -11,12 +11,10 @@ import type { AppointmentView } from './types';
 /** An hour-by-hour grid, so gaps in the day are as visible as the bookings. */
 export function DayView({
   appointments,
-  patients,
   services,
   schedule,
 }: {
   appointments: AppointmentView[];
-  patients: PatientOption[];
   services: ServiceOption[];
   schedule: DaySchedule;
 }) {
@@ -91,7 +89,6 @@ export function DayView({
                 <AppointmentChip
                   key={appointment.id}
                   appointment={appointment}
-                  patients={patients}
                   services={services}
                 />
               ))}

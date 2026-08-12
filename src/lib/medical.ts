@@ -61,11 +61,18 @@ export function matchingAllergies(body: string, alerts: readonly AlertLike[]): A
     const needle = fold(alert.substance ?? '');
     if (needle.length < MIN_MATCH_LENGTH) return false;
 
-    // A multi-word substance ("gome lateksi") only ever matches as a phrase.
+    // The whole phrase, when it is there verbatim.
     if (haystack.includes(needle)) return true;
 
     // Otherwise compare whole words either way round, so a trailing "ë" or a
     // doubled consonant does not hide the match.
+    //
+    // This deliberately over-fires on a multi-word substance: a record of
+    // "gome lateksi" also matches a prescription that merely says "gome",
+    // because `needle.includes(word)` is true. For a check whose only job is to
+    // make somebody look twice before handing over a drug, a false alarm costs
+    // a glance and a miss costs an anaphylaxis — so the asymmetry is the point,
+    // not an oversight.
     return words.some((word) => word.includes(needle) || needle.includes(word));
   });
 }

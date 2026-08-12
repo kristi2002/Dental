@@ -80,9 +80,29 @@ export function addDays(date: Date, amount: number): Date {
   return next;
 }
 
+/**
+ * The same day of the month, `amount` months away, clamped to a day that exists.
+ *
+ * `setUTCMonth` alone overflows: 31 January plus one month is 31 February,
+ * which JavaScript silently rolls forward to 3 March. That skipped February
+ * entirely when paging the month calendar from a date on the 29th–31st, and
+ * pushed a recall due date past the month it belonged to.
+ */
 export function addMonths(date: Date, amount: number): Date {
   const next = new Date(date);
+  const dayOfMonth = next.getUTCDate();
+
+  // Move to the first before changing month, so the intermediate value cannot
+  // overflow on its own.
+  next.setUTCDate(1);
   next.setUTCMonth(next.getUTCMonth() + amount);
+
+  // Day 0 of the following month is the last day of this one.
+  const lastDay = new Date(
+    Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  next.setUTCDate(Math.min(dayOfMonth, lastDay));
+
   return next;
 }
 
@@ -141,9 +161,15 @@ export function lastMonths(count: number, from: Date = today()): Date[] {
   return Array.from({ length: count }, (_, i) => addMonths(base, i - (count - 1)));
 }
 
-/** Whole years between `dateOfBirth` and today. */
-export function age(dateOfBirth: Date): number {
-  const now = today();
+/**
+ * Whole years between `dateOfBirth` and today.
+ *
+ * `on` is injectable for the same reason `today()` and `clinicMinutesNow()`
+ * take one: half the clinical judgement in this app hangs off an age, and a
+ * function that can only be asked about the current instant cannot be tested.
+ */
+export function age(dateOfBirth: Date, on: Date = today()): number {
+  const now = toDay(on);
   let years = now.getUTCFullYear() - dateOfBirth.getUTCFullYear();
   const monthDiff = now.getUTCMonth() - dateOfBirth.getUTCMonth();
   if (monthDiff < 0 || (monthDiff === 0 && now.getUTCDate() < dateOfBirth.getUTCDate())) {

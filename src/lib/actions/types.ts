@@ -9,12 +9,18 @@ export type ActionState =
 
 /**
  * Machine-readable reason, for the few errors a form can offer to work around.
- * All three are "the app thinks this is wrong, and you may still be right":
+ * Every one is "the app thinks this is wrong, and you may still be right":
  * `overlap` is a clashing appointment, `labPending` a slot booked before the lab
- * has promised the work back, and `allergy` a prescription naming something the
- * patient is recorded as reacting to.
+ * has promised the work back, `duplicate` a second record for one phone number,
+ * `bookedOver` a closure or narrowed week that strands existing appointments,
+ * and `allergy` a prescription naming something the patient reacts to.
  */
-export type ActionErrorCode = 'overlap' | 'labPending' | 'allergy';
+export type ActionErrorCode =
+  | 'overlap'
+  | 'labPending'
+  | 'duplicate'
+  | 'bookedOver'
+  | 'allergy';
 
 export const IDLE_STATE: ActionState = { status: 'idle' };
 

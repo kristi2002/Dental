@@ -36,7 +36,6 @@ import {
   getAppointmentsBetween,
   getDaySchedule,
   getOperatoryOptions,
-  getPatientOptions,
   getProviderOptions,
   getServiceOptions,
 } from '@/lib/queries';
@@ -96,7 +95,6 @@ export default async function AppointmentsPage({
 
   const [
     allAppointments,
-    patients,
     services,
     operatories,
     waitlist,
@@ -106,7 +104,6 @@ export default async function AppointmentsPage({
     dayCounts,
   ] = await Promise.all([
       getAppointmentsBetween(range.from, range.to, staffFilter),
-      getPatientOptions(),
       getServiceOptions(),
       getOperatoryOptions(),
       canSeeWaitlist
@@ -184,7 +181,6 @@ export default async function AppointmentsPage({
         actions={
           canEdit ? (
             <AppointmentFormDialog
-              patients={patients}
               services={services}
               staff={providers}
               operatories={operatories}
@@ -291,7 +287,6 @@ export default async function AppointmentsPage({
             {view === 'day' ? (
               <DayView
                 appointments={appointments}
-                patients={patients}
                 services={services}
                 schedule={schedule}
               />
@@ -303,7 +298,7 @@ export default async function AppointmentsPage({
                 dayHref={(dateKey) => hrefFor(fromDateKey(dateKey), 'day')}
               />
             ) : (
-              <ListView appointments={appointments} patients={patients} services={services} />
+              <ListView appointments={appointments} services={services} />
             )}
           </Card>
 
@@ -326,7 +321,6 @@ export default async function AppointmentsPage({
                   day: 'numeric',
                   month: 'long',
                 })}
-                patients={patients}
                 services={services}
                 canEdit={user.permissions.includes('waitlist.edit')}
               />

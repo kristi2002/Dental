@@ -111,8 +111,17 @@ Two more, both optional:
 
 ### 3. Schema and demo data
 
+The schema is under migration control — `prisma/migrations/0_init` is the
+baseline, and every change since is a numbered migration.
+
 ```bash
-npm run db:push
+npm run db:migrate
+```
+
+Deploying applies them without asking questions:
+
+```bash
+npx prisma migrate deploy
 ```
 
 ```bash
@@ -159,8 +168,22 @@ be a mounted volume or every uploaded X-ray dies with the container, and
 `NEXT_PUBLIC_*` values are compiled into the browser bundle, so they are build
 variables rather than runtime ones.
 
-A fresh database has no staff accounts and the app has no signup, so the first
-Owner is created once with:
+### The first account
+
+A fresh database has no staff accounts, so **open the deployed site and it takes
+you to `/setup`** — a one-time page that creates the Owner and signs you in.
+Everyone else is added from the Staff page afterwards.
+
+That page exists only while the staff table is empty. It redirects to sign-in the
+moment anybody exists, and the row it writes is inserted *conditionally on the
+table still being empty*, so two people submitting at once cannot both become
+owners. It is not a signup: there is deliberately no way to create an account
+from outside once the practice has one.
+
+Because it is open for the minutes between deploying and setting up, do the setup
+immediately after the first deploy.
+
+Prefer a shell? The original path still works and behaves the same way:
 
 ```bash
 node /app/docker/create-owner.mjs "Ilir" "Berisha"
@@ -174,10 +197,12 @@ node /app/docker/create-owner.mjs "Ilir" "Berisha"
 | `npm run build` | Production build (runs `prisma generate` first) |
 | `npm start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run db:push` | Sync the schema to the database (no migration files) |
-| `npm run db:migrate` | Create and apply a named migration |
+| `npm run db:migrate` | Create and apply a named migration (development) |
+| `npm run db:deploy` | Apply pending migrations (release step — needs no shadow database) |
+| `npm run db:push` | Sync the schema without a migration file. Prefer `db:migrate` |
 | `npm run db:seed` | Load demo data (**clears existing rows first**) |
 | `npm run db:studio` | Prisma Studio |
+| `npm test` | Unit tests for the pure logic (`node:test`, no database needed) |
 
 ## How things are laid out
 
@@ -188,10 +213,15 @@ prisma/
                      Service, ServiceMaterial, WaitlistEntry, TreatmentPlan,
                      LabCase, PatientAlert, Contact, ClinicHours, Closure
   seed.ts            Demo data
+  migrations/              Migration history. `0_init` is the baseline.
   migrate-teeth-fdi.ts     One-off: Universal 1–32 → FDI tooth numbers
-  backfill-services.ts     One-off: give existing rows their service ids,
-                           and turn each visit's typed list into VisitService
-                           rows. Dry run by default; --apply to write.
+  backfill-services.ts     One-off: give existing rows their service ids and
+                           search keys, and turn each visit's typed list into
+                           VisitService rows
+  restore-backup.ts        Replay a backup file into an empty database
+  prune-audit.ts           Archive and trim the activity log
+  sweep-orphan-files.ts    Delete patient files no record points at
+                           (every one of these is a dry run without --apply)
 prisma.config.ts     Prisma 7 config — holds DATABASE_URL and the seed command
 messages/            sq.json · en.json · it.json  (identical key sets)
 src/

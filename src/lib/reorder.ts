@@ -1,5 +1,6 @@
 import { addDays, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
+import { usableQuantity } from '@/lib/expiry';
 import { ACTIVE_STOCK } from '@/lib/queries';
 
 /**
@@ -50,7 +51,10 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
     prisma.stockItem.findMany({
       where: ACTIVE_STOCK,
       orderBy: { name: 'asc' },
-      include: { supplier: { select: { name: true } } },
+      include: {
+        supplier: { select: { name: true } },
+        batches: { select: { expiryDate: true, quantity: true } },
+      },
     }),
     prisma.stockMovement.groupBy({
       by: ['itemId'],
@@ -66,19 +70,23 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
 
   const lines: ReorderLine[] = [];
   for (const item of items) {
+    // What is actually usable drives every decision below. An expired lot is
+    // not stock — ordering against a count that includes it is how a cupboard
+    // ends up full and unusable on the same morning.
+    const onHand = usableQuantity(item.quantity, item.batches);
     const overWindow = consumption.get(item.id) ?? 0;
     const monthlyUse = (overWindow / WINDOW_DAYS) * 30;
 
     const dailyUse = overWindow / WINDOW_DAYS;
-    const daysLeft = dailyUse > 0 ? Math.floor(item.quantity / dailyUse) : null;
+    const daysLeft = dailyUse > 0 ? Math.floor(onHand / dailyUse) : null;
 
     // Cover the next stretch and still land on the minimum level, then round up
     // to something a person would actually write on an order form.
     const target = Math.ceil(dailyUse * COVER_DAYS) + item.minLimit;
-    const projected = Math.max(0, target - item.quantity);
+    const projected = Math.max(0, target - onHand);
 
     const urgent =
-      item.quantity <= item.minLimit || (daysLeft !== null && daysLeft <= URGENT_DAYS);
+      onHand <= item.minLimit || (daysLeft !== null && daysLeft <= URGENT_DAYS);
 
     // Nothing to say about an item that is neither low nor running down.
     //
@@ -95,7 +103,7 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
       id: item.id,
       name: item.name,
       unit: item.unit,
-      quantity: item.quantity,
+      quantity: onHand,
       minLimit: item.minLimit,
       packSize: item.packSize,
       monthlyUse: Math.round(monthlyUse * 10) / 10,

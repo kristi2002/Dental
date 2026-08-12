@@ -64,6 +64,17 @@ export default async function SettingsPage({
   // Personal to whoever is reading the page — a feed is one person's diary.
   const feedUrl = calendarUrl(await calendarToken(user.id));
 
+  // Rendered here rather than in the form: the locale's own calendar data is
+  // the right source for a weekday name, but producing it in the browser made
+  // it the one string in the app whose server and client renders could differ.
+  // 2024-01-07 was a Sunday, so adding the index lands on the right day.
+  const weekdayNames = Object.fromEntries(
+    [0, 1, 2, 3, 4, 5, 6].map((weekday) => [
+      weekday,
+      format.dateTime(new Date(Date.UTC(2024, 0, 7 + weekday)), { weekday: 'long' }),
+    ]),
+  );
+
   const dayLabel = (date: Date) =>
     format.dateTime(date, { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -100,7 +111,7 @@ export default async function SettingsPage({
             subtitle={t('hoursSubtitle', { zone: CLINIC_TIME_ZONE })}
             icon={<CalendarClock size={22} aria-hidden />}
           />
-          <ClinicHoursForm week={week} canEdit={canEdit} />
+          <ClinicHoursForm week={week} canEdit={canEdit} weekdayNames={weekdayNames} />
         </Card>
 
         {/* Chairs, not rooms: what limits parallel work is the seat with the

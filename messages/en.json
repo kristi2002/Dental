@@ -146,6 +146,7 @@
     "fiscalCode": "Fiscal code",
     "emergencyContact": "Emergency contact",
     "referralSource": "How they found us",
+    "addAnyway": "Add them anyway — this is a different person",
     "referralSourceHint": "Word of mouth, a passer-by, another dentist — whatever they said."
   },
   "appointments": {
@@ -379,6 +380,7 @@
     "confirmAsk": "Please let us know if you are coming: {link}"
   },
   "errors": {
+    "duplicatePhone": "A patient with this number already exists: {list}.",
     "generic": "Something went wrong. Please try again.",
     "required": "This field is required.",
     "fillRequired": "Please fill in all required fields.",
@@ -388,6 +390,8 @@
     "forbidden": "Your role does not allow this.",
     "overlap": "This overlaps an existing appointment: {list}.",
     "labPending": "The lab has not promised this patient's work back yet: {list}.",
+    "closureClash": "Somebody is already booked in these days: {list}.",
+    "hoursClash": "{count, plural, one {# appointment falls} other {# appointments fall}} outside the new opening hours: {list}.",
     "hoursInvalid": "An open day needs a closing time later than its opening time.",
     "rangeBackwards": "The end date cannot be before the start date.",
     "substanceRequired": "Name the substance — an allergy without one cannot be checked against a prescription.",
@@ -670,6 +674,21 @@
     "onShelf": "{qty} {unit} on the shelf · minimum {min}",
     "onOrder": "On order"
   },
+  "setup": {
+    "title": "Set up your practice",
+    "subtitle": "This database has no accounts yet. Create the owner account — this page will not be available again.",
+    "pin": "PIN",
+    "confirmPin": "Repeat the PIN",
+    "pinHint": "{min} to {max} digits. You will type this to sign in.",
+    "createOwner": "Create the owner account",
+    "afterHint": "You will be signed in straight away. Everyone else is added from the Staff page, where you can also change PINs.",
+    "errorNames": "Enter a first and last name.",
+    "errorPinFormat": "The PIN must be 4 to 6 digits.",
+    "errorPinMismatch": "The two PINs do not match.",
+    "errorAlreadySetUp": "This practice already has an account. Sign in instead.",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "tooMany": "Too many attempts. Please wait a minute and try again."
+  },
   "confirm": {
     "title": "Confirm your appointment",
     "greeting": "Hello {name}",
@@ -712,6 +731,7 @@
     "saved": "Saved",
     "closuresTitle": "Closures",
     "closuresSubtitle": "Holidays and shutdowns — these override the week above.",
+    "saveAnyway": "Save anyway — I will move those appointments",
     "closuresEmpty": "No closures coming up.",
     "closureNew": "Add closure",
     "closureEdit": "Edit closure",

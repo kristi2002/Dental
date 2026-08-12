@@ -17,7 +17,6 @@ import { AppointmentFormDialog, type PatientOption, type ServiceOption } from '.
 export async function FreeTimeCard({
   gaps,
   date,
-  patients,
   services,
   canBook,
   canCreatePatient,
@@ -25,7 +24,6 @@ export async function FreeTimeCard({
   gaps: FreeGap[];
   /** `YYYY-MM-DD` the gaps belong to. */
   date: string;
-  patients: PatientOption[];
   services: ServiceOption[];
   canBook: boolean;
   canCreatePatient: boolean;
@@ -64,7 +62,6 @@ export async function FreeTimeCard({
 
               {canBook ? (
                 <AppointmentFormDialog
-                  patients={patients}
                   services={services}
                   staff={staff}
                   operatories={operatories}

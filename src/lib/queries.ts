@@ -1,7 +1,6 @@
 import { cache } from 'react';
 import type {
   OperatoryOption,
-  PatientOption,
   ServiceOption,
   StaffOption,
 } from '@/components/appointments/AppointmentFormDialog';
@@ -19,6 +18,7 @@ import {
   type DayHours,
   type DaySchedule,
 } from '@/lib/clinic-hours';
+import { usableQuantity } from '@/lib/expiry';
 import { prisma } from '@/lib/prisma';
 import { addDays, toDateKey, timeToMinutes, today } from '@/lib/dates';
 
@@ -99,16 +99,6 @@ export const getOperatoryOptions = cache(async (): Promise<OperatoryOption[]> =>
     select: { id: true, name: true },
   });
 });
-
-/** Patients in a `<select>`-ready shape, sorted the way a paper file drawer is. */
-export async function getPatientOptions(): Promise<PatientOption[]> {
-  const patients = await prisma.patient.findMany({
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-    select: { id: true, firstName: true, lastName: true },
-  });
-
-  return patients.map((p) => ({ id: p.id, name: `${p.lastName} ${p.firstName}` }));
-}
 
 /** The catalog in picker order: by department, then by name inside each one. */
 export async function getServiceOptions(): Promise<ServiceOption[]> {
@@ -367,8 +357,15 @@ export async function getLowStockItems() {
   const items = await prisma.stockItem.findMany({
     where: ACTIVE_STOCK,
     orderBy: { name: 'asc' },
+    include: { batches: { select: { expiryDate: true, quantity: true } } },
   });
-  return items.filter((item) => item.quantity <= item.minLimit);
+
+  // Against what is *usable*, not what is on the shelf. An expired box counted
+  // toward the minimum like any other, so an item could read as well stocked
+  // while every unit of it was unusable.
+  return items
+    .map((item) => ({ ...item, usable: usableQuantity(item.quantity, item.batches) }))
+    .filter((item) => item.usable <= item.minLimit);
 }
 
 /**

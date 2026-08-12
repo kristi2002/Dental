@@ -154,8 +154,21 @@ model Patient {
   /// Stamped when the recall message is opened, so the list stops nagging.
   lastRecallAt       DateTime?
 
+  /// Name, phone and email, lowercased with diacritics stripped.
+  ///
+  /// Written on save, never typed. The patient list searched with `ILIKE '%q%'`
+  /// over four columns, which folds case but not accents — while the app's own
+  /// `matches()` helper folds both, because typing *cesh* has to find *Çështje*.
+  /// So the same query behaved differently depending on which box it was typed
+  /// into, and Albanian names are exactly where it mattered. One folded column,
+  /// one comparison, indexable.
+  searchKey String @default("")
+
   /// Every patient list in the app orders by this pair, and nothing served it.
   @@index([lastName, firstName])
+  @@index([searchKey])
+  /// "A patient with this number already exists" needs to be a lookup, not a scan.
+  @@index([phone])
 }
 
 model Appointment {
@@ -486,10 +499,24 @@ model StockBatch {
 
   lotNumber  String?
   expiryDate DateTime?
-  /// How many arrived in this lot.
-  quantity  Int      @default(0)
+  /// How many arrived in this lot. Never changes — it is what the delivery note
+  /// said, and rewriting it would lose the only figure that can be checked
+  /// against the supplier.
+  quantity Int @default(0)
+
+  /// How many of them have since been used.
+  ///
+  /// The lots recorded what arrived and nothing ever drew them down, so "which
+  /// lot number went into this patient" — the question a recall notice asks, and
+  /// the stated reason these rows exist — stayed unanswerable. Consumption now
+  /// allocates oldest-expiry-first, which is also the order a shelf should be
+  /// worked, and `StockMovement.batchId` records where each one went.
+  usedQuantity Int @default(0)
+
   notes     String?
   createdAt DateTime @default(now())
+
+  movements StockMovement[]
 
   @@index([itemId, expiryDate])
 }
@@ -518,7 +545,14 @@ model StockMovement {
   visitRecordId String?
   visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
 
+  /// Which lot this came out of, when the material is tracked by lot. A
+  /// consumption spanning two lots writes one movement per lot, so the trace
+  /// stays exact rather than averaged.
+  batchId String?
+  batch   StockBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
   @@index([createdAt])
+  @@index([batchId])
   /// `reorder.ts` groups a date window by item. `itemId` leads, so this also
   /// serves the plain "movements for this material" lookup.
   @@index([itemId, createdAt])

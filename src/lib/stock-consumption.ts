@@ -1,3 +1,4 @@
+import { allocateOldestFirst } from '@/lib/batch-allocation';
 import { prisma } from '@/lib/prisma';
 
 export type ConsumedLine = { itemId: string; name: string; quantity: number; unit: string };
@@ -78,18 +79,46 @@ export async function consumeMaterialsForServices(
         if (taken.count === 0) continue;
       }
 
-      await tx.stockMovement.create({
-        data: {
-          itemId: line.itemId,
-          delta: -applied,
-          reason: 'used in visit',
-          staffUserId,
-          // `reason` was the only trace, and it is prose. With the id, "why did
-          // we burn 40 syringes in March?" is a query rather than a guess, and a
-          // mis-recorded visit can have its deductions found and reversed.
-          visitRecordId: visitRecordId ?? null,
-        },
+      // Which lots it came out of, oldest expiry first. A consumption spanning
+      // two lots writes one movement per lot, so a recall notice naming a lot
+      // number can be traced to the exact visits it touched.
+      const batches = await tx.stockBatch.findMany({
+        where: { itemId: line.itemId },
+        select: { id: true, expiryDate: true, quantity: true, usedQuantity: true },
       });
+      const allocations = allocateOldestFirst(batches, applied);
+
+      for (const allocation of allocations) {
+        await tx.stockBatch.update({
+          where: { id: allocation.batchId },
+          data: { usedQuantity: { increment: allocation.quantity } },
+        });
+      }
+
+      // The shelf is the authority; lots are a trace over it. An item with no
+      // lots — or lots that do not cover the amount — still gets its movement,
+      // with no batch attached, rather than losing the consumption entirely.
+      const allocated = allocations.reduce((sum, a) => sum + a.quantity, 0);
+      const lines = [
+        ...allocations.map((a) => ({ delta: -a.quantity, batchId: a.batchId })),
+        ...(applied > allocated ? [{ delta: -(applied - allocated), batchId: null }] : []),
+      ];
+
+      for (const movement of lines) {
+        await tx.stockMovement.create({
+          data: {
+            itemId: line.itemId,
+            delta: movement.delta,
+            reason: 'used in visit',
+            staffUserId,
+            // `reason` was the only trace, and it is prose. With the id, "why did
+            // we burn 40 syringes in March?" is a query rather than a guess, and a
+            // mis-recorded visit can have its deductions found and reversed.
+            visitRecordId: visitRecordId ?? null,
+            batchId: movement.batchId,
+          },
+        });
+      }
 
       consumed.push({ ...line, quantity: applied });
     }

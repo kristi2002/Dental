@@ -1,8 +1,8 @@
 'use client';
 
-import { Pencil, UserPlus } from 'lucide-react';
+import { Pencil, TriangleAlert, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { savePatient } from '@/lib/actions/patients';
@@ -55,12 +55,17 @@ export function PatientFormDialog({
   const tc = useTranslations('common');
   const editing = Boolean(patient);
   const uid = useId();
+  // Set only after the server reports somebody already using this number, and
+  // cleared when the dialog closes: creating a second record for one person
+  // should be a decision, never a default.
+  const [force, setForce] = useState(false);
 
   return (
     <FormDialog
       key={patient?.id ?? 'new'}
       action={savePatient}
       resetOnSuccess={!editing}
+      onClose={() => setForce(false)}
       title={editing ? t('edit') : t('new')}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
@@ -82,7 +87,10 @@ export function PatientFormDialog({
         )
       }
     >
+      {(state) => (
+        <>
       {patient ? <input type="hidden" name="id" value={patient.id} /> : null}
+      {force ? <input type="hidden" name="force" value="1" /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
@@ -273,6 +281,27 @@ export function PatientFormDialog({
           defaultValue={patient?.medicalNotes}
         />
       ) : null}
+
+      {/* Two people can genuinely share a number — a family does — so this is
+          reported and overridable, never enforced. What it catches is the second
+          "Arta Krasniqi", created once at the desk and once from a booking,
+          whose history then lives in two places. */}
+      {state.status === 'error' && state.code === 'duplicate' ? (
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5 font-semibold text-warn">
+          <input
+            type="checkbox"
+            checked={force}
+            onChange={(event) => setForce(event.target.checked)}
+            className="mt-1 size-4 shrink-0 accent-current"
+          />
+          <span className="flex items-start gap-1.5">
+            <TriangleAlert size={18} aria-hidden className="mt-0.5 shrink-0" />
+            {t('addAnyway')}
+          </span>
+        </label>
+      ) : null}
+        </>
+      )}
     </FormDialog>
   );
 }

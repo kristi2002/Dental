@@ -5,11 +5,16 @@ import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
+import { PatientPicker } from '@/components/patients/PatientPicker';
 import { saveAppointment } from '@/lib/actions/appointments';
-import { NEW_PATIENT_VALUE } from '@/lib/booking';
 import { byDepartment } from '@/lib/catalog';
 
-export type PatientOption = { id: string; name: string };
+export type PatientOption = {
+  id: string;
+  name: string;
+  /** Shown beside the name, because two people in a small town share one. */
+  phone?: string;
+};
 export type ServiceOption = {
   id: string;
   name: string;
@@ -43,14 +48,13 @@ export type BookingSlot = { startTime: string; endTime: string; minutes: number 
 const STATUSES = ['SCHEDULED', 'ARRIVED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
 
 export function AppointmentFormDialog({
-  patients,
+  defaultPatient,
   services,
   staff = [],
   operatories = [],
   appointment,
   defaultDate,
   defaultStartTime,
-  defaultPatientId,
   defaultStaffUserId,
   slot,
   planStepId,
@@ -59,7 +63,11 @@ export function AppointmentFormDialog({
   triggerLabel,
   compact = false,
 }: {
-  patients: PatientOption[];
+  /**
+   * Who this booking is for, when the screen already knows. Left out, the
+   * picker searches — see `PatientPicker` for why this is no longer a list.
+   */
+  defaultPatient?: PatientOption;
   services: ServiceOption[];
   /** Dentists this can be booked with. Empty in a single-dentist practice. */
   staff?: StaffOption[];
@@ -72,7 +80,6 @@ export function AppointmentFormDialog({
   defaultDate?: string;
   /** `HH:MM` used when creating from a specific slot in the day. */
   defaultStartTime?: string;
-  defaultPatientId?: string;
   /** When booking into a known gap: bounds the time field and shows what is left. */
   slot?: BookingSlot;
   /**
@@ -164,34 +171,16 @@ export function AppointmentFormDialog({
             </p>
           ) : null}
 
-          {patients.length === 0 && !canCreatePatient ? (
-            <p className="rounded-lg border border-warn bg-warn-soft px-3 py-2 font-semibold text-warn">
-              {t('noPatients')}
-            </p>
-          ) : null}
-
-          <SelectField
-            id={`${uid}-patient`}
+          <PatientPicker
             name="patientId"
             label={t('patient')}
             required
-            defaultValue={appointment?.patientId ?? defaultPatientId ?? ''}
-            onChange={(event) => setAddingPatient(event.target.value === NEW_PATIENT_VALUE)}
-          >
-            <option value="" disabled>
-              {t('selectPatient')}
-            </option>
-            {/* Booking someone who has never been here is the common case at the
-                front desk, so it sits at the top rather than on another screen. */}
-            {canCreatePatient && !editing ? (
-              <option value={NEW_PATIENT_VALUE}>{t('newPatientOption')}</option>
-            ) : null}
-            {patients.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </SelectField>
+            defaultPatient={defaultPatient}
+            // Booking someone who has never been here is the common case at the
+            // front desk, so it is offered inline rather than on another screen.
+            allowNew={canCreatePatient && !editing}
+            onNewChange={setAddingPatient}
+          />
 
           {addingPatient ? (
             <fieldset className="space-y-4 rounded-lg border border-brand/40 bg-brand-soft/40 p-3.5">

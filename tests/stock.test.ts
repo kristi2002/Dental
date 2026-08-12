@@ -1,0 +1,248 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { allocateOldestFirst } from '../src/lib/batch-allocation';
+import { byExpiry, expiryLevel, summariseBatches, usableQuantity } from '../src/lib/expiry';
+import { orderAmount, reorderAsText, type ReorderLine } from '../src/lib/reorder';
+
+const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+const NOW = utc('2026-08-12');
+
+describe('expiryLevel', () => {
+  it('treats a blank date as fine rather than as a warning', () => {
+    // Not everything in a cupboard carries an expiry, and treating a blank
+    // field as a warning would make the whole signal noise.
+    assert.equal(expiryLevel(null, NOW), 'OK');
+  });
+
+  it('calls yesterday expired and today still usable', () => {
+    assert.equal(expiryLevel(utc('2026-08-11'), NOW), 'EXPIRED');
+    assert.equal(expiryLevel(utc('2026-08-12'), NOW), 'SOON');
+  });
+
+  it('warns inside the 90-day window and not outside it', () => {
+    assert.equal(expiryLevel(utc('2026-11-10'), NOW), 'SOON');
+    assert.equal(expiryLevel(utc('2026-11-11'), NOW), 'OK');
+  });
+});
+
+describe('summariseBatches — the worst news across an item', () => {
+  it('reports OK for an item with no lots', () => {
+    assert.deepEqual(summariseBatches([], NOW), {
+      expiredUnits: 0,
+      soonUnits: 0,
+      nextExpiry: null,
+      level: 'OK',
+    });
+  });
+
+  it('lets one expired lot outrank several healthy ones', () => {
+    const summary = summariseBatches(
+      [
+        { expiryDate: utc('2026-08-01'), quantity: 2 },
+        { expiryDate: utc('2027-01-01'), quantity: 40 },
+      ],
+      NOW,
+    );
+    assert.equal(summary.level, 'EXPIRED');
+    assert.equal(summary.expiredUnits, 2);
+  });
+
+  it('never offers an expired date as the next deadline', () => {
+    // An expired lot is a fact, not a deadline; putting it here would bury the
+    // one still worth acting on.
+    const summary = summariseBatches(
+      [
+        { expiryDate: utc('2026-08-01'), quantity: 1 },
+        { expiryDate: utc('2026-09-01'), quantity: 5 },
+      ],
+      NOW,
+    );
+    assert.equal(summary.nextExpiry?.toISOString().slice(0, 10), '2026-09-01');
+  });
+
+  it('sums units per level rather than counting lots', () => {
+    const summary = summariseBatches(
+      [
+        { expiryDate: utc('2026-09-01'), quantity: 5 },
+        { expiryDate: utc('2026-10-01'), quantity: 7 },
+      ],
+      NOW,
+    );
+    assert.equal(summary.soonUnits, 12);
+    assert.equal(summary.level, 'SOON');
+  });
+});
+
+describe('byExpiry — oldest first', () => {
+  it('sorts the soonest date to the front and undated lots to the back', () => {
+    const sorted = byExpiry([
+      { expiryDate: null, quantity: 1 },
+      { expiryDate: utc('2027-01-01'), quantity: 1 },
+      { expiryDate: utc('2026-09-01'), quantity: 1 },
+    ]);
+    assert.deepEqual(
+      sorted.map((b) => b.expiryDate?.toISOString().slice(0, 10) ?? 'none'),
+      ['2026-09-01', '2027-01-01', 'none'],
+    );
+  });
+});
+
+const line = (over: Partial<ReorderLine> = {}): ReorderLine => ({
+  id: 'x',
+  name: 'Doreza',
+  unit: 'kuti',
+  quantity: 2,
+  minLimit: 5,
+  packSize: 1,
+  monthlyUse: 3,
+  daysLeft: 10,
+  suggested: 6,
+  stated: false,
+  urgent: true,
+  orderedAt: null,
+  expectedAt: null,
+  supplierName: '',
+  ...over,
+});
+
+describe('orderAmount — what to say out loud to the supplier', () => {
+  it('prints pieces first for a box-counted line', () => {
+    // The shelf is counted in boxes, the supplier sells pieces.
+    assert.equal(orderAmount({ suggested: 5, unit: 'kuti', packSize: 100 }), '500 (5 kuti)');
+  });
+
+  it('prints plain units for anything counted singly', () => {
+    assert.equal(orderAmount({ suggested: 5, unit: 'copë', packSize: 1 }), '5 copë');
+  });
+});
+
+describe('reorderAsText — the message pasted to a supplier', () => {
+  it('leaves out what is already on its way', () => {
+    const text = reorderAsText(
+      [line({ name: 'Doreza' }), line({ name: 'Maska', orderedAt: '2026-08-01' })],
+      'Porosi',
+    );
+    assert.ok(text.includes('Doreza'));
+    assert.ok(!text.includes('Maska'), 'what is already coming is not on the order form');
+  });
+
+  it('leaves out lines with nothing to order', () => {
+    const text = reorderAsText([line({ name: 'Doreza', suggested: 0 })], 'Porosi');
+    assert.equal(text.trim(), 'Porosi');
+  });
+});
+
+const batch = (id: string, expiry: string | null, quantity: number, used = 0) => ({
+  id,
+  expiryDate: expiry ? utc(expiry) : null,
+  quantity,
+  usedQuantity: used,
+});
+
+describe('usableQuantity — an expired box is not stock', () => {
+  it('leaves an item with no lots alone', () => {
+    assert.equal(usableQuantity(12, [], NOW), 12);
+  });
+
+  it('leaves an item whose lots are all good alone', () => {
+    assert.equal(usableQuantity(12, [{ expiryDate: utc('2027-01-01'), quantity: 12 }], NOW), 12);
+  });
+
+  it('subtracts what has expired', () => {
+    const batches = [
+      { expiryDate: utc('2026-08-01'), quantity: 5 },
+      { expiryDate: utc('2027-01-01'), quantity: 7 },
+    ];
+    assert.equal(usableQuantity(12, batches, NOW), 7);
+  });
+
+  it('never goes below zero when the lots claim more than the shelf holds', () => {
+    assert.equal(usableQuantity(3, [{ expiryDate: utc('2026-08-01'), quantity: 9 }], NOW), 0);
+  });
+});
+
+describe('allocateOldestFirst — which lot it comes out of', () => {
+  it('takes the soonest to expire first', () => {
+    const result = allocateOldestFirst(
+      [batch('new', '2027-01-01', 10), batch('old', '2026-09-01', 10)],
+      4,
+      NOW,
+    );
+    assert.deepEqual(result, [{ batchId: 'old', quantity: 4 }]);
+  });
+
+  it('spans lots when one is not enough', () => {
+    const result = allocateOldestFirst(
+      [batch('old', '2026-09-01', 3), batch('new', '2027-01-01', 10)],
+      5,
+      NOW,
+    );
+    assert.deepEqual(result, [
+      { batchId: 'old', quantity: 3 },
+      { batchId: 'new', quantity: 2 },
+    ]);
+  });
+
+  it('skips an expired lot rather than recording it as used', () => {
+    // It should not have been used, and saying it was would put a wrong lot
+    // number on a patient's record.
+    const result = allocateOldestFirst(
+      [batch('gone', '2026-08-01', 10), batch('good', '2027-01-01', 10)],
+      4,
+      NOW,
+    );
+    assert.deepEqual(result, [{ batchId: 'good', quantity: 4 }]);
+  });
+
+  it('skips a lot already fully drawn down', () => {
+    const result = allocateOldestFirst(
+      [batch('spent', '2026-09-01', 5, 5), batch('good', '2027-01-01', 10)],
+      2,
+      NOW,
+    );
+    assert.deepEqual(result, [{ batchId: 'good', quantity: 2 }]);
+  });
+
+  it('counts only what is left in a partly used lot', () => {
+    const result = allocateOldestFirst(
+      [batch('part', '2026-09-01', 5, 3), batch('good', '2027-01-01', 10)],
+      4,
+      NOW,
+    );
+    assert.deepEqual(result, [
+      { batchId: 'part', quantity: 2 },
+      { batchId: 'good', quantity: 2 },
+    ]);
+  });
+
+  it('sorts an undated lot last — one that will turn is more urgent', () => {
+    const result = allocateOldestFirst(
+      [batch('undated', null, 10), batch('dated', '2027-01-01', 3)],
+      5,
+      NOW,
+    );
+    assert.deepEqual(result, [
+      { batchId: 'dated', quantity: 3 },
+      { batchId: 'undated', quantity: 2 },
+    ]);
+  });
+
+  it('allocates what it can and leaves the rest to the caller', () => {
+    // The shelf is the authority; lots are a trace over it.
+    const result = allocateOldestFirst([batch('only', '2027-01-01', 2)], 5, NOW);
+    assert.deepEqual(result, [{ batchId: 'only', quantity: 2 }]);
+  });
+
+  it('allocates nothing for an item with no lots', () => {
+    assert.deepEqual(allocateOldestFirst([], 5, NOW), []);
+  });
+
+  it('allocates nothing when nothing is wanted', () => {
+    assert.deepEqual(allocateOldestFirst([batch('a', '2027-01-01', 5)], 0, NOW), []);
+  });
+
+  it('treats a lot expiring today as still usable', () => {
+    const result = allocateOldestFirst([batch('today', '2026-08-12', 5)], 2, NOW);
+    assert.deepEqual(result, [{ batchId: 'today', quantity: 2 }]);
+  });
+});

@@ -9,7 +9,7 @@ import { confirmationToken, confirmationUrl } from '@/lib/confirmations';
 import { minutesToTime, timeToMinutes, toDateKey, today } from '@/lib/dates';
 import { getOperatoryOptions, getProviderOptions } from '@/lib/queries';
 import { composeReminder } from '@/lib/reminder-messages';
-import { AppointmentFormDialog, type PatientOption, type ServiceOption } from './AppointmentFormDialog';
+import { AppointmentFormDialog, type ServiceOption } from './AppointmentFormDialog';
 import { AppointmentStatusBadge } from './AppointmentStatusBadge';
 import { ReminderLinks } from './ReminderLinks';
 import type { AppointmentView } from './types';
@@ -21,12 +21,10 @@ import type { AppointmentView } from './types';
  */
 export async function AppointmentRow({
   appointment,
-  patients,
   services,
   showDate = false,
 }: {
   appointment: AppointmentView;
-  patients: PatientOption[];
   services: ServiceOption[];
   showDate?: boolean;
 }) {
@@ -176,7 +174,9 @@ export async function AppointmentRow({
 
           {canEdit ? (
             <AppointmentFormDialog
-              patients={patients}
+              // The row already knows whose appointment this is; nothing needs
+              // the rest of the drawer to edit one booking.
+              defaultPatient={{ id: appointment.patient.id, name: patientName }}
               services={services}
               staff={staff}
               operatories={operatories}
