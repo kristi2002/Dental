@@ -40,6 +40,42 @@ function toToothNum(value: FormDataEntryValue | null): number | null {
   return isValidTooth(parsed) ? parsed : null;
 }
 
+/**
+ * The opening steps a new plan is created with, as posted by the builder.
+ *
+ * Anything malformed is dropped rather than guessed at, and the list is capped:
+ * a plan is a course of treatment, not an import format, and thirty steps is
+ * already more than any real one has.
+ */
+function parseDraftSteps(raw: string): Array<{ title: string; toothNum: number | null }> {
+  if (!raw) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+
+  const steps: Array<{ title: string; toothNum: number | null }> = [];
+  for (const entry of parsed) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const { title, toothNum } = entry as { title?: unknown; toothNum?: unknown };
+    if (typeof title !== 'string') continue;
+
+    const clean = title.trim().slice(0, 180);
+    if (!clean) continue;
+
+    steps.push({
+      title: clean,
+      toothNum: typeof toothNum === 'number' && isValidTooth(toothNum) ? toothNum : null,
+    });
+    if (steps.length === 30) break;
+  }
+  return steps;
+}
+
 export async function savePlan(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const t = await getTranslations('errors');
 
@@ -57,14 +93,11 @@ export async function savePlan(_prev: ActionState, formData: FormData): Promise<
     status: toPlanStatus(requiredString(formData.get('status'))),
   };
 
-  // A brand-new plan is usually dictated in one go, so the dialog accepts the
-  // opening steps as newline-separated text rather than making the dentist
-  // save and then add them one at a time.
-  const initialSteps = requiredString(formData.get('steps'))
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 30);
+  // A brand-new plan is built in one go, so the dialog posts its whole opening
+  // sequence rather than making the dentist save and then add steps one dialog
+  // at a time. Each carries its tooth, which is the half the old
+  // newline-separated list could not express at all.
+  const initialSteps = parseDraftSteps(requiredString(formData.get('steps')));
 
   let savedId = id;
   try {
@@ -77,9 +110,10 @@ export async function savePlan(_prev: ActionState, formData: FormData): Promise<
             ...data,
             patientId,
             steps: {
-              create: initialSteps.map((title, index) => ({
+              create: initialSteps.map((step, index) => ({
                 position: index + 1,
-                title,
+                title: step.title,
+                toothNum: step.toothNum,
               })),
             },
           },

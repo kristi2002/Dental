@@ -68,7 +68,7 @@ export default async function RecallsPage({
 
   return (
     <>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} trail={[{ label: t('title') }]} />
 
       <div className="space-y-6">
         <Card>

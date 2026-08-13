@@ -1,6 +1,7 @@
-import { ArrowLeft, TriangleAlert } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
+import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PrintButton } from '@/components/prescriptions/PrintButton';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
@@ -110,13 +111,17 @@ export default async function DaySheetPage({
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3" data-print-hide>
-        <Link
-          href={`/appointments?view=day&date=${toDateKey(day)}${staffFilter ? `&staff=${staffFilter}` : ''}`}
-          className="inline-flex items-center gap-1.5 font-semibold text-ink-soft no-underline hover:text-ink"
-        >
-          <ArrowLeft size={18} aria-hidden />
-          {ta('title')}
-        </Link>
+        {/* The trail keeps the day and the provider filter in the link back, so
+            returning to the diary returns to the day this sheet is of. */}
+        <Breadcrumbs
+          items={[
+            {
+              href: `/appointments?view=day&date=${toDateKey(day)}${staffFilter ? `&staff=${staffFilter}` : ''}`,
+              label: ta('title'),
+            },
+            { label: t('title') },
+          ]}
+        />
         <PrintButton label={t('print')} />
       </div>
 

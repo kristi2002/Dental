@@ -11,26 +11,28 @@ import {
   weekDays,
 } from '@/lib/dates';
 import { cn } from '@/lib/utils';
+import { blockStyle } from './status-styles';
 import type { AppointmentView } from './types';
 
 /**
- * One hour of grid, in rem. Every position on the week is derived from it, so
- * an appointment's height is its real length — a two-hour crown sits twice as
- * tall as the check-up after it, and the hole between them is the gap somebody
- * can be squeezed into.
+ * The ruler is cut into ten-minute rows, and everything on the grid is measured
+ * against them.
+ *
+ * Ten is the granularity the diary is actually kept at: a check is ten minutes,
+ * a filling three of them, and a hygienist's list is a column of tens. Drawing
+ * the line at every ten rather than every hour means a slot is a place on the
+ * grid you can point at, not a fraction of an hour somebody estimates by eye —
+ * and a ten-minute booking gets a block tall enough to print a name in.
+ *
+ * The cost is height: an open day is a long column, so the grid scrolls inside
+ * its own frame with the day header pinned, rather than making the whole page
+ * three thousand pixels tall.
  */
-const HOUR_REM = 4;
+const SLOT_MIN = 10;
+const SLOT_REM = 2.5;
 
 /** Below this a block has no room for its own text, so short bookings are drawn taller. */
-const MIN_BLOCK_REM = 1.35;
-
-const STATUS_STYLE: Record<string, string> = {
-  SCHEDULED: 'border-brand/45 bg-brand-soft text-ink',
-  ARRIVED: 'border-accent bg-accent-soft text-ink',
-  COMPLETED: 'border-ok/35 bg-ok-soft text-ink',
-  CANCELLED: 'border-line-strong bg-paper text-ink-soft line-through',
-  NO_SHOW: 'border-warn/35 bg-warn-soft text-ink',
-};
+const MIN_BLOCK_REM = 1.4;
 
 type Block = {
   appointment: AppointmentView;
@@ -91,11 +93,11 @@ function layOutDay(dayAppointments: AppointmentView[]): Block[] {
 }
 
 /**
- * The week as a time grid: seven day columns over a shared hour ruler.
+ * The week as a time grid: seven day columns across, ten-minute rows down.
  *
  * The columns are the same grid the day view draws, seven abreast — so "when is
  * this week free" is answered by looking at the white space rather than by
- * opening seven days one after another. Closed hours stay on the grid, shaded,
+ * opening seven days one after another. Closed rows stay on the grid, shaded,
  * because a clinic needs to see that Saturday afternoon exists and is shut.
  */
 export function WeekView({
@@ -132,24 +134,35 @@ export function WeekView({
   );
   const startHour = Math.min(...bounds.map((bound) => bound.startHour));
   const endHour = Math.max(startHour + 1, ...bounds.map((bound) => bound.endHour));
-  const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
+
   const startMinute = startHour * 60;
-  const gridRem = hours.length * HOUR_REM;
+  const slots = Array.from(
+    { length: ((endHour - startHour) * 60) / SLOT_MIN },
+    (_, i) => startMinute + i * SLOT_MIN,
+  );
+  const gridRem = slots.length * SLOT_REM;
+
+  /** Where a moment sits on the ruler, in rem from the top of the grid. */
+  const offsetRem = (minute: number) => ((minute - startMinute) / SLOT_MIN) * SLOT_REM;
 
   // The "you are here" line, drawn only on today and only while the clock is
   // inside the hours on screen.
   const nowMinutes = clinicMinutesNow();
   const todayIndex = days.findIndex((day) => isSameDay(day, now));
-  const nowRem = ((nowMinutes - startMinute) / 60) * HOUR_REM;
+  const nowRem = offsetRem(nowMinutes);
   const showNowLine = todayIndex >= 0 && nowRem >= 0 && nowRem <= gridRem;
 
-  const columns = 'grid grid-cols-[3.75rem_repeat(7,minmax(0,1fr))] sm:grid-cols-[4.5rem_repeat(7,minmax(0,1fr))]';
+  const columns =
+    'grid grid-cols-[4.25rem_repeat(7,minmax(0,1fr))] sm:grid-cols-[5rem_repeat(7,minmax(0,1fr))]';
 
   return (
-    <div className="overflow-x-auto">
+    /* Its own scroll frame, in both directions: seven columns are wider than a
+       phone and a full day of tens is taller than any screen. Bounded rather
+       than free-running so the day header has something to pin against. */
+    <div className="max-h-[calc(100vh-14rem)] min-h-[30rem] overflow-auto overscroll-contain">
       <div className="min-w-[54rem]">
-        <div className={cn(columns, 'border-b border-line')}>
-          <div className="border-r border-line" />
+        <div className={cn(columns, 'sticky top-0 z-20 border-b border-line-strong bg-surface')}>
+          <div className="sticky left-0 z-10 border-r border-line bg-surface" />
           {days.map((day, index) => {
             const key = toDateKey(day);
             const isToday = isSameDay(day, now);
@@ -191,16 +204,29 @@ export function WeekView({
         </div>
 
         <div className={columns}>
-          <div className="border-r border-line">
-            {hours.map((hour) => (
-              <div
-                key={hour}
-                style={{ height: `${HOUR_REM}rem` }}
-                className="border-b border-line pt-1 pr-2 text-right text-[0.85rem] font-semibold tabular-nums text-ink-faint last:border-b-0"
-              >
-                {String(hour).padStart(2, '0')}:00
-              </div>
-            ))}
+          {/* The ruler. Every ten is written out, but only the hour is inked:
+              the minutes in between are there to be measured against, not
+              read one after another. */}
+          <div className="sticky left-0 z-10 border-r border-line bg-surface">
+            {slots.map((minute) => {
+              const onTheHour = minute % 60 === 0;
+
+              return (
+                <div
+                  key={minute}
+                  style={{ height: `${SLOT_REM}rem` }}
+                  className={cn(
+                    'border-b pr-2 text-right tabular-nums last:border-b-0',
+                    (minute + SLOT_MIN) % 60 === 0 ? 'border-line-strong' : 'border-line',
+                    onTheHour
+                      ? 'text-[0.95rem] font-bold text-ink'
+                      : 'text-[0.82rem] font-semibold text-ink-faint',
+                  )}
+                >
+                  {minutesToTime(minute)}
+                </div>
+              );
+            })}
           </div>
 
           {days.map((day, index) => {
@@ -216,18 +242,19 @@ export function WeekView({
                   isToday && 'bg-brand-soft/30',
                 )}
               >
-                {hours.map((hour) => {
+                {slots.map((minute) => {
                   const open = schedule.ranges.some(
-                    (range) => range.start < (hour + 1) * 60 && range.end > hour * 60,
+                    (range) => range.start < minute + SLOT_MIN && range.end > minute,
                   );
 
                   return (
                     <div
-                      key={hour}
-                      style={{ height: `${HOUR_REM}rem` }}
+                      key={minute}
+                      style={{ height: `${SLOT_REM}rem` }}
                       className={cn(
-                        'border-b border-line last:border-b-0',
-                        // Shut hours are shaded rather than dropped: the front
+                        'border-b last:border-b-0',
+                        (minute + SLOT_MIN) % 60 === 0 ? 'border-line-strong' : 'border-line',
+                        // Shut slots are shaded rather than dropped: the front
                         // desk can still see that four o'clock exists.
                         !open && 'bg-paper',
                       )}
@@ -237,10 +264,10 @@ export function WeekView({
 
                 {layOutDay(byDay[index]).map((block) => {
                   const { appointment } = block;
-                  const top = Math.max(0, ((block.start - startMinute) / 60) * HOUR_REM);
+                  const top = Math.max(0, offsetRem(block.start));
                   const height = Math.min(
                     gridRem - top,
-                    Math.max(MIN_BLOCK_REM, ((block.end - block.start) / 60) * HOUR_REM),
+                    Math.max(MIN_BLOCK_REM, offsetRem(block.end) - offsetRem(block.start)),
                   );
                   const lane = 100 / block.columns;
                   const name = `${appointment.patient.firstName} ${appointment.patient.lastName}`;
@@ -260,13 +287,14 @@ export function WeekView({
                         width: `calc(${lane}% - 0.3rem)`,
                       }}
                       className={cn(
-                        'absolute overflow-hidden rounded-md border px-1.5 py-0.5 leading-tight no-underline',
-                        STATUS_STYLE[appointment.status] ?? STATUS_STYLE.SCHEDULED,
+                        'absolute overflow-hidden rounded-md border border-l-4 border-line px-1.5 py-0.5 leading-tight no-underline transition-shadow hover:shadow-card',
+                        blockStyle(appointment.status),
                       )}
                     >
                       {/* Two stacked lines need 2.3rem to render without being
-                          cut off, which a half-hour booking does not have — it
-                          gets the clock time and a surname on one line instead. */}
+                          cut off — which every booking of ten minutes or more
+                          now has. Below that the name leads on one line: the
+                          block's position on the ruler already says when. */}
                       {height < 2.3 ? (
                         <span className="block truncate text-[0.8rem] font-semibold">
                           <span className="tabular-nums">{appointment.startTime}</span>{' '}
@@ -274,11 +302,9 @@ export function WeekView({
                         </span>
                       ) : (
                         <>
-                          <span className="block truncate text-[0.78rem] font-bold tabular-nums">
-                            {appointment.startTime}–{endTime}
-                          </span>
-                          <span className="block truncate text-[0.85rem] font-semibold">
-                            {name}
+                          <span className="block truncate text-[0.88rem] font-bold">{name}</span>
+                          <span className="block truncate text-[0.78rem] font-semibold tabular-nums opacity-85">
+                            {appointment.startTime} – {endTime}
                           </span>
                           {height >= 3.4 && appointment.serviceName ? (
                             <span className="block truncate text-[0.78rem] opacity-80">

@@ -8,11 +8,14 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import type { ServiceOption } from '@/components/appointments/AppointmentFormDialog';
+import type { ChartedTeeth } from '@/components/dental/ToothPicker';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { deletePlan, deleteStep, moveStep, setStepStatus } from '@/lib/actions/plans';
+import type { ToothNumbering } from '@/lib/teeth';
 import { cn } from '@/lib/utils';
 import { PlanFormDialog } from './PlanFormDialog';
 import { StepFormDialog } from './StepFormDialog';
@@ -53,11 +56,20 @@ export function TreatmentPlans({
   canEdit,
   canDelete,
   bookStep,
+  services = [],
+  charted = {},
+  numbering = 'FDI',
+  titles = [],
 }: {
   patientId: string;
   plans: PlanView[];
   canEdit: boolean;
   canDelete: boolean;
+  /** The catalogue and the chart, so a step is picked rather than typed. */
+  services?: ServiceOption[];
+  charted?: ChartedTeeth;
+  numbering?: ToothNumbering;
+  titles?: string[];
   /**
    * Renders the booking dialog for one step. Passed in rather than imported:
    * `AppointmentFormDialog` needs the patient list, the catalogue, the providers
@@ -75,7 +87,17 @@ export function TreatmentPlans({
       <EmptyState
         icon={<ListChecks size={40} aria-hidden />}
         title={t('empty')}
-        action={canEdit ? <PlanFormDialog patientId={patientId} /> : undefined}
+        action={
+          canEdit ? (
+            <PlanFormDialog
+              patientId={patientId}
+              services={services}
+              charted={charted}
+              numbering={numbering}
+              titles={titles}
+            />
+          ) : undefined
+        }
       />
     );
   }
@@ -108,6 +130,10 @@ export function TreatmentPlans({
                 {canEdit ? (
                   <PlanFormDialog
                     patientId={patientId}
+                    services={services}
+                    charted={charted}
+                    numbering={numbering}
+                    titles={titles}
                     plan={{
                       id: plan.id,
                       title: plan.title,
@@ -275,6 +301,9 @@ export function TreatmentPlans({
 
                         <StepFormDialog
                           planId={plan.id}
+                          services={services}
+                          charted={charted}
+                          numbering={numbering}
                           step={{
                             id: step.id,
                             title: step.title,
@@ -306,7 +335,12 @@ export function TreatmentPlans({
 
             {canEdit ? (
               <div className="mt-2">
-                <StepFormDialog planId={plan.id} />
+                <StepFormDialog
+                  planId={plan.id}
+                  services={services}
+                  charted={charted}
+                  numbering={numbering}
+                />
               </div>
             ) : null}
           </section>

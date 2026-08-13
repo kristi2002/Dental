@@ -28,13 +28,31 @@ export async function savePrescriptionTemplate(
   if (!name || !body) return actionError(t('fillRequired'));
 
   const data = { name, body, category: optionalString(formData.get('category')) };
+  // Which treatments this wording follows. Set as a whole, so unticking a
+  // service on the form actually removes the link rather than only failing to
+  // add it again.
+  const serviceIds = [...new Set(formData.getAll('serviceIds').map(String).filter(Boolean))];
 
   let savedId = id;
   try {
     if (id) {
-      await prisma.prescriptionTemplate.update({ where: { id }, data });
+      await prisma.$transaction([
+        prisma.prescriptionTemplate.update({ where: { id }, data }),
+        prisma.prescriptionTemplateService.deleteMany({ where: { templateId: id } }),
+        prisma.prescriptionTemplateService.createMany({
+          data: serviceIds.map((serviceId) => ({ templateId: id, serviceId })),
+        }),
+      ]);
     } else {
-      savedId = (await prisma.prescriptionTemplate.create({ data, select: { id: true } })).id;
+      savedId = (
+        await prisma.prescriptionTemplate.create({
+          data: {
+            ...data,
+            services: { create: serviceIds.map((serviceId) => ({ serviceId })) },
+          },
+          select: { id: true },
+        })
+      ).id;
     }
   } catch {
     return actionError(t('generic'));
@@ -145,6 +163,39 @@ export async function issuePrescription(
     ).id;
   } catch {
     return actionError(t('generic'));
+  }
+
+  // Saving the wording back as a template, at the one moment it is known to be
+  // right. A standard-wording list only becomes worth reading if adding to it
+  // costs less than not adding to it, and a separate screen costs more.
+  const templateName = optionalString(formData.get('templateName'));
+  if (requiredString(formData.get('saveAsTemplate')) === '1' && templateName) {
+    // One field carrying a comma-separated list, because it is a single "tie
+    // this to what was just done" tick rather than one box per treatment.
+    const linkedServiceIds = [
+      ...new Set(
+        requiredString(formData.get('templateServiceIds'))
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ),
+    ];
+
+    try {
+      await prisma.prescriptionTemplate.create({
+        data: {
+          name: templateName,
+          category: optionalString(formData.get('templateCategory')),
+          body,
+          services: { create: linkedServiceIds.map((serviceId) => ({ serviceId })) },
+        },
+      });
+    } catch (error) {
+      // The prescription is already issued and that is the part that matters —
+      // failing to file a copy of the wording must not report the issue itself
+      // as failed.
+      console.error('[prescriptions] could not save the template', error);
+    }
   }
 
   const patient = await prisma.patient.findUnique({

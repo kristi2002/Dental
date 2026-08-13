@@ -31,10 +31,14 @@ export function parseStatusFilter(raw: string | undefined): CalendarStatus[] {
   return wanted.length > 0 ? CALENDAR_STATUSES.filter((s) => wanted.includes(s)) : [...CALENDAR_STATUSES];
 }
 
-/** The dot beside each status, doubling as the key to the colours on the grid. */
+/**
+ * The swatch beside each status, doubling as the key to the colours on the
+ * grid. A bar rather than a dot, because a bar is exactly what the grid draws
+ * down the left edge of every block.
+ */
 const STATUS_DOT: Record<CalendarStatus, string> = {
   SCHEDULED: 'bg-brand',
-  ARRIVED: 'bg-accent',
+  ARRIVED: 'bg-accent-dark',
   COMPLETED: 'bg-ok',
   CANCELLED: 'bg-line-strong',
   NO_SHOW: 'bg-warn',
@@ -86,22 +90,22 @@ export function StatusFilter({
               <Link
                 href={hrefFor(next.length > 0 ? next : [...CALENDAR_STATUSES])}
                 aria-current={on ? 'true' : undefined}
-                className="flex min-h-10 items-center gap-2.5 rounded-lg px-1 py-1 no-underline hover:bg-paper"
+                className="flex min-h-11 items-center gap-2.5 rounded-lg px-1 py-1 no-underline hover:bg-paper"
               >
                 <span
                   aria-hidden
                   className={cn(
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors',
+                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors',
                     on
                       ? 'border-brand-dark bg-brand-dark text-white'
                       : 'border-line-strong bg-surface',
                   )}
                 >
-                  {on ? <Check size={14} strokeWidth={3} aria-hidden /> : null}
+                  {on ? <Check size={17} strokeWidth={3.5} aria-hidden /> : null}
                 </span>
                 <span
                   aria-hidden
-                  className={cn('h-2.5 w-2.5 shrink-0 rounded-full', STATUS_DOT[status])}
+                  className={cn('h-4 w-1.5 shrink-0 rounded-full', STATUS_DOT[status])}
                 />
                 <span
                   className={cn(

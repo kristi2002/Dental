@@ -66,7 +66,6 @@ export async function POST(request: Request) {
     waitlist,
     audit,
     visitServices,
-    labCases,
     alerts,
     contacts,
     suppliers,
@@ -106,7 +105,6 @@ export async function POST(request: Request) {
     // restores two thirds of a practice is not a backup — it is a file that
     // makes somebody believe they have one.
     prisma.visitService.findMany(),
-    prisma.labCase.findMany({ include: { items: true } }),
     prisma.patientAlert.findMany(),
     prisma.contact.findMany(),
     prisma.supplier.findMany(),
@@ -146,7 +144,6 @@ export async function POST(request: Request) {
         waitlist,
         audit,
         visitServices,
-        labCases,
         alerts,
         contacts,
         suppliers,

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
-import { AppointmentStatus, CancelledBy, LabCaseStatus } from '@/generated/prisma/enums';
+import { AppointmentStatus, CancelledBy } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { NEW_PATIENT_VALUE } from '@/lib/booking';
 import { toDateKey } from '@/lib/dates';
@@ -118,34 +118,6 @@ export async function saveAppointment(
         })
         .join(', ');
       return actionError(t('overlap', { list: names }), 'overlap');
-    }
-
-    // The thing the lab feature was built to prevent, finally checked.
-    //
-    // A crown promised for the 14th cannot be fitted on the 12th, and until now
-    // nothing said so — the due date lived on a list nobody had open while
-    // booking. Same shape as the double-booking warning, and overridable for the
-    // same reason: labs deliver early, and the practice may know something the
-    // date does not.
-    //
-    // Skipped for a patient being created here, who cannot have a case yet.
-    if (patientId !== NEW_PATIENT_VALUE) {
-      const pending = await prisma.labCase.findMany({
-        where: {
-          patientId,
-          status: LabCaseStatus.SENT,
-          dueAt: { gt: data.date },
-        },
-        select: { kind: true, labName: true, dueAt: true },
-        orderBy: { dueAt: 'asc' },
-      });
-
-      if (pending.length > 0) {
-        const list = pending
-          .map((c) => `${c.kind} · ${c.labName} · ${toDateKey(c.dueAt!)}`)
-          .join(', ');
-        return actionError(t('labPending', { list }), 'labPending');
-      }
     }
   }
 

@@ -83,11 +83,15 @@ const STATUS_HUE: Record<ToothStatus, string> = {
   MISSING: '#94A3B8', // slate-400
 };
 
+/** An upper first molar — three roots and a full cusp pattern, so every state
+ *  the legend has to show is legible on it. */
+const LEGEND_TOOTH = 16;
+
 /** One tooth is one cell wide on every row, so the arches stay in column. */
-const CELL = 'w-11 shrink-0';
+const CELL = 'w-12 shrink-0';
 /** Eight cells — a full permanent quadrant, and the width the shorter primary
  *  quadrants are padded to so every midline on the page lines up. */
-const HALF = 'w-[22rem] shrink-0';
+const HALF = 'w-96 shrink-0';
 
 function statusOf(records: ToothRecordMap, toothNum: number): ToothStatus {
   const raw = records[toothNum]?.status;
@@ -186,6 +190,15 @@ export function DentalChart({
   const current = selected === null ? null : records[selected];
   const label = (n: number) => toothLabelFor(n, numbering);
 
+  // What the caries and filling thumbnails should show. The surface being
+  // recorded if there is one, so the picture the dentist is choosing between is
+  // a picture of *their* finding rather than a generic one.
+  const previewSurfaces: ToothSurface[] = focusSurface
+    ? [focusSurface]
+    : parseSurfaces(current?.surfaces).length > 0
+      ? parseSurfaces(current?.surfaces)
+      : ['O'];
+
   const rowProps = {
     records,
     readOnly,
@@ -237,22 +250,27 @@ export function DentalChart({
         {showPrimary ? t('hidePrimary') : t('showPrimary')}
       </button>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-line bg-paper px-4 py-3">
-        <span className="text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</span>
-        {TOOTH_STATUSES.map((status) => (
-          <span key={status} className="flex items-center gap-2 text-[0.95rem] text-ink">
-            <span
-              aria-hidden
-              className={cn(
-                'inline-flex h-6 w-6 items-center justify-center rounded border text-[0.75rem] font-bold',
-                TOOTH_STATUS_STYLE[status].swatch,
-              )}
-            >
-              {TOOTH_STATUS_STYLE[status].short}
-            </span>
-            {t(`status_${status}`)}
-          </span>
-        ))}
+      {/* The legend draws the same molar in each state rather than a lettered
+          square. A key whose swatches look nothing like the thing they label is
+          a second notation to learn; this one is just the chart, smaller. */}
+      <div className="rounded-lg border border-line bg-paper px-4 py-3">
+        <p className="mb-2 text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</p>
+        <ul className="grid grid-cols-4 gap-x-3 gap-y-2 sm:grid-cols-8">
+          {TOOTH_STATUSES.map((status) => (
+            <li key={status} className="flex flex-col items-center gap-0.5 text-center">
+              <span aria-hidden className="h-16 w-9">
+                <ToothGlyph
+                  toothNum={LEGEND_TOOTH}
+                  status={status}
+                  surfaces={status === 'CARIES' || status === 'FILLED' ? ['O'] : []}
+                />
+              </span>
+              <span className="text-[0.82rem] leading-tight font-semibold text-ink">
+                {t(`status_${status}`)}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <p className="font-semibold text-ink-soft">{t('summary', { count: flagged.length })}</p>
@@ -323,15 +341,19 @@ export function DentalChart({
                   <input type="hidden" name="patientId" value={patientId} />
                   <input type="hidden" name="toothNum" value={selected} />
 
+                  {/* The choice is made on a picture of the outcome: each option
+                      draws *this* tooth as it would look once the condition is
+                      recorded, so picking one is recognition rather than reading
+                      eight labels and translating each into a mental image. */}
                   <fieldset>
                     <legend className="field-label">{t('condition')}</legend>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="grid grid-cols-4 gap-2">
                       {TOOTH_STATUSES.map((option) => (
                         <label
                           key={option}
                           className={cn(
-                            'flex cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-2.5 py-2',
-                            'text-[0.92rem] font-semibold hover:border-ink',
+                            'flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-line-strong px-1 py-2',
+                            'text-center text-[0.82rem] leading-tight font-semibold hover:border-ink',
                             'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
                           )}
                         >
@@ -343,14 +365,16 @@ export function DentalChart({
                             onChange={() => setStatus(option)}
                             className="sr-only"
                           />
-                          <span
-                            aria-hidden
-                            className={cn(
-                              'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[0.7rem] font-bold',
-                              TOOTH_STATUS_STYLE[option].swatch,
-                            )}
-                          >
-                            {TOOTH_STATUS_STYLE[option].short}
+                          <span aria-hidden className="h-16 w-9">
+                            <ToothGlyph
+                              toothNum={selected}
+                              status={option}
+                              surfaces={
+                                option === 'CARIES' || option === 'FILLED'
+                                  ? previewSurfaces
+                                  : []
+                              }
+                            />
                           </span>
                           {t(`status_${option}`)}
                         </label>
@@ -506,7 +530,6 @@ function ToothCell({
   const status = statusOf(records, toothNum);
   const style = TOOTH_STATUS_STYLE[status];
   const marked = parseSurfaces(record?.surfaces);
-  const whole = status !== 'HEALTHY' && (WHOLE_TOOTH_STATUSES.includes(status) || marked.length === 0);
 
   const glyph = (
     <button
@@ -514,11 +537,13 @@ function ToothCell({
       onClick={() => onSelect(toothNum)}
       aria-label={toothLabel(toothNum)}
       className={cn(
+        // A tooth is a long thin thing, so the glyph is given height rather
+        // than width — it is the only dimension that makes the drawing bigger.
         'relative block w-full rounded-md transition-colors hover:bg-brand-soft/60',
-        primary ? 'h-12' : 'h-16',
+        primary ? 'h-14' : 'h-20',
       )}
     >
-      <ToothGlyph toothNum={toothNum} surfaces={marked} whole={whole} />
+      <ToothGlyph toothNum={toothNum} status={status} surfaces={marked} />
       {record?.notes ? (
         <span aria-hidden className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-ink-faint" />
       ) : null}

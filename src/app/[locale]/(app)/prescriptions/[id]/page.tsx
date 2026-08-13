@@ -1,5 +1,6 @@
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PrintButton } from '@/components/prescriptions/PrintButton';
 import { requirePermission } from '@/lib/auth/guard';
 import { age } from '@/lib/dates';
@@ -41,7 +42,22 @@ export default async function PrescriptionSheet({
 
   return (
     <div className="mx-auto max-w-[46rem]">
-      <div className="mb-4 print:hidden">
+      {/* The sheet opens in its own tab, so this is the only way back into the
+          record it belongs to. */}
+      <div
+        className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden"
+        data-print-hide
+      >
+        <Breadcrumbs
+          items={[
+            { href: '/patients', label: tp('title') },
+            {
+              href: `/patients/${prescription.patientId}?tab=prescriptions`,
+              label: `${prescription.patient.lastName} ${prescription.patient.firstName}`,
+            },
+            { label: t('sheetTitle') },
+          ]}
+        />
         <PrintButton label={t('print')} />
       </div>
 

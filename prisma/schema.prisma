@@ -39,7 +39,6 @@ model StaffUser {
   stockMovements StockMovement[]
   documents      PatientDocument[]
   prescriptions  Prescription[]
-  labCases       LabCase[]
   appointments   Appointment[]
   leave          Closure[]
   contacts       Contact[]
@@ -118,7 +117,6 @@ model Patient {
 
   contacts      Contact[]
   alerts        PatientAlert[]
-  labCases      LabCase[]
 
   /// Whether they have agreed to be messaged. Deliberately tri-state: `null`
   /// means nobody has asked yet, which is a different thing from "no" and is
@@ -301,6 +299,13 @@ enum DocumentKind {
   XRAY
   PHOTO
   CONSENT
+  /// The two faces of an identity card, kept as documents rather than as two
+  /// columns on `Patient`: they are files with a size, a type and an uploader,
+  /// which is what `PatientDocument` already is. Held apart from `OTHER` only so
+  /// the patient's own screen can show them as a card with two sides — a
+  /// receptionist checking an ID should not be hunting through the file list.
+  ID_FRONT
+  ID_BACK
   OTHER
 }
 
@@ -312,6 +317,26 @@ model PrescriptionTemplate {
   body     String
 
   prescriptions Prescription[]
+  /// Which treatments this wording follows. See `PrescriptionTemplateService`.
+  services PrescriptionTemplateService[]
+}
+
+/// Which treatments a piece of standard wording is written after.
+///
+/// The templates existed; nothing connected them to the work. So the dialog
+/// offered every template the practice had ever saved, in one flat select, and
+/// the dentist read the whole list after every extraction to find the two that
+/// applied. This is the missing edge: an antibiotic template tied to *surgical
+/// extraction* is offered the moment that treatment is recorded, and the rest of
+/// the list stays out of the way underneath.
+model PrescriptionTemplateService {
+  templateId String
+  template   PrescriptionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    Service              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, serviceId])
+  @@index([serviceId])
 }
 
 model Prescription {
@@ -565,10 +590,11 @@ model Service {
   durationMin Int     @default(30)
 
   materials    ServiceMaterial[]
-  labItems     LabCaseItem[]
   visits       VisitService[]
   appointments Appointment[]
   waitlist     WaitlistEntry[]
+  /// Standard prescription wording written after this treatment.
+  prescriptionTemplates PrescriptionTemplateService[]
 }
 
 /// One treatment performed at one visit.
@@ -618,100 +644,6 @@ model ServiceMaterial {
 
   @@unique([serviceId, itemId])
   @@index([serviceId])
-}
-
-/// Work sent out to a dental laboratory: a crown, a bridge, a denture, a set of
-/// aligners. Nothing in the schema knew this existed, so it lived on a
-/// whiteboard — and the fitting appointment got booked for the day before the
-/// crown came back.
-model LabCase {
-  id        String  @id @default(uuid())
-  patientId String
-  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  /// The laboratory. A plain name rather than a table: a practice uses one or
-  /// two, and a `Supplier` row for each would be ceremony without a payoff.
-  labName String
-  /// Crown, bridge, denture, aligner… free text, because the list is endless
-  /// and every practice words it differently. Stays the case's one-line
-  /// headline even once `items` describes the work properly.
-  kind String
-  /// Which teeth, and which surfaces of them, as `"22:MO,27:B,32"` — FDI number,
-  /// then optionally `:` and letters from `TOOTH_SURFACES`. A bare number means
-  /// the whole tooth, which is what a crown or an extraction actually is.
-  ///
-  /// Still free-form, and still parses the old plain `"46, 47"` unchanged, so
-  /// "upper arch" remains a legitimate answer for a denture.
-  teeth String?
-
-  status LabCaseStatus @default(SENT)
-  sentAt DateTime      @default(now())
-  /// When the lab promised it. This is what the "waiting on" list sorts by.
-  dueAt      DateTime?
-  receivedAt DateTime?
-  notes      String?
-
-  /// The try-in, where the work has one. A bridge is fitted twice — once in wax
-  /// to check it, once for real — and the appointment book cannot tell the two
-  /// apart while the case only knows a single date.
-  tryInAt DateTime?
-
-  /// The delivery window on `dueAt`, as `HH:mm` on the clinic's own clock. Kept
-  /// as two strings for the same reason `ClinicHours` does: a courier slot is
-  /// wall-clock time, not an instant.
-  deliveryFrom String?
-  deliveryTo   String?
-
-  /// Aftercare handed to the patient at fitting. The wording is chosen from a
-  /// short list rather than typed, so what a patient is told about a zirconia
-  /// crown does not depend on who was at the desk.
-  careInstructions String?
-
-  items LabCaseItem[]
-
-  createdById String?
-  createdBy   StaffUser? @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt   DateTime   @default(now())
-
-  @@index([patientId])
-  @@index([status, dueAt])
-}
-
-/// One piece of work on a case. `LabCase.kind` is a single line of text, which
-/// is enough for "crown" and wrong the moment an order is a crown on 26 *and* a
-/// post on 27 — the two come back together, on one docket, and the practice has
-/// no way to say so.
-///
-/// Deliberately carries no price. The app models what was ordered, never what it
-/// cost; see the note at the top of this file.
-model LabCaseItem {
-  id        String  @id @default(uuid())
-  labCaseId String
-  labCase   LabCase @relation(fields: [labCaseId], references: [id], onDelete: Cascade)
-
-  /// The catalogue entry, when the work matches one. Optional because a lab
-  /// makes things the practice does not sell as a treatment.
-  serviceId String?
-  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-
-  /// Snapshotted from the service, or typed. Renaming a service later must not
-  /// rewrite an order that has already gone out.
-  name  String
-  notes String?
-
-  /// Position in the docket, 1-based.
-  position Int @default(1)
-
-  createdAt DateTime @default(now())
-
-  @@index([labCaseId])
-}
-
-enum LabCaseStatus {
-  SENT
-  RECEIVED
-  FITTED
-  CANCELLED
 }
 
 /// A contraindication, as data rather than as a sentence in a paragraph.

@@ -170,9 +170,20 @@
   /* --- App chrome ---------------------------------------------------- */
 
   /* The masthead: teal deepening to the left, so the wordmark sits on the
-   * densest part of the gradient and stays legible. */
+   * densest part of the gradient and stays legible. Still worn by the signed-out
+   * screens (login, setup, confirm) and by the phone top bar. */
   .app-header {
     background-image: linear-gradient(100deg, #0b8f86 0%, #16a89d 46%, #3cc4b8 100%);
+  }
+
+  /* The rail is that same masthead stood on end: deep at the top, so the
+   * wordmark still sits on the densest part of the gradient and the teal has
+   * thinned out by the time it reaches the account button at the foot.
+   *
+   * All of the app's colour is spent here, on the one column that is chrome.
+   * That is what buys the workspace beside it the right to stay white. */
+  .app-rail {
+    background-image: linear-gradient(168deg, #0b8f86 0%, #16a89d 55%, #34bdb2 100%);
   }
 
   /* A flat spectrum rule under the masthead, teal walking round to peach.
@@ -204,6 +215,7 @@
  * marked `data-print-hide` disappears along with the header, nav and footer. */
 @media print {
   .app-header,
+  .app-rail,
   .app-spectrum,
   nav,
   footer,

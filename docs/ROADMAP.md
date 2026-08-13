@@ -154,21 +154,12 @@ setting.
 
 ---
 
-## Phase 6 — Lab cases 🔵
+## Phase 6 — Lab cases ⚫
 
-**Status: implemented.** `LabCase`, plus a patient tab and a dashboard
-“waiting on the lab” card sorted by what was promised soonest.
-
-Crowns, bridges, dentures and aligners go to an outside lab and come back.
-Nothing in the schema knows this, so it lives on a whiteboard.
-
-```prisma
-model LabCase { patientId  teeth  labName  kind  sentAt  dueAt?  receivedAt?  status  notes? }
-```
-
-It connects to what already exists: a treatment-plan step cannot be booked for
-fitting until its case is back, and the dashboard gains a real "waiting on"
-list. This is the most dental-specific thing the schema does not have.
+**Status: removed.** The practice does not send work out through this app, so
+the `LabCase` models, the `/lab` screens, the patient tab and the `lab.*`
+permissions were deleted rather than left as dead weight in every list, every
+backup and every permission table.
 
 ---
 

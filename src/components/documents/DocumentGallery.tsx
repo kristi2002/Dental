@@ -24,6 +24,10 @@ const KIND_TONES: Record<DocumentKind, BadgeTone> = {
   [DocumentKind.XRAY]: 'brand',
   [DocumentKind.PHOTO]: 'ok',
   [DocumentKind.CONSENT]: 'warn',
+  // The two ID faces are normally owned by the details tab, so they reach this
+  // grid only in the view that shows everything on file.
+  [DocumentKind.ID_FRONT]: 'neutral',
+  [DocumentKind.ID_BACK]: 'neutral',
   [DocumentKind.OTHER]: 'neutral',
 };
 

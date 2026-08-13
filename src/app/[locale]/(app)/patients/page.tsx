@@ -57,6 +57,7 @@ export default async function PatientsPage({
         title={t('title')}
         subtitle={t('count', { count: patients.length })}
         actions={canEdit ? <PatientFormDialog canEditMedical={canEditMedical} /> : null}
+        trail={[{ label: t('title') }]}
       />
 
       <form className="mb-6 flex gap-2" role="search">

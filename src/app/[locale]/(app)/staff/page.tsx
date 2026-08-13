@@ -46,7 +46,12 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
 
   return (
     <>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={<StaffFormDialog />} />
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={<StaffFormDialog />}
+        trail={[{ label: t('title') }]}
+      />
 
       <div className="space-y-6">
         <Card>

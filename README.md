@@ -211,7 +211,7 @@ prisma/
   schema.prisma      StaffUser, AuditLog, Patient, Appointment, VisitRecord,
                      VisitService, ToothRecord, StockItem, StockMovement,
                      Service, ServiceMaterial, WaitlistEntry, TreatmentPlan,
-                     LabCase, PatientAlert, Contact, ClinicHours, Closure
+                     PatientAlert, Contact, ClinicHours, Closure
   seed.ts            Demo data
   migrations/              Migration history. `0_init` is the baseline.
   migrate-teeth-fdi.ts     One-off: Universal 1–32 → FDI tooth numbers

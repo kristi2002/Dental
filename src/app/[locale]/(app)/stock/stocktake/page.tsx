@@ -50,6 +50,7 @@ export default async function StocktakePage({
       <PageHeader
         title={t('stocktakeTitle')}
         subtitle={t('stocktakeSubtitle')}
+        trail={[{ href: '/stock', label: t('title') }, { label: t('stocktakeTitle') }]}
         actions={
           <Link href="/stock" className="btn btn-secondary">
             <ArrowLeft size={18} aria-hidden />

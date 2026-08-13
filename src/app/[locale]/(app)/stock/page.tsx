@@ -136,6 +136,7 @@ export default async function StockPage({
             </>
           ) : null
         }
+        trail={[{ label: t('title') }]}
       />
 
       {lowCount > 0 ? (

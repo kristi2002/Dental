@@ -20,11 +20,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { Link } from '@/i18n/navigation';
-import {
-  AlertSeverity,
-  AppointmentStatus,
-  LabCaseStatus,
-} from '@/generated/prisma/enums';
+import { AlertSeverity, AppointmentStatus } from '@/generated/prisma/enums';
 import { requireUser } from '@/lib/auth/guard';
 import { endOfWeek, startOfWeek, toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
@@ -40,7 +36,6 @@ import {
   getUnrecordedToday,
   getUnremindedTomorrow as getUnreminded,
 } from '@/lib/queries';
-import { LabCaseList } from '@/components/lab/LabCaseList';
 import { getRecalls } from '@/lib/recalls';
 import { findFreeGaps, nextSlotTime, type FreeGap } from '@/lib/scheduling';
 import { VisitFormDialog } from '@/components/patients/VisitFormDialog';
@@ -60,14 +55,12 @@ export default async function DashboardPage({
   const canAddAppointment = user.permissions.includes('appointment.edit');
   const canEditMedical = user.permissions.includes('patient.medical.edit');
   const canSeeRecalls = user.permissions.includes('recall.view');
-  const canSeeLab = user.permissions.includes('lab.view');
   const canSeeMedical = user.permissions.includes('patient.medical.view');
   const canSeeWaitlist = user.permissions.includes('waitlist.view');
 
   const t = await getTranslations('dashboard');
   const ta = await getTranslations('appointments');
   const ts = await getTranslations('stock');
-  const tlab = await getTranslations('lab');
   const talerts = await getTranslations('alerts');
   const tw = await getTranslations('waitlist');
   const format = await getFormatter();
@@ -85,7 +78,6 @@ export default async function DashboardPage({
     operatories,
     recalls,
     freeGaps,
-    labCases,
     toRemind,
     openPast,
     openPastTotal,
@@ -107,16 +99,6 @@ export default async function DashboardPage({
       // Only what is still ahead: free time that has already passed is not an
       // opportunity, it is a regret.
       findFreeGaps({ date: day, after: nextSlotTime() }),
-      // Cases still at the lab, soonest promised first. The thing a whiteboard
-      // was doing until now, and the reason a fitting gets booked too early.
-      canSeeLab
-        ? prisma.labCase.findMany({
-            where: { status: LabCaseStatus.SENT },
-            orderBy: [{ dueAt: 'asc' }, { sentAt: 'asc' }],
-            take: 8,
-            include: { patient: { select: { id: true, firstName: true, lastName: true } } },
-          })
-        : Promise.resolve([]),
       canAddAppointment ? getUnreminded() : Promise.resolve([]),
       // Yesterday's loose ends. Nothing else in the app ever looks backwards, so
       // an appointment nobody closed simply ages out of sight — taking the
@@ -156,12 +138,6 @@ export default async function DashboardPage({
       // just did, and what nothing outside the calendar page ever said.
       canSeeWaitlist ? getOpenWaitlist() : Promise.resolve([]),
     ]);
-
-  // Past the date the lab promised it, and still not here. Counted from the
-  // cases already loaded rather than asked for again.
-  const labOverdue = labCases.filter(
-    (labCase) => labCase.dueAt !== null && labCase.dueAt < day,
-  ).length;
 
   // Who the rest of today can actually hold. The matching is the useful part: a
   // 60-minute root canal is not a candidate for a 20-minute hole, and offering
@@ -270,63 +246,68 @@ export default async function DashboardPage({
         </Card>
       ) : null}
 
-      {/* Above everything, and the only panel on this page about work that has
-          already gone wrong rather than work still to do. It disappears the
-          moment the last one is answered, so a practice that closes its days
-          never sees it. */}
-      {openPast.length > 0 ? (
-        <Card className="mb-6 border-warn">
-          <CardHeader
-            title={ta('openPastTitle')}
-            subtitle={ta('openPastSubtitle', { count: openPastTotal })}
-            icon={<TriangleAlert size={22} aria-hidden className="text-warn" />}
-          />
-          <div className="space-y-3 p-3">
-            {openPast.map((appointment) => (
-              <AppointmentRow
-                key={appointment.id}
-                appointment={appointment}
-                services={services}
-                showDate
-              />
-            ))}
-            {openPastTotal > openPast.length ? (
-              <p className="px-1 pb-1 text-[0.92rem] text-ink-soft">
-                {ta('openPastMore', { shown: openPast.length, total: openPastTotal })}
-              </p>
-            ) : null}
-          </div>
-        </Card>
-      ) : null}
-
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <Card>
-          <CardHeader
-            title={t('todaySchedule')}
-            icon={<CalendarDays size={22} aria-hidden />}
-            action={
-              <Link href="/appointments" className="btn btn-secondary btn-sm">
-                {t('openCalendar')}
-              </Link>
-            }
-          />
-          {todayAppointments.length === 0 ? (
-            <EmptyState
-              icon={<CalendarDays size={40} aria-hidden />}
-              title={t('noAppointmentsToday')}
+        {/* The main column reads as "today, then the days that were never
+            closed off" — both are the appointment list, so they belong in the
+            same column rather than pushing today's schedule down the page. */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader
+              title={t('todaySchedule')}
+              icon={<CalendarDays size={22} aria-hidden />}
+              action={
+                <Link href="/appointments" className="btn btn-secondary btn-sm">
+                  {t('openCalendar')}
+                </Link>
+              }
             />
-          ) : (
-            <div className="space-y-3 p-3">
-              {todayAppointments.map((appointment) => (
-                <AppointmentRow
-                  key={appointment.id}
-                  appointment={appointment}
-                  services={services}
-                />
-              ))}
-            </div>
-          )}
-        </Card>
+            {todayAppointments.length === 0 ? (
+              <EmptyState
+                icon={<CalendarDays size={40} aria-hidden />}
+                title={t('noAppointmentsToday')}
+              />
+            ) : (
+              <div className="space-y-3 p-3">
+                {todayAppointments.map((appointment) => (
+                  <AppointmentRow
+                    key={appointment.id}
+                    appointment={appointment}
+                    services={services}
+                  />
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* The only panel on this page about work that has already gone wrong
+              rather than work still to do. It disappears the moment the last
+              one is answered, so a practice that closes its days never sees
+              it. */}
+          {openPast.length > 0 ? (
+            <Card className="border-warn">
+              <CardHeader
+                title={ta('openPastTitle')}
+                subtitle={ta('openPastSubtitle', { count: openPastTotal })}
+                icon={<TriangleAlert size={22} aria-hidden className="text-warn" />}
+              />
+              <div className="space-y-3 p-3">
+                {openPast.map((appointment) => (
+                  <AppointmentRow
+                    key={appointment.id}
+                    appointment={appointment}
+                    services={services}
+                    showDate
+                  />
+                ))}
+                {openPastTotal > openPast.length ? (
+                  <p className="px-1 pb-1 text-[0.92rem] text-ink-soft">
+                    {ta('openPastMore', { shown: openPast.length, total: openPastTotal })}
+                  </p>
+                ) : null}
+              </div>
+            </Card>
+          ) : null}
+        </div>
 
         {/* The side column reads top-down as "what could still be filled, and
             what could still run out" — the two things worth acting on today. */}
@@ -439,47 +420,6 @@ export default async function DashboardPage({
                   />
                 ))}
               </div>
-            </Card>
-          ) : null}
-
-          {/* Cases still out. Sits above stock because a crown that has not come
-              back blocks an appointment; a low box of gloves blocks nothing. */}
-          {canSeeLab && labCases.length > 0 ? (
-            <Card className={labOverdue > 0 ? 'border-danger' : undefined}>
-              <CardHeader
-                title={tlab('waitingTitle')}
-                // Late is the only thing on this card worth acting on today, so
-                // it replaces the standing description rather than sitting under
-                // it where a subtitle gets read once and then never again.
-                subtitle={
-                  labOverdue > 0
-                    ? tlab('overdueAlert', { count: labOverdue })
-                    : tlab('waitingSubtitle')
-                }
-                action={
-                  <Link href="/lab" className="btn btn-secondary btn-sm">
-                    {tlab('title')}
-                  </Link>
-                }
-              />
-              <LabCaseList
-                cases={labCases.map((labCase) => ({
-                  id: labCase.id,
-                  labName: labCase.labName,
-                  kind: labCase.kind,
-                  teeth: labCase.teeth ?? '',
-                  status: labCase.status,
-                  sentAt: toDateKey(labCase.sentAt),
-                  dueAt: labCase.dueAt ? toDateKey(labCase.dueAt) : '',
-                  receivedAt: '',
-                  notes: '',
-                  patientId: labCase.patient.id,
-                  patientName: `${labCase.patient.lastName} ${labCase.patient.firstName}`,
-                }))}
-                labNames={[]}
-                canEdit={user.permissions.includes('plan.edit')}
-                canDelete={false}
-              />
             </Card>
           ) : null}
 

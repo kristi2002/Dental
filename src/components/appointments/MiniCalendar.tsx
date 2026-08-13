@@ -29,12 +29,19 @@ import { cn } from '@/lib/utils';
 export function MiniCalendar({
   anchor,
   counts,
+  picks = 'day',
   hrefFor,
 }: {
   /** The day the calendar is anchored on — its month is drawn, its week banded. */
   anchor: Date;
   /** `YYYY-MM-DD` → number of appointments, for the density dots. */
   counts: Record<string, number>;
+  /**
+   * What clicking actually changes on the grid beside it. In week view any day
+   * lands on the same week, so the rail lights the whole row under the cursor
+   * rather than one cell — the hover has to promise what the click delivers.
+   */
+  picks?: 'day' | 'week';
   hrefFor: (date: Date) => string;
 }) {
   const t = useTranslations('appointments');
@@ -42,6 +49,9 @@ export function MiniCalendar({
   const now = today();
 
   const days = monthGrid(anchor);
+  // Six rows of seven rather than 42 loose cells, so a week is a thing the
+  // markup has — and therefore a thing that can be banded and hovered.
+  const weeks = Array.from({ length: 6 }, (_, row) => days.slice(row * 7, row * 7 + 7));
   const bandFrom = startOfWeek(anchor);
   const bandTo = endOfWeek(anchor);
 
@@ -90,56 +100,63 @@ export function MiniCalendar({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 px-1.5 pb-2">
-        {days.map((day, index) => {
-          const key = toDateKey(day);
-          const inBand = day >= bandFrom && day <= bandTo;
-          const selected = isSameDay(day, anchor);
-          const isToday = isSameDay(day, now);
-          const outside = !isSameMonth(day, anchor);
-          const count = counts[key] ?? 0;
-          const weekend = index % 7 > 4;
+      <div className="px-1.5 pb-2">
+        {weeks.map((week) => {
+          const inBand = week[0] >= bandFrom && week[0] <= bandTo;
 
           return (
             <div
-              key={key}
+              key={toDateKey(week[0])}
               className={cn(
-                'py-0.5',
-                // The banded week reads as one bar, so its ends are rounded and
-                // nothing in between is.
+                'grid grid-cols-7 rounded-lg py-0.5 transition-colors',
+                // The banded week reads as one bar rather than seven chips.
                 inBand && 'bg-paper',
-                inBand && index % 7 === 0 && 'rounded-l-lg',
-                inBand && index % 7 === 6 && 'rounded-r-lg',
+                // In week view the row is the target, so the row is what lights.
+                picks === 'week' && !inBand && 'hover:bg-brand-soft/70',
               )}
             >
-              <Link
-                href={hrefFor(day)}
-                aria-current={selected ? 'date' : undefined}
-                className={cn(
-                  'relative mx-auto flex h-9 w-9 flex-col items-center justify-center rounded-full text-[0.95rem] tabular-nums no-underline transition-colors',
-                  selected
-                    ? 'bg-brand-dark font-bold text-white'
-                    : cn(
-                        'hover:bg-brand-soft',
-                        isToday && 'font-bold ring-2 ring-brand ring-inset',
-                        outside ? 'text-ink-faint/55' : weekend ? 'text-danger' : 'text-ink',
-                      ),
-                )}
-              >
-                {format.dateTime(day, { day: 'numeric' })}
-                {count > 0 ? (
-                  <>
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'absolute bottom-1 h-1 w-1 rounded-full',
-                        selected ? 'bg-white' : 'bg-brand',
-                      )}
-                    />
-                    <span className="sr-only">{t('dayCount', { count })}</span>
-                  </>
-                ) : null}
-              </Link>
+              {week.map((day, index) => {
+                const key = toDateKey(day);
+                const selected = isSameDay(day, anchor);
+                const isToday = isSameDay(day, now);
+                const outside = !isSameMonth(day, anchor);
+                const count = counts[key] ?? 0;
+                const weekend = index > 4;
+
+                return (
+                  <Link
+                    key={key}
+                    href={hrefFor(day)}
+                    aria-current={selected ? 'date' : undefined}
+                    className={cn(
+                      'relative mx-auto flex h-9 w-9 flex-col items-center justify-center rounded-full text-[0.95rem] tabular-nums no-underline transition-colors',
+                      selected
+                        ? 'bg-brand-dark font-bold text-white'
+                        : cn(
+                            // Kept even when the row lights too: it is the hint
+                            // of exactly where the click landed.
+                            'hover:bg-brand-soft',
+                            isToday && 'font-bold ring-2 ring-brand ring-inset',
+                            outside ? 'text-ink-faint/55' : weekend ? 'text-danger' : 'text-ink',
+                          ),
+                    )}
+                  >
+                    {format.dateTime(day, { day: 'numeric' })}
+                    {count > 0 ? (
+                      <>
+                        <span
+                          aria-hidden
+                          className={cn(
+                            'absolute bottom-1 h-1 w-1 rounded-full',
+                            selected ? 'bg-white' : 'bg-brand',
+                          )}
+                        />
+                        <span className="sr-only">{t('dayCount', { count })}</span>
+                      </>
+                    ) : null}
+                  </Link>
+                );
+              })}
             </div>
           );
         })}

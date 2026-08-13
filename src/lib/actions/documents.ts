@@ -85,6 +85,95 @@ export async function uploadDocument(
   return actionOk();
 }
 
+/**
+ * The front or the back of an identity card, as one slot rather than as an
+ * upload.
+ *
+ * An ID has exactly two faces and a patient has exactly one ID, so the ordinary
+ * upload — which appends — is the wrong verb: photographing the front twice
+ * should leave one front, not two. This replaces whatever occupies the slot,
+ * bytes included, and is why the details screen can show a card with two sides
+ * instead of a file list somebody has to interpret.
+ */
+export async function saveIdDocument(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('errors');
+  const td = await getTranslations('documents');
+
+  const user = await authorize('document.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const patientId = requiredString(formData.get('patientId'));
+  const side = requiredString(formData.get('side'));
+  const kind = side === 'BACK' ? DocumentKind.ID_BACK : DocumentKind.ID_FRONT;
+
+  const file = formData.get('file');
+  if (!patientId || !(file instanceof File) || file.size === 0) {
+    return actionError(td('errorNoFile'));
+  }
+  if (file.size > MAX_FILE_BYTES) {
+    return actionError(td('errorTooLarge', { max: Math.floor(MAX_FILE_BYTES / (1024 * 1024)) }));
+  }
+  // An ID is looked at, so it has to be an image — a PDF here would render as a
+  // grey box in the slot that is meant to *be* the picture.
+  if (!file.type.startsWith('image/') || !isAllowedMimeType(file.type)) {
+    return actionError(td('errorImageOnly'));
+  }
+
+  const previous = await prisma.patientDocument.findMany({
+    where: { patientId, kind },
+    select: { id: true, storageKey: true },
+  });
+
+  let storageKey: string;
+  try {
+    storageKey = await storeFile(new Uint8Array(await file.arrayBuffer()), file.type);
+  } catch (error) {
+    console.error('[documents] could not store ID', error);
+    return actionError(t('generic'));
+  }
+
+  try {
+    await prisma.patientDocument.create({
+      data: {
+        patientId,
+        kind,
+        fileName: file.name.slice(0, 180),
+        mimeType: file.type,
+        sizeBytes: file.size,
+        storageKey,
+        uploadedById: user.id,
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    await deleteStoredFile(storageKey);
+    console.error('[documents] could not record ID', error);
+    return actionError(t('generic'));
+  }
+
+  // Only once the replacement is safely in: an ID deleted before its successor
+  // is stored is an ID the practice no longer holds.
+  if (previous.length > 0) {
+    await prisma.patientDocument.deleteMany({
+      where: { id: { in: previous.map((row) => row.id) } },
+    });
+    await Promise.all(previous.map((row) => deleteStoredFile(row.storageKey)));
+  }
+
+  await recordAudit(user, {
+    action: previous.length > 0 ? 'update' : 'create',
+    entity: 'document',
+    entityId: patientId,
+    summary: kind,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
 export async function deleteDocument(formData: FormData): Promise<void> {
   const user = await authorize('document.delete');
   if (!user) return;

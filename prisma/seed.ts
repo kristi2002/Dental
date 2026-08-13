@@ -129,20 +129,28 @@ const SERVICE_MATERIALS: Record<string, Array<[string, number]>> = {
   ],
 };
 
+/**
+ * Standard wording, each tied to the treatments it follows — which is what turns
+ * it into a *suggestion* the moment an extraction is recorded, rather than one
+ * more row in a list somebody has to read to the end.
+ */
 const PRESCRIPTION_TEMPLATES = [
   {
     name: 'Antibiotik pas ekstraksionit',
     category: 'Antibiotikë',
+    after: ['Heqje dhëmbi', 'Implant dentar'],
     body: 'Amoxicillin 500 mg\n1 kapsulë çdo 8 orë, për 5 ditë, pas ushqimit.\n\nNëse shfaqet skuqje ose vështirësi në frymëmarrje, ndaloni menjëherë dhe na kontaktoni.',
   },
   {
     name: 'Qetësues dhimbjeje',
     category: 'Analgjezikë',
+    after: ['Heqje dhëmbi', 'Devitalizim (trajtim kanali)', 'Implant dentar'],
     body: 'Ibuprofen 400 mg\n1 tabletë çdo 8 orë sipas nevojës, maksimumi 3 në ditë, pas ushqimit.\n\nMos e kombinoni me qetësues të tjerë pa na pyetur.',
   },
   {
     name: 'Shpëlarje pas ndërhyrjes',
     category: 'Kujdesi pas ndërhyrjes',
+    after: ['Heqje dhëmbi', 'Implant dentar', 'Pastrim guri (detartrazh)'],
     body: 'Klorheksidinë 0.12%\nShpëlani gojën 30 sekonda, dy herë në ditë, për 7 ditë.\n\nFilloni 24 orë pas ndërhyrjes. Mos hani dhe mos pini për 30 minuta pas shpëlarjes.',
   },
 ];
@@ -424,6 +432,16 @@ async function main() {
 
   console.log('Seeding dental charts…');
   for (const patient of patients.slice(0, 6)) {
+    // Which visit put the tooth in this state. The app stamps this whenever a
+    // tooth is charted on the same day as a visit, and the timeline draws the
+    // teeth a visit changed — so demo data with the link missing makes a real
+    // feature look like it does not exist.
+    const lastVisit = await prisma.visitRecord.findFirst({
+      where: { patientId: patient.id },
+      orderBy: { visitDate: 'desc' },
+      select: { id: true },
+    });
+
     const affected = randomInt(1, 5);
     const used = new Set<number>();
     for (let i = 0; i < affected; i += 1) {
@@ -438,8 +456,26 @@ async function main() {
           status: toothStatus,
           surfaces: SURFACE_STATUSES.has(toothStatus) ? pick(['M', 'MO', 'MOD', 'O', 'OD']) : null,
           notes: random() > 0.7 ? 'Për kontroll në vizitën e ardhshme.' : null,
+          visitRecordId: lastVisit?.id ?? null,
         },
       });
+    }
+
+    // And what the visit consumed, so the timeline's materials line has
+    // something to show. One movement per material, the way a real deduction
+    // writes it.
+    if (lastVisit && stockItems.length > 0) {
+      for (const item of stockItems.slice(0, randomInt(1, 3))) {
+        await prisma.stockMovement.create({
+          data: {
+            itemId: item.id,
+            delta: -randomInt(1, 2),
+            reason: 'used in visit',
+            staffUserId: assistant.id,
+            visitRecordId: lastVisit.id,
+          },
+        });
+      }
     }
   }
 
@@ -453,10 +489,16 @@ async function main() {
 
   // Whoever can be booked with: the dentist and the assistant, not the desk.
   const providers = staff.filter((person) => person.role === 'OWNER' || person.role === 'ASSISTANT');
-  const assign = (index: number) => ({
-    staffUserId: providers.length > 0 ? providers[index % providers.length].id : null,
-    operatoryId: operatories[index % operatories.length].id,
-  });
+  // `index` is a day offset, so it goes negative for the past fortnight — and
+  // `-1 % 2` is `-1` in JavaScript, which indexes off the front of the array and
+  // crashes the seed. Rotating on the absolute value keeps the round-robin.
+  const assign = (index: number) => {
+    const slot = Math.abs(index);
+    return {
+      staffUserId: providers.length > 0 ? providers[slot % providers.length].id : null,
+      operatoryId: operatories[slot % operatories.length].id,
+    };
+  };
 
   console.log('Seeding appointments…');
   // Today, so the dashboard is never empty on first launch.
@@ -516,8 +558,20 @@ async function main() {
 
   console.log('Seeding prescription templates…');
   const templates = [];
-  for (const template of PRESCRIPTION_TEMPLATES) {
-    templates.push(await prisma.prescriptionTemplate.create({ data: template }));
+  for (const { after, ...template } of PRESCRIPTION_TEMPLATES) {
+    templates.push(
+      await prisma.prescriptionTemplate.create({
+        data: {
+          ...template,
+          services: {
+            create: after
+              .map((name) => serviceIdByName.get(name))
+              .filter((serviceId): serviceId is string => Boolean(serviceId))
+              .map((serviceId) => ({ serviceId })),
+          },
+        },
+      }),
+    );
   }
 
   console.log('Seeding treatment plans…');

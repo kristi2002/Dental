@@ -3,7 +3,11 @@ import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { deletePrescription } from '@/lib/actions/prescriptions';
-import { PrescriptionDialog, type TemplateOption } from './PrescriptionDialog';
+import {
+  PrescriptionDialog,
+  type RecentWork,
+  type TemplateOption,
+} from './PrescriptionDialog';
 
 export type PrescriptionView = {
   id: string;
@@ -17,6 +21,8 @@ export function PrescriptionList({
   patientName,
   prescriptions,
   templates,
+  recent,
+  todayLabel,
   canIssue,
   canDelete,
 }: {
@@ -24,6 +30,9 @@ export function PrescriptionList({
   patientName: string;
   prescriptions: PrescriptionView[];
   templates: TemplateOption[];
+  /** Passed straight through to the dialog behind the empty state. */
+  recent?: RecentWork;
+  todayLabel: string;
   canIssue: boolean;
   canDelete: boolean;
 }) {
@@ -45,6 +54,9 @@ export function PrescriptionList({
               patientId={patientId}
               patientName={patientName}
               templates={templates}
+              recent={recent}
+              todayLabel={todayLabel}
+              canManageTemplates={canIssue}
             />
           ) : undefined
         }

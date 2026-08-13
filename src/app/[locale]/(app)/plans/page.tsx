@@ -128,7 +128,7 @@ export default async function PlansPage({
 
   return (
     <>
-      <PageHeader title={t('allTitle')} subtitle={t('allSubtitle')} />
+      <PageHeader title={t('allTitle')} subtitle={t('allSubtitle')} trail={[{ label: t('allTitle') }]} />
 
       <nav className="mb-4 flex flex-wrap gap-2" aria-label={t('status')}>
         {FILTERS.map((option) => (

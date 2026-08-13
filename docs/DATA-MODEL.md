@@ -83,6 +83,8 @@ erDiagram
     Appointment    ||--o| TreatmentStep   : "unique, SetNull (UNUSED)"
 
     PrescriptionTemplate ||--o{ Prescription : "SetNull"
+    PrescriptionTemplate ||--o{ PrescriptionTemplateService : "Cascade"
+    Service        ||--o{ PrescriptionTemplateService : "Cascade"
 
     Service        ||--o{ ServiceMaterial : "Cascade"
     StockItem      ||--o{ ServiceMaterial : "Cascade"
@@ -242,7 +244,7 @@ The index for X-rays, photos and consent forms. The bytes are on disk.
 | Column | Notes |
 | --- | --- |
 | `patientId` | Cascade |
-| `kind` | `XRAY` · `PHOTO` · `CONSENT` · `OTHER` |
+| `kind` | `XRAY` · `PHOTO` · `CONSENT` · `ID_FRONT` · `ID_BACK` · `OTHER`. The two ID faces are held apart from `OTHER` so the patient's details tab can draw them as a card with two sides, and so the file gallery can leave them out of its grid |
 | `fileName`, `mimeType`, `sizeBytes` | `fileName` is the user's original name — display only |
 | `storageKey` | `@unique`. A generated uuid + extension. **Never** derived from the upload |
 | `toothNum` | Int?, optional link to a tooth |
@@ -253,14 +255,22 @@ deliberately outside `public/`, and are served only by
 [`/api/documents/[id]`](../src/app/api/documents/[id]/route.ts) after a
 `document.view` check.
 
-#### `PrescriptionTemplate` / `Prescription`
+#### `PrescriptionTemplate` / `PrescriptionTemplateService` / `Prescription`
 
 - `PrescriptionTemplate` — reusable wording. No unique constraint on `name`.
+- `PrescriptionTemplateService` — which treatments a piece of wording follows.
+  Composite key `(templateId, serviceId)`, Cascade from both sides.
 - `Prescription` — `patientId` (Cascade), `templateId` (**SetNull**),
   `issuedById` (SetNull), and its **own `body`**.
 
 The `body` duplication is the point: editing or deleting a template must never
 rewrite what a patient was actually handed.
+
+`PrescriptionTemplateService` is the edge that makes the template list usable.
+Without it the dialog offered every template the practice had ever saved in one
+flat list, so after a surgical extraction the dentist read past whitening
+aftercare to find the antibiotic. With it, the wording tied to the treatment
+recorded in the last fortnight is offered first and the rest sits underneath.
 
 ### 3.3 Catalog and cupboard
 

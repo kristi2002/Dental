@@ -93,7 +93,6 @@ const ORDER = [
   'documents',
   'templates',
   'prescriptions',
-  'labCases',
   'alerts',
   'contacts',
   'closures',
@@ -124,7 +123,6 @@ const MODEL: Record<Key, string> = {
   documents: 'patientDocument',
   templates: 'prescriptionTemplate',
   prescriptions: 'prescription',
-  labCases: 'labCase',
   alerts: 'patientAlert',
   contacts: 'contact',
   closures: 'closure',
@@ -136,7 +134,6 @@ const MODEL: Record<Key, string> = {
 /** Rows nested inside their parent by the export, restored after it. */
 const NESTED: Partial<Record<Key, { field: string; model: string }>> = {
   plans: { field: 'steps', model: 'treatmentStep' },
-  labCases: { field: 'items', model: 'labCaseItem' },
 };
 
 async function main() {

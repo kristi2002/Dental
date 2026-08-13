@@ -20,7 +20,6 @@ export const NAV_DESTINATIONS: ReadonlyArray<{
   { href: '/plans', key: 'plans', permission: 'plan.view' },
   { href: '/recalls', key: 'recalls', permission: 'recall.view' },
   { href: '/services', key: 'services', permission: 'service.view' },
-  { href: '/lab', key: 'lab', permission: 'lab.view' },
   { href: '/stock', key: 'stock', permission: 'stock.view' },
   { href: '/analytics', key: 'analytics', permission: 'analytics.view' },
 ];

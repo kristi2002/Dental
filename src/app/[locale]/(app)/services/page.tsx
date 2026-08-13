@@ -43,7 +43,10 @@ export default async function ServicesPage({
   const tc = await getTranslations('common');
 
   const templates = canSeeTemplates
-    ? await prisma.prescriptionTemplate.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] })
+    ? await prisma.prescriptionTemplate.findMany({
+        orderBy: [{ category: 'asc' }, { name: 'asc' }],
+        include: { services: { select: { serviceId: true, service: { select: { name: true } } } } },
+      })
     : [];
   const templateCategories = [
     ...new Set(templates.map((template) => template.category).filter(Boolean)),
@@ -114,13 +117,28 @@ export default async function ServicesPage({
   // minus the prices. The same split the booking and visit forms use.
   const grouped = byDepartment(services.map((s) => ({ ...s, category: s.category ?? '' })));
 
+  // The whole catalogue, not the filtered view: a template is tied to a
+  // treatment regardless of what the list above is currently narrowed to.
+  const serviceOptions = allServices.map((service) => ({
+    id: service.id,
+    name: service.name,
+    category: service.category ?? '',
+    durationMin: service.durationMin,
+    materialCount: service.materials.length,
+  }));
+
   const newDialog = canEdit ? (
     <ServiceFormDialog categories={categories} stockItems={stockItems} />
   ) : null;
 
   return (
     <>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={newDialog} />
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={newDialog}
+        trail={[{ label: t('title') }]}
+      />
 
       {/* Nothing to narrow down until the catalog exists. */}
       {allServices.length > 0 ? (
@@ -276,7 +294,10 @@ export default async function ServicesPage({
             icon={<Pill size={22} aria-hidden />}
             action={
               canEditTemplates ? (
-                <TemplateFormDialog categories={templateCategories} />
+                <TemplateFormDialog
+                  categories={templateCategories}
+                  services={serviceOptions}
+                />
               ) : null
             }
           />
@@ -294,6 +315,14 @@ export default async function ServicesPage({
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="text-[1.08rem] font-bold text-ink">{template.name}</span>
                       {template.category ? <Badge>{template.category}</Badge> : null}
+                      {/* What this wording follows. Without it on the row, the
+                          only way to know why a template is suggested after an
+                          extraction is to open it. */}
+                      {template.services.map((link) => (
+                        <Badge key={link.serviceId} tone="brand">
+                          {link.service.name}
+                        </Badge>
+                      ))}
                     </p>
                     <p className="mt-1 text-[0.95rem] whitespace-pre-line text-ink-soft">
                       {template.body}
@@ -308,8 +337,10 @@ export default async function ServicesPage({
                           name: template.name,
                           category: template.category ?? '',
                           body: template.body,
+                          serviceIds: template.services.map((link) => link.serviceId),
                         }}
                         categories={templateCategories}
+                        services={serviceOptions}
                       />
                       <ActionForm
                         action={deletePrescriptionTemplate}

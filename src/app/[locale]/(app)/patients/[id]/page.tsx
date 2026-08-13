@@ -1,25 +1,32 @@
 import {
-  ArrowLeft,
+  Baby,
+  BellRing,
   Cake,
   CalendarDays,
+  CreditCard,
+  IdCard,
+  LifeBuoy,
   Mail,
+  MapPin,
   Phone,
   ShieldAlert,
+  Sparkles,
   Trash2,
   TriangleAlert,
 } from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { AppointmentRow } from '@/components/appointments/AppointmentRow';
 import { DocumentGallery } from '@/components/documents/DocumentGallery';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { DentalChart, type ToothRecordMap } from '@/components/dental/DentalChart';
+import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { ReliabilityBadge } from '@/components/patients/ReliabilityBadge';
 import { AlertFormDialog } from '@/components/patients/AlertFormDialog';
-import { LabCaseFormDialog } from '@/components/lab/LabCaseFormDialog';
-import { LabCaseList } from '@/components/lab/LabCaseList';
+import { IdCardPanel } from '@/components/patients/IdCardPanel';
 import { ContactHistory } from '@/components/patients/ContactHistory';
 import { PatientAlerts } from '@/components/patients/PatientAlerts';
 import { VisitFormDialog } from '@/components/patients/VisitFormDialog';
@@ -36,7 +43,9 @@ import { Link } from '@/i18n/navigation';
 import { deletePatient } from '@/lib/actions/patients';
 import { requirePermission } from '@/lib/auth/guard';
 import type { Permission } from '@/lib/auth/permissions';
-import { age, toDateKey, today } from '@/lib/dates';
+import { DocumentKind } from '@/generated/prisma/enums';
+import { addDays, addMonths, age, toDateKey, today } from '@/lib/dates';
+import { ID_KINDS } from '@/lib/documents';
 import { allergyLines } from '@/lib/medical';
 import { prisma } from '@/lib/prisma';
 import {
@@ -47,7 +56,7 @@ import {
 } from '@/lib/queries';
 import { getClinicProfile } from '@/lib/queries';
 import { getReliability } from '@/lib/reliability';
-import { cn, initials } from '@/lib/utils';
+import { cn, initials, parseServiceList } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +69,6 @@ const TABS = [
   'prescriptions',
   'appointments',
   'contacts',
-  'lab',
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -73,7 +81,6 @@ const TAB_LABEL: Record<Tab, string> = {
   prescriptions: 'tabPrescriptions',
   appointments: 'tabAppointments',
   contacts: 'tabContacts',
-  lab: 'tabLab',
 };
 
 /**
@@ -90,9 +97,6 @@ const TAB_PERMISSION: Partial<Record<Tab, Permission>> = {
   // Who was messaged and when is diary information, not clinical — the front
   // desk is exactly who needs it.
   contacts: 'appointment.view',
-  // Logistics, not diagnosis — see `permissions.ts`. The front desk books the
-  // fitting, so the front desk needs the due date.
-  lab: 'lab.view',
 };
 
 export default async function PatientDetailPage({
@@ -119,7 +123,7 @@ export default async function PatientDetailPage({
   const tt = await getTranslations('teeth');
   const tcontacts = await getTranslations('contacts');
   const ta = await getTranslations('alerts');
-  const tlab = await getTranslations('lab');
+  const tdoc = await getTranslations('documents');
   const format = await getFormatter();
 
   // A tab the person may not open is not offered, and a hand-typed `?tab=chart`
@@ -135,7 +139,6 @@ export default async function PatientDetailPage({
     where: { id },
     include: {
       alerts: { orderBy: { createdAt: 'desc' } },
-      labCases: { orderBy: { sentAt: 'desc' } },
       contacts: {
         orderBy: { createdAt: 'desc' },
         take: 50,
@@ -147,6 +150,17 @@ export default async function PatientDetailPage({
         include: {
           staffUser: { select: { firstName: true, lastName: true } },
           performedBy: { select: { firstName: true, lastName: true } },
+          // Everything the schema already recorded about a visit and the
+          // timeline never showed: which treatments (as catalogue rows, not as
+          // a comma-separated sentence), which teeth were charted during it,
+          // and what came off the shelf because of it.
+          services: { orderBy: { position: 'asc' } },
+          toothRecords: {
+            select: { toothNum: true, status: true, surfaces: true, notes: true },
+          },
+          stockMovements: {
+            select: { delta: true, item: { select: { name: true, unit: true } } },
+          },
         },
       },
       plans: {
@@ -173,24 +187,31 @@ export default async function PatientDetailPage({
 
   if (!patient) notFound();
 
-  const [reliability, templates, clinicProfile, labRows, referralRows] = await Promise.all([
+  const [reliability, templates, clinicProfile, referralRows, planTitleRows] = await Promise.all([
     getReliability(id),
     can('prescription.view')
-      ? prisma.prescriptionTemplate.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] })
+      ? prisma.prescriptionTemplate.findMany({
+          orderBy: [{ category: 'asc' }, { name: 'asc' }],
+          include: { services: { select: { serviceId: true } } },
+        })
       : Promise.resolve([]),
     getClinicProfile(),
-    // Distinct labs already used, so the name stays spelled the same way.
-    prisma.labCase.findMany({
-      distinct: ['labName'],
-      orderBy: { labName: 'asc' },
-      select: { labName: true },
-    }),
     prisma.patient.findMany({
       where: { referralSource: { not: null } },
       distinct: ['referralSource'],
       orderBy: { referralSource: 'asc' },
       select: { referralSource: true },
     }),
+    // Plan names the practice has already used, suggested on the next one so
+    // "Upper right quadrant" does not become four differently worded plans.
+    can('plan.view')
+      ? prisma.treatmentPlan.findMany({
+          distinct: ['title'],
+          orderBy: { title: 'asc' },
+          take: 40,
+          select: { title: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   // Stripped once, here, rather than at each render site. The edit dialog is a
@@ -226,22 +247,84 @@ export default async function PatientDetailPage({
     ]),
   );
 
-  const labNames = labRows.map((row) => row.labName);
   const referralSources = referralRows
     .map((row) => row.referralSource)
     .filter((value): value is string => Boolean(value));
+  const planTitles = planTitleRows.map((row) => row.title);
+
+  const templateOptions = templates.map((template) => ({
+    id: template.id,
+    name: template.name,
+    category: template.category ?? '',
+    body: template.body,
+    serviceIds: template.services.map((link) => link.serviceId),
+  }));
+
+  // What this patient has just had done — the last fortnight of visits. It is
+  // what decides which standard wording is offered first, and a prescription is
+  // written within minutes of the treatment, not weeks.
+  const RECENT_DAYS = 14;
+  const recentSince = addDays(today(), -RECENT_DAYS);
+  const recentServices = patient.visitRecords
+    .filter((visit) => visit.visitDate >= recentSince)
+    .flatMap((visit) => visit.services);
+  const recentWork = {
+    serviceIds: [
+      ...new Set(
+        recentServices
+          .map((row) => row.serviceId)
+          .filter((value): value is string => value !== null),
+      ),
+    ],
+    serviceNames: [...new Set(recentServices.map((row) => row.name))],
+  };
+  const todayLabel = format.dateTime(today(), {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  // The ID lives in `documents` like everything else; the details tab just
+  // reaches past the gallery for the two faces it draws as a card.
+  const idFront = patient.documents.find((document) => document.kind === DocumentKind.ID_FRONT);
+  const idBack = patient.documents.find((document) => document.kind === DocumentKind.ID_BACK);
+  const otherDocuments = patient.documents.filter(
+    (document) => !ID_KINDS.includes(document.kind),
+  );
+
+  // Same arithmetic as the recall list (`recalls.ts`): count from the last visit,
+  // or from the day they were entered if they have never been seen — otherwise a
+  // patient added and never booked would show no due date at all.
+  // Nothing in the schema ties a prescription to a visit — it is written on the
+  // way out, minutes after the note. Matching them by day is the honest version
+  // of that relationship, and it is the difference between a timeline that says
+  // what happened and one that says half of it.
+  const prescriptionsByDay = new Map<string, Array<{ id: string; body: string }>>();
+  for (const prescription of patient.prescriptions) {
+    const key = toDateKey(prescription.createdAt);
+    const forDay = prescriptionsByDay.get(key) ?? [];
+    forDay.push({ id: prescription.id, body: prescription.body });
+    prescriptionsByDay.set(key, forDay);
+  }
+
+  const lastVisitDate = patient.visitRecords[0]?.visitDate ?? null;
+  const recallDue = addMonths(lastVisitDate ?? patient.createdAt, patient.recallMonths);
+  const recall = { dueDate: recallDue, overdue: recallDue <= today() };
 
   const fullName = `${patient.lastName} ${patient.firstName}`;
 
   return (
     <>
-      <Link
-        href="/patients"
-        className="mb-4 inline-flex items-center gap-1.5 font-semibold text-ink-soft no-underline hover:text-ink"
-      >
-        <ArrowLeft size={18} aria-hidden />
-        {t('title')}
-      </Link>
+      {/* The tab is part of the address, so it is part of the trail: leaving the
+          prescriptions tab for a printed sheet and coming back must not land on
+          Details. */}
+      <Breadcrumbs
+        items={[
+          { href: '/patients', label: t('title') },
+          { href: `/patients/${patient.id}`, label: fullName },
+          ...(tab === 'details' ? [] : [{ label: t(TAB_LABEL[tab]) }]),
+        ]}
+      />
 
       <header className="card mb-6 flex flex-wrap items-start gap-5 p-5">
         <span
@@ -376,59 +459,17 @@ export default async function PatientDetailPage({
       </nav>
 
       {tab === 'details' ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader title={t('contactInfo')} />
-            <CardBody className="space-y-3">
-              <Detail label={t('phone')} value={patient.phone || t('noPhone')} />
-              <Detail label={t('email')} value={patient.email || t('noEmail')} />
-              <Detail
-                label={t('dateOfBirth')}
-                value={
-                  patient.dateOfBirth
-                    ? format.dateTime(patient.dateOfBirth, {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })
-                    : tc('none')
-                }
-              />
-              {/* Dosages and half the clinical judgement hang off the age, so it
-                  is worked out here rather than in the reader's head. */}
-              {patient.dateOfBirth ? (
-                <Detail label={t('ageLabel')} value={t('age', { age: age(patient.dateOfBirth) })} />
-              ) : null}
-              {patient.guardianName || patient.guardianPhone ? (
-                <Detail
-                  label={t('guardianTitle')}
-                  value={[patient.guardianName, patient.guardianPhone].filter(Boolean).join(' · ')}
-                />
-              ) : null}
-              {patient.address ? <Detail label={t('address')} value={patient.address} /> : null}
-              {patient.fiscalCode ? (
-                <Detail label={t('fiscalCode')} value={patient.fiscalCode} />
-              ) : null}
-              {patient.emergencyContact ? (
-                <Detail label={t('emergencyContact')} value={patient.emergencyContact} />
-              ) : null}
-              {patient.referralSource ? (
-                <Detail label={t('referralSource')} value={patient.referralSource} />
-              ) : null}
-            </CardBody>
-          </Card>
-
-          {/* Alerts as rows, not as a sentence someone has to notice. This is
-              what the prescription check reads, and what the header shouts. */}
+        <div className="space-y-6">
+          {/* Alerts as rows, not as a sentence someone has to notice — and at
+              the top of the tab rather than wedged between two cards, because
+              this is the one panel that changes what happens in the chair. */}
           {canSeeMedical ? (
-            <Card className="lg:col-span-2">
+            <Card>
               <CardHeader
                 title={ta('title')}
                 subtitle={ta('subtitle')}
                 icon={<ShieldAlert size={22} aria-hidden />}
-                action={
-                  canEditMedical ? <AlertFormDialog patientId={patient.id} /> : undefined
-                }
+                action={canEditMedical ? <AlertFormDialog patientId={patient.id} /> : undefined}
               />
               <PatientAlerts
                 patientId={patient.id}
@@ -444,54 +485,205 @@ export default async function PatientDetailPage({
             </Card>
           ) : null}
 
-          <Card>
-            <CardHeader title={canSeeMedical ? t('medicalNotes') : t('recallTitle')} />
-            <CardBody>
-              {canSeeMedical ? (
-                <>
-                  {/* An allergy is the one note that must not be read past, so it
-                      is lifted out of the paragraph and given the loudest colour
-                      the palette has. */}
-                  {allergies.length > 0 ? (
-                    <p
-                      role="alert"
-                      className="mb-3 flex items-start gap-2.5 rounded-lg border-2 border-danger bg-danger-soft px-3.5 py-3 text-danger"
-                    >
-                      <TriangleAlert size={20} aria-hidden className="mt-0.5 shrink-0" />
-                      <span className="min-w-0">
-                        <span className="block text-[0.85rem] font-bold tracking-wide uppercase">
-                          {t('allergyBadge')}
-                        </span>
-                        <span className="block text-[1.05rem] font-bold">
-                          {allergies.join(' · ')}
-                        </span>
-                      </span>
-                    </p>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-2">
+              {/* Tiles rather than a label-and-value list. The eight facts here
+                  are read by *looking for one of them* — a phone number, a
+                  fiscal code — and a column of identical rows makes every one of
+                  those a scan from the top. An icon, a fixed slot and a stable
+                  shape make it a glance. Blanks are shown rather than skipped:
+                  a missing emergency contact is a fact worth seeing. */}
+              <Card>
+                <CardHeader title={t('contactInfo')} />
+                <div className="grid gap-px overflow-hidden bg-line sm:grid-cols-2">
+                  <Fact
+                    icon={<Phone size={18} aria-hidden />}
+                    label={t('phone')}
+                    value={patient.phone}
+                    href={patient.phone ? `tel:${patient.phone}` : undefined}
+                    empty={t('noPhone')}
+                  />
+                  <Fact
+                    icon={<Mail size={18} aria-hidden />}
+                    label={t('email')}
+                    value={patient.email ?? ''}
+                    href={patient.email ? `mailto:${patient.email}` : undefined}
+                    empty={t('noEmail')}
+                  />
+                  {/* Dosages and half the clinical judgement hang off the age, so
+                      it is worked out here rather than in the reader's head. */}
+                  <Fact
+                    icon={<Cake size={18} aria-hidden />}
+                    label={t('dateOfBirth')}
+                    value={
+                      patient.dateOfBirth
+                        ? format.dateTime(patient.dateOfBirth, {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })
+                        : ''
+                    }
+                    note={
+                      patient.dateOfBirth ? t('age', { age: age(patient.dateOfBirth) }) : undefined
+                    }
+                    empty={tc('none')}
+                  />
+                  <Fact
+                    icon={<MapPin size={18} aria-hidden />}
+                    label={t('address')}
+                    value={patient.address ?? ''}
+                    empty={tc('none')}
+                  />
+                  <Fact
+                    icon={<CreditCard size={18} aria-hidden />}
+                    label={t('fiscalCode')}
+                    value={patient.fiscalCode ?? ''}
+                    mono
+                    empty={tc('none')}
+                  />
+                  <Fact
+                    icon={<LifeBuoy size={18} aria-hidden />}
+                    label={t('emergencyContact')}
+                    value={patient.emergencyContact ?? ''}
+                    empty={tc('none')}
+                  />
+                  {/* A guardian is shown only when there is one — an adult's
+                      record carrying an empty "parent or guardian" slot reads as
+                      a gap in the file rather than as a question that does not
+                      apply. */}
+                  {patient.guardianName || patient.guardianPhone ? (
+                    <Fact
+                      icon={<Baby size={18} aria-hidden />}
+                      label={t('guardianTitle')}
+                      value={patient.guardianName ?? ''}
+                      note={patient.guardianPhone ?? undefined}
+                      href={patient.guardianPhone ? `tel:${patient.guardianPhone}` : undefined}
+                      empty={tc('none')}
+                    />
                   ) : null}
+                  <Fact
+                    icon={<Sparkles size={18} aria-hidden />}
+                    label={t('referralSource')}
+                    value={patient.referralSource ?? ''}
+                    empty={tc('none')}
+                  />
+                </div>
+              </Card>
 
-                  <p
-                    className={cn(
-                      'whitespace-pre-line text-[1.05rem]',
-                      medicalNotes ? 'text-ink' : 'text-ink-faint',
-                    )}
-                  >
-                    {medicalNotes || t('noNotes')}
-                  </p>
-                </>
-              ) : (
-                <p className="text-[1.05rem] text-ink-faint">{t('medicalHidden')}</p>
-              )}
+              {/* The two faces of the ID, at the proportions of an ID. */}
+              {can('document.view') ? (
+                <Card>
+                  <CardHeader
+                    title={tdoc('idTitle')}
+                    subtitle={tdoc('idSubtitle')}
+                    icon={<IdCard size={22} aria-hidden />}
+                  />
+                  <IdCardPanel
+                    patientId={patient.id}
+                    front={idFront ? { documentId: idFront.id } : undefined}
+                    back={idBack ? { documentId: idBack.id } : undefined}
+                    canEdit={can('document.edit')}
+                    canDelete={can('document.delete')}
+                  />
+                </Card>
+              ) : null}
+            </div>
 
-              <p className="mt-4 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
-                {t('recallEvery')}
-              </p>
-              <p className="text-[1.05rem] text-ink">
-                {patient.recallMonths > 0
-                  ? t('recallMonths', { months: patient.recallMonths })
-                  : t('recallOff')}
-              </p>
-            </CardBody>
-          </Card>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader title={t('medicalNotes')} />
+                <CardBody>
+                  {canSeeMedical ? (
+                    <>
+                      {/* An allergy is the one note that must not be read past,
+                          so it is lifted out of the paragraph and given the
+                          loudest colour the palette has. */}
+                      {allergies.length > 0 ? (
+                        <p
+                          role="alert"
+                          className="mb-3 flex items-start gap-2.5 rounded-lg border-2 border-danger bg-danger-soft px-3.5 py-3 text-danger"
+                        >
+                          <TriangleAlert size={20} aria-hidden className="mt-0.5 shrink-0" />
+                          <span className="min-w-0">
+                            <span className="block text-[0.85rem] font-bold tracking-wide uppercase">
+                              {t('allergyBadge')}
+                            </span>
+                            <span className="block text-[1.05rem] font-bold">
+                              {allergies.join(' · ')}
+                            </span>
+                          </span>
+                        </p>
+                      ) : null}
+
+                      <p
+                        className={cn(
+                          'text-[1.05rem] whitespace-pre-line',
+                          medicalNotes ? 'text-ink' : 'text-ink-faint',
+                        )}
+                      >
+                        {medicalNotes || t('noNotes')}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[1.05rem] text-ink-faint">{t('medicalHidden')}</p>
+                  )}
+                </CardBody>
+              </Card>
+
+              {/* Recall was two lines of text saying "every 6 months", which is
+                  the setting rather than the answer. The question anyone opening
+                  this card has is *when* — so the date is worked out from the
+                  last visit and coloured by whether it has already passed. */}
+              <Card className={recall.overdue ? 'border-warn' : undefined}>
+                <CardHeader title={t('recallTitle')} icon={<BellRing size={22} aria-hidden />} />
+                <CardBody className="space-y-3">
+                  {patient.recallMonths > 0 ? (
+                    <>
+                      <div>
+                        <p className="text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                          {t('recallNext')}
+                        </p>
+                        <p
+                          className={cn(
+                            'text-[1.35rem] font-bold',
+                            recall.overdue ? 'text-warn' : 'text-ink',
+                          )}
+                        >
+                          {format.dateTime(recall.dueDate, {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </p>
+                      </div>
+
+                      <p className="flex flex-wrap items-center gap-2">
+                        <Badge tone={recall.overdue ? 'warn' : 'brand'}>
+                          {t('recallMonths', { months: patient.recallMonths })}
+                        </Badge>
+                        {recall.overdue ? <Badge tone="warn">{t('recallDue')}</Badge> : null}
+                      </p>
+
+                      <p className="text-[0.95rem] text-ink-soft">
+                        {lastVisitDate
+                          ? t('lastVisitOn', {
+                              date: format.dateTime(lastVisitDate, {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              }),
+                            })
+                          : t('neverSeen')}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[1.05rem] text-ink-faint">{t('recallOff')}</p>
+                  )}
+                </CardBody>
+              </Card>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -531,11 +723,50 @@ export default async function PatientDetailPage({
           />
           <VisitTimeline
             canDelete={canDelete}
+            numbering={clinicProfile.toothNumbering}
+            now={new Date().toISOString()}
             visits={patient.visitRecords.map((visit) => ({
               id: visit.id,
               visitDate: visit.visitDate.toISOString(),
               notes: visit.notes,
               services: visit.servicesText,
+              // Rows where they exist; the sentence, split, for the visits
+              // recorded before `VisitService` did — otherwise a practice's
+              // whole back catalogue would show no treatments at all.
+              performed:
+                visit.services.length > 0
+                  ? visit.services.map((row) => ({
+                      id: row.id,
+                      name: row.name,
+                      fromCatalog: row.serviceId !== null,
+                    }))
+                  : parseServiceList(visit.servicesText).map((name, index) => ({
+                      id: `${visit.id}-${index}`,
+                      name,
+                      fromCatalog: false,
+                    })),
+              teeth: [...visit.toothRecords]
+                .sort((a, b) => a.toothNum - b.toothNum)
+                .map((record) => ({
+                  toothNum: record.toothNum,
+                  status: record.status,
+                  surfaces: record.surfaces ?? '',
+                  notes: record.notes ?? '',
+                })),
+              // A consumption that spans two lots writes one movement per lot,
+              // so the lines are summed back into one figure per material —
+              // "composite ×2", not "composite ×1, composite ×1".
+              materials: Object.values(
+                visit.stockMovements.reduce<
+                  Record<string, { name: string; quantity: number; unit: string }>
+                >((totals, movement) => {
+                  const key = movement.item.name;
+                  totals[key] ??= { name: key, quantity: 0, unit: movement.item.unit };
+                  totals[key].quantity += Math.abs(movement.delta);
+                  return totals;
+                }, {}),
+              ),
+              prescriptions: prescriptionsByDay.get(toDateKey(visit.visitDate)) ?? [],
               performedBy: visit.performedBy
                 ? `${visit.performedBy.firstName} ${visit.performedBy.lastName}`
                 : '',
@@ -551,12 +782,26 @@ export default async function PatientDetailPage({
         <Card>
           <CardHeader
             title={t('tabPlans')}
-            action={can('plan.edit') ? <PlanFormDialog patientId={patient.id} /> : null}
+            action={
+              can('plan.edit') ? (
+                <PlanFormDialog
+                  patientId={patient.id}
+                  services={services}
+                  charted={teeth}
+                  numbering={clinicProfile.toothNumbering}
+                  titles={planTitles}
+                />
+              ) : null
+            }
           />
           <TreatmentPlans
             patientId={patient.id}
             canEdit={can('plan.edit')}
             canDelete={canDelete}
+            services={services}
+            charted={teeth}
+            numbering={clinicProfile.toothNumbering}
+            titles={planTitles}
             // Booking a step is a diary action, so it needs the diary's own
             // collections — handed down as a render prop rather than making the
             // plan list load four things it has no other use for.
@@ -602,14 +847,20 @@ export default async function PatientDetailPage({
           <CardHeader
             title={t('tabDocuments')}
             action={
-              can('document.edit') ? <DocumentUploadDialog patientId={patient.id} /> : null
+              can('document.edit') ? (
+                <DocumentUploadDialog
+                  patientId={patient.id}
+                  charted={teeth}
+                  numbering={clinicProfile.toothNumbering}
+                />
+              ) : null
             }
           />
           <DocumentGallery
             patientId={patient.id}
             canUpload={can('document.edit')}
             canDelete={can('document.delete')}
-            documents={patient.documents.map((document) => ({
+            documents={otherDocuments.map((document) => ({
               id: document.id,
               kind: document.kind,
               fileName: document.fileName,
@@ -635,12 +886,10 @@ export default async function PatientDetailPage({
                 <PrescriptionDialog
                   patientId={patient.id}
                   patientName={fullName}
-                  templates={templates.map((template) => ({
-                    id: template.id,
-                    name: template.name,
-                    category: template.category ?? '',
-                    body: template.body,
-                  }))}
+                  templates={templateOptions}
+                  recent={recentWork}
+                  todayLabel={todayLabel}
+                  canManageTemplates={can('prescription.edit')}
                 />
               ) : null
             }
@@ -650,12 +899,9 @@ export default async function PatientDetailPage({
             patientName={fullName}
             canIssue={can('prescription.edit')}
             canDelete={canDelete}
-            templates={templates.map((template) => ({
-              id: template.id,
-              name: template.name,
-              category: template.category ?? '',
-              body: template.body,
-            }))}
+            templates={templateOptions}
+            recent={recentWork}
+            todayLabel={todayLabel}
             prescriptions={patient.prescriptions.map((prescription) => ({
               id: prescription.id,
               body: prescription.body,
@@ -705,41 +951,6 @@ export default async function PatientDetailPage({
         </Card>
       ) : null}
 
-      {tab === 'lab' ? (
-        <Card>
-          <CardHeader
-            title={t('tabLab')}
-            subtitle={tlab('subtitle')}
-            action={
-              can('lab.edit') ? (
-                <LabCaseFormDialog
-                  patientId={patient.id}
-                  labNames={labNames}
-                  today={toDateKey(today())}
-                />
-              ) : undefined
-            }
-          />
-          <LabCaseList
-            cases={patient.labCases.map((labCase) => ({
-              id: labCase.id,
-              labName: labCase.labName,
-              kind: labCase.kind,
-              teeth: labCase.teeth ?? '',
-              status: labCase.status,
-              sentAt: toDateKey(labCase.sentAt),
-              dueAt: labCase.dueAt ? toDateKey(labCase.dueAt) : '',
-              receivedAt: labCase.receivedAt ? toDateKey(labCase.receivedAt) : '',
-              notes: labCase.notes ?? '',
-            }))}
-            patientId={patient.id}
-            labNames={labNames}
-            canEdit={can('lab.edit')}
-            canDelete={canDelete}
-          />
-        </Card>
-      ) : null}
-
       {tab === 'contacts' ? (
         <Card>
           <CardHeader title={t('tabContacts')} subtitle={tcontacts('subtitle')} />
@@ -761,11 +972,64 @@ export default async function PatientDetailPage({
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+/**
+ * One fact about the patient, as a tile.
+ *
+ * The blank state is the point of the `empty` prop: a fact nobody has recorded
+ * is shown greyed rather than dropped, because "no emergency contact" is
+ * information and an absent row is not.
+ */
+function Fact({
+  icon,
+  label,
+  value,
+  note,
+  href,
+  empty,
+  mono = false,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  /** A second line — the age under a birthday, the phone under a guardian. */
+  note?: string;
+  /** Makes the value a `tel:` / `mailto:` link. */
+  href?: string;
+  /** Shown, faint, when there is no value. */
+  empty: string;
+  /** Fiscal codes are read character by character, so they are set in figures. */
+  mono?: boolean;
+}) {
+  const body = (
+    <span className={cn('block truncate', mono && 'font-mono tracking-tight')}>
+      {value || empty}
+    </span>
+  );
+
   return (
-    <div>
-      <p className="text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">{label}</p>
-      <p className="text-[1.05rem] text-ink">{value}</p>
+    <div className="flex min-w-0 items-start gap-3 bg-surface px-5 py-3.5">
+      <span
+        aria-hidden
+        className={cn(
+          'mt-0.5 grid size-9 shrink-0 place-items-center rounded-full',
+          value ? 'bg-brand-soft text-brand-deep' : 'bg-paper text-ink-faint',
+        )}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[0.82rem] font-bold tracking-wide text-ink-faint uppercase">{label}</p>
+        <p className={cn('text-[1.02rem] font-semibold', value ? 'text-ink' : 'text-ink-faint')}>
+          {href && value ? (
+            <a href={href} className="no-underline hover:text-brand-deep hover:underline">
+              {body}
+            </a>
+          ) : (
+            body
+          )}
+        </p>
+        {note ? <p className="truncate text-[0.9rem] text-ink-soft">{note}</p> : null}
+      </div>
     </div>
   );
 }

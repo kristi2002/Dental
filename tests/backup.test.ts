@@ -87,7 +87,6 @@ describe('backup and restore agree with each other', () => {
     assert.ok(at('appointments') < at('plans'), 'a plan step may name the slot it was booked into');
     assert.ok(at('patients') < at('documents'), 'a document needs its patient');
     assert.ok(at('templates') < at('prescriptions'), 'a prescription may name its template');
-    assert.ok(at('patients') < at('labCases'), 'a lab case needs its patient');
     assert.ok(at('patients') < at('alerts'), 'an alert needs its patient');
     assert.ok(at('appointments') < at('contacts'), 'a contact may name the appointment it was about');
     assert.ok(at('staff') < at('closures'), "a closure may be one person's leave");

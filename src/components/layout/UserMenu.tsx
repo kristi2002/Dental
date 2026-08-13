@@ -6,12 +6,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import type { Role } from '@/generated/prisma/enums';
 import { signOut } from '@/lib/actions/auth';
-import { initials } from '@/lib/utils';
+import { cn, initials } from '@/lib/utils';
 
 /**
- * Who is signed in, and the two screens that belong to running the practice
- * rather than doing the day's work. Kept out of the main nav so the bar stays
- * the same short list of daily destinations for everyone.
+ * Who is signed in, and the three screens that belong to running the practice
+ * rather than doing the day's work. Kept out of the rail so it stays the same
+ * short list of daily destinations for everyone.
  */
 export function UserMenu({
   firstName,
@@ -20,6 +20,8 @@ export function UserMenu({
   canManageStaff,
   canViewAudit,
   canViewSettings,
+  placement = 'bottom',
+  compact = false,
 }: {
   firstName: string;
   lastName: string;
@@ -27,6 +29,10 @@ export function UserMenu({
   canManageStaff: boolean;
   canViewAudit: boolean;
   canViewSettings: boolean;
+  /** `top` for the rail foot, where there is nothing below to open into. */
+  placement?: 'top' | 'bottom';
+  /** The pinched rail: the avatar alone, no name and no chevron. */
+  compact?: boolean;
 }) {
   const t = useTranslations('auth');
   const tr = useTranslations('roles');
@@ -55,9 +61,16 @@ export function UserMenu({
     <div ref={wrapper} className="relative">
       <button
         type="button"
-        className="on-brand-control flex items-center gap-2 py-1.5 pr-2 pl-1.5"
+        className={cn(
+          'on-brand-control flex items-center rounded-lg focus-visible:outline-white',
+          compact ? 'justify-center p-1.5' : 'gap-2 py-1.5 pr-2 pl-1.5',
+          // Fills the rail foot; in the phone bar it must not take the width the
+          // wordmark beside it is using.
+          placement === 'top' && !compact && 'w-full',
+        )}
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={compact ? `${firstName} ${lastName}` : undefined}
         onClick={() => setOpen((value) => !value)}
       >
         <span
@@ -66,21 +79,40 @@ export function UserMenu({
         >
           {initials(firstName, lastName)}
         </span>
-        <span className="hidden text-left sm:block">
-          <span className="block text-[0.92rem] leading-tight font-bold text-white">
-            {firstName} {lastName}
-          </span>
-          <span className="block text-[0.78rem] leading-tight text-white/85">{tr(role)}</span>
-        </span>
-        <ChevronDown size={16} aria-hidden className="text-white/85" />
+        {compact ? null : (
+          <>
+            {/* On a phone bar the name is the first thing to go — the initials
+                in the circle already say whose session this is. */}
+            <span className="hidden min-w-0 flex-1 text-left sm:block">
+              <span className="block truncate text-[0.92rem] leading-tight font-bold text-white">
+                {firstName} {lastName}
+              </span>
+              <span className="block truncate text-[0.78rem] leading-tight text-white/85">
+                {tr(role)}
+              </span>
+            </span>
+            <ChevronDown size={16} aria-hidden className="shrink-0 text-white/85" />
+          </>
+        )}
       </button>
 
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-40 mt-2 w-60 overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface py-1 shadow-pop"
+          className={cn(
+            'absolute z-40 w-60 overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface py-1 shadow-pop',
+            // From the rail foot it opens upward and to the right, so a pinched
+            // rail does not have to be wide enough to hold its own menu.
+            placement === 'top' ? 'bottom-full left-0 mb-2' : 'right-0 mt-2',
+          )}
         >
-          <p className="border-b border-line px-4 py-2.5 text-[0.9rem] text-ink-soft sm:hidden">
+          {/* Wherever the button could not carry the name, the menu does. */}
+          <p
+            className={cn(
+              'border-b border-line px-4 py-2.5 text-[0.9rem] text-ink-soft',
+              !compact && 'sm:hidden',
+            )}
+          >
             <span className="block font-bold text-ink">
               {firstName} {lastName}
             </span>

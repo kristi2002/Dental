@@ -26,6 +26,13 @@ Companion documents:
 | ❌ | Specified here, does not exist |
 | 🔒 | Deliberately not built (a stated design decision, not a gap) |
 
+> **Loop L5 (the laboratory) was removed from the product.** The `LabCase` /
+> `LabCaseItem` models, the `/lab` screens, the patient *Lab work* tab and the
+> `lab.*` permissions are gone. Rows below that mention a lab case, a fitting
+> date or gaps **G-01 / G-04 / G-10 / G-12 / G-33 / G-34 / G-35** are kept as
+> the record of a feature that once existed; none of them describe the app as
+> it now stands.
+
 ---
 
 ## Progress
@@ -45,13 +52,8 @@ Stages are defined in [§9](#9-suggested-build-order). Gap numbers refer to
 | **7 — Deferred by choice** | ⬜ deliberately deferred |
 
 **Two structural edges were added to the graph in [§3.3](#33-what-is-not-connected-but-should-be):**
-plan step ⇄ appointment (both directions), and lab due date → the booking check.
-Both were promised by schema comments and neither existed.
-
-**One permission was split.** `lab.view` / `lab.edit` came out of `plan.*`
-([§2.2](#22-who-can-reach-what)): a lab case is logistics, not diagnosis, and the
-person who most needs to know a crown is not back is the person booking the
-fitting. The receptionist now has both and still has no `plan.view`.
+plan step ⇄ appointment (both directions), promised by a schema comment and
+never built.
 
 **One page was added.** [`/plans`](../src/app/[locale]/(app)/plans/page.tsx) —
 every course of treatment across all patients, stalled ones first.
@@ -176,7 +178,7 @@ That is the single most useful lens for fixing the code.
    │  PEOPLE/ACCESS  │        │       THE PATIENT RECORD       │
    │  StaffUser      │◄──────►│  Patient · Visit · Tooth ·     │
    │  AuditLog       │ actor  │  Plan · Document · Prescription│
-   └─────────────────┘        │  Alert · Contact · LabCase     │
+   └─────────────────┘        │  Alert · Contact               │
                               └───────┬────────────────────────┘
                                       │ patientId (Cascade)
                               ┌───────▼────────────────────────┐
@@ -222,12 +224,9 @@ See [IMPROVEMENTS §2.1](IMPROVEMENTS.md#21-services-are-referenced-by-text-not-
 | `/[locale]/appointments` | `appointment.view` | L1 | **The diary** — day / week / list + waitlist |
 | `/[locale]/day-sheet` | `appointment.view` | L1 | The day as a sheet of paper |
 | `/[locale]/patients` | `patient.view` | L2 | The file drawer |
-| `/[locale]/patients/[id]` | `patient.view` + per-tab | L2/L3/L5 | **The record** — nine tabs |
+| `/[locale]/patients/[id]` | `patient.view` + per-tab | L2/L3 | **The record** — eight tabs |
 | `/[locale]/recalls` | `recall.view` | L3 | Who to call, and why |
 | `/[locale]/services` | `service.view` | L4 | The catalog + prescription templates |
-| `/[locale]/lab` | `plan.view` | L5 | What is out at a laboratory |
-| `/[locale]/lab/[id]` | `plan.view` | L5 | One case, opened up — the order sheet |
-| `/[locale]/lab/[id]/sheet` | `plan.view` | L5 | The work order, printable |
 | `/[locale]/stock` | `stock.view` | L4 | The cupboard + reorder + suppliers |
 | `/[locale]/stock/stocktake` | `stock.**edit**` | L4 | Counting the room |
 | `/[locale]/prescriptions/[id]` | `prescription.view` | L2 | One prescription, printable |
@@ -268,14 +267,6 @@ table to check first whenever a page "does not work for someone".
 | Activity | ✅ | ❌ | ❌ | ❌ |
 
 ✅ full · 👁 read-only · ❌ not reachable, and not advertised in the nav
-
-> ⚠️ **Gap G-01 — the receptionist cannot see the lab list.** `/lab` is gated on
-> `plan.view`, which the receptionist does not have. But scheduling a fitting
-> around a delivery date is *front-desk work*: the person who books the
-> appointment is the person who needs to know the crown is not back. Either the
-> lab list needs its own `lab.view` permission granted to the front desk, or the
-> due dates need to surface on the calendar (which is the better fix — see
-> [§4.3](#43--appointments)).
 
 ---
 
@@ -1008,13 +999,12 @@ issue:
 
 ---
 
-#### 4.6.7 Tabs: **Appointments**, **Contacts**, **Lab**
+#### 4.6.7 Tabs: **Appointments**, **Contacts**
 
 | Tab | Represents | Notable logic |
 | --- | --- | --- |
 | **Appointments** | This person's whole diary, newest first | Same `AppointmentRow` component as the dashboard and the day view — one row renderer, three contexts |
 | **Contacts** | Every time somebody was actually contacted, with the exact text as sent | The body is **snapshotted** — a later template edit must not rewrite what was said last March. Answers "nobody told me" |
-| **Lab** | This person's crowns, bridges, dentures | Links to the full order sheet |
 
 **Contacts is the quiet hero of the system.** It is what turns "we should remind
 people" into "these six have not been told", which is what makes the dashboard's
@@ -1087,66 +1077,6 @@ today + 30d`) · open the record.
 **Status** — ✅ the derivation is correct and well-reasoned. ⚠️ the list is a
 *reading* screen when it should be a *working* screen: it ends one step short of
 the booking it exists to cause.
-
----
-
-### 4.8 · `/lab`, `/lab/[id]`, `/lab/[id]/sheet`
-
-**Identity** — `plan.view` / `plan.edit`; delete needs `patient.delete`.
-
-**What it represents** — **loop L5**. Work that leaves the building. Before
-this existed it lived on a whiteboard, and the fitting appointment got booked
-for the day before the crown came back.
-
-#### `/lab` — the list
-
-```
-1. Optional ?status filter (SENT | RECEIVED | FITTED | CANCELLED).
-2. Order: status ASC, dueAt ASC, sentAt DESC.
-   ── outstanding work first; within it, soonest promised first.
-      A case with no promised date sorts LAST rather than first, which is
-      where a null lands if nobody says otherwise.
-3. Empty + unfiltered → an empty state that points at /patients,
-   because a case can only START from the patient it is for, and nothing
-   on an empty list said so.
-```
-
-#### `/lab/[id]` — the order sheet
-
-This is where a case stops being a row and becomes an *order*:
-
-| Field | Why it exists |
-| --- | --- |
-| `items[]` (`LabCaseItem`) | A docket is a crown on 26 *and* a post on 27 — one order, two pieces |
-| `teeth` (`"22:MO,27:B,32"`) | FDI number, optional `:` and surfaces. A bare number means the whole tooth, which is what a crown or an extraction actually is. Still parses the old plain `"46, 47"` |
-| `tryInAt` | A bridge is fitted twice — once in wax to check it, once for real |
-| `deliveryFrom` / `deliveryTo` | A courier slot is wall-clock time, not an instant. A window needs both ends; half of one tells the courier nothing |
-| `careInstructions` | What a patient is told about a zirconia crown must not depend on who was at the desk |
-| history | Read from `AuditLog` filtered to `entity='lab', entityId=id` — no new table needed, only a filter. **A very good pattern** |
-
-**Service suggestions** — the catalogue read through what the case actually is:
-a case called "zirconia crown" surfaces the crown services rather than all
-forty. Nothing clever, but it beats scrolling a select on every order.
-
-#### `/lab/[id]/sheet` — the printable work order
-
-Travels with the case. Includes the **tooth chart drawing**, because a picture
-of which teeth and which faces is the one instruction a technician cannot afford
-to misread off a list of numbers.
-
-**Should be automatic**
-
-| | Behaviour | Tier | Status |
-| --- | --- | --- | --- |
-| a | Setting status to RECEIVED/FITTED stamps `receivedAt` if the date box is empty — the box is on the desk, so the waiting-on list empties on the same click | T1 | ✅ |
-| b | Due-date validation: `dueAt ≥ sentAt`, `tryInAt ≥ sentAt`, `deliveryTo ≥ deliveryFrom` | T0 | ✅ |
-| c | The docket is saved as a set: lines the sheet no longer shows are deleted, and an id posted from another case's docket matches nothing rather than rewriting that order | T1 | ✅ |
-| d | Distinct lab names are suggested, so the name stays spelled the same way | T2 | ✅ |
-| e | **A case cannot be linked to its fitting appointment.** There is no `appointmentId` on `LabCase`. The entire justification for the feature — "the fitting got booked for the day before the crown came back" — is a *warning that was never built* | T1 | ❌ **G-04** |
-| f | **An overdue case does not escalate.** `SENT` with `dueAt < today` is the practice's problem of the week and nothing anywhere marks it | T0+T2 | ❌ **G-12** |
-| g | **Receiving a case does not prompt the fitting.** The natural next action after "it came back" is "book the fitting" | T2 | ❌ **G-33** |
-| h | **A case does not connect to a treatment plan step.** A crown is almost always a plan step. Two parallel records of the same intention | T1 | ❌ **G-34** |
-| i | **The lab is not a `Supplier`.** `labName` is free text, deliberately — but that means no phone number, so "chase the lab" has no click | T1 | ⚠️ **G-35** |
 
 ---
 
@@ -1494,7 +1424,6 @@ stripping the app chrome.
 | --- | --- | --- |
 | `/prescriptions/[id]` | The prescription | Clinic name, patient + age, body verbatim, issuer, date |
 | `/day-sheet` | The day | Times, patients, phones, **alerts in forced black**, tick boxes |
-| `/lab/[id]/sheet` | The work order | Patient, docket lines, **the tooth chart drawing**, dates, delivery window, care instructions |
 
 **The print rule that matters** — a monochrome printer renders the danger colour
 as mid-grey. `globals.css` forces it to black, repeats table headers across
@@ -1616,29 +1545,6 @@ stateDiagram-v2
 | `confirmedAt` and `declinedAt` are mutually exclusive | ✅ each write nulls the other |
 | A past `SCHEDULED` appointment cannot persist | ❌ **G-13** |
 | A decline is terminal for the confirmation link | ❌ **G-54** |
-
-### 5.2 Lab case
-
-```mermaid
-stateDiagram-v2
-    [*] --> SENT: impression taken, work sent
-    SENT --> RECEIVED: box on the desk (receivedAt stamped)
-    RECEIVED --> FITTED: in the patient's mouth
-    SENT --> CANCELLED
-    RECEIVED --> CANCELLED
-    FITTED --> [*]
-    CANCELLED --> [*]
-
-    note right of SENT
-        dueAt drives the waiting-on list.
-        dueAt < today = OVERDUE — nothing flags it. (G-12)
-        A fitting must not be booked before dueAt. (G-04)
-    end note
-
-    note right of RECEIVED
-        Should prompt: book the fitting. (G-33)
-    end note
-```
 
 ### 5.3 Treatment plan and step
 
@@ -1787,7 +1693,7 @@ Legend: ✅ happens · ⚠️ partial · ❌ missing · 🔒 deliberately not do
 | | Unlink the files on disk | T1 | 🔴 G-27 |
 | **Plan step completed** | Close the plan when it was the last one | T1 | ✅ |
 
-### 6.3 Supply and outsourcing events
+### 6.3 Supply events
 
 | Event | Consequence | Tier | Today |
 | --- | --- | --- | --- |
@@ -1802,10 +1708,6 @@ Legend: ✅ happens · ⚠️ partial · ❌ missing · 🔒 deliberately not do
 | | Surfaced on the dashboard | T2 | ❌ G-11 |
 | **Material deleted** | Its whole ledger disappears | T1 | 🔴 G-39 |
 | **Service BOM edited** | Next visit deducts the new set | T1 | ✅ |
-| **Lab case created** | Appears on the waiting-on list and the patient tab | T2 | ✅ |
-| **Lab case due date passes** | Flag as overdue everywhere | T0+T2 | ❌ G-12 |
-| **Lab case received** | Stamp `receivedAt`, drop off the waiting list | T1 | ✅ |
-| | Prompt to book the fitting | T2 | ❌ G-33 |
 
 ### 6.4 The only things that genuinely need a clock
 
@@ -1905,7 +1807,6 @@ Ranked by what it actually costs. 🔴 correctness · 🟠 a loop that cannot cl
 | **G-48** | 🟠 | Narrowing hours is accepted over existing bookings | Settings | Medium | ✅ |
 | **G-25** | 🟠 | A service name containing a comma silently becomes two services | Services · Analytics | Bridge A | ✅ |
 | **G-43** | 🟠 | Top services groups by typed text | Analytics | Bridge A | ✅ |
-| **G-01** | 🟠 | The receptionist cannot see the lab list | Lab · permissions | Small | ✅ |
 | **G-32** | 🟠 | `lastRecallAt` and the `Contact` log are two unreconciled memories | Recalls | Small |  |
 | **G-10** | ⚪ | Today's lab deliveries are not on the dashboard | Dashboard | Small | ✅ |
 | **G-11** | ⚪ | Expired stock does not reach the dashboard | Dashboard | Small | ✅ |

@@ -81,7 +81,7 @@ export default async function ActivityPage({
 
   return (
     <>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} trail={[{ label: t('title') }]} />
 
       <nav aria-label={t('filterLabel')} className="mb-5 flex flex-wrap gap-2">
         <Link

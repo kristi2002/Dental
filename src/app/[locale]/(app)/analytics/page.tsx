@@ -201,7 +201,7 @@ export default async function AnalyticsPage({
 
   return (
     <>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} trail={[{ label: t('title') }]} />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('totalPatients')} value={totalPatients} Icon={Users} />
