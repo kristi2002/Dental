@@ -11,7 +11,10 @@ import {
   Package,
   PanelLeftClose,
   PanelLeftOpen,
+  Pill,
   Stethoscope,
+  Tags,
+  Truck,
   Users,
   X,
   type LucideIcon,
@@ -34,15 +37,71 @@ const ICONS: Record<string, LucideIcon> = {
   plans: ClipboardList,
   recalls: BellRing,
   services: Stethoscope,
+  serviceCategories: Tags,
+  prescriptions: Pill,
   lab: FlaskConical,
   stock: Package,
+  stockCategories: Tags,
+  suppliers: Truck,
   analytics: ChartColumn,
 };
 
 /** Tailwind's `lg`, in the same rem the breakpoint is written in. */
 const WIDE = '(min-width: 64rem)';
 
-type Item = { href: string; key: string };
+type Item = { href: string; key: string; children?: ReadonlyArray<Item> };
+
+/**
+ * One row of the rail, at either level.
+ *
+ * A sub-destination is the same link a size down — same shapes, same active
+ * treatment — because it is the same kind of thing: somewhere to go. Only the
+ * weight says which of the two you are looking at.
+ */
+function RailLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+  collapsed,
+  nested = false,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+  collapsed: boolean;
+  nested?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      // The only label a pinched rail has room for.
+      title={collapsed ? label : undefined}
+      className={cn(
+        'flex items-center gap-3 rounded-lg px-3 font-semibold no-underline transition-colors',
+        // The ring is white here: brand-dark on teal is invisible.
+        'focus-visible:outline-white focus-visible:outline-offset-[-1px]',
+        // Still a thumb-sized target one level down — a phone drawer is where
+        // these get tapped, and 40px is not enough to tap reliably.
+        nested ? 'min-h-11 text-[0.9rem]' : 'min-h-12 text-[0.95rem]',
+        collapsed && 'lg:justify-center lg:px-0',
+        // A solid white tab, not tinted text — the current screen has to be
+        // findable without relying on colour alone, and white is what ties the
+        // rail to the page beside it.
+        active ? 'bg-surface text-brand-deep' : 'text-white/85 hover:bg-white/15 hover:text-white',
+      )}
+    >
+      <Icon
+        size={nested ? 18 : 20}
+        aria-hidden
+        className={cn('shrink-0', !active && 'text-white')}
+      />
+      <span className={cn('truncate', collapsed && 'lg:sr-only')}>{label}</span>
+    </Link>
+  );
+}
 
 /**
  * The navigation rail.
@@ -55,6 +114,10 @@ type Item = { href: string; key: string };
  * The rail also buys back the ~120px of height the masthead and the bar used to
  * take between them. On the calendar that is half an hour of extra schedule on
  * screen at every hour of the day, which is the whole reason for the move.
+ *
+ * A destination may carry sub-destinations, indented under it — the lists a
+ * section is kept by rather than the work done in it. They are the one thing
+ * the sideways bar could never have held.
  *
  * Three shapes, one component:
  *   phone   a slim teal top bar plus an off-canvas drawer
@@ -85,6 +148,11 @@ export function Sidebar({
 
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [open, setOpen] = useState(false);
+
+  // Whole segments, not a prefix: `/stock` must not light up on `/stocktake`,
+  // and it has to keep lighting up on `/stock/categories`.
+  const isCurrent = (href: string) =>
+    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 
   const rail = useRef<HTMLElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
@@ -286,37 +354,46 @@ export function Sidebar({
           className={cn('flex-1 overflow-y-auto px-2 py-3', collapsed && 'lg:px-1.5')}
         >
           <ul className="flex flex-col gap-0.5">
-            {items.map(({ href, key }) => {
-              const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
-              const Icon = ICONS[key] ?? LayoutDashboard;
+            {items.map(({ href, key, children }) => {
+              const kids = children ?? [];
+              // A section reads as current only while you are on the section
+              // itself: standing on one of its sub-screens, that one is the tab.
+              const onChild = kids.some((child) => isCurrent(child.href));
 
               return (
                 <li key={href}>
-                  <Link
+                  <RailLink
                     href={href}
-                    aria-current={active ? 'page' : undefined}
-                    // The only label a pinched rail has room for.
-                    title={collapsed ? t(key) : undefined}
-                    className={cn(
-                      'flex min-h-12 items-center gap-3 rounded-lg px-3 text-[0.95rem] font-semibold no-underline transition-colors',
-                      // The ring is white here: brand-dark on teal is invisible.
-                      'focus-visible:outline-white focus-visible:outline-offset-[-1px]',
-                      collapsed && 'lg:justify-center lg:px-0',
-                      // A solid white tab, not tinted text — the current screen
-                      // has to be findable without relying on colour alone, and
-                      // white is what ties the rail to the page beside it.
-                      active
-                        ? 'bg-surface text-brand-deep'
-                        : 'text-white/85 hover:bg-white/15 hover:text-white',
-                    )}
-                  >
-                    <Icon
-                      size={20}
-                      aria-hidden
-                      className={cn('shrink-0', !active && 'text-white')}
-                    />
-                    <span className={cn('truncate', collapsed && 'lg:sr-only')}>{t(key)}</span>
-                  </Link>
+                    label={t(key)}
+                    icon={ICONS[key] ?? LayoutDashboard}
+                    active={isCurrent(href) && !onChild}
+                    collapsed={collapsed}
+                  />
+
+                  {kids.length > 0 ? (
+                    // Indented off a hairline, which is what says "inside this"
+                    // without a second word of chrome. The pinched rail has no
+                    // room for the indent, so the icons simply stack.
+                    <ul
+                      className={cn(
+                        'mt-0.5 ml-5 flex flex-col gap-0.5 border-l border-white/20 pl-2',
+                        collapsed && 'lg:ml-0 lg:border-l-0 lg:pl-0',
+                      )}
+                    >
+                      {kids.map((child) => (
+                        <li key={child.href}>
+                          <RailLink
+                            href={child.href}
+                            label={t(child.key)}
+                            icon={ICONS[child.key] ?? LayoutDashboard}
+                            active={isCurrent(child.href)}
+                            collapsed={collapsed}
+                            nested
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </li>
               );
             })}

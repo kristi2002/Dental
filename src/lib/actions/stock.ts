@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { parseMoney } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -112,6 +113,15 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
   });
 
   revalidateAll();
+
+  // Recording a material is done on a page of its own, so there is nowhere for
+  // the form to return to — the storage room is what the person came here to
+  // add to, and it is where the new row now is. An edit is submitted from a
+  // dialog on the list itself, so it stays put.
+  if (!id) {
+    redirect({ href: '/stock', locale: await getLocale() });
+  }
+
   return actionOk();
 }
 

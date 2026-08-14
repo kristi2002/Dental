@@ -17,7 +17,11 @@
     "openMenu": "Apri il menu",
     "closeMenu": "Chiudi il menu",
     "collapseRail": "Riduci il menu",
-    "expandRail": "Espandi il menu"
+    "expandRail": "Espandi il menu",
+    "stockCategories": "Categorie",
+    "suppliers": "Fornitori",
+    "serviceCategories": "Categorie",
+    "prescriptions": "Ricette"
   },
   "common": {
     "save": "Salva",
@@ -281,12 +285,14 @@
     "empty": "Nessuna categoria. Aggiungi i reparti in cui lo studio già lavora, poi assegna ogni servizio a uno.",
     "serviceCount": "{count, plural, =0 {nessun servizio} one {# servizio} other {# servizi}}",
     "confirmDelete": "Rimuovere questa categoria? I servizi restano a catalogo e passano a senza categoria.",
-    "confirmDeleteParent": "Rimuovere questo reparto e {count, plural, one {la sua # sottocategoria} other {le sue # sottocategorie}}? I servizi restano a catalogo e passano a senza categoria."
+    "confirmDeleteParent": "Rimuovere questo reparto e {count, plural, one {la sua # sottocategoria} other {le sue # sottocategorie}}? I servizi restano a catalogo e passano a senza categoria.",
+    "subtitle": "I reparti in cui è diviso il catalogo"
   },
   "stock": {
     "title": "Magazzino",
     "subtitle": "Materiali e consumabili",
     "new": "Nuovo materiale",
+    "newSubtitle": "Bastano un nome e una quantità — prezzo, confezione e fornitore si possono aggiungere dopo.",
     "edit": "Modifica materiale",
     "name": "Nome del materiale",
     "category": "Categoria",
@@ -366,7 +372,16 @@
     "batchPriceHint": "Quanto è costata questa consegna. Diventa il prezzo del materiale.",
     "batchBoughtOn": "acquistato {date}",
     "batchMadeOn": "prodotto {date}",
-    "batchEach": "{price} ciascuna"
+    "batchEach": "{price} ciascuna",
+    "sectionIdentity": "Di cosa si tratta",
+    "sectionIdentityHint": "Il nome che lo staff cercherà e lo scaffale su cui è archiviato.",
+    "sectionCounts": "Cosa c'è sullo scaffale",
+    "sectionCountsHint": "Quanto ce n'è adesso e sotto quale livello l'app chiede di riordinare.",
+    "sectionOrdering": "Ordini",
+    "sectionOrderingHint": "Come si conta lo scaffale rispetto a come lo vende il fornitore.",
+    "sectionPricing": "Prezzo e fornitore",
+    "sectionPricingHint": "Quanto costa una unità e da chi si acquista. Entrambi facoltativi.",
+    "previewTitle": "Nuovo materiale"
   },
   "analytics": {
     "title": "Statistiche",
@@ -650,6 +665,7 @@
   "plans": {
     "title_": "Nome del piano",
     "titleHint": "es. Restauro quadrante superiore sinistro",
+    "forPatient": "Paziente",
     "new": "Nuovo piano",
     "edit": "Modifica piano",
     "steps": "Fasi",
@@ -659,22 +675,31 @@
     "status_CANCELLED": "Annullato",
     "empty": "Nessun piano di cura per questo paziente.",
     "progress": "{done} di {total} completate",
+    "nextStep": "Prossima",
     "addStep": "Aggiungi fase",
+    "bookStep": "Fissa",
     "editStep": "Modifica fase",
     "stepTitle": "Cosa verrà fatto",
     "markDone": "Fatto",
     "skip": "Salta questa fase",
     "reopen": "Riapri",
+    "cancelPlan": "Smetti di seguire questo piano",
+    "reopenPlan": "Riapri",
+    "confirmCancelPlan": "Smettere di seguire questo piano? Tutto quello che contiene resta agli atti e può essere riaperto in qualsiasi momento.",
     "moveUp": "Sposta su",
     "moveDown": "Sposta giù",
     "allTitle": "Piani di cura",
     "allSubtitle": "Tutte le cure in corso dello studio, prima quelle più trascurate.",
     "allEmpty": "Non ci sono piani di cura in corso.",
+    "searchPlaceholder": "Cerca per paziente, piano o fase…",
+    "noMatches": "Nessun piano di cura corrisponde a «{query}».",
     "filter_open": "In corso",
     "filter_stalled": "Fermi",
     "filter_completed": "Conclusi",
+    "filter_cancelled": "Annullati",
     "stalled": "Fermo",
     "noneStalled": "Non è rimasto niente in sospeso. Ogni piano in corso si è mosso di recente oppure ha già la prossima visita fissata.",
+    "noneCancelled": "Nessun percorso di cura è stato annullato.",
     "nextOn": "Prossima il {date} alle {time}",
     "quietFor": "{days, plural, =0 {Niente fatto oggi} =1 {Niente fatto da un giorno} other {Niente fatto da # giorni}}",
     "fromChart": "Dalla scheda",
@@ -685,7 +710,7 @@
     "noStepsYet": "Ancora nessuna fase — scegli qui sopra, o scrivi la tua.",
     "pickTooth": "Dente",
     "andMore": "+{count} altri",
-    "showingRecent": "Mostrati i {count} piani conclusi più di recente, su {total}.",
+    "showingRecent": "Mostrati i {count} più recenti, su {total}.",
     "chartPlanTitle": "Piano di cura",
     "chartOfferTitle": "Pianificare la cura?",
     "chartOfferBody": "Carie registrata sul dente {tooth}. Mettila nel piano di cura del paziente prima che venga dimenticata.",
@@ -900,7 +925,9 @@
     "phone": "Telefono",
     "email": "Email",
     "noContact": "Nessun contatto",
-    "itemCount": "{count, plural, =0 {nessun materiale} one {# materiale} other {# materiali}}"
+    "itemCount": "{count, plural, =0 {nessun materiale} one {# materiale} other {# materiali}}",
+    "subtitle": "Da chi vengono acquistati i materiali",
+    "empty": "Nessun fornitore. Aggiungi quelli da cui lo studio ordina già, poi scegline uno su ogni materiale."
   },
   "stockCategories": {
     "title": "Categorie",
@@ -909,7 +936,8 @@
     "nameHint": "Come si chiama lo scaffale. Ogni materiale sceglie da questo elenco.",
     "empty": "Nessuna categoria. Aggiungi gli scaffali che il magazzino ha già, poi assegna ogni materiale a uno.",
     "itemCount": "{count, plural, =0 {nessun materiale} one {# materiale} other {# materiali}}",
-    "confirmDelete": "Rimuovere questa categoria? I materiali restano sullo scaffale e passano a senza categoria."
+    "confirmDelete": "Rimuovere questa categoria? I materiali restano sullo scaffale e passano a senza categoria.",
+    "subtitle": "Gli scaffali con cui è ordinato il magazzino"
   },
   "daySheet": {
     "title": "Foglio del giorno",

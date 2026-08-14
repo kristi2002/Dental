@@ -24,9 +24,21 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   const store = await cookies();
   const railCollapsed = store.get('rail')?.value === 'collapsed';
 
-  const items = NAV_DESTINATIONS.filter(
-    ({ permission }) => permission === null || user.permissions.includes(permission),
-  ).map(({ href, key }) => ({ href, key }));
+  const allowed = (permission: (typeof NAV_DESTINATIONS)[number]['permission']) =>
+    permission === null || user.permissions.includes(permission);
+
+  // A section stays in the rail even when every one of its sub-screens is out of
+  // reach — the sub-screens are the extras, not the reason the section is there.
+  const items = NAV_DESTINATIONS.filter(({ permission }) => allowed(permission)).map(
+    ({ href, key, children }) => ({
+      href,
+      key,
+      children: children?.filter(({ permission }) => allowed(permission)).map(({ href, key }) => ({
+        href,
+        key,
+      })),
+    }),
+  );
 
   return (
     // Column on a phone — top bar above the page. Row on a desktop — rail beside it.

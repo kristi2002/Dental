@@ -19,6 +19,9 @@ export type CategoryDefaults = {
  * because naming the shelves is a decision the practice makes once, and every
  * material typed afterwards should be *choosing* from that list rather than
  * spelling it again.
+ *
+ * Adding one is the whole point of the screen it heads, so that trigger is a
+ * full-size primary button; editing one is a row action beside the shelf.
  */
 export function CategoryFormDialog({ category }: { category?: CategoryDefaults }) {
   const t = useTranslations('stockCategories');
@@ -37,7 +40,7 @@ export function CategoryFormDialog({ category }: { category?: CategoryDefaults }
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
       triggerTitle={editing ? t('edit') : t('new')}
-      triggerClassName="btn btn-secondary btn-sm"
+      triggerClassName={editing ? 'btn btn-secondary btn-sm' : 'btn btn-primary'}
       trigger={
         editing ? (
           <>

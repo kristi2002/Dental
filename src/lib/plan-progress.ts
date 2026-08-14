@@ -40,23 +40,40 @@ export type ScheduledStep = {
 };
 
 /**
+ * Whether a slot is still a promise: ahead of us, and not one the patient has
+ * already cancelled or failed to turn up for.
+ *
+ * Named rather than inlined because two screens ask it of the same appointment —
+ * the stalled check below, and the plan row deciding whether to print a date or
+ * offer to book one — and a row that says "next Tuesday" about a plan the list
+ * has already declared neglected is the disagreement nobody reports.
+ */
+export function isPromisedSlot(
+  appointment: ScheduledStep['appointment'],
+  now: Date,
+): appointment is NonNullable<ScheduledStep['appointment']> {
+  return (
+    appointment !== null &&
+    appointment.date >= now &&
+    (appointment.status === AppointmentStatus.SCHEDULED ||
+      appointment.status === AppointmentStatus.ARRIVED)
+  );
+}
+
+/**
  * The soonest slot any outstanding step is booked into.
  *
  * A plan with one of these is not neglected however long it has been quiet — it
  * is waiting for a date that has not arrived. A cancelled or missed slot is no
- * such promise, which is why the appointment's own status is checked here and
- * not just its date.
+ * such promise, which is why the appointment's own status is checked and not
+ * just its date.
  */
 export function nextBooking<T extends ScheduledStep>(steps: readonly T[], now: Date): T | null {
   return (
     steps
       .filter(
         (step) =>
-          step.status === TreatmentStepStatus.PENDING &&
-          step.appointment !== null &&
-          step.appointment.date >= now &&
-          (step.appointment.status === AppointmentStatus.SCHEDULED ||
-            step.appointment.status === AppointmentStatus.ARRIVED),
+          step.status === TreatmentStepStatus.PENDING && isPromisedSlot(step.appointment, now),
       )
       // Day first, then the clock — two steps booked into the same morning are
       // ordered by which one the patient sits down for first.

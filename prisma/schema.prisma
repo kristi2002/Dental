@@ -218,6 +218,11 @@ model Appointment {
   planStep TreatmentStep?
   contacts Contact[]
 
+  /// The write-up of what actually happened in this slot. See
+  /// `VisitRecord.appointment` for why the two were separate for so long, and
+  /// why this is a list of at most one rather than a single row.
+  visitRecords VisitRecord[]
+
   @@index([date])
   @@index([patientId])
   /// The conflict search filters on both at once.
@@ -393,6 +398,30 @@ model VisitRecord {
 
   createdAt DateTime @default(now())
 
+  /// The slot this write-up belongs to, when it was a booked one.
+  ///
+  /// The two rows describe the same event from opposite ends — the appointment
+  /// is what was promised, the visit is what was done — and nothing joined
+  /// them. Everything that wanted both had to guess by patient and calendar
+  /// day, which is wrong in exactly the case that matters: a patient booked
+  /// twice in a day, where one slot is written up and the other silently counts
+  /// as recorded too. It also left "what did this booking consume?"
+  /// unanswerable, because materials hang off the visit and the plan step hangs
+  /// off the appointment.
+  ///
+  /// Nullable because a walk-in has no slot and a no-show has no visit, and
+  /// because rows written before this field existed have no link and will not
+  /// grow one — the deploy runs `db push` and never a backfill.
+  ///
+  /// One write-up per slot is the rule, but it is **not** `@unique`, for the
+  /// reason `StockCategory.name` is not: the deploy runs `prisma db push`
+  /// without `--accept-data-loss` (see `docker/entrypoint.sh`), and that refuses
+  /// to add a unique constraint at all — not just when the data would violate
+  /// it — which takes the release down on boot. `saveVisit` is the gate
+  /// instead: it only ever links a slot that has no write-up yet.
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
   services       VisitService[]
   toothRecords   ToothRecord[]
   stockMovements StockMovement[]
@@ -408,6 +437,9 @@ model VisitRecord {
 
   @@index([patientId])
   @@index([visitDate])
+  /// "Has this slot been written up?" is asked of every completed appointment
+  /// on the day sheet, and `saveVisit` asks it again for every candidate slot.
+  @@index([appointmentId])
 }
 
 model ToothRecord {

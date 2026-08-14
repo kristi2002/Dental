@@ -18,6 +18,9 @@ export type SupplierDefaults = {
 /**
  * Enough to place an order and no more. There is no purchasing or invoicing in
  * this app by design, so a supplier is a name and a way to reach them.
+ *
+ * Adding one is the whole point of the screen it heads, so that trigger is a
+ * full-size primary button; editing one is a row action beside the supplier.
  */
 export function SupplierFormDialog({ supplier }: { supplier?: SupplierDefaults }) {
   const t = useTranslations('suppliers');
@@ -36,7 +39,7 @@ export function SupplierFormDialog({ supplier }: { supplier?: SupplierDefaults }
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
       triggerTitle={editing ? t('edit') : t('new')}
-      triggerClassName={editing ? 'btn btn-secondary btn-sm' : 'btn btn-secondary btn-sm'}
+      triggerClassName={editing ? 'btn btn-secondary btn-sm' : 'btn btn-primary'}
       trigger={
         editing ? (
           <>

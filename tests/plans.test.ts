@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   STALLED_DAYS,
+  isPromisedSlot,
   nextBooking,
   planProgress,
   summarisePlan,
@@ -50,6 +51,27 @@ describe('planProgress — how far through a plan is', () => {
 
   it('handles a plan with no steps at all', () => {
     assert.deepEqual(planProgress([]), { done: 0, relevant: 0, percent: 0 });
+  });
+});
+
+describe('isPromisedSlot — whether a booking is still a promise', () => {
+  it('accepts a future slot that still stands', () => {
+    assert.equal(isPromisedSlot(booking(day(3)), NOW), true);
+    assert.equal(isPromisedSlot(booking(day(3), '09:00', 'ARRIVED'), NOW), true);
+  });
+
+  it('counts today, and refuses yesterday', () => {
+    assert.equal(isPromisedSlot(booking(NOW), NOW), true);
+    assert.equal(isPromisedSlot(booking(day(-1)), NOW), false);
+  });
+
+  it('refuses a slot the patient cancelled or missed', () => {
+    assert.equal(isPromisedSlot(booking(day(4), '09:00', 'CANCELLED'), NOW), false);
+    assert.equal(isPromisedSlot(booking(day(4), '09:00', 'NO_SHOW'), NOW), false);
+  });
+
+  it('refuses a step that was never booked at all', () => {
+    assert.equal(isPromisedSlot(null, NOW), false);
   });
 });
 

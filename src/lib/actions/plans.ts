@@ -190,6 +190,10 @@ export async function saveStep(_prev: ActionState, formData: FormData): Promise<
       await prisma.treatmentStep.create({
         data: { ...data, planId, position: (last?.position ?? 0) + 1 },
       });
+      // New work on a plan that had none left reopens it. Otherwise a finished
+      // plan would sit in the archive with an outstanding step on it, which is
+      // the exact disagreement `syncPlanStatus` exists to prevent.
+      await syncPlanStatus(planId);
     }
   } catch {
     return actionError(t('generic'));
@@ -326,11 +330,61 @@ export async function deleteStep(formData: FormData): Promise<void> {
   if (!user) return;
 
   await prisma.treatmentStep.delete({ where: { id } });
+  // Removing the last outstanding step finishes the plan, for the same reason
+  // ticking it off would have.
+  await syncPlanStatus(step.planId);
+
   await recordAudit(user, {
     action: 'delete',
     entity: 'plan',
     entityId: step.planId,
     summary: step.title,
+  });
+  revalidateAll();
+}
+
+/**
+ * Stop chasing a plan, or start chasing it again.
+ *
+ * The other two statuses are derived — `syncPlanStatus` decides between open and
+ * finished from the steps themselves, and nobody should be able to declare a
+ * course of treatment complete while work is still outstanding on it. Abandoning
+ * one is the single judgement the steps cannot make, and until now the only ways
+ * to clear a plan off the practice's list were to tick off work that never
+ * happened or to delete the record of it.
+ *
+ * Reopening deliberately does not force it open: it hands the question straight
+ * back to the steps, so a plan whose work turns out to be finished comes back as
+ * finished rather than as an empty course of treatment nobody can close.
+ */
+export async function setPlanStatus(formData: FormData): Promise<void> {
+  const user = await authorize('plan.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const cancelling = requiredString(formData.get('status')) === TreatmentPlanStatus.CANCELLED;
+
+  const plan = await prisma.treatmentPlan.findUnique({
+    where: { id },
+    select: { title: true },
+  });
+  if (!plan) return;
+
+  await prisma.treatmentPlan.update({
+    where: { id },
+    data: {
+      status: cancelling ? TreatmentPlanStatus.CANCELLED : TreatmentPlanStatus.ACTIVE,
+    },
+  });
+  if (!cancelling) await syncPlanStatus(id);
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'plan',
+    entityId: id,
+    summary: `${plan.title} → ${cancelling ? TreatmentPlanStatus.CANCELLED : 'reopened'}`,
   });
   revalidateAll();
 }

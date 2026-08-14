@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useId, useRef, useState } from 'react';
 import type { ServiceOption } from '@/components/appointments/AppointmentFormDialog';
 import { ToothPicker, type ChartedTeeth } from '@/components/dental/ToothPicker';
+import { PatientPicker } from '@/components/patients/PatientPicker';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { TreatmentPlanStatus } from '@/generated/prisma/enums';
@@ -58,7 +59,14 @@ export function PlanFormDialog({
   numbering = 'FDI',
   titles = [],
 }: {
-  patientId: string;
+  /**
+   * Who the plan is for, when the screen already knows — the patient's own
+   * plans tab. Left out, the dialog asks: the practice-wide plans list is the
+   * screen somebody is on when they realise a course of treatment was never
+   * written down, and sending them off to find the patient first is how the
+   * thought gets lost on the way.
+   */
+  patientId?: string;
   plan?: PlanDefaults;
   /** The catalogue, offered as one-tap steps. */
   services?: ServiceOption[];
@@ -135,7 +143,11 @@ export function PlanFormDialog({
         )
       }
     >
-      <input type="hidden" name="patientId" value={patientId} />
+      {patientId ? (
+        <input type="hidden" name="patientId" value={patientId} />
+      ) : (
+        <PatientPicker name="patientId" label={t('forPatient')} required />
+      )}
       {plan ? <input type="hidden" name="id" value={plan.id} /> : null}
       {editing ? null : (
         <input

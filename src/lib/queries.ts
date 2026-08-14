@@ -421,9 +421,11 @@ export async function countOpenPastAppointments(): Promise<number> {
  * closing half of the loop that `saveVisit` opens from the other side, where
  * writing the note completes the appointment.
  *
- * Matched on the patient having *any* visit recorded today rather than on a
- * link between the two rows, because no such link exists: a visit belongs to a
- * patient and a date, not to a slot.
+ * Asked of the slot itself now that `VisitRecord.appointment` exists. The
+ * patient-and-date clause behind it is the old approximation, kept for the
+ * visits that predate the link and will never grow one — but narrowed to
+ * *unlinked* visits, so a patient booked twice in a day no longer has both
+ * slots counted as written up because one of them was.
  */
 export async function getUnrecordedToday(): Promise<AppointmentView[]> {
   const day = today();
@@ -432,7 +434,8 @@ export async function getUnrecordedToday(): Promise<AppointmentView[]> {
     where: {
       date: day,
       status: AppointmentStatus.COMPLETED,
-      patient: { visitRecords: { none: { visitDate: day } } },
+      visitRecords: { none: {} },
+      patient: { visitRecords: { none: { visitDate: day, appointmentId: null } } },
     },
     select: APPOINTMENT_SELECT,
   });

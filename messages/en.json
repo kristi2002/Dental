@@ -17,7 +17,11 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "collapseRail": "Collapse the menu",
-    "expandRail": "Expand the menu"
+    "expandRail": "Expand the menu",
+    "stockCategories": "Categories",
+    "suppliers": "Suppliers",
+    "serviceCategories": "Categories",
+    "prescriptions": "Prescriptions"
   },
   "common": {
     "save": "Save",
@@ -281,12 +285,14 @@
     "empty": "No categories yet. Add the departments the clinic already works in, then file each service under one.",
     "serviceCount": "{count, plural, =0 {no services} one {# service} other {# services}}",
     "confirmDelete": "Remove this category? The services in it stay in the catalogue and become uncategorized.",
-    "confirmDeleteParent": "Remove this department and its {count, plural, one {# subcategory} other {# subcategories}}? The services in them stay in the catalogue and become uncategorized."
+    "confirmDeleteParent": "Remove this department and its {count, plural, one {# subcategory} other {# subcategories}}? The services in them stay in the catalogue and become uncategorized.",
+    "subtitle": "The departments the catalogue is filed by"
   },
   "stock": {
     "title": "Stock",
     "subtitle": "Materials and consumables",
     "new": "New material",
+    "newSubtitle": "A name and a count are all that is needed — the price, the pack size and the supplier can be filled in later.",
     "edit": "Edit material",
     "name": "Material name",
     "category": "Category",
@@ -366,7 +372,16 @@
     "batchPriceHint": "What this delivery cost. Becomes the price of the material.",
     "batchBoughtOn": "bought {date}",
     "batchMadeOn": "made {date}",
-    "batchEach": "{price} each"
+    "batchEach": "{price} each",
+    "sectionIdentity": "What it is",
+    "sectionIdentityHint": "The name staff will search for, and the shelf it is filed on.",
+    "sectionCounts": "What is on the shelf",
+    "sectionCountsHint": "How much is there now, and how low it may get before the app asks for more.",
+    "sectionOrdering": "Ordering",
+    "sectionOrderingHint": "How the shelf is counted against how the supplier sells it.",
+    "sectionPricing": "Price and supplier",
+    "sectionPricingHint": "What one costs, and who it is bought from. Both optional.",
+    "previewTitle": "New material"
   },
   "analytics": {
     "title": "Statistics",
@@ -650,6 +665,7 @@
   "plans": {
     "title_": "Plan name",
     "titleHint": "e.g. Upper left quadrant restoration",
+    "forPatient": "Patient",
     "new": "New plan",
     "edit": "Edit plan",
     "steps": "Steps",
@@ -659,22 +675,31 @@
     "status_CANCELLED": "Cancelled",
     "empty": "No treatment plans for this patient yet.",
     "progress": "{done} of {total} done",
+    "nextStep": "Next",
     "addStep": "Add step",
+    "bookStep": "Book",
     "editStep": "Edit step",
     "stepTitle": "What will be done",
     "markDone": "Done",
     "skip": "Skip this step",
     "reopen": "Reopen",
+    "cancelPlan": "Stop chasing this plan",
+    "reopenPlan": "Reopen",
+    "confirmCancelPlan": "Stop chasing this plan? Everything on it stays on the record, and it can be reopened at any time.",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "allTitle": "Treatment plans",
     "allSubtitle": "Every course of treatment the practice has going, worst-neglected first.",
     "allEmpty": "No treatment plans are in progress.",
+    "searchPlaceholder": "Search by patient, plan or step…",
+    "noMatches": "No treatment plan matches “{query}”.",
     "filter_open": "In progress",
     "filter_stalled": "Stalled",
     "filter_completed": "Finished",
+    "filter_cancelled": "Cancelled",
     "stalled": "Stalled",
     "noneStalled": "Nothing has been left hanging. Every plan in progress has either moved recently or has its next visit booked.",
+    "noneCancelled": "No course of treatment has been cancelled.",
     "nextOn": "Next {date} at {time}",
     "quietFor": "{days, plural, =0 {Nothing done yet today} =1 {Nothing done for a day} other {Nothing done for # days}}",
     "fromChart": "From the chart",
@@ -685,7 +710,7 @@
     "noStepsYet": "No steps yet — pick from above, or type your own.",
     "pickTooth": "Tooth",
     "andMore": "+{count} more",
-    "showingRecent": "Showing the {count} most recently finished, of {total}.",
+    "showingRecent": "Showing the {count} most recent, of {total}.",
     "chartPlanTitle": "Treatment plan",
     "chartOfferTitle": "Plan the treatment?",
     "chartOfferBody": "Decay recorded on tooth {tooth}. Put it on this patient's treatment plan before it is forgotten.",
@@ -900,7 +925,9 @@
     "phone": "Phone",
     "email": "Email",
     "noContact": "No contact details",
-    "itemCount": "{count, plural, =0 {no materials} one {# material} other {# materials}}"
+    "itemCount": "{count, plural, =0 {no materials} one {# material} other {# materials}}",
+    "subtitle": "Who the materials are bought from",
+    "empty": "No suppliers yet. Add the ones the practice already orders from, then pick one on each material."
   },
   "stockCategories": {
     "title": "Categories",
@@ -909,7 +936,8 @@
     "nameHint": "What the shelf is called. Every material picks from this list.",
     "empty": "No categories yet. Add the shelves your storage room already has, then file each material under one.",
     "itemCount": "{count, plural, =0 {no materials} one {# material} other {# materials}}",
-    "confirmDelete": "Remove this category? The materials in it stay on the shelf and become uncategorized."
+    "confirmDelete": "Remove this category? The materials in it stay on the shelf and become uncategorized.",
+    "subtitle": "The shelves the storage room is filed by"
   },
   "daySheet": {
     "title": "Day sheet",

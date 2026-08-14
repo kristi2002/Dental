@@ -10,8 +10,9 @@
     {
       "name": "dental-prod",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["next", "start", "-p", "3005"],
-      "port": 3005
+      "runtimeArgs": ["next", "start"],
+      "port": 3005,
+      "autoPort": true
     }
   ]
 }

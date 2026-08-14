@@ -17,7 +17,11 @@
     "openMenu": "Hap menunë",
     "closeMenu": "Mbyll menunë",
     "collapseRail": "Ngushto menunë",
-    "expandRail": "Zgjero menunë"
+    "expandRail": "Zgjero menunë",
+    "stockCategories": "Kategoritë",
+    "suppliers": "Furnitorët",
+    "serviceCategories": "Kategoritë",
+    "prescriptions": "Recetat"
   },
   "common": {
     "save": "Ruaj",
@@ -281,12 +285,14 @@
     "empty": "Ende asnjë kategori. Shto departamentet ku klinika tashmë punon, pastaj vendos çdo shërbim në një prej tyre.",
     "serviceCount": "{count, plural, =0 {asnjë shërbim} one {# shërbim} other {# shërbime}}",
     "confirmDelete": "Ta heqim këtë kategori? Shërbimet mbeten në katalog dhe kalojnë pa kategori.",
-    "confirmDeleteParent": "Ta heqim këtë departament dhe {count, plural, one {# nënkategorinë e tij} other {# nënkategoritë e tij}}? Shërbimet mbeten në katalog dhe kalojnë pa kategori."
+    "confirmDeleteParent": "Ta heqim këtë departament dhe {count, plural, one {# nënkategorinë e tij} other {# nënkategoritë e tij}}? Shërbimet mbeten në katalog dhe kalojnë pa kategori.",
+    "subtitle": "Departamentet në të cilat ndahet katalogu"
   },
   "stock": {
     "title": "Inventari",
     "subtitle": "Materialet dhe konsumueshmet",
     "new": "Material i ri",
+    "newSubtitle": "Mjaftojnë një emër dhe një sasi — çmimi, paketimi dhe furnitori plotësohen më vonë.",
     "edit": "Ndrysho materialin",
     "name": "Emri i materialit",
     "category": "Kategoria",
@@ -366,7 +372,16 @@
     "batchPriceHint": "Sa kushtoi ky furnizim. Bëhet çmimi i materialit.",
     "batchBoughtOn": "blerë {date}",
     "batchMadeOn": "prodhuar {date}",
-    "batchEach": "{price} secila"
+    "batchEach": "{price} secila",
+    "sectionIdentity": "Çfarë është",
+    "sectionIdentityHint": "Emri që do të kërkojë stafi dhe rafti ku është vendosur.",
+    "sectionCounts": "Çfarë ka në raft",
+    "sectionCountsHint": "Sa ka tani dhe deri ku mund të bjerë para se aplikacioni të kërkojë porosi.",
+    "sectionOrdering": "Porositë",
+    "sectionOrderingHint": "Si numërohet rafti krahasuar me mënyrën si e shet furnitori.",
+    "sectionPricing": "Çmimi dhe furnitori",
+    "sectionPricingHint": "Sa kushton një njësi dhe nga kush blihet. Të dyja opsionale.",
+    "previewTitle": "Material i ri"
   },
   "analytics": {
     "title": "Statistikat",
@@ -650,6 +665,7 @@
   "plans": {
     "title_": "Emri i planit",
     "titleHint": "p.sh. Restaurim i kuadrantit të sipërm majtas",
+    "forPatient": "Pacienti",
     "new": "Plan i ri",
     "edit": "Ndrysho planin",
     "steps": "Hapat",
@@ -659,22 +675,31 @@
     "status_CANCELLED": "Anuluar",
     "empty": "Ende nuk ka plane trajtimi për këtë pacient.",
     "progress": "{done} nga {total} të kryera",
+    "nextStep": "Në radhë",
     "addStep": "Shto hap",
+    "bookStep": "Cakto",
     "editStep": "Ndrysho hapin",
     "stepTitle": "Çfarë do të bëhet",
     "markDone": "U krye",
     "skip": "Kalo këtë hap",
     "reopen": "Rihap",
+    "cancelPlan": "Ndalo ndjekjen e këtij plani",
+    "reopenPlan": "Rihap",
+    "confirmCancelPlan": "Të ndalet ndjekja e këtij plani? Gjithçka në të mbetet në kartelë dhe mund të rihapet në çdo moment.",
     "moveUp": "Lëviz lart",
     "moveDown": "Lëviz poshtë",
     "allTitle": "Planet e trajtimit",
     "allSubtitle": "Të gjitha trajtimet në vazhdim të klinikës, më të lënat pas dore të parat.",
     "allEmpty": "Nuk ka plane trajtimi në vazhdim.",
+    "searchPlaceholder": "Kërko sipas pacientit, planit ose hapit…",
+    "noMatches": "Asnjë plan trajtimi nuk përputhet me «{query}».",
     "filter_open": "Në vazhdim",
     "filter_stalled": "Të ngecura",
     "filter_completed": "Të përfunduara",
+    "filter_cancelled": "Të anuluara",
     "stalled": "E ngecur",
     "noneStalled": "Asgjë nuk ka mbetur pezull. Çdo plan në vazhdim ose ka lëvizur së fundmi, ose e ka vizitën e radhës të caktuar.",
+    "noneCancelled": "Asnjë plan trajtimi nuk është anuluar.",
     "nextOn": "Radhën më {date} në {time}",
     "quietFor": "{days, plural, =0 {Asgjë e bërë sot} =1 {Asgjë e bërë prej një dite} other {Asgjë e bërë prej # ditësh}}",
     "fromChart": "Nga skeda dentare",
@@ -685,7 +710,7 @@
     "noStepsYet": "Ende pa hapa — zgjidhni nga lart, ose shkruani tuajin.",
     "pickTooth": "Dhëmbi",
     "andMore": "+{count} të tjera",
-    "showingRecent": "Po shfaqen {count} planet e përfunduara më së fundi, nga {total} gjithsej.",
+    "showingRecent": "Po shfaqen {count} më të fundit, nga {total} gjithsej.",
     "chartPlanTitle": "Plan trajtimi",
     "chartOfferTitle": "Ta planifikojmë trajtimin?",
     "chartOfferBody": "Karies i regjistruar te dhëmbi {tooth}. Shtoje në planin e trajtimit të pacientit para se të harrohet.",
@@ -900,7 +925,9 @@
     "phone": "Telefoni",
     "email": "Email",
     "noContact": "Asnjë kontakt",
-    "itemCount": "{count, plural, =0 {asnjë material} one {# material} other {# materiale}}"
+    "itemCount": "{count, plural, =0 {asnjë material} one {# material} other {# materiale}}",
+    "subtitle": "Nga kush blihen materialet",
+    "empty": "Ende asnjë furnitor. Shto ata nga të cilët klinika porosit tashmë, pastaj zgjidh një për çdo material."
   },
   "stockCategories": {
     "title": "Kategoritë",
@@ -909,7 +936,8 @@
     "nameHint": "Si quhet rafti. Çdo material zgjidhet nga kjo listë.",
     "empty": "Ende asnjë kategori. Shto raftet që magazina i ka tashmë, pastaj vendos çdo material në një prej tyre.",
     "itemCount": "{count, plural, =0 {asnjë material} one {# material} other {# materiale}}",
-    "confirmDelete": "Ta heqim këtë kategori? Materialet mbeten në raft dhe kalojnë pa kategori."
+    "confirmDelete": "Ta heqim këtë kategori? Materialet mbeten në raft dhe kalojnë pa kategori.",
+    "subtitle": "Raftet sipas të cilave renditet magazina"
   },
   "daySheet": {
     "title": "Fleta e ditës",

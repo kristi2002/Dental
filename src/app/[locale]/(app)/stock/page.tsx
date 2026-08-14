@@ -13,9 +13,7 @@ import {
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { BatchFormDialog } from '@/components/stock/BatchFormDialog';
 import { BatchList } from '@/components/stock/BatchList';
-import { CategoryFormDialog } from '@/components/stock/CategoryFormDialog';
 import { ReorderPanel } from '@/components/stock/ReorderPanel';
-import { SupplierFormDialog } from '@/components/stock/SupplierFormDialog';
 import { StockFormDialog } from '@/components/stock/StockFormDialog';
 import { TakeOutForm } from '@/components/stock/TakeOutForm';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -26,9 +24,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import {
   adjustStock,
   clearOrdered,
-  deleteStockCategory,
   deleteStockItem,
-  deleteSupplier,
   markOrdered,
   restoreStockItem,
 } from '@/lib/actions/stock';
@@ -63,8 +59,6 @@ export default async function StockPage({
 
   const t = await getTranslations('stock');
   const tc = await getTranslations('common');
-  const tsup = await getTranslations('suppliers');
-  const tcat = await getTranslations('stockCategories');
   const format = await getFormatter();
 
   // On its own, and first: the load that ships this feature is also the one that
@@ -84,9 +78,11 @@ export default async function StockPage({
       },
     }),
     getReorderSuggestions(),
+    // Only to fill the material form's "bought from" select — the suppliers
+    // themselves are kept on their own screen.
     prisma.supplier.findMany({
       orderBy: { name: 'asc' },
-      include: { _count: { select: { items: true } } },
+      select: { id: true, name: true },
     }),
     // Retired materials keep their ledger, so the usage chart and the burn rate
     // still read correctly. They are listed only so one archived by mistake is
@@ -126,15 +122,6 @@ export default async function StockPage({
   const todayKey = toDateKey(today());
 
   const units = [...new Set(allItems.map((i) => i.unit))];
-
-  // Counted off the shelf rather than with `_count`, which would include
-  // retired materials — the panel is there to answer "what does dropping this
-  // shelf affect", and a retired material is not affected by anything.
-  const itemsPerCategory = new Map<string, number>();
-  for (const item of allItems) {
-    if (!item.categoryId) continue;
-    itemsPerCategory.set(item.categoryId, (itemsPerCategory.get(item.categoryId) ?? 0) + 1);
-  }
 
   const { filter, q, category } = await searchParams;
   // `filter=low` is also the dashboard's stock-alert link — keep the value stable.
@@ -179,12 +166,11 @@ export default async function StockPage({
                 <ClipboardCheck size={18} aria-hidden />
                 {t('stocktake')}
               </Link>
-              <StockFormDialog
-                categories={categories}
-                units={units}
-                suppliers={suppliers}
-                currency={currency}
-              />
+              {/* A screen of its own rather than a modal — see `NewStockForm`. */}
+              <Link href="/stock/new" className="btn btn-primary">
+                <Plus size={20} aria-hidden />
+                {t('new')}
+              </Link>
             </>
           ) : null
         }
@@ -263,119 +249,6 @@ export default async function StockPage({
           the order is the decision that needs making. */}
       {canEdit ? <ReorderPanel lines={reorderLines} /> : null}
 
-      {/* The shelves. Named here, once, and picked from everywhere else — the
-          material form offers this list and nothing but this list, which is what
-          keeps one shelf from becoming three spellings of itself. */}
-      {canEdit ? (
-        <details className="card mb-6">
-          <summary className="cursor-pointer list-none px-5 py-4 text-[1.1rem] font-bold text-ink">
-            {tcat('title')}
-            <span className="ml-2 font-normal text-ink-soft">({categories.length})</span>
-          </summary>
-
-          <div className="border-t border-line px-5 py-4">
-            <CategoryFormDialog />
-            {categories.length === 0 ? (
-              <p className="mt-3 text-[0.95rem] text-ink-soft">{tcat('empty')}</p>
-            ) : null}
-          </div>
-
-          {categories.length > 0 ? (
-            <ul className="divide-y divide-line border-t border-line">
-              {categories.map((category) => (
-                <li
-                  key={category.id}
-                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-[1.05rem] font-bold text-ink">{category.name}</p>
-                    <p className="text-[0.92rem] text-ink-soft">
-                      {tcat('itemCount', { count: itemsPerCategory.get(category.id) ?? 0 })}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <CategoryFormDialog category={{ id: category.id, name: category.name }} />
-                    {canDelete ? (
-                      <ActionForm
-                        action={deleteStockCategory}
-                        values={{ id: category.id }}
-                        confirmMessage={tcat('confirmDelete')}
-                      >
-                        <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
-                          <Trash2 size={17} aria-hidden />
-                          <span className="sr-only">{tc('delete')}</span>
-                        </button>
-                      </ActionForm>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </details>
-      ) : null}
-
-      {/* Who to buy it from. Sits under the order list because that is when the
-          question comes up, and folded away so it never crowds the shelf. */}
-      {canEdit ? (
-        <details className="card mb-6">
-          <summary className="cursor-pointer list-none px-5 py-4 text-[1.1rem] font-bold text-ink">
-            {tsup('title')}
-            <span className="ml-2 font-normal text-ink-soft">({suppliers.length})</span>
-          </summary>
-
-          <div className="border-t border-line px-5 py-4">
-            <SupplierFormDialog />
-          </div>
-
-          {suppliers.length > 0 ? (
-            <ul className="divide-y divide-line border-t border-line">
-              {suppliers.map((supplier) => (
-                <li
-                  key={supplier.id}
-                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-[1.05rem] font-bold text-ink">{supplier.name}</p>
-                    <p className="text-[0.92rem] text-ink-soft">
-                      {[supplier.phone, supplier.email].filter(Boolean).join(' · ') ||
-                        tsup('noContact')}
-                      {' · '}
-                      {tsup('itemCount', { count: supplier._count.items })}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <SupplierFormDialog
-                      supplier={{
-                        id: supplier.id,
-                        name: supplier.name,
-                        phone: supplier.phone ?? '',
-                        email: supplier.email ?? '',
-                        notes: supplier.notes ?? '',
-                      }}
-                    />
-                    {canDelete ? (
-                      <ActionForm
-                        action={deleteSupplier}
-                        values={{ id: supplier.id }}
-                        confirmMessage={tc('confirmDelete')}
-                      >
-                        <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
-                          <Trash2 size={17} aria-hidden />
-                          <span className="sr-only">{tc('delete')}</span>
-                        </button>
-                      </ActionForm>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </details>
-      ) : null}
-
       {/* Retired materials. Folded away and last, because the point of retiring
           one is that it stops being part of the daily list — but recoverable,
           because "archived by mistake" must not need a database client. */}
@@ -427,12 +300,10 @@ export default async function StockPage({
             title={isFiltered ? t('emptyFiltered') : t('empty')}
             action={
               isFiltered || !canEdit ? null : (
-                <StockFormDialog
-                  categories={categories}
-                  units={units}
-                  suppliers={suppliers}
-                  currency={currency}
-                />
+                <Link href="/stock/new" className="btn btn-primary">
+                  <Plus size={20} aria-hidden />
+                  {t('new')}
+                </Link>
               )
             }
           />

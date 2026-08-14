@@ -252,6 +252,33 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
     position: index + 1,
   }));
 
+  // Which slot this write-up is of. Chosen before the row is created so the
+  // link is written as part of it rather than as a second statement that can
+  // fail on its own and leave the visit floating.
+  //
+  // Earliest first, and only ones nobody has written up yet: a patient booked
+  // twice in a day has had one of them, and guessing which is worse than taking
+  // the first. Already-COMPLETED slots are candidates too, because the desk
+  // closing the slot when the patient leaves and the dentist typing the note an
+  // hour later are the same event arriving in either order — and it is the
+  // *link* being made here, not the status.
+  const candidates = await prisma.appointment.findMany({
+    where: {
+      patientId,
+      date: day,
+      status: {
+        in: [AppointmentStatus.SCHEDULED, AppointmentStatus.ARRIVED, AppointmentStatus.COMPLETED],
+      },
+      // The gate that stands in for the unique constraint the deploy will not
+      // accept: a slot already written up is not a candidate for a second one.
+      visitRecords: { none: {} },
+    },
+    select: { id: true, startTime: true, status: true },
+  });
+
+  const slot =
+    candidates.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))[0] ?? null;
+
   let visitId: string;
   try {
     const visit = await prisma.visitRecord.create({
@@ -261,6 +288,7 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
         servicesText: services,
         services: { create: performed },
         visitDate: day,
+        appointmentId: slot?.id ?? null,
         staffUserId: user.id,
         // Who typed it and who did it are the same person often enough to
         // default, and different often enough to ask.
@@ -275,44 +303,35 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
 
   // Writing up the visit is the same event as the appointment happening, and
   // leaving the slot open afterwards is how a day quietly ends with six
-  // still-SCHEDULED rows that then corrupt the no-show score.
-  //
-  // Only the earliest one still standing: a patient booked twice in a day has
-  // had one of them, and guessing which is worse than closing the first.
-  if (user.permissions.includes('appointment.edit')) {
-    const open = await prisma.appointment.findMany({
-      where: {
-        patientId,
-        date: day,
-        status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.ARRIVED] },
-      },
-      select: { id: true, startTime: true },
+  // still-SCHEDULED rows that then corrupt the no-show score. Skipped when the
+  // slot was already closed at the desk — re-closing it would only produce a
+  // second audit line saying nothing changed.
+  if (
+    slot &&
+    slot.status !== AppointmentStatus.COMPLETED &&
+    user.permissions.includes('appointment.edit')
+  ) {
+    await prisma.appointment.update({
+      where: { id: slot.id },
+      data: { status: AppointmentStatus.COMPLETED },
+    });
+    await recordAudit(user, {
+      action: 'update',
+      entity: 'appointment',
+      entityId: slot.id,
+      summary: `${slot.startTime} → COMPLETED`,
     });
 
-    const first = open.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))[0];
-    if (first) {
-      await prisma.appointment.update({
-        where: { id: first.id },
-        data: { status: AppointmentStatus.COMPLETED },
-      });
+    // Same consequence as pressing "completed" on the calendar — the visit
+    // note is just the other door into the same event.
+    const step = await completeStepForAppointment(slot.id);
+    if (step) {
       await recordAudit(user, {
         action: 'update',
-        entity: 'appointment',
-        entityId: first.id,
-        summary: `${first.startTime} → COMPLETED`,
+        entity: 'plan',
+        entityId: step.planId,
+        summary: `${step.title} → DONE`,
       });
-
-      // Same consequence as pressing "completed" on the calendar — the visit
-      // note is just the other door into the same event.
-      const step = await completeStepForAppointment(first.id);
-      if (step) {
-        await recordAudit(user, {
-          action: 'update',
-          entity: 'plan',
-          entityId: step.planId,
-          summary: `${step.title} → DONE`,
-        });
-      }
     }
   }
 

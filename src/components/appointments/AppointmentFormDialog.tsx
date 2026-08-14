@@ -139,7 +139,10 @@ export function AppointmentFormDialog({
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
-      triggerTitle={editing ? t('edit') : t('new')}
+      // The tooltip follows the label rather than restating the default: a
+      // button that reads "Book" and hovers "New appointment" is two names for
+      // one control, and assistive technology takes the one the eye cannot see.
+      triggerTitle={editing ? t('edit') : (triggerLabel ?? t('new'))}
       triggerClassName={triggerClassName ?? (editing ? 'btn btn-secondary' : 'btn btn-primary')}
       trigger={
         editing ? (

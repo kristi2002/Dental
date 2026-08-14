@@ -15,20 +15,34 @@ import { prisma } from '@/lib/prisma';
  *
  * A plan is not a thing anybody sets by hand — it is finished when there is
  * nothing left to do and open again the moment something is reopened. Every
- * caller that can change a step's status goes through here so the two can never
- * drift apart.
+ * caller that can add, remove or restate a step goes through here so the two can
+ * never drift apart.
+ *
+ * Cancelled is the exception, and the only one: it is a judgement the steps
+ * cannot make — the patient moved away, or had the work done elsewhere — so it
+ * is the one status this function is not allowed to overwrite. Without that
+ * guard, ticking off a step that was finished *before* the plan was abandoned
+ * would quietly put it back on the practice's list of things to chase.
  */
 export async function syncPlanStatus(planId: string): Promise<void> {
+  const plan = await prisma.treatmentPlan.findUnique({
+    where: { id: planId },
+    select: { status: true },
+  });
+  if (!plan || plan.status === TreatmentPlanStatus.CANCELLED) return;
+
   const outstanding = await prisma.treatmentStep.count({
     where: { planId, status: TreatmentStepStatus.PENDING },
   });
+  const status =
+    outstanding === 0 ? TreatmentPlanStatus.COMPLETED : TreatmentPlanStatus.ACTIVE;
 
-  await prisma.treatmentPlan.update({
-    where: { id: planId },
-    data: {
-      status: outstanding === 0 ? TreatmentPlanStatus.COMPLETED : TreatmentPlanStatus.ACTIVE,
-    },
-  });
+  // Nothing to say, so nothing is written: the finished list is ordered by
+  // `updatedAt`, and a no-op write would push a plan back to the top of it
+  // every time anybody touched a step on it.
+  if (status === plan.status) return;
+
+  await prisma.treatmentPlan.update({ where: { id: planId }, data: { status } });
 }
 
 /**

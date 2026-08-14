@@ -1,34 +1,47 @@
-import { CalendarCheck, ClipboardList, ListChecks, TriangleAlert, User } from 'lucide-react';
+import { ListChecks, Search, X } from 'lucide-react';
 import type { Metadata } from 'next';
-import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
-import { Badge } from '@/components/ui/Badge';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
+import { PlanFormDialog } from '@/components/plans/PlanFormDialog';
+import { PlanRow, type PlanRowStep, type PlanRowView } from '@/components/plans/PlanRow';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
-import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
+import type { Prisma } from '@/generated/prisma/client';
+import { TreatmentPlanStatus } from '@/generated/prisma/enums';
 import { requirePermission } from '@/lib/auth/guard';
-import { today } from '@/lib/dates';
-import { summarisePlan, worstFirst } from '@/lib/plan-progress';
+import { toDateKey, today } from '@/lib/dates';
+import { isPromisedSlot, summarisePlan, worstFirst } from '@/lib/plan-progress';
 import { prisma } from '@/lib/prisma';
-import { cn } from '@/lib/utils';
+import {
+  getClinicProfile,
+  getOperatoryOptions,
+  getProviderOptions,
+  getServiceOptions,
+} from '@/lib/queries';
+import { cn, matches } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
-type Filter = 'open' | 'stalled' | 'completed';
-const FILTERS: Filter[] = ['open', 'stalled', 'completed'];
+type Filter = 'open' | 'stalled' | 'completed' | 'cancelled';
+const FILTERS: Filter[] = ['open', 'stalled', 'completed', 'cancelled'];
+
+/** The two tabs that hold history rather than work. */
+const isArchive = (filter: Filter) => filter === 'completed' || filter === 'cancelled';
 
 /**
- * How many outstanding steps are named on a row before the rest become a count.
- * Six is about as many as reads as a glance rather than a list.
+ * Closed plans are history and grow without bound, so the archive tabs are
+ * capped — and say so, rather than quietly showing a slice as if it were all.
  */
-const MAX_CHIPS = 6;
+const ARCHIVE_LIMIT = 60;
 
 /**
- * Finished plans are history and grow without bound, so the archive tab is
- * capped — and says so, rather than quietly showing a slice as if it were all.
+ * How deep a search goes into the archive. A search that only looked at the
+ * sixty most recent finished plans would answer "no such plan" about one that is
+ * sitting there, which is worse than not offering the search at all.
  */
-const COMPLETED_LIMIT = 60;
+const ARCHIVE_SEARCH_SCAN = 500;
 
 const PLAN_INCLUDE = {
   patient: { select: { id: true, firstName: true, lastName: true } },
@@ -37,6 +50,8 @@ const PLAN_INCLUDE = {
     include: { appointment: { select: { date: true, startTime: true, status: true } } },
   },
 } as const;
+
+type LoadedPlan = Prisma.TreatmentPlanGetPayload<{ include: typeof PLAN_INCLUDE }>;
 
 export async function generateMetadata({
   params,
@@ -57,24 +72,34 @@ export async function generateMetadata({
  * that get forgotten are exactly the ones nobody opens. This is the screen that
  * asks the question the feature was built to answer: what did we start and never
  * finish?
+ *
+ * And then answers it with something to press. Every verb a plan has — tick the
+ * step off, put it in the diary, add the one that was missed, stop chasing it
+ * altogether — is on the row, because a triage list whose only affordance is a
+ * link to somewhere else is a list that gets read and not worked.
  */
 export default async function PlansPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; q?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
 
-  await requirePermission('plan.view');
+  const user = await requirePermission('plan.view');
+  const canEdit = user.permissions.includes('plan.edit');
+  const canDelete = user.permissions.includes('patient.delete');
+  const canBook = user.permissions.includes('appointment.edit');
 
   const t = await getTranslations('plans');
-  const format = await getFormatter();
+  const tc = await getTranslations('common');
 
-  const { filter: rawFilter } = await searchParams;
+  const { filter: rawFilter, q } = await searchParams;
   const filter: Filter = FILTERS.includes(rawFilter as Filter) ? (rawFilter as Filter) : 'open';
+  const query = (q ?? '').trim();
+  const searching = query.length > 0;
 
   const now = today();
 
@@ -82,235 +107,283 @@ export default async function PlansPage({
   // the two counts on the other tabs are counts *of* — the stalled badge used to
   // read zero while the finished tab was open, which is the one moment it most
   // needs to still be shouting.
-  const [active, completed, completedCount] = await Promise.all([
+  //
+  // The archives are loaded when their own tab is open, and additionally
+  // whenever a search is running: a tab count that ignores the search is a count
+  // of something nobody asked for.
+  const archive = (status: TreatmentPlanStatus, wanted: boolean) =>
+    wanted
+      ? prisma.treatmentPlan.findMany({
+          where: { status },
+          orderBy: { updatedAt: 'desc' },
+          take: searching ? ARCHIVE_SEARCH_SCAN : ARCHIVE_LIMIT,
+          include: PLAN_INCLUDE,
+        })
+      : Promise.resolve<LoadedPlan[]>([]);
+
+  const [active, completed, cancelled, completedTotal, cancelledTotal] = await Promise.all([
     prisma.treatmentPlan.findMany({
       where: { status: TreatmentPlanStatus.ACTIVE },
       include: PLAN_INCLUDE,
     }),
-    filter === 'completed'
-      ? prisma.treatmentPlan.findMany({
-          where: { status: TreatmentPlanStatus.COMPLETED },
-          orderBy: { updatedAt: 'desc' },
-          take: COMPLETED_LIMIT,
-          include: PLAN_INCLUDE,
-        })
-      : Promise.resolve([]),
+    archive(TreatmentPlanStatus.COMPLETED, filter === 'completed' || searching),
+    archive(TreatmentPlanStatus.CANCELLED, filter === 'cancelled' || searching),
     prisma.treatmentPlan.count({ where: { status: TreatmentPlanStatus.COMPLETED } }),
+    prisma.treatmentPlan.count({ where: { status: TreatmentPlanStatus.CANCELLED } }),
   ]);
 
-  const summarise = (plans: typeof active) =>
-    plans.map((plan) => ({ plan, ...summarisePlan(plan, now) }));
+  // Everything the row's own buttons need. Loaded only for the people who can
+  // press them — a read-only account has no use for the catalogue or the diary's
+  // chairs, and no reason to be sent either.
+  const [services, staff, operatories, clinicProfile, titleRows] = await Promise.all([
+    canEdit || canBook ? getServiceOptions() : Promise.resolve([]),
+    canBook ? getProviderOptions() : Promise.resolve([]),
+    canBook ? getOperatoryOptions() : Promise.resolve([]),
+    getClinicProfile(),
+    // Plan names the practice has already used, suggested on the next one so
+    // "Upper right quadrant" does not become four differently worded plans.
+    canEdit
+      ? prisma.treatmentPlan.findMany({
+          distinct: ['title'],
+          orderBy: { title: 'asc' },
+          take: 40,
+          select: { title: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const planTitles = titleRows.map((row) => row.title);
+
+  /**
+   * One box, three things somebody might remember: whose plan it is, what the
+   * plan was called, or the treatment itself. Accent-insensitive, because nobody
+   * reaches for the diacritics when they are hunting for a row.
+   */
+  const hit = (plan: LoadedPlan) =>
+    !searching ||
+    matches(plan.title, query) ||
+    matches(`${plan.patient.lastName} ${plan.patient.firstName}`, query) ||
+    matches(`${plan.patient.firstName} ${plan.patient.lastName}`, query) ||
+    plan.steps.some((step) => matches(step.title, query));
+
+  const toRow = (plan: LoadedPlan): PlanRowView => {
+    const summary = summarisePlan(plan, now);
+
+    return {
+      id: plan.id,
+      title: plan.title,
+      notes: plan.notes ?? '',
+      status: plan.status,
+      patient: plan.patient,
+      done: summary.done,
+      relevant: summary.relevant,
+      percent: summary.percent,
+      quietDays: summary.quietDays,
+      stalled: summary.stalled,
+      nextBooked: summary.next
+        ? {
+            date: summary.next.appointment!.date,
+            startTime: summary.next.appointment!.startTime,
+          }
+        : null,
+      steps: plan.steps.map(
+        (step): PlanRowStep => ({
+          id: step.id,
+          title: step.title,
+          toothNum: step.toothNum,
+          status: step.status,
+          linked: step.appointmentId !== null,
+          booked: isPromisedSlot(step.appointment, now)
+            ? { date: step.appointment.date, startTime: step.appointment.startTime }
+            : null,
+        }),
+      ),
+    };
+  };
+
+  const summarise = (plans: LoadedPlan[]) => plans.filter(hit).map(toRow);
 
   const openRows = summarise(active);
-  const stalledCount = openRows.filter((row) => row.stalled).length;
+  const completedRows = summarise(completed);
+  const cancelledRows = summarise(cancelled);
 
   const counts: Record<Filter, number> = {
     open: openRows.length,
-    stalled: stalledCount,
-    completed: completedCount,
+    stalled: openRows.filter((row) => row.stalled).length,
+    // Unsearched, the archives are known from a count query rather than from a
+    // page of rows nobody asked to see.
+    completed: searching ? completedRows.length : completedTotal,
+    cancelled: searching ? cancelledRows.length : cancelledTotal,
   };
 
-  // Finished plans are read newest-first — the archive answers "what did we wrap
+  // Closed plans are read newest-first — the archive answers "what did we wrap
   // up", not "what is being neglected", and nothing in it can be stalled.
-  const visible =
-    filter === 'completed'
-      ? summarise(completed)
-      : (filter === 'stalled' ? openRows.filter((row) => row.stalled) : openRows).sort(worstFirst);
+  const visible = isArchive(filter)
+    ? (filter === 'completed' ? completedRows : cancelledRows).slice(0, ARCHIVE_LIMIT)
+    : (filter === 'stalled' ? openRows.filter((row) => row.stalled) : openRows).sort(worstFirst);
+
+  /** Every link on this screen keeps the other half of the state it is not about. */
+  const hrefFor = (option: Filter, text = query) => {
+    const search = new URLSearchParams();
+    if (option !== 'open') search.set('filter', option);
+    if (text) search.set('q', text);
+    const encoded = search.toString();
+    return encoded ? `/plans?${encoded}` : '/plans';
+  };
+
+  const emptyTitle = searching
+    ? t('noMatches', { query })
+    : filter === 'stalled'
+      ? t('noneStalled')
+      : filter === 'completed'
+        ? t('noneCompleted')
+        : filter === 'cancelled'
+          ? t('noneCancelled')
+          : t('allEmpty');
+
+  // A plan needs somebody to be for, and this screen does not know who — so the
+  // dialog asks. Starting a course of treatment from the list of courses of
+  // treatment is the obvious move that was not previously possible anywhere but
+  // inside one patient's record.
+  const newDialog = canEdit ? (
+    <PlanFormDialog services={services} numbering={clinicProfile.toothNumbering} titles={planTitles} />
+  ) : null;
 
   return (
     <>
       <PageHeader
         title={t('allTitle')}
         subtitle={t('allSubtitle')}
+        actions={newDialog}
         trail={[{ label: t('allTitle') }]}
       />
 
-      <nav className="mb-4 flex flex-wrap gap-2" aria-label={t('status')}>
-        {FILTERS.map((option) => (
-          <Link
-            key={option}
-            href={option === 'open' ? '/plans' : `/plans?filter=${option}`}
-            aria-current={option === filter ? 'page' : undefined}
-            className={cn(
-              'flex items-center gap-2 rounded-full border py-1.5 pr-2.5 pl-3.5',
-              'text-[0.92rem] font-semibold no-underline transition-colors',
-              option === filter
-                ? 'border-brand bg-brand-soft text-brand-deep'
-                : 'border-line-strong text-ink-soft hover:border-ink hover:text-ink',
-              // The stalled tab is the one with a consequence, so its count is
-              // coloured even when the tab is not the one being read.
-              option === 'stalled' && option !== filter && counts.stalled > 0
-                ? 'border-warn text-warn'
-                : '',
-            )}
-          >
-            {t(`filter_${option}`)}
-            <span
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <nav className="flex flex-wrap gap-2" aria-label={t('status')}>
+          {FILTERS.map((option) => (
+            <Link
+              key={option}
+              href={hrefFor(option)}
+              aria-current={option === filter ? 'page' : undefined}
               className={cn(
-                'rounded-full px-1.5 py-px text-[0.82rem] font-bold tabular-nums',
+                'flex items-center gap-2 rounded-full border py-1.5 pr-2.5 pl-3.5',
+                'text-[0.92rem] font-semibold no-underline transition-colors',
                 option === filter
-                  ? 'bg-brand text-white'
-                  : option === 'stalled' && counts.stalled > 0
-                    ? 'bg-warn-soft text-warn'
-                    : 'bg-paper text-ink-faint',
+                  ? 'border-brand bg-brand-soft text-brand-deep'
+                  : 'border-line-strong text-ink-soft hover:border-ink hover:text-ink',
+                // The stalled tab is the one with a consequence, so its count is
+                // coloured even when the tab is not the one being read.
+                option === 'stalled' && option !== filter && counts.stalled > 0
+                  ? 'border-warn text-warn'
+                  : '',
               )}
             >
-              {counts[option]}
-            </span>
-          </Link>
-        ))}
-      </nav>
+              {t(`filter_${option}`)}
+              <span
+                className={cn(
+                  'rounded-full px-1.5 py-px text-[0.82rem] font-bold tabular-nums',
+                  option === filter
+                    ? 'bg-brand text-white'
+                    : option === 'stalled' && counts.stalled > 0
+                      ? 'bg-warn-soft text-warn'
+                      : 'bg-paper text-ink-faint',
+                )}
+              >
+                {counts[option]}
+              </span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* A plain GET form, so a search is a real URL: it survives a reload, a
+            bookmark and a link sent to a colleague, and the counts above it
+            re-read the same query on the server. */}
+        {/* `min-w-0 flex-1` on both the form and the box around the field, so the
+            input gives way on a phone instead of pushing the page sideways; the
+            fixed width comes back as soon as there is room for it. */}
+        <form method="get" role="search" className="flex min-w-0 flex-1 items-center gap-2">
+          {filter === 'open' ? null : <input type="hidden" name="filter" value={filter} />}
+          <div className="relative min-w-0 flex-1 sm:flex-none">
+            <Search
+              size={17}
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-faint"
+            />
+            <input
+              type="search"
+              name="q"
+              defaultValue={query}
+              aria-label={tc('search')}
+              placeholder={t('searchPlaceholder')}
+              className="field-input w-full py-1.5 pl-9 text-[0.95rem] sm:w-64"
+            />
+          </div>
+          <button type="submit" className="btn btn-secondary btn-sm">
+            {tc('search')}
+          </button>
+          {searching ? (
+            <Link href={hrefFor(filter, '')} className="btn btn-ghost btn-sm">
+              <X size={17} aria-hidden />
+              {tc('clearFilters')}
+            </Link>
+          ) : null}
+        </form>
+      </div>
 
       {visible.length === 0 ? (
         <Card>
           <EmptyState
             icon={<ListChecks size={40} aria-hidden />}
-            title={
-              filter === 'stalled'
-                ? t('noneStalled')
-                : filter === 'completed'
-                  ? t('noneCompleted')
-                  : t('allEmpty')
-            }
+            title={emptyTitle}
+            action={searching || filter !== 'open' ? null : newDialog}
           />
         </Card>
       ) : (
         <ul className="card divide-y-2 divide-line">
-          {visible.map(({ plan, relevant, done, percent, next, quietDays, stalled }) => (
-            <li
+          {visible.map((plan) => (
+            <PlanRow
               key={plan.id}
-              className={cn(
-                'relative px-5 py-4 transition-colors first:rounded-t-[var(--radius-card)]',
-                'last:rounded-b-[var(--radius-card)] hover:bg-surface-soft',
-                // Worst-first is the sort order; this is what makes it visible
-                // without reading a word. A badge alone puts the whole burden of
-                // triage on someone actually reading each row.
-                stalled ? 'border-l-4 border-l-warn bg-warn-soft/40' : '',
-              )}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
-                <div className="min-w-0 flex-1 basis-72">
-                  {/* The plan is what the row is about, so the plan is the link —
-                      and it lands on the tab the work is actually done from. */}
-                  <p className="flex flex-wrap items-center gap-2">
-                    <Link
-                      href={`/patients/${plan.patient.id}?tab=plans`}
-                      className="text-[1.1rem] font-bold text-ink no-underline hover:text-brand-deep hover:underline"
-                    >
-                      {plan.title}
-                    </Link>
-                    {stalled ? (
-                      <Badge tone="warn">
-                        <TriangleAlert size={14} aria-hidden />
-                        {t('stalled')}
-                      </Badge>
-                    ) : null}
-                  </p>
-
-                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.95rem] text-ink-soft">
-                    <span className="flex items-center gap-1.5 font-semibold text-ink">
-                      <User size={15} aria-hidden className="text-ink-faint" />
-                      {plan.patient.lastName} {plan.patient.firstName}
-                    </span>
-
-                    {next ? (
-                      <span className="flex items-center gap-1.5 font-semibold text-brand-deep tabular-nums">
-                        <CalendarCheck size={15} aria-hidden />
-                        {t('nextOn', {
-                          date: format.dateTime(next.appointment!.date, {
-                            day: 'numeric',
-                            month: 'short',
-                            timeZone: 'UTC',
-                          }),
-                          time: next.appointment!.startTime,
-                        })}
-                      </span>
-                    ) : plan.status === TreatmentPlanStatus.ACTIVE ? (
-                      <span
-                        className={cn('font-semibold', stalled ? 'text-warn' : 'text-ink-faint')}
-                      >
-                        {t('quietFor', { days: quietDays })}
-                      </span>
-                    ) : null}
-                  </p>
-                </div>
-
-                <div className="flex min-w-44 flex-1 basis-44 items-center gap-3">
-                  <div
-                    className="h-2.5 flex-1 overflow-hidden rounded-full bg-paper"
-                    role="progressbar"
-                    aria-valuenow={percent}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={t('progress', { done, total: relevant })}
-                  >
-                    <div
-                      className={cn(
-                        'h-full rounded-full transition-[width]',
-                        stalled ? 'bg-warn' : 'bg-brand',
-                      )}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                  <span className="shrink-0 text-[0.92rem] font-bold text-ink-soft tabular-nums">
-                    {t('progress', { done, total: relevant })}
-                  </span>
-                </div>
-              </div>
-
-              {/* The outstanding work itself, so the list answers "what is
-                  left" without a second navigation. */}
-              {plan.status === TreatmentPlanStatus.ACTIVE ? (
-                <PendingSteps
-                  steps={plan.steps}
-                  moreLabel={(count) => t('andMore', { count })}
-                />
-              ) : null}
-            </li>
+              plan={plan}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              services={services}
+              numbering={clinicProfile.toothNumbering}
+              // Booking a step is a diary action, so it needs the diary's own
+              // collections — handed down as a render prop rather than making
+              // the plan list depend on them from the inside.
+              bookStep={
+                canBook
+                  ? (step) => (
+                      <AppointmentFormDialog
+                        services={services}
+                        staff={staff}
+                        operatories={operatories}
+                        defaultPatient={{
+                          id: plan.patient.id,
+                          name: `${plan.patient.lastName} ${plan.patient.firstName}`,
+                        }}
+                        defaultDate={toDateKey(today())}
+                        planStepId={step.id}
+                        triggerClassName="btn btn-secondary btn-sm"
+                        triggerLabel={t('bookStep')}
+                      />
+                    )
+                  : undefined
+              }
+            />
           ))}
         </ul>
       )}
 
       {/* Said out loud rather than left as a silent slice: a capped list that
-          looks complete is worse than one that admits its edge. */}
-      {filter === 'completed' && completedCount > COMPLETED_LIMIT ? (
+          looks complete is worse than one that admits its edge. Measured against
+          the count, not against the rows loaded — the query already stopped at
+          the cap, so the two are equal exactly when the list is truncated. */}
+      {isArchive(filter) && counts[filter] > visible.length ? (
         <p className="mt-3 text-[0.92rem] text-ink-faint">
-          {t('showingRecent', { count: COMPLETED_LIMIT, total: completedCount })}
+          {t('showingRecent', { count: visible.length, total: counts[filter] })}
         </p>
       ) : null}
     </>
-  );
-}
-
-/**
- * What is left on this plan, as chips. Anything past the cap is counted rather
- * than dropped — "and four more" is information; showing six of ten and saying
- * nothing is a wrong answer.
- */
-function PendingSteps({
-  steps,
-  moreLabel,
-}: {
-  steps: Array<{ id: string; title: string; status: TreatmentStepStatus; appointmentId?: string | null }>;
-  moreLabel: (count: number) => string;
-}) {
-  const pending = steps.filter((step) => step.status === TreatmentStepStatus.PENDING);
-  if (pending.length === 0) return null;
-
-  const shown = pending.slice(0, MAX_CHIPS);
-  const hidden = pending.length - shown.length;
-
-  return (
-    <p className="mt-2.5 flex flex-wrap items-center gap-1.5">
-      <ClipboardList size={15} aria-hidden className="text-ink-faint" />
-      {shown.map((step) => (
-        <Badge key={step.id} tone={step.appointmentId ? 'brand' : 'neutral'}>
-          {step.title}
-        </Badge>
-      ))}
-      {hidden > 0 ? (
-        <span className="text-[0.88rem] font-semibold text-ink-faint">{moreLabel(hidden)}</span>
-      ) : null}
-    </p>
   );
 }

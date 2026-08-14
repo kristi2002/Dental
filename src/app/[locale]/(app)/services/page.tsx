@@ -1,16 +1,12 @@
-import { Activity, Clock, Package, Pill, Stethoscope, Trash2 } from 'lucide-react';
+import { Activity, Clock, Package, Stethoscope, Trash2 } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { TemplateFormDialog } from '@/components/prescriptions/TemplateFormDialog';
-import { ServiceCategoryFormDialog } from '@/components/services/CategoryFormDialog';
 import { ServiceFormDialog } from '@/components/services/ServiceFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
-import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { deletePrescriptionTemplate } from '@/lib/actions/prescriptions';
-import { deleteService, deleteServiceCategory } from '@/lib/actions/services';
+import { deleteService } from '@/lib/actions/services';
 import { requirePermission } from '@/lib/auth/guard';
 import { byDepartment, departmentOf } from '@/lib/catalog';
 import { addMonths, today } from '@/lib/dates';
@@ -36,13 +32,9 @@ export default async function ServicesPage({
   const user = await requirePermission('service.view');
   const canEdit = user.permissions.includes('service.edit');
   const canDelete = user.permissions.includes('service.delete');
-  const canSeeTemplates = user.permissions.includes('prescription.view');
-  const canEditTemplates = user.permissions.includes('prescription.edit');
 
   const t = await getTranslations('services');
-  const tp = await getTranslations('prescriptions');
   const tc = await getTranslations('common');
-  const tcat = await getTranslations('serviceCategories');
 
   // On its own, and first: the load that ships this feature is also the one that
   // moves the practice's old typed-in categories onto real rows, and the
@@ -56,16 +48,6 @@ export default async function ServicesPage({
     if (!category.parentId) continue;
     childrenOf.set(category.parentId, [...(childrenOf.get(category.parentId) ?? []), category]);
   }
-
-  const templates = canSeeTemplates
-    ? await prisma.prescriptionTemplate.findMany({
-        orderBy: [{ category: 'asc' }, { name: 'asc' }],
-        include: { services: { select: { serviceId: true, service: { select: { name: true } } } } },
-      })
-    : [];
-  const templateCategories = [
-    ...new Set(templates.map((template) => template.category).filter(Boolean)),
-  ] as string[];
 
   // Six months, matching the statistics page, so the two never disagree about
   // what "recently" means.
@@ -102,17 +84,6 @@ export default async function ServicesPage({
   const timesPerformed = new Map(
     performed.map((row) => [row.serviceId!, row._count._all]),
   );
-
-  // How many treatments each heading holds. A department counts everything
-  // printed under it, its subcategories included — the panel is there to answer
-  // "what does dropping this heading affect", and dropping a department takes
-  // its subcategories with it.
-  const servicesPerCategory = new Map<string, number>();
-  for (const service of allServices) {
-    for (const id of [service.categoryId, service.category?.parent?.id]) {
-      if (id) servicesPerCategory.set(id, (servicesPerCategory.get(id) ?? 0) + 1);
-    }
-  }
 
   const { q, category, materials } = await searchParams;
   const query = (q ?? '').trim();
@@ -168,16 +139,6 @@ export default async function ServicesPage({
           a.name.localeCompare(b.name),
       ),
   );
-
-  // The whole catalogue, not the filtered view: a template is tied to a
-  // treatment regardless of what the list above is currently narrowed to.
-  const serviceOptions = allServices.map((service) => ({
-    id: service.id,
-    name: service.name,
-    category: departmentOf(service.category),
-    durationMin: service.durationMin,
-    materialCount: service.materials.length,
-  }));
 
   const newDialog = canEdit ? (
     <ServiceFormDialog categories={categories} stockItems={stockItems} />
@@ -238,135 +199,6 @@ export default async function ServicesPage({
           clearLabel={tc('clearFilters')}
           summary={t('showing', { count: services.length, total: allServices.length })}
         />
-      ) : null}
-
-      {/* The headings. Named here, once, and picked from everywhere else — the
-          service form offers this list and nothing but this list, which is what
-          keeps one department from becoming three spellings of itself. Two
-          levels: a department, and the subdivisions inside it. */}
-      {canEdit ? (
-        <details className="card mb-6">
-          <summary className="cursor-pointer list-none px-5 py-4 text-[1.1rem] font-bold text-ink">
-            {tcat('title')}
-            <span className="ml-2 font-normal text-ink-soft">({categories.length})</span>
-          </summary>
-
-          <div className="border-t border-line px-5 py-4">
-            <ServiceCategoryFormDialog departments={departments} />
-            {departments.length === 0 ? (
-              <p className="mt-3 text-[0.95rem] text-ink-soft">{tcat('empty')}</p>
-            ) : null}
-          </div>
-
-          {departments.length > 0 ? (
-            <ul className="divide-y divide-line border-t border-line">
-              {departments.map((department) => {
-                const children = childrenOf.get(department.id) ?? [];
-
-                return (
-                  <li key={department.id} className="px-5 py-3">
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                      <div className="min-w-0">
-                        <p className="text-[1.05rem] font-bold text-ink">{department.name}</p>
-                        <p className="text-[0.92rem] text-ink-soft">
-                          {tcat('serviceCount', {
-                            count: servicesPerCategory.get(department.id) ?? 0,
-                          })}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {/* Adding a subdivision belongs on the department it
-                            subdivides, not in a form that asks which one. */}
-                        <ServiceCategoryFormDialog
-                          departments={departments}
-                          defaultParentId={department.id}
-                        />
-                        <ServiceCategoryFormDialog
-                          category={{
-                            id: department.id,
-                            name: department.name,
-                            parentId: '',
-                            hasChildren: children.length > 0,
-                          }}
-                          departments={departments}
-                        />
-                        {canDelete ? (
-                          <ActionForm
-                            action={deleteServiceCategory}
-                            values={{ id: department.id }}
-                            confirmMessage={
-                              children.length > 0
-                                ? tcat('confirmDeleteParent', { count: children.length })
-                                : tcat('confirmDelete')
-                            }
-                          >
-                            <button
-                              type="submit"
-                              className="btn btn-danger btn-sm"
-                              title={tc('delete')}
-                            >
-                              <Trash2 size={17} aria-hidden />
-                              <span className="sr-only">{tc('delete')}</span>
-                            </button>
-                          </ActionForm>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {children.length > 0 ? (
-                      <ul className="mt-2 space-y-1.5 border-l-2 border-line pl-4">
-                        {children.map((child) => (
-                          <li
-                            key={child.id}
-                            className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2"
-                          >
-                            <div className="min-w-0">
-                              <p className="font-semibold text-ink">{child.name}</p>
-                              <p className="text-[0.9rem] text-ink-soft">
-                                {tcat('serviceCount', {
-                                  count: servicesPerCategory.get(child.id) ?? 0,
-                                })}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <ServiceCategoryFormDialog
-                                category={{
-                                  id: child.id,
-                                  name: child.name,
-                                  parentId: department.id,
-                                  hasChildren: false,
-                                }}
-                                departments={departments}
-                              />
-                              {canDelete ? (
-                                <ActionForm
-                                  action={deleteServiceCategory}
-                                  values={{ id: child.id }}
-                                  confirmMessage={tcat('confirmDelete')}
-                                >
-                                  <button
-                                    type="submit"
-                                    className="btn btn-danger btn-sm"
-                                    title={tc('delete')}
-                                  >
-                                    <Trash2 size={17} aria-hidden />
-                                    <span className="sr-only">{tc('delete')}</span>
-                                  </button>
-                                </ActionForm>
-                              ) : null}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </details>
       ) : null}
 
       {services.length === 0 ? (
@@ -482,87 +314,6 @@ export default async function ServicesPage({
           ))}
         </div>
       )}
-
-      {/* The other catalog the clinic maintains: standard wording for the few
-          things a dentist prescribes every week. */}
-      {canSeeTemplates ? (
-        <Card className="mt-8">
-          <CardHeader
-            title={tp('templatesTitle')}
-            subtitle={tp('templatesSubtitle')}
-            icon={<Pill size={22} aria-hidden />}
-            action={
-              canEditTemplates ? (
-                <TemplateFormDialog
-                  categories={templateCategories}
-                  services={serviceOptions}
-                />
-              ) : null
-            }
-          />
-
-          {templates.length === 0 ? (
-            <EmptyState icon={<Pill size={36} aria-hidden />} title={tp('templatesEmpty')} />
-          ) : (
-            <ul className="divide-y-2 divide-line">
-              {templates.map((template) => (
-                <li
-                  key={template.id}
-                  className="flex flex-wrap items-start justify-between gap-3 px-5 py-4"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2">
-                      <span className="text-[1.08rem] font-bold text-ink">{template.name}</span>
-                      {template.category ? <Badge>{template.category}</Badge> : null}
-                      {/* What this wording follows. Without it on the row, the
-                          only way to know why a template is suggested after an
-                          extraction is to open it. */}
-                      {template.services.map((link) => (
-                        <Badge key={link.serviceId} tone="brand">
-                          {link.service.name}
-                        </Badge>
-                      ))}
-                    </p>
-                    <p className="mt-1 text-[0.95rem] whitespace-pre-line text-ink-soft">
-                      {template.body}
-                    </p>
-                  </div>
-
-                  {canEditTemplates ? (
-                    <div className="flex items-center gap-2">
-                      <TemplateFormDialog
-                        template={{
-                          id: template.id,
-                          name: template.name,
-                          category: template.category ?? '',
-                          body: template.body,
-                          serviceIds: template.services.map((link) => link.serviceId),
-                        }}
-                        categories={templateCategories}
-                        services={serviceOptions}
-                      />
-                      <ActionForm
-                        action={deletePrescriptionTemplate}
-                        values={{ id: template.id }}
-                        confirmMessage={tc('confirmDelete')}
-                      >
-                        <button
-                          type="submit"
-                          className="btn btn-danger btn-sm"
-                          title={tc('delete')}
-                        >
-                          <Trash2 size={17} aria-hidden />
-                          <span className="sr-only">{tc('delete')}</span>
-                        </button>
-                      </ActionForm>
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      ) : null}
     </>
   );
 }

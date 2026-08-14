@@ -48,7 +48,9 @@ export function TemplateFormDialog({
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
       triggerTitle={editing ? t('editTemplate') : t('newTemplate')}
-      triggerClassName={editing ? 'btn btn-secondary btn-sm' : 'btn btn-primary btn-sm'}
+      // Adding one is the whole point of the screen it heads, so that trigger is
+      // a full-size primary button; editing one is a row action beside it.
+      triggerClassName={editing ? 'btn btn-secondary btn-sm' : 'btn btn-primary'}
       trigger={
         editing ? (
           <>

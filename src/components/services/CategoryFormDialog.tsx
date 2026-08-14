@@ -24,6 +24,10 @@ export type ServiceCategoryDefaults = {
  * because naming the departments is a decision the practice makes once, and
  * every treatment entered afterwards should be *choosing* from that list rather
  * than spelling it again.
+ *
+ * Adding a department is the whole point of the screen it heads, so that trigger
+ * is a full-size primary button; subdividing one and editing one are row actions
+ * beside the heading they act on.
  */
 export function ServiceCategoryFormDialog({
   category,
@@ -60,7 +64,7 @@ export function ServiceCategoryFormDialog({
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
       triggerTitle={editing ? t('edit') : addingChild ? t('newChild') : t('new')}
-      triggerClassName="btn btn-secondary btn-sm"
+      triggerClassName={editing || addingChild ? 'btn btn-secondary btn-sm' : 'btn btn-primary'}
       trigger={
         editing ? (
           <>
