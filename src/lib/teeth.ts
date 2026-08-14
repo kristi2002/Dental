@@ -284,6 +284,63 @@ export function isUpperArch(toothNum: number): boolean {
   return q === 1 || q === 2 || q === 5 || q === 6;
 }
 
+/** Which corner of the mouth a tooth is in, as the two facts a reader wants:
+ *  arch and side. */
+export type ToothQuadrant = 'UPPER_RIGHT' | 'UPPER_LEFT' | 'LOWER_RIGHT' | 'LOWER_LEFT';
+
+export function quadrantOf(toothNum: number): ToothQuadrant {
+  const side = isRightSide(toothNum) ? 'RIGHT' : 'LEFT';
+  return `${isUpperArch(toothNum) ? 'UPPER' : 'LOWER'}_${side}` as ToothQuadrant;
+}
+
+/**
+ * Which tooth this is within its quadrant, by name.
+ *
+ * The number is what gets stored and what fits on the chart; the name is what
+ * gets *said* — "the upper right first molar" — and what a nurse or a patient
+ * can check a finding against without knowing FDI. `toothShape` is the same
+ * position read for a different purpose: it groups 4 and 5 as one silhouette,
+ * where this has to tell the first premolar from the second.
+ */
+export type ToothKind =
+  | 'CENTRAL_INCISOR'
+  | 'LATERAL_INCISOR'
+  | 'CANINE'
+  | 'FIRST_PREMOLAR'
+  | 'SECOND_PREMOLAR'
+  | 'FIRST_MOLAR'
+  | 'SECOND_MOLAR'
+  | 'THIRD_MOLAR';
+
+const PERMANENT_KINDS: readonly ToothKind[] = [
+  'CENTRAL_INCISOR',
+  'LATERAL_INCISOR',
+  'CANINE',
+  'FIRST_PREMOLAR',
+  'SECOND_PREMOLAR',
+  'FIRST_MOLAR',
+  'SECOND_MOLAR',
+  'THIRD_MOLAR',
+];
+
+/** A milk quadrant is five teeth and has no premolars: positions four and five
+ *  are its first and second molars. */
+const PRIMARY_KINDS: readonly ToothKind[] = [
+  'CENTRAL_INCISOR',
+  'LATERAL_INCISOR',
+  'CANINE',
+  'FIRST_MOLAR',
+  'SECOND_MOLAR',
+];
+
+/** Null for anything that is not a tooth, rather than a name for a tooth that
+ *  does not exist — the same reason `universalToFdi` refuses to guess. */
+export function toothKind(toothNum: number): ToothKind | null {
+  if (!isValidTooth(toothNum)) return null;
+  const kinds = dentitionOf(toothNum) === 'PRIMARY' ? PRIMARY_KINDS : PERMANENT_KINDS;
+  return kinds[(toothNum % 10) - 1] ?? null;
+}
+
 /**
  * Position within the quadrant decides the shape. Primary quadrants stop at
  * five, where the fourth and fifth are already molars — a milk dentition has no

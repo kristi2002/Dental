@@ -13,6 +13,7 @@ import type { ChartedTeeth } from '@/components/dental/ToothPicker';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Link } from '@/i18n/navigation';
 import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { deletePlan, deleteStep, moveStep, setStepStatus } from '@/lib/actions/plans';
 import { planProgress } from '@/lib/plan-progress';
@@ -90,13 +91,10 @@ export function TreatmentPlans({
         title={t('empty')}
         action={
           canEdit ? (
-            <PlanFormDialog
-              patientId={patientId}
-              services={services}
-              charted={charted}
-              numbering={numbering}
-              titles={titles}
-            />
+            <Link href={`/plans/new?patient=${patientId}`} className="btn btn-primary btn-sm">
+              <ListChecks size={18} aria-hidden />
+              {t('new')}
+            </Link>
           ) : undefined
         }
       />
@@ -130,9 +128,6 @@ export function TreatmentPlans({
                 {canEdit ? (
                   <PlanFormDialog
                     patientId={patientId}
-                    services={services}
-                    charted={charted}
-                    numbering={numbering}
                     titles={titles}
                     plan={{
                       id: plan.id,

@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 import { AppointmentStatus, ToothNumbering } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { DEFAULT_WEEK, rangesFor } from '@/lib/clinic-hours';
@@ -245,6 +246,19 @@ export async function saveOperatory(_prev: ActionState, formData: FormData): Pro
   });
 
   revalidateAll();
+
+  // Naming a chair is done on a page of its own, so there is nowhere for the
+  // form to return to — and "save and add another" comes straight back here,
+  // because the chairs are named in one sitting. A rename is submitted from a
+  // dialog on the settings screen, so it stays put.
+  if (!id) {
+    const again = requiredString(formData.get('again')) === '1';
+    redirect({
+      href: again ? '/settings/operatories/new' : '/settings',
+      locale: await getLocale(),
+    });
+  }
+
   return actionOk();
 }
 

@@ -29,6 +29,10 @@ export const NAV_DESTINATIONS: ReadonlyArray<
   { href: '/appointments', key: 'appointments', permission: 'appointment.view' },
   { href: '/patients', key: 'patients', permission: 'patient.view' },
   { href: '/plans', key: 'plans', permission: 'plan.view' },
+  // Beside the plans rather than under the catalogue: a case sent to a lab is
+  // work in progress on a patient, and it is chased daily — which is the test
+  // for the top level of this rail.
+  { href: '/works', key: 'works', permission: 'work.view' },
   { href: '/recalls', key: 'recalls', permission: 'recall.view' },
   {
     href: '/services',

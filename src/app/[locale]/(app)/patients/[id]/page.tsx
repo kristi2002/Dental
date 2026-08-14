@@ -6,6 +6,7 @@ import {
   CreditCard,
   IdCard,
   LifeBuoy,
+  ListChecks,
   Mail,
   MapPin,
   Phone,
@@ -31,7 +32,6 @@ import { ContactHistory } from '@/components/patients/ContactHistory';
 import { PatientAlerts } from '@/components/patients/PatientAlerts';
 import { VisitFormDialog } from '@/components/patients/VisitFormDialog';
 import { VisitTimeline } from '@/components/patients/VisitTimeline';
-import { PlanFormDialog } from '@/components/plans/PlanFormDialog';
 import { TreatmentPlans } from '@/components/plans/TreatmentPlans';
 import { PrescriptionDialog } from '@/components/prescriptions/PrescriptionDialog';
 import { PrescriptionList } from '@/components/prescriptions/PrescriptionList';
@@ -124,6 +124,7 @@ export default async function PatientDetailPage({
   const tcontacts = await getTranslations('contacts');
   const ta = await getTranslations('alerts');
   const tdoc = await getTranslations('documents');
+  const tPlans = await getTranslations('plans');
   const format = await getFormatter();
 
   // A tab the person may not open is not offered, and a hand-typed `?tab=chart`
@@ -243,6 +244,14 @@ export default async function PatientDetailPage({
         status: record.status,
         notes: record.notes ?? '',
         surfaces: record.surfaces ?? '',
+        // When the tooth was last charted. A caries found two years ago and one
+        // found this morning are the same red on the drawing and two very
+        // different conversations.
+        chartedOn: format.dateTime(record.updatedAt, {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }),
       },
     ]),
   );
@@ -787,13 +796,13 @@ export default async function PatientDetailPage({
             title={t('tabPlans')}
             action={
               can('plan.edit') ? (
-                <PlanFormDialog
-                  patientId={patient.id}
-                  services={services}
-                  charted={teeth}
-                  numbering={clinicProfile.toothNumbering}
-                  titles={planTitles}
-                />
+                <Link
+                  href={`/plans/new?patient=${patient.id}`}
+                  className="btn btn-primary btn-sm"
+                >
+                  <ListChecks size={18} aria-hidden />
+                  {tPlans('new')}
+                </Link>
               ) : null
             }
           />

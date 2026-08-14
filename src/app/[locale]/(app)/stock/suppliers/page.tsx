@@ -1,4 +1,4 @@
-import { ArrowLeft, Trash2, Truck } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Truck } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SupplierFormDialog } from '@/components/stock/SupplierFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -42,6 +42,13 @@ export default async function SuppliersPage({
     include: { _count: { select: { items: true } } },
   });
 
+  const newLink = (
+    <Link href="/stock/suppliers/new" className="btn btn-primary">
+      <Plus size={18} aria-hidden />
+      {t('new')}
+    </Link>
+  );
+
   return (
     <>
       <PageHeader
@@ -54,18 +61,14 @@ export default async function SuppliersPage({
               <ArrowLeft size={18} aria-hidden />
               {tc('back')}
             </Link>
-            <SupplierFormDialog />
+            {newLink}
           </>
         }
       />
 
       {suppliers.length === 0 ? (
         <div className="card">
-          <EmptyState
-            icon={<Truck size={40} aria-hidden />}
-            title={t('empty')}
-            action={<SupplierFormDialog />}
-          />
+          <EmptyState icon={<Truck size={40} aria-hidden />} title={t('empty')} action={newLink} />
         </div>
       ) : (
         <ul className="card divide-y divide-line">

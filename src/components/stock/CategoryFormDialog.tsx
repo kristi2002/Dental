@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, Plus } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 import { TextField } from '@/components/ui/Field';
@@ -13,49 +13,38 @@ export type CategoryDefaults = {
 };
 
 /**
- * A shelf is a name and nothing else, so this dialog is one field.
+ * Renaming a shelf you are already looking at.
  *
- * It exists as its own step — rather than a text box on the material form —
- * because naming the shelves is a decision the practice makes once, and every
- * material typed afterwards should be *choosing* from that list rather than
- * spelling it again.
- *
- * Adding one is the whole point of the screen it heads, so that trigger is a
- * full-size primary button; editing one is a row action beside the shelf.
+ * Naming a new one is a page — `/stock/categories/new` — because the shelves are
+ * named in a batch before anything is counted in, and a modal reopened per shelf
+ * is forty clicks. A rename is the opposite errand: one row, one word, fixed
+ * without losing your place in the list.
  */
-export function CategoryFormDialog({ category }: { category?: CategoryDefaults }) {
+export function CategoryFormDialog({ category }: { category: CategoryDefaults }) {
   const t = useTranslations('stockCategories');
   const tc = useTranslations('common');
   const uid = useId();
-  const editing = Boolean(category);
 
   return (
     <FormDialog
-      key={category?.id ?? 'new'}
+      key={category.id}
       action={saveStockCategory}
-      resetOnSuccess={!editing}
-      title={editing ? t('edit') : t('new')}
+      resetOnSuccess={false}
+      title={t('edit')}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
-      triggerTitle={editing ? t('edit') : t('new')}
-      triggerClassName={editing ? 'btn btn-secondary btn-sm' : 'btn btn-primary'}
+      triggerTitle={t('edit')}
+      triggerClassName="btn btn-secondary btn-sm"
       trigger={
-        editing ? (
-          <>
-            <Pencil size={17} aria-hidden />
-            <span className="sr-only">{t('edit')}</span>
-          </>
-        ) : (
-          <>
-            <Plus size={18} aria-hidden />
-            {t('new')}
-          </>
-        )
+        <>
+          <Pencil size={17} aria-hidden />
+          <span className="sr-only">{t('edit')}</span>
+        </>
       }
     >
-      {category ? <input type="hidden" name="id" value={category.id} /> : null}
+      <input type="hidden" name="id" value={category.id} />
 
       <TextField
         id={`${uid}-name`}
@@ -63,7 +52,7 @@ export function CategoryFormDialog({ category }: { category?: CategoryDefaults }
         label={tc('name')}
         hint={t('nameHint')}
         required
-        defaultValue={category?.name}
+        defaultValue={category.name}
       />
     </FormDialog>
   );

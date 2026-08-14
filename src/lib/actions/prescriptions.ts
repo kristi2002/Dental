@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 import { MedicalAlertKind } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { allergyLines, matchingAllergies } from '@/lib/medical';
@@ -66,6 +67,15 @@ export async function savePrescriptionTemplate(
   });
 
   revalidateAll();
+
+  // Writing a wording is done on a page of its own, so there is nowhere for the
+  // form to return to — the template list is what the person came here to add
+  // to, and it is where the new row now is. An edit is submitted from a dialog
+  // on that list, so it stays put.
+  if (!id) {
+    redirect({ href: '/prescriptions', locale: await getLocale() });
+  }
+
   return actionOk();
 }
 

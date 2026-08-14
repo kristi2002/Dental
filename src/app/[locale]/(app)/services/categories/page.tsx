@@ -1,4 +1,4 @@
-import { ArrowLeft, Tags, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Tags, Trash2 } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ServiceCategoryFormDialog } from '@/components/services/CategoryFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -68,6 +68,13 @@ export default async function ServiceCategoriesPage({
     }
   }
 
+  const newLink = (
+    <Link href="/services/categories/new" className="btn btn-primary">
+      <Plus size={18} aria-hidden />
+      {t('new')}
+    </Link>
+  );
+
   return (
     <>
       <PageHeader
@@ -80,18 +87,14 @@ export default async function ServiceCategoriesPage({
               <ArrowLeft size={18} aria-hidden />
               {tc('back')}
             </Link>
-            <ServiceCategoryFormDialog departments={departments} />
+            {newLink}
           </>
         }
       />
 
       {departments.length === 0 ? (
         <div className="card">
-          <EmptyState
-            icon={<Tags size={40} aria-hidden />}
-            title={t('empty')}
-            action={<ServiceCategoryFormDialog departments={departments} />}
-          />
+          <EmptyState icon={<Tags size={40} aria-hidden />} title={t('empty')} action={newLink} />
         </div>
       ) : (
         <ul className="card divide-y divide-line">
@@ -113,10 +116,14 @@ export default async function ServiceCategoriesPage({
                   <div className="flex items-center gap-2">
                     {/* Adding a subdivision belongs on the department it
                         subdivides, not in a form that asks which one. */}
-                    <ServiceCategoryFormDialog
-                      departments={departments}
-                      defaultParentId={department.id}
-                    />
+                    <Link
+                      href={`/services/categories/new?parent=${department.id}`}
+                      className="btn btn-secondary btn-sm"
+                      title={t('newChild')}
+                    >
+                      <Plus size={17} aria-hidden />
+                      <span className="sr-only">{t('newChild')}</span>
+                    </Link>
                     <ServiceCategoryFormDialog
                       category={{
                         id: department.id,

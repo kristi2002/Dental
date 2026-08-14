@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
@@ -91,6 +92,15 @@ export async function saveService(_prev: ActionState, formData: FormData): Promi
   });
 
   revalidateAll();
+
+  // Adding a treatment is done on a page of its own, so there is nowhere for the
+  // form to return to — the catalogue is what the person came here to add to,
+  // and it is where the new row now is. An edit is submitted from a dialog on
+  // that list, so it stays put.
+  if (!id) {
+    redirect({ href: '/services', locale: await getLocale() });
+  }
+
   return actionOk();
 }
 
@@ -171,6 +181,20 @@ export async function saveServiceCategory(
   });
 
   revalidateAll();
+
+  // Naming a heading is done on a page of its own, so there is nowhere for the
+  // form to return to. Which page depends on which button was pressed: the
+  // departments are named in a batch, and "save and add another" comes straight
+  // back here with the same parent still selected. An edit is submitted from a
+  // dialog on the list itself, so it stays put.
+  if (!id) {
+    const again = requiredString(formData.get('again')) === '1';
+    const next = again
+      ? `/services/categories/new${parentId ? `?parent=${parentId}` : ''}`
+      : '/services/categories';
+    redirect({ href: next, locale: await getLocale() });
+  }
+
   return actionOk();
 }
 

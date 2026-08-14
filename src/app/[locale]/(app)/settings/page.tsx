@@ -1,4 +1,4 @@
-import { Armchair, Building2, CalendarClock, CalendarOff, Power, Trash2 } from 'lucide-react';
+import { Armchair, Building2, CalendarClock, CalendarOff, Plus, Power, Trash2 } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { ClinicHoursForm } from '@/components/settings/ClinicHoursForm';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Link } from '@/i18n/navigation';
 import { deleteClosure, setOperatoryActive } from '@/lib/actions/settings';
 import { requirePermission } from '@/lib/auth/guard';
 import { CLINIC_TIME_ZONE, toDateKey, today } from '@/lib/dates';
@@ -123,14 +124,18 @@ export default async function SettingsPage({
             title={t('operatoriesTitle')}
             subtitle={t('operatoriesSubtitle')}
             icon={<Armchair size={22} aria-hidden />}
-            action={canEdit ? <OperatoryFormDialog /> : undefined}
+            action={
+              canEdit ? (
+                <Link href="/settings/operatories/new" className="btn btn-primary btn-sm">
+                  <Plus size={18} aria-hidden />
+                  {t('operatoryNew')}
+                </Link>
+              ) : undefined
+            }
           />
 
           {operatories.length === 0 ? (
-            <EmptyState
-              icon={<Armchair size={40} aria-hidden />}
-              title={t('operatoriesEmpty')}
-            />
+            <EmptyState icon={<Armchair size={40} aria-hidden />} title={t('operatoriesEmpty')} />
           ) : (
             <ul className="divide-y divide-line">
               {operatories.map((room) => (

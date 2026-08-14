@@ -1,4 +1,4 @@
-import { Activity, Clock, Package, Stethoscope, Trash2 } from 'lucide-react';
+import { Activity, Clock, Package, Plus, Stethoscope, Trash2 } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ServiceFormDialog } from '@/components/services/ServiceFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Link } from '@/i18n/navigation';
 import { deleteService } from '@/lib/actions/services';
 import { requirePermission } from '@/lib/auth/guard';
 import { byDepartment, departmentOf } from '@/lib/catalog';
@@ -140,8 +141,11 @@ export default async function ServicesPage({
       ),
   );
 
-  const newDialog = canEdit ? (
-    <ServiceFormDialog categories={categories} stockItems={stockItems} />
+  const newLink = canEdit ? (
+    <Link href="/services/new" className="btn btn-primary">
+      <Plus size={20} aria-hidden />
+      {t('new')}
+    </Link>
   ) : null;
 
   return (
@@ -149,7 +153,7 @@ export default async function ServicesPage({
       <PageHeader
         title={t('title')}
         subtitle={t('subtitle')}
-        actions={newDialog}
+        actions={newLink}
         trail={[{ label: t('title') }]}
       />
 
@@ -206,7 +210,7 @@ export default async function ServicesPage({
           <EmptyState
             icon={<Stethoscope size={40} aria-hidden />}
             title={isFiltered ? t('emptyFiltered') : t('empty')}
-            action={isFiltered ? null : newDialog}
+            action={isFiltered ? null : newLink}
           />
         </div>
       ) : (

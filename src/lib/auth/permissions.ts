@@ -30,6 +30,9 @@ export const PERMISSIONS = [
   'waitlist.edit',
   'plan.view',
   'plan.edit',
+  'work.view',
+  'work.edit',
+  'work.delete',
   'document.view',
   'document.edit',
   'document.delete',
@@ -77,6 +80,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'waitlist.edit',
     'plan.view',
     'plan.edit',
+    'work.view',
+    'work.edit',
     'document.view',
     'document.edit',
     'prescription.view',
@@ -95,6 +100,10 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'recall.send',
     'waitlist.view',
     'waitlist.edit',
+    // Reading the works register, not writing it. The front desk is who answers
+    // "is my crown back yet", so the list has to be open to them; the diagnosis
+    // column on it is chart material, which is the line this role does not cross.
+    'work.view',
     'settings.view',
   ],
 
@@ -109,6 +118,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'recall.view',
     'waitlist.view',
     'plan.view',
+    'work.view',
     'document.view',
     'prescription.view',
     'settings.view',

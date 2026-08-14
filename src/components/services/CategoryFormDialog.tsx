@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, Plus } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 import { SelectField, TextField } from '@/components/ui/Field';
@@ -17,69 +17,51 @@ export type ServiceCategoryDefaults = {
 };
 
 /**
- * A catalogue heading: a name, and the department it sits inside if it is not
- * one itself.
+ * Correcting a catalogue heading you are already looking at.
  *
- * It exists as its own step — rather than a text box on the service form —
- * because naming the departments is a decision the practice makes once, and
- * every treatment entered afterwards should be *choosing* from that list rather
- * than spelling it again.
- *
- * Adding a department is the whole point of the screen it heads, so that trigger
- * is a full-size primary button; subdividing one and editing one are row actions
- * beside the heading they act on.
+ * Naming a new one is a page — `/services/categories/new` — because the
+ * departments are named once, in a batch, before a single treatment is entered.
+ * This is the opposite errand: a rename, or moving a subdivision under a
+ * different department, from the row it is wrong on.
  */
 export function ServiceCategoryFormDialog({
   category,
   departments,
-  /** Preselected parent, so "add a subcategory" starts from the right row. */
-  defaultParentId = '',
 }: {
-  category?: ServiceCategoryDefaults;
+  category: ServiceCategoryDefaults;
   /** Top-level categories only — a subcategory can never be a parent. */
   departments: Array<{ id: string; name: string }>;
-  defaultParentId?: string;
 }) {
   const t = useTranslations('serviceCategories');
   const tc = useTranslations('common');
   const uid = useId();
-  const editing = Boolean(category);
-  const addingChild = Boolean(defaultParentId);
 
   // A department with subcategories cannot be moved into another department:
   // its children would become a third level. Saying so here, on the field that
   // would cause it, beats saying it after the save is refused.
-  const canReparent = !category?.hasChildren;
-  // Nothing to be filed under yet, so the question has no answers to offer.
-  const parentOptions = departments.filter((option) => option.id !== category?.id);
+  const canReparent = !category.hasChildren;
+  const parentOptions = departments.filter((option) => option.id !== category.id);
 
   return (
     <FormDialog
-      key={category?.id ?? `new-${defaultParentId}`}
+      key={category.id}
       action={saveServiceCategory}
-      resetOnSuccess={!editing}
-      title={editing ? t('edit') : addingChild ? t('newChild') : t('new')}
+      resetOnSuccess={false}
+      title={t('edit')}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
-      triggerTitle={editing ? t('edit') : addingChild ? t('newChild') : t('new')}
-      triggerClassName={editing || addingChild ? 'btn btn-secondary btn-sm' : 'btn btn-primary'}
+      triggerTitle={t('edit')}
+      triggerClassName="btn btn-secondary btn-sm"
       trigger={
-        editing ? (
-          <>
-            <Pencil size={17} aria-hidden />
-            <span className="sr-only">{t('edit')}</span>
-          </>
-        ) : (
-          <>
-            <Plus size={18} aria-hidden />
-            {addingChild ? <span className="sr-only">{t('newChild')}</span> : t('new')}
-          </>
-        )
+        <>
+          <Pencil size={17} aria-hidden />
+          <span className="sr-only">{t('edit')}</span>
+        </>
       }
     >
-      {category ? <input type="hidden" name="id" value={category.id} /> : null}
+      <input type="hidden" name="id" value={category.id} />
 
       <TextField
         id={`${uid}-name`}
@@ -87,7 +69,7 @@ export function ServiceCategoryFormDialog({
         label={tc('name')}
         hint={t('nameHint')}
         required
-        defaultValue={category?.name}
+        defaultValue={category.name}
       />
 
       {canReparent && parentOptions.length > 0 ? (
@@ -97,7 +79,7 @@ export function ServiceCategoryFormDialog({
           label={t('parent')}
           hint={t('parentHint')}
           optional={tc('optional')}
-          defaultValue={category?.parentId ?? defaultParentId}
+          defaultValue={category.parentId}
         >
           <option value="">{t('topLevel')}</option>
           {parentOptions.map((option) => (
@@ -109,10 +91,10 @@ export function ServiceCategoryFormDialog({
       ) : (
         // The value still has to be submitted, or editing a department's name
         // would quietly promote its subcategory to a department of its own.
-        <input type="hidden" name="parentId" value={category?.parentId ?? defaultParentId} />
+        <input type="hidden" name="parentId" value={category.parentId} />
       )}
 
-      {category?.hasChildren ? (
+      {category.hasChildren ? (
         <p className="text-[0.9rem] text-ink-soft">{t('parentLocked')}</p>
       ) : null}
     </FormDialog>

@@ -23,6 +23,8 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   // itself a cookie — so this costs nothing.
   const store = await cookies();
   const railCollapsed = store.get('rail')?.value === 'collapsed';
+  // Which sections are folded shut, by key — same reasoning, same first paint.
+  const closedSections = (store.get('rail-sections')?.value ?? '').split('.').filter(Boolean);
 
   const allowed = (permission: (typeof NAV_DESTINATIONS)[number]['permission']) =>
     permission === null || user.permissions.includes(permission);
@@ -46,6 +48,7 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
       <Sidebar
         items={items}
         defaultCollapsed={railCollapsed}
+        defaultClosedSections={closedSections}
         user={{
           firstName: user.firstName,
           lastName: user.lastName,

@@ -1,6 +1,6 @@
 'use client';
 
-import { ClipboardList, X } from 'lucide-react';
+import { ClipboardList, Stethoscope, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { SurfaceTarget, SURFACE_UNMARKED } from '@/components/dental/SurfaceTarget';
@@ -10,6 +10,7 @@ import { saveToothRecord } from '@/lib/actions/patients';
 import { planStepForTooth } from '@/lib/actions/plans';
 import { IDLE_STATE } from '@/lib/actions/types';
 import {
+  ALL_TEETH,
   DEFAULT_TOOTH_STATUS,
   PERMANENT_LOWER_LEFT,
   PERMANENT_LOWER_RIGHT,
@@ -22,8 +23,11 @@ import {
   TOOTH_STATUSES,
   TOOTH_STATUS_STYLE,
   TOOTH_SURFACES,
+  dentitionOf,
   isAnterior,
   parseSurfaces,
+  quadrantOf,
+  toothKind,
   toothLabel as toothLabelFor,
   type ToothNumbering,
   type ToothStatus,
@@ -51,7 +55,21 @@ import { cn } from '@/lib/utils';
 
 export type ToothRecordMap = Record<
   number,
-  { status: string; notes: string; surfaces: string }
+  {
+    status: string;
+    notes: string;
+    surfaces: string;
+    /**
+     * The day the tooth was last charted, formatted on the server.
+     *
+     * A date rather than a timestamp because the client cannot be trusted to
+     * spell the month: a browser without full ICU data renders Albanian
+     * `13 gush 2026` as `Aug 13, 2026`, which is both wrong and a hydration
+     * mismatch against the server's markup. Optional because the pickers that
+     * reuse this map only ever needed the state, not its date.
+     */
+    chartedOn?: string;
+  }
 >;
 
 /** Statuses that describe the whole tooth, where naming a surface is nonsense. */
@@ -145,6 +163,10 @@ export function DentalChart({
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  /** The tooth the findings list is pointing at, ringed on the arch. Reading a
+   *  row and then hunting for "24" along thirty-two teeth is the hunt the
+   *  odontogram exists to remove. */
+  const [highlight, setHighlight] = useState<number | null>(null);
   /** Set when the record was opened by clicking a segment rather than the tooth. */
   const [focusSurface, setFocusSurface] = useState<ToothSurface | null>(null);
   const [state, formAction] = useActionState(saveToothRecord, IDLE_STATE);
@@ -218,7 +240,6 @@ export function DentalChart({
   );
 
   const surfacesApply = !WHOLE_TOOTH_STATUSES.includes(status);
-  const flagged = Object.entries(records).filter(([, r]) => r.status !== DEFAULT_TOOTH_STATUS);
   const current = selected === null ? null : records[selected];
   const label = (n: number) => toothLabelFor(n, numbering);
 
@@ -235,77 +256,102 @@ export function DentalChart({
     records,
     readOnly,
     onSelect: openTooth,
+    highlight,
     numberLabel: label,
     toothLabel: (n: number) => t('tooth', { num: label(n) }),
   };
 
   return (
-    <div className="space-y-6">
+    // Measured against this box rather than the window: how much room the chart
+    // actually has depends on the sidebar and on the shell's padding, both of
+    // which change at their own breakpoints, so a viewport width is the wrong
+    // question to ask.
+    <div className="@container space-y-6">
       <ToothDefs />
       <p className="text-[1.02rem] text-ink-soft">{t('subtitle')}</p>
 
-      <div className="overflow-x-auto pb-2">
-        {/* Sized to its contents rather than the viewport, so the arches keep
-            their proportions and the page scrolls instead of the chart
-            squashing — a compressed odontogram is an unreadable one. */}
-        <div className="w-max">
-          <div className="flex justify-between px-1 pb-1">
-            <span className="text-[0.85rem] font-bold text-ink-faint">{t('right')}</span>
-            <span className="text-[0.85rem] font-bold text-ink-faint">{t('left')}</span>
+      {/* The arches and the written record of them, side by side — but only
+          past the width where both fit whole. A permanent chart is two 24rem
+          quadrants and cannot shrink; with this panel at 18rem and a 1.5rem
+          gap the pair needs 68rem, and under that the panel goes beneath the
+          chart instead — the same information in one column. In rem, not
+          pixels, because the chart is measured in rem too: at a larger root
+          size both grow and the threshold has to grow with them.
+
+          Splitting sooner would buy the panel its place by turning the
+          odontogram into something you scroll, which is a bad trade — on this
+          screen the drawing is the interface. */}
+      <div className="grid gap-6 @min-[68rem]:grid-cols-[minmax(0,1fr)_18rem] @min-[68rem]:items-start">
+        <div className="min-w-0 space-y-6">
+          <div className="overflow-x-auto pb-2">
+            {/* Sized to its contents rather than the viewport, so the arches keep
+                their proportions and the page scrolls instead of the chart
+                squashing — a compressed odontogram is an unreadable one. */}
+            <div className="w-max">
+              <div className="flex justify-between px-1 pb-1">
+                <span className="text-[0.85rem] font-bold text-ink-faint">{t('right')}</span>
+                <span className="text-[0.85rem] font-bold text-ink-faint">{t('left')}</span>
+              </div>
+
+              {/* The upper arch's bottom edge and the midline are the same cyan,
+                  and cross at the centre of the mouth — the reference point every
+                  other tooth on the chart is read against. */}
+              <div className="border-b-2 border-cyan-400 pb-2">
+                <ArchRow upper right={PERMANENT_UPPER_RIGHT} left={PERMANENT_UPPER_LEFT} {...rowProps} />
+                {showPrimary ? (
+                  <ArchRow upper primary right={PRIMARY_UPPER_RIGHT} left={PRIMARY_UPPER_LEFT} {...rowProps} />
+                ) : null}
+              </div>
+
+              <div className="pt-2">
+                {showPrimary ? (
+                  <ArchRow primary right={PRIMARY_LOWER_RIGHT} left={PRIMARY_LOWER_LEFT} {...rowProps} />
+                ) : null}
+                <ArchRow right={PERMANENT_LOWER_RIGHT} left={PERMANENT_LOWER_LEFT} {...rowProps} />
+              </div>
+            </div>
           </div>
 
-          {/* The upper arch's bottom edge and the midline are the same cyan, and
-              cross at the centre of the mouth — the reference point every other
-              tooth on the chart is read against. */}
-          <div className="border-b-2 border-cyan-400 pb-2">
-            <ArchRow upper right={PERMANENT_UPPER_RIGHT} left={PERMANENT_UPPER_LEFT} {...rowProps} />
-            {showPrimary ? (
-              <ArchRow upper primary right={PRIMARY_UPPER_RIGHT} left={PRIMARY_UPPER_LEFT} {...rowProps} />
-            ) : null}
-          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            aria-expanded={showPrimary}
+            onClick={() => setShowPrimary((open) => !open)}
+          >
+            {showPrimary ? t('hidePrimary') : t('showPrimary')}
+          </button>
 
-          <div className="pt-2">
-            {showPrimary ? (
-              <ArchRow primary right={PRIMARY_LOWER_RIGHT} left={PRIMARY_LOWER_LEFT} {...rowProps} />
-            ) : null}
-            <ArchRow right={PERMANENT_LOWER_RIGHT} left={PERMANENT_LOWER_LEFT} {...rowProps} />
+          {/* The legend draws the same molar in each state rather than a lettered
+              square. A key whose swatches look nothing like the thing they label
+              is a second notation to learn; this one is just the chart, smaller. */}
+          <div className="rounded-lg border border-line bg-paper px-4 py-3">
+            <p className="mb-2 text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</p>
+            <ul className="grid grid-cols-4 gap-x-3 gap-y-2 sm:grid-cols-8">
+              {TOOTH_STATUSES.map((status) => (
+                <li key={status} className="flex flex-col items-center gap-0.5 text-center">
+                  <span aria-hidden className="h-16 w-9">
+                    <ToothGlyph
+                      toothNum={LEGEND_TOOTH}
+                      status={status}
+                      surfaces={status === 'CARIES' || status === 'FILLED' ? ['O'] : []}
+                    />
+                  </span>
+                  <span className="text-[0.82rem] leading-tight font-semibold text-ink">
+                    {t(`status_${status}`)}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
+
+        <ChartFindings
+          records={records}
+          numberLabel={label}
+          onSelect={(toothNum) => openTooth(toothNum)}
+          onPoint={setHighlight}
+        />
       </div>
-
-      <button
-        type="button"
-        className="btn btn-secondary btn-sm"
-        aria-expanded={showPrimary}
-        onClick={() => setShowPrimary((open) => !open)}
-      >
-        {showPrimary ? t('hidePrimary') : t('showPrimary')}
-      </button>
-
-      {/* The legend draws the same molar in each state rather than a lettered
-          square. A key whose swatches look nothing like the thing they label is
-          a second notation to learn; this one is just the chart, smaller. */}
-      <div className="rounded-lg border border-line bg-paper px-4 py-3">
-        <p className="mb-2 text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</p>
-        <ul className="grid grid-cols-4 gap-x-3 gap-y-2 sm:grid-cols-8">
-          {TOOTH_STATUSES.map((status) => (
-            <li key={status} className="flex flex-col items-center gap-0.5 text-center">
-              <span aria-hidden className="h-16 w-9">
-                <ToothGlyph
-                  toothNum={LEGEND_TOOTH}
-                  status={status}
-                  surfaces={status === 'CARIES' || status === 'FILLED' ? ['O'] : []}
-                />
-              </span>
-              <span className="text-[0.82rem] leading-tight font-semibold text-ink">
-                {t(`status_${status}`)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <p className="font-semibold text-ink-soft">{t('summary', { count: flagged.length })}</p>
 
       <dialog
         ref={dialogRef}
@@ -557,6 +603,183 @@ export function DentalChart({
 }
 
 /**
+ * The chart in words: every tooth that is not plain healthy, written out.
+ *
+ * The drawing answers "which tooth and what colour" at a glance and nothing
+ * else. Everything else the practice recorded — which faces, the note typed
+ * while looking in the mouth, the day it was charted — was reachable only by
+ * clicking each tooth in turn, which is thirty-two clicks to find out whether
+ * anything was written down. Under the chart there was a single line saying how
+ * many teeth were flagged.
+ *
+ * So the same records are listed beside the arches, in the order the rows read:
+ * upper right to upper left, then the lower arch, then the milk teeth. Each row
+ * names the tooth the way it gets *said* — "upper right first molar" — because
+ * the number is the notation and the name is what gets checked against the
+ * mouth. Pointing at a row rings the tooth on the chart; pressing it opens the
+ * same record the tooth does, so the list is a way into the chart rather than a
+ * second copy of it.
+ *
+ * A tooth charted healthy but carrying a note is listed too: that note is
+ * invisible on the drawing apart from one grey dot, and "watch the fissure on
+ * 36" is exactly the kind of thing written once and never seen again.
+ */
+function ChartFindings({
+  records,
+  numberLabel,
+  onSelect,
+  onPoint,
+}: {
+  records: ToothRecordMap;
+  numberLabel: (toothNum: number) => string;
+  onSelect: (toothNum: number) => void;
+  /** Ring this tooth on the arch, or clear the ring with null. */
+  onPoint: (toothNum: number | null) => void;
+}) {
+  const t = useTranslations('teeth');
+
+  const findings = ALL_TEETH.map((toothNum) => ({
+    toothNum,
+    status: statusOf(records, toothNum),
+    surfaces: parseSurfaces(records[toothNum]?.surfaces),
+    notes: records[toothNum]?.notes ?? '',
+    chartedOn: records[toothNum]?.chartedOn ?? '',
+  })).filter((finding) => finding.status !== DEFAULT_TOOTH_STATUS || finding.notes !== '');
+
+  const flagged = findings.filter((finding) => finding.status !== DEFAULT_TOOTH_STATUS);
+
+  // Counted in the order the statuses are declared, which is roughly worst
+  // first — a tally that reshuffles itself as teeth are charted is one nobody
+  // can read twice.
+  const tally = TOOTH_STATUSES.filter((status) => status !== DEFAULT_TOOTH_STATUS)
+    .map((status) => ({ status, count: flagged.filter((f) => f.status === status).length }))
+    .filter((row) => row.count > 0);
+
+  return (
+    <aside className="overflow-hidden rounded-lg border border-line bg-paper @min-[68rem]:sticky @min-[68rem]:top-4">
+      <div className="border-b border-line px-4 py-3">
+        <p className="flex items-center gap-2 text-[0.9rem] font-bold text-ink-faint uppercase">
+          <Stethoscope size={17} aria-hidden />
+          {t('findings')}
+        </p>
+        <p className="mt-1 font-semibold text-ink-soft">
+          {t('summary', { count: flagged.length })}
+        </p>
+
+        {tally.length > 0 ? (
+          <ul className="mt-2.5 flex flex-wrap gap-1.5">
+            {tally.map(({ status, count }) => (
+              <li
+                key={status}
+                className={cn(
+                  'rounded-full border px-2.5 py-0.5 text-[0.82rem] font-bold',
+                  TOOTH_STATUS_STYLE[status].swatch,
+                )}
+              >
+                {t(`status_${status}`)}
+                <span className="ml-1.5 tabular-nums">{count}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+
+      {findings.length === 0 ? (
+        <p className="px-4 py-6 text-center text-[0.98rem] text-ink-faint">
+          {t('findingsEmpty')}
+        </p>
+      ) : (
+        <ul className="max-h-[34rem] space-y-2 overflow-y-auto p-3">
+          {findings.map((finding) => {
+            const kind = toothKind(finding.toothNum);
+            return (
+              <li key={finding.toothNum}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(finding.toothNum)}
+                  onMouseEnter={() => onPoint(finding.toothNum)}
+                  onMouseLeave={() => onPoint(null)}
+                  onFocus={() => onPoint(finding.toothNum)}
+                  onBlur={() => onPoint(null)}
+                  className={cn(
+                    'flex w-full items-start gap-3 rounded-lg border border-line-strong bg-surface px-3 py-2.5',
+                    'text-left transition-colors hover:border-ink',
+                  )}
+                >
+                  <span aria-hidden className="h-14 w-8 shrink-0">
+                    <ToothGlyph
+                      toothNum={finding.toothNum}
+                      status={finding.status}
+                      surfaces={finding.surfaces}
+                    />
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-[1.05rem] leading-tight font-bold text-ink tabular-nums">
+                        {numberLabel(finding.toothNum)}
+                      </span>
+                      <span
+                        className={cn(
+                          'rounded-full border px-2 py-0.5 text-[0.78rem] font-bold',
+                          TOOTH_STATUS_STYLE[finding.status].swatch,
+                        )}
+                      >
+                        {t(`status_${finding.status}`)}
+                      </span>
+                    </span>
+
+                    <span className="mt-0.5 block text-[0.88rem] leading-snug text-ink-soft">
+                      {t(`quadrant_${quadrantOf(finding.toothNum)}`)}
+                      {kind ? ` · ${t(`name_${kind}`)}` : ''}
+                      {dentitionOf(finding.toothNum) === 'PRIMARY' ? ` · ${t('primaryTooth')}` : ''}
+                    </span>
+
+                    {/* The letters are how the finding is written down and the
+                        words are how it is checked — "MOD" is unreadable to
+                        anyone outside the surgery, and the names alone are too
+                        long to scan. */}
+                    {finding.surfaces.length > 0 ? (
+                      <span className="mt-1 block text-[0.88rem] leading-snug text-ink">
+                        <span className="font-bold tracking-wide">
+                          {finding.surfaces.join('')}
+                        </span>
+                        <span className="text-ink-soft">
+                          {' — '}
+                          {finding.surfaces
+                            .map((surface) =>
+                              surface === 'O'
+                                ? t(isAnterior(finding.toothNum) ? 'surface_I' : 'surface_O')
+                                : t(`surface_${surface}`),
+                            )
+                            .join(', ')}
+                        </span>
+                      </span>
+                    ) : null}
+
+                    {finding.notes ? (
+                      <span className="mt-1 block line-clamp-3 text-[0.92rem] leading-snug whitespace-pre-line text-ink">
+                        {finding.notes}
+                      </span>
+                    ) : null}
+
+                    {finding.chartedOn ? (
+                      <span className="mt-1 block text-[0.8rem] text-ink-faint">
+                        {t('chartedOn', { date: finding.chartedOn })}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </aside>
+  );
+}
+
+/**
  * One arch: two quadrants either side of the midline. The right-hand quadrant is
  * packed against the midline and the left-hand one away from it, so a five-tooth
  * primary row still meets the permanent row's centre line exactly.
@@ -600,6 +823,8 @@ type ToothCellProps = {
   upper?: boolean;
   primary?: boolean;
   onSelect: (toothNum: number, surface?: ToothSurface | null) => void;
+  /** The tooth the findings list is pointing at, if it is this one. */
+  highlight?: number | null;
   /** FDI or Universal, whichever the practice reads. */
   numberLabel: (toothNum: number) => string;
   toothLabel: (toothNum: number) => string;
@@ -612,6 +837,7 @@ function ToothCell({
   upper = false,
   primary = false,
   onSelect,
+  highlight = null,
   numberLabel,
   toothLabel,
 }: ToothCellProps) {
@@ -669,7 +895,13 @@ function ToothCell({
   );
 
   return (
-    <div className={cn(CELL, 'flex flex-col gap-1 px-0.5')}>
+    <div
+      className={cn(
+        CELL,
+        'flex flex-col gap-1 rounded-md px-0.5 py-0.5',
+        highlight === toothNum && 'bg-brand-soft ring-2 ring-brand',
+      )}
+    >
       {upper ? (
         <>
           {glyph}

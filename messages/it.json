@@ -14,10 +14,13 @@
     "menu": "Menu",
     "recalls": "Richiami",
     "plans": "Piani",
+    "works": "Lavorazioni",
     "openMenu": "Apri il menu",
     "closeMenu": "Chiudi il menu",
     "collapseRail": "Riduci il menu",
     "expandRail": "Espandi il menu",
+    "foldSection": "Nascondi il contenuto di {section}",
+    "unfoldSection": "Mostra il contenuto di {section}",
     "stockCategories": "Categorie",
     "suppliers": "Fornitori",
     "serviceCategories": "Categorie",
@@ -57,7 +60,8 @@
     "filter": "Filtra",
     "filters": "Filtri",
     "clearFilters": "Azzera",
-    "breadcrumb": "Percorso"
+    "breadcrumb": "Percorso",
+    "saveAndAddAnother": "Salva e aggiungine un altro"
   },
   "dashboard": {
     "title": "Pannello",
@@ -270,7 +274,15 @@
     "department": "Reparto",
     "subcategory": "Sottocategoria",
     "wholeDepartment": "Tutto il reparto",
-    "categoryEmptyHint": "Ancora nessuna categoria — aggiungile in \"Categorie\" su questa pagina."
+    "categoryEmptyHint": "Ancora nessuna categoria — aggiungile in \"Categorie\" su questa pagina.",
+    "newSubtitle": "Bastano un nome e una durata — reparto e materiali si possono aggiungere dopo.",
+    "sectionIdentity": "Come si chiama",
+    "sectionIdentityHint": "Il nome che il modulo di prenotazione proporrà e dove viene archiviato nel listino.",
+    "sectionDuration": "Quanto dura",
+    "sectionDurationHint": "L’agenda blocca questo tempo ogni volta che il trattamento viene prenotato.",
+    "sectionMaterialsHint": "Impostalo una volta e ogni visita registrata lo scala: il senso è che nessuno conti i guanti a mano.",
+    "previewTitle": "Nuovo trattamento",
+    "materialCount": "{count, plural, =0 {nessun materiale} one {# materiale} other {# materiali}}"
   },
   "serviceCategories": {
     "title": "Categorie",
@@ -286,7 +298,12 @@
     "serviceCount": "{count, plural, =0 {nessun servizio} one {# servizio} other {# servizi}}",
     "confirmDelete": "Rimuovere questa categoria? I servizi restano a catalogo e passano a senza categoria.",
     "confirmDeleteParent": "Rimuovere questo reparto e {count, plural, one {la sua # sottocategoria} other {le sue # sottocategorie}}? I servizi restano a catalogo e passano a senza categoria.",
-    "subtitle": "I reparti in cui è diviso il catalogo"
+    "subtitle": "I reparti in cui è diviso il catalogo",
+    "newSubtitle": "Dagli un nome qui una volta e ogni trattamento lo sceglierà da un elenco: è così che un reparto non diventa tre grafie di sé stesso.",
+    "newChildSubtitle": "Una suddivisione dentro un reparto. Il catalogo arriva a due livelli e non oltre.",
+    "sectionNaming": "L’intestazione",
+    "sectionNamingHint": "Come si chiama e se sta dentro un reparto o è un reparto.",
+    "previewTitle": "Dove si collocherà"
   },
   "stock": {
     "title": "Magazzino",
@@ -436,7 +453,23 @@
     "surface_I": "Incisale",
     "surface_D": "Distale",
     "surface_B": "Vestibolare",
-    "surface_L": "Linguale"
+    "surface_L": "Linguale",
+    "findings": "Rilievi",
+    "findingsEmpty": "Nulla registrato su questa scheda. I denti che registri compaiono qui, con le loro superfici e le note.",
+    "chartedOn": "Registrato il {date}",
+    "primaryTooth": "Dente da latte",
+    "quadrant_UPPER_RIGHT": "Superiore destro",
+    "quadrant_UPPER_LEFT": "Superiore sinistro",
+    "quadrant_LOWER_RIGHT": "Inferiore destro",
+    "quadrant_LOWER_LEFT": "Inferiore sinistro",
+    "name_CENTRAL_INCISOR": "Incisivo centrale",
+    "name_LATERAL_INCISOR": "Incisivo laterale",
+    "name_CANINE": "Canino",
+    "name_FIRST_PREMOLAR": "Primo premolare",
+    "name_SECOND_PREMOLAR": "Secondo premolare",
+    "name_FIRST_MOLAR": "Primo molare",
+    "name_SECOND_MOLAR": "Secondo molare",
+    "name_THIRD_MOLAR": "Terzo molare"
   },
   "reminders": {
     "whatsappTemplate": "Buongiorno {name}, le ricordiamo il suo appuntamento dal dentista il {date} alle {time}. A presto!",
@@ -525,6 +558,11 @@
       "view": "Vede i piani di cura",
       "edit": "Crea e aggiorna piani di cura"
     },
+    "work": {
+      "view": "Vede il registro delle lavorazioni",
+      "edit": "Aggiunge e modifica lavorazioni",
+      "delete": "Elimina lavorazioni"
+    },
     "document": {
       "view": "Vede radiografie e file",
       "edit": "Carica radiografie e file",
@@ -591,7 +629,15 @@
     "notAllowed": "Non consentito",
     "errorPinRequired": "Un nuovo account richiede un PIN.",
     "errorPinFormat": "Il PIN deve avere da 4 a 6 cifre.",
-    "errorLastOwner": "È l’unico titolare — qualcuno deve poter gestire il personale."
+    "errorLastOwner": "È l’unico titolare — qualcuno deve poter gestire il personale.",
+    "newSubtitle": "Il ruolo decide cosa questa persona può vedere e modificare: è il campo su cui vale la pena fermarsi.",
+    "sectionIdentity": "Chi è",
+    "sectionIdentityHint": "Il nome che comparirà su visite, appuntamenti e registro delle modifiche.",
+    "sectionRole": "Cosa può fare",
+    "sectionRoleHint": "Tutto ciò che il ruolo concede è elencato sotto, così la scelta si fa vedendone le conseguenze.",
+    "sectionPin": "Come accede",
+    "sectionPinHint": "Un PIN, non una password: si digita decine di volte al giorno accanto alla poltrona.",
+    "previewTitle": "Nuovo account"
   },
   "activity": {
     "title": "Registro attività",
@@ -717,7 +763,56 @@
     "chartSuggestion": "Otturazione",
     "addToPlan": "Aggiungi al piano",
     "notNow": "Non ora",
-    "noneCompleted": "Nessun percorso di cura è stato ancora concluso."
+    "noneCompleted": "Nessun percorso di cura è stato ancora concluso.",
+    "newSubtitle": "Scegli i passaggi dal grafico dentale e dall’elenco dei trattamenti — un piano si costruisce qui, non si scrive.",
+    "newSubtitleFor": "Un percorso di cura per {name}.",
+    "sectionPlan": "Di cosa si tratta",
+    "sectionPlanHint": "Per chi è e come si chiamerà nell’elenco.",
+    "sectionStepsHint": "Il lavoro, nell’ordine in cui verrà svolto. Un rilievo già presente sul grafico porta con sé il dente.",
+    "sectionNotesHint": "Tutto ciò che i passaggi non dicono: un’avvertenza, una preferenza, cosa è stato concordato.",
+    "previewTitle": "Nuovo piano",
+    "stepCount": "{count, plural, =0 {ancora nessun passaggio} one {# passaggio} other {# passaggi}}"
+  },
+  "works": {
+    "title": "Lavorazioni",
+    "subtitle": "Tutto ciò che va in laboratorio, in un unico registro.",
+    "new": "Nuova lavorazione",
+    "newSubtitle": "Trascrivi la bolla del laboratorio nel registro.",
+    "edit": "Modifica la lavorazione",
+    "number": "N. paziente",
+    "labSerial": "N. seriale lab.",
+    "labSerialHint": "Il numero che il laboratorio ha dato al caso, come sulla loro bolla.",
+    "patientName": "Paziente",
+    "phone": "Telefono",
+    "diagnosis": "Diagnosi",
+    "diagnosisHint": "Perché la lavorazione viene fatta.",
+    "linkPatient": "Trova il paziente",
+    "lines": "Lavorazioni",
+    "elements": "Elementi",
+    "elementsPlaceholder": "14, 15, 16",
+    "procedure": "Lavorazione",
+    "procedurePlaceholder": "Corona in zirconia",
+    "lab": "Laboratorio",
+    "labPlaceholder": "Nome del laboratorio",
+    "addLine": "Aggiungi riga",
+    "noLinesYet": "Ancora nessuna lavorazione in questo caso.",
+    "lineCount": "{count, plural, =0 {ancora nessuna lavorazione} one {# lavorazione} other {# lavorazioni}}",
+    "sectionPatient": "Per chi è",
+    "sectionPatientHint": "Trova il paziente per compilare i campi, oppure scrivili come sulla bolla.",
+    "sectionWork": "Il caso",
+    "sectionWorkHint": "Una riga per lavorazione: quali elementi, cosa si fa e in quale laboratorio.",
+    "sectionNotesHint": "Tutto il resto che il registro deve portare — un colore, una data promessa, una riparazione.",
+    "previewTitle": "Questo caso",
+    "empty": "Il registro delle lavorazioni è vuoto.",
+    "emptyFiltered": "Nessun caso corrisponde a questo filtro.",
+    "searchPlaceholder": "Nome, telefono, seriale, lavorazione…",
+    "anyLab": "Tutti i laboratori",
+    "noLab": "Senza laboratorio",
+    "showing": "Mostrati {count} di {total} casi",
+    "export": "Esporta",
+    "exportFileName": "lavorazioni",
+    "exportNotes": "Note",
+    "createdAt": "Scritto il"
   },
   "documents": {
     "new": "Aggiungi file",
@@ -771,7 +866,14 @@
     "saveAsTemplate": "Salva questo testo come modello",
     "linkToWork": "Proponilo dopo {work}",
     "afterTreatment": "Si prescrive dopo",
-    "afterTreatmentHint": "Scegli i trattamenti dopo i quali si usa questo testo. Verrà proposto per primo quando uno di essi è appena stato registrato."
+    "afterTreatmentHint": "Scegli i trattamenti dopo i quali si usa questo testo. Verrà proposto per primo quando uno di essi è appena stato registrato.",
+    "newTemplateSubtitle": "Un testo scritto una volta e letto ai pazienti per anni: qui il testo è tutto.",
+    "sectionNaming": "Come chiamarlo",
+    "sectionNamingHint": "Il nome tra cui sceglierà il dentista e un raggruppamento facoltativo per tenere corto l’elenco.",
+    "sectionAfterTreatmentHint": "Il vantaggio che rende utile questo elenco: dopo questo trattamento, proponi per primo questo testo.",
+    "sectionBodyHint": "Dose, frequenza e cosa fare se peggiora. È questo che il paziente porta a casa.",
+    "previewTitle": "Nuovo modello",
+    "afterTreatmentCount": "{count, plural, =0 {non legato a un trattamento} one {dopo # trattamento} other {dopo # trattamenti}}"
   },
   "reorder": {
     "title": "Ordine suggerito",
@@ -879,7 +981,9 @@
     "feedCopied": "Copiato",
     "feedWarning": "Trattalo come una password: chiunque abbia questo link può leggere la tua agenda senza accedere.",
     "currency": "Valuta",
-    "currencyHint": "Codice di tre lettere — ALL, EUR, USD. Usato ovunque compaia un prezzo."
+    "currencyHint": "Codice di tre lettere — ALL, EUR, USD. Usato ovunque compaia un prezzo.",
+    "operatoryNewSubtitle": "Quante poltrone ci sono decide quanto si può prenotare in contemporanea.",
+    "operatoriesNamed": "{count, plural, =0 {ancora nessuna} one {finora # poltrona} other {finora # poltrone}}"
   },
   "contacts": {
     "subtitle": "Cosa è stato mostrato al paziente e quando. Aprire un messaggio lo registra qui — non è prova di consegna.",
@@ -927,7 +1031,14 @@
     "noContact": "Nessun contatto",
     "itemCount": "{count, plural, =0 {nessun materiale} one {# materiale} other {# materiali}}",
     "subtitle": "Da chi vengono acquistati i materiali",
-    "empty": "Nessun fornitore. Aggiungi quelli da cui lo studio ordina già, poi scegline uno su ogni materiale."
+    "empty": "Nessun fornitore. Aggiungi quelli da cui lo studio ordina già, poi scegline uno su ogni materiale.",
+    "newSubtitle": "Basta un nome — ma è il numero di telefono che fa partire davvero un ordine.",
+    "sectionIdentity": "Chi è",
+    "sectionIdentityHint": "Il nome a cui punterà ogni materiale.",
+    "sectionContact": "Come contattarlo",
+    "sectionContactHint": "In quest’app non c’è la gestione degli ordini, per scelta: questo è il numero che si compone.",
+    "sectionNotesHint": "Chiedere di chi, consegne in quali giorni, ordine minimo: quello che serve per farlo giusto al primo colpo.",
+    "previewTitle": "Nuovo fornitore"
   },
   "stockCategories": {
     "title": "Categorie",
@@ -937,7 +1048,11 @@
     "empty": "Nessuna categoria. Aggiungi gli scaffali che il magazzino ha già, poi assegna ogni materiale a uno.",
     "itemCount": "{count, plural, =0 {nessun materiale} one {# materiale} other {# materiali}}",
     "confirmDelete": "Rimuovere questa categoria? I materiali restano sullo scaffale e passano a senza categoria.",
-    "subtitle": "Gli scaffali con cui è ordinato il magazzino"
+    "subtitle": "Gli scaffali con cui è ordinato il magazzino",
+    "newSubtitle": "Dagli un nome qui una volta e ogni materiale lo sceglierà da un elenco: è così che uno scaffale non diventa tre grafie di sé stesso.",
+    "sectionNaming": "Lo scaffale",
+    "sectionNamingHint": "Uno scaffale è solo un nome. Aggiungili tutti in una volta.",
+    "alreadyNamed": "Già inseriti"
   },
   "daySheet": {
     "title": "Foglio del giorno",

@@ -117,6 +117,7 @@ model Patient {
 
   contacts      Contact[]
   alerts        PatientAlert[]
+  works         Work[]
 
   /// Whether they have agreed to be messaged. Deliberately tri-state: `null`
   /// means nobody has asked yet, which is a different thing from "no" and is
@@ -969,4 +970,88 @@ model WaitlistEntry {
   @@index([resolvedAt])
   /// Booking somebody resolves their open entry, which looks them up by person.
   @@index([patientId])
+}
+
+/// One line of the works ledger — the register the practice keeps of everything
+/// that goes out to a laboratory and comes back.
+///
+/// This is deliberately a *register* rather than a workflow: one wide row per
+/// case, kept the way the practice already keeps it on paper, and exportable to
+/// a spreadsheet in one click. The columns are the ones a clinic reads across
+/// when the lab rings — their serial, our number for the patient, the name, a
+/// phone to call back on, the diagnosis — and then the work itself, which is
+/// never one thing and so is a list of rows rather than a column (`WorkLine`).
+model Work {
+  id String @id @default(uuid())
+
+  /// Our own number for the row: 1 for the first, then up by one.
+  ///
+  /// A serial the database keeps, not the patient's `id` — that is a uuid, which
+  /// is the right name for a row and the wrong thing to read down a phone. Gaps
+  /// are possible if a row is deleted and are left as gaps: renumbering would
+  /// change what a slip already sent to the lab refers to.
+  number Int @unique @default(autoincrement())
+
+  /// The laboratory's own serial for the case, as printed on their docket.
+  /// Optional: it usually arrives after the case does.
+  labSerial String?
+
+  /// Who the work is for, when they are on the register. Optional, because a
+  /// case can be logged for somebody whose record has not been made yet, and
+  /// because the ledger must outlive a deleted patient (`SetNull`).
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  /// The name and number as written on the slip.
+  ///
+  /// Snapshotted, like `Appointment.serviceName` and for the same reason: this
+  /// row is a copy of a docket that has already left the building. Correcting a
+  /// patient's phone number today must not silently rewrite what the lab was
+  /// given in March. The link above is what "show me this patient" follows.
+  patientName String
+  phone       String
+
+  diagnosis String?
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines WorkLine[]
+
+  /// The register is read newest-first, and searched by the lab's serial.
+  @@index([createdAt])
+  @@index([patientId])
+  @@index([labSerial])
+}
+
+/// One piece of work inside a case: which teeth, what is being made, and by whom.
+///
+/// A case is hardly ever one thing — a bridge on 14–16 and a crown on 24 go to
+/// the same lab on the same impression — so this cannot be three more columns on
+/// `Work` without either capping the case at one item or repeating the patient
+/// down five rows. Same shape as `TreatmentStep` under `TreatmentPlan`.
+model WorkLine {
+  id     String @id @default(uuid())
+  workId String
+  work   Work   @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  /// Position in the case as it was written, so the display order survives.
+  position Int @default(1)
+
+  /// Which teeth. Free text on purpose: FDI numbers are what is usually written
+  /// ("14, 15, 16", or "22:MO" with surfaces — see `parseToothSelection`), but a
+  /// real docket also says "harku i sipërm", and a register that refuses what
+  /// the paper one accepted is a register nobody fills in.
+  elements String
+
+  /// What is being made — a crown, a bridge, a denture, a repair.
+  procedure String
+
+  /// Which laboratory. Free text rather than a row of its own: this is a
+  /// register of what happened, and a practice sends to two or three labs whose
+  /// names it already knows how to spell.
+  lab String?
+
+  @@index([workId])
 }

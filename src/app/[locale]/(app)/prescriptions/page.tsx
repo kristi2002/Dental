@@ -1,10 +1,11 @@
-import { Pill, Trash2 } from 'lucide-react';
+import { Pill, Plus, Trash2 } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { TemplateFormDialog } from '@/components/prescriptions/TemplateFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Link } from '@/i18n/navigation';
 import { deletePrescriptionTemplate } from '@/lib/actions/prescriptions';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
@@ -53,8 +54,11 @@ export default async function PrescriptionsPage({
     ...new Set(templates.map((template) => template.category).filter(Boolean)),
   ] as string[];
 
-  const newDialog = canEdit ? (
-    <TemplateFormDialog categories={categories} services={services} />
+  const newLink = canEdit ? (
+    <Link href="/prescriptions/templates/new" className="btn btn-primary">
+      <Plus size={18} aria-hidden />
+      {t('newTemplate')}
+    </Link>
   ) : null;
 
   return (
@@ -63,7 +67,7 @@ export default async function PrescriptionsPage({
         title={t('templatesTitle')}
         subtitle={t('templatesSubtitle')}
         trail={[{ label: t('templatesTitle') }]}
-        actions={newDialog}
+        actions={newLink}
       />
 
       {templates.length === 0 ? (
@@ -71,7 +75,7 @@ export default async function PrescriptionsPage({
           <EmptyState
             icon={<Pill size={40} aria-hidden />}
             title={t('templatesEmpty')}
-            action={newDialog}
+            action={newLink}
           />
         </div>
       ) : (

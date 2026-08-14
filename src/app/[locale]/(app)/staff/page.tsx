@@ -1,4 +1,4 @@
-import { LockOpen, Power, ShieldCheck, Users } from 'lucide-react';
+import { LockOpen, Power, ShieldCheck, UserPlus, Users } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { RoleBadge } from '@/components/auth/RoleBadge';
@@ -8,6 +8,7 @@ import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Link } from '@/i18n/navigation';
 import { Role } from '@/generated/prisma/enums';
 import { setStaffActive, unlockStaff } from '@/lib/actions/staff';
 import { requirePermission } from '@/lib/auth/guard';
@@ -49,7 +50,12 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
       <PageHeader
         title={t('title')}
         subtitle={t('subtitle')}
-        actions={<StaffFormDialog />}
+        actions={
+          <Link href="/staff/new" className="btn btn-primary">
+            <UserPlus size={20} aria-hidden />
+            {t('new')}
+          </Link>
+        }
         trail={[{ label: t('title') }]}
       />
 

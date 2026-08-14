@@ -1,4 +1,4 @@
-import { ArrowLeft, Tags, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Tags, Trash2 } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { CategoryFormDialog } from '@/components/stock/CategoryFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -58,6 +58,13 @@ export default async function StockCategoriesPage({
     itemsPerCategory.set(item.categoryId, (itemsPerCategory.get(item.categoryId) ?? 0) + 1);
   }
 
+  const newLink = (
+    <Link href="/stock/categories/new" className="btn btn-primary">
+      <Plus size={18} aria-hidden />
+      {t('new')}
+    </Link>
+  );
+
   return (
     <>
       <PageHeader
@@ -70,18 +77,14 @@ export default async function StockCategoriesPage({
               <ArrowLeft size={18} aria-hidden />
               {tc('back')}
             </Link>
-            <CategoryFormDialog />
+            {newLink}
           </>
         }
       />
 
       {categories.length === 0 ? (
         <div className="card">
-          <EmptyState
-            icon={<Tags size={40} aria-hidden />}
-            title={t('empty')}
-            action={<CategoryFormDialog />}
-          />
+          <EmptyState icon={<Tags size={40} aria-hidden />} title={t('empty')} action={newLink} />
         </div>
       ) : (
         <ul className="card divide-y divide-line">

@@ -28,6 +28,7 @@ export function PatientPicker({
   defaultPatient,
   allowNew = false,
   onNewChange,
+  onPick,
   required = false,
 }: {
   /** Form field the chosen id is submitted under. */
@@ -39,6 +40,12 @@ export function PatientPicker({
   allowNew?: boolean;
   /** Told when the new-patient option is picked or cleared. */
   onNewChange?: (adding: boolean) => void;
+  /**
+   * Told who was chosen, and `null` when the choice is cleared. For the forms
+   * that copy details off the record rather than only pointing at it — the works
+   * register writes the name and number onto its own row. See `Work.patientName`.
+   */
+  onPick?: (patient: PatientOption | null) => void;
   required?: boolean;
 }) {
   const t = useTranslations('patients');
@@ -76,6 +83,7 @@ export function PatientPicker({
     setChosen(patient);
     setAddingNew(false);
     onNewChange?.(false);
+    onPick?.(patient);
     setQuery('');
     setResults([]);
     setSearched(false);
@@ -85,6 +93,7 @@ export function PatientPicker({
     setChosen(null);
     setAddingNew(true);
     onNewChange?.(true);
+    onPick?.(null);
     setQuery('');
     setResults([]);
     setSearched(false);
@@ -94,6 +103,7 @@ export function PatientPicker({
     setChosen(null);
     setAddingNew(false);
     onNewChange?.(false);
+    onPick?.(null);
     // Focus lands back where the next thing to do is.
     setTimeout(() => inputRef.current?.focus(), 0);
   }

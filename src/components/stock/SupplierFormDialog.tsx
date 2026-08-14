@@ -1,97 +1,59 @@
 'use client';
 
-import { Pencil, Plus } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
-import { TextAreaField, TextField } from '@/components/ui/Field';
+import {
+  ContactFields,
+  NameField,
+  NotesField,
+  type SupplierDefaults,
+} from '@/components/stock/SupplierFields';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { saveSupplier } from '@/lib/actions/stock';
 
-export type SupplierDefaults = {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  notes: string;
-};
+export type { SupplierDefaults };
 
 /**
- * Enough to place an order and no more. There is no purchasing or invoicing in
- * this app by design, so a supplier is a name and a way to reach them.
+ * Correcting a supplier you are already looking at.
  *
- * Adding one is the whole point of the screen it heads, so that trigger is a
- * full-size primary button; editing one is a row action beside the supplier.
+ * Adding one is a page — `/stock/suppliers/new` — because the list is built in a
+ * batch at setup. This is the opposite errand: a changed number, a new contact
+ * name in the notes, fixed from the row it is wrong on.
  */
-export function SupplierFormDialog({ supplier }: { supplier?: SupplierDefaults }) {
+export function SupplierFormDialog({ supplier }: { supplier: SupplierDefaults }) {
   const t = useTranslations('suppliers');
   const tc = useTranslations('common');
   const uid = useId();
-  const editing = Boolean(supplier);
 
   return (
     <FormDialog
-      key={supplier?.id ?? 'new'}
+      key={supplier.id}
       action={saveSupplier}
-      resetOnSuccess={!editing}
-      title={editing ? t('edit') : t('new')}
+      resetOnSuccess={false}
+      title={t('edit')}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
-      triggerTitle={editing ? t('edit') : t('new')}
-      triggerClassName={editing ? 'btn btn-secondary btn-sm' : 'btn btn-primary'}
+      triggerTitle={t('edit')}
+      triggerClassName="btn btn-secondary btn-sm"
       trigger={
-        editing ? (
-          <>
-            <Pencil size={17} aria-hidden />
-            <span className="sr-only">{t('edit')}</span>
-          </>
-        ) : (
-          <>
-            <Plus size={18} aria-hidden />
-            {t('new')}
-          </>
-        )
+        <>
+          <Pencil size={17} aria-hidden />
+          <span className="sr-only">{t('edit')}</span>
+        </>
       }
     >
-      {supplier ? <input type="hidden" name="id" value={supplier.id} /> : null}
+      <input type="hidden" name="id" value={supplier.id} />
 
-      <TextField
-        id={`${uid}-name`}
-        name="name"
-        label={tc('name')}
-        required
-        defaultValue={supplier?.name}
-      />
+      <NameField uid={uid} supplier={supplier} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          id={`${uid}-phone`}
-          name="phone"
-          type="tel"
-          inputMode="tel"
-          label={t('phone')}
-          optional={tc('optional')}
-          defaultValue={supplier?.phone}
-        />
-        <TextField
-          id={`${uid}-email`}
-          name="email"
-          type="email"
-          label={t('email')}
-          optional={tc('optional')}
-          defaultValue={supplier?.email}
-        />
+        <ContactFields uid={uid} supplier={supplier} />
       </div>
 
-      <TextAreaField
-        id={`${uid}-notes`}
-        name="notes"
-        label={tc('notes')}
-        optional={tc('optional')}
-        rows={3}
-        defaultValue={supplier?.notes}
-      />
+      <NotesField uid={uid} supplier={supplier} />
     </FormDialog>
   );
 }

@@ -14,10 +14,13 @@
     "menu": "Menuja",
     "recalls": "Rikthimet",
     "plans": "Planet",
+    "works": "Punimet",
     "openMenu": "Hap menunë",
     "closeMenu": "Mbyll menunë",
     "collapseRail": "Ngushto menunë",
     "expandRail": "Zgjero menunë",
+    "foldSection": "Fshih çfarë ndodhet te {section}",
+    "unfoldSection": "Shfaq çfarë ndodhet te {section}",
     "stockCategories": "Kategoritë",
     "suppliers": "Furnitorët",
     "serviceCategories": "Kategoritë",
@@ -57,7 +60,8 @@
     "filter": "Filtro",
     "filters": "Filtrat",
     "clearFilters": "Pastro",
-    "breadcrumb": "Shtegu"
+    "breadcrumb": "Shtegu",
+    "saveAndAddAnother": "Ruaj dhe shto një tjetër"
   },
   "dashboard": {
     "title": "Paneli",
@@ -270,7 +274,15 @@
     "department": "Departamenti",
     "subcategory": "Nënkategoria",
     "wholeDepartment": "I gjithë departamenti",
-    "categoryEmptyHint": "Ende asnjë kategori — shtoji te \"Kategoritë\" në këtë faqe."
+    "categoryEmptyHint": "Ende asnjë kategori — shtoji te \"Kategoritë\" në këtë faqe.",
+    "newSubtitle": "Mjaftojnë një emër dhe një kohëzgjatje — reparti dhe materialet plotësohen më vonë.",
+    "sectionIdentity": "Si quhet",
+    "sectionIdentityHint": "Emri që do të ofrojë forma e rezervimit dhe ku renditet në listën e çmimeve.",
+    "sectionDuration": "Sa zgjat",
+    "sectionDurationHint": "Axhenda bllokon këtë kohë sa herë që trajtimi rezervohet.",
+    "sectionMaterialsHint": "Vendoseni një herë dhe çdo vizitë e regjistruar e zbret — qëllimi është që askush të mos numërojë dorezat me dorë.",
+    "previewTitle": "Trajtim i ri",
+    "materialCount": "{count, plural, =0 {asnjë material} one {# material} other {# materiale}}"
   },
   "serviceCategories": {
     "title": "Kategoritë",
@@ -286,7 +298,12 @@
     "serviceCount": "{count, plural, =0 {asnjë shërbim} one {# shërbim} other {# shërbime}}",
     "confirmDelete": "Ta heqim këtë kategori? Shërbimet mbeten në katalog dhe kalojnë pa kategori.",
     "confirmDeleteParent": "Ta heqim këtë departament dhe {count, plural, one {# nënkategorinë e tij} other {# nënkategoritë e tij}}? Shërbimet mbeten në katalog dhe kalojnë pa kategori.",
-    "subtitle": "Departamentet në të cilat ndahet katalogu"
+    "subtitle": "Departamentet në të cilat ndahet katalogu",
+    "newSubtitle": "Emërtojeni një herë këtu dhe çdo trajtim e zgjedh nga një listë — kështu një repart nuk bëhet tri shkrime të ndryshme të vetes.",
+    "newChildSubtitle": "Një nënndarje brenda një reparti. Katalogu shkon dy nivele dhe jo më tej.",
+    "sectionNaming": "Titulli",
+    "sectionNamingHint": "Si quhet dhe nëse qëndron brenda një reparti apo është vetë repart.",
+    "previewTitle": "Ku do të qëndrojë"
   },
   "stock": {
     "title": "Inventari",
@@ -436,7 +453,23 @@
     "surface_I": "Incizale",
     "surface_D": "Distale",
     "surface_B": "Bukale",
-    "surface_L": "Linguale"
+    "surface_L": "Linguale",
+    "findings": "Gjetjet",
+    "findingsEmpty": "Asgjë e regjistruar në këtë skemë. Dhëmbët që regjistron shfaqen këtu, me sipërfaqet dhe shënimet e tyre.",
+    "chartedOn": "Regjistruar më {date}",
+    "primaryTooth": "Dhëmb qumështi",
+    "quadrant_UPPER_RIGHT": "Sipër djathtas",
+    "quadrant_UPPER_LEFT": "Sipër majtas",
+    "quadrant_LOWER_RIGHT": "Poshtë djathtas",
+    "quadrant_LOWER_LEFT": "Poshtë majtas",
+    "name_CENTRAL_INCISOR": "Prerësi qendror",
+    "name_LATERAL_INCISOR": "Prerësi anësor",
+    "name_CANINE": "Kanini",
+    "name_FIRST_PREMOLAR": "Premolari i parë",
+    "name_SECOND_PREMOLAR": "Premolari i dytë",
+    "name_FIRST_MOLAR": "Molari i parë",
+    "name_SECOND_MOLAR": "Molari i dytë",
+    "name_THIRD_MOLAR": "Molari i tretë"
   },
   "reminders": {
     "whatsappTemplate": "Përshëndetje {name}, ju kujtojmë takimin tuaj dentar më {date} në orën {time}. Ju presim!",
@@ -525,6 +558,11 @@
       "view": "Sheh planet e trajtimit",
       "edit": "Krijon dhe përditëson plane trajtimi"
     },
+    "work": {
+      "view": "Sheh regjistrin e punimeve",
+      "edit": "Shton dhe ndryshon punime",
+      "delete": "Fshin punime"
+    },
     "document": {
       "view": "Sheh radiografitë dhe skedarët",
       "edit": "Ngarkon radiografi dhe skedarë",
@@ -591,7 +629,15 @@
     "notAllowed": "Nuk lejohet",
     "errorPinRequired": "Një llogari e re ka nevojë për PIN.",
     "errorPinFormat": "PIN-i duhet të ketë 4 deri 6 shifra.",
-    "errorLastOwner": "Ky është pronari i vetëm — dikush duhet të vazhdojë të menaxhojë stafin."
+    "errorLastOwner": "Ky është pronari i vetëm — dikush duhet të vazhdojë të menaxhojë stafin.",
+    "newSubtitle": "Roli vendos çfarë mund të shohë dhe të ndryshojë ky person — është fusha ku ia vlen të ndalesh.",
+    "sectionIdentity": "Kush është",
+    "sectionIdentityHint": "Emri që do të shfaqet te vizitat, takimet dhe regjistri i veprimeve.",
+    "sectionRole": "Çfarë mund të bëjë",
+    "sectionRoleHint": "Gjithçka që lejon roli renditet poshtë tij, që zgjedhja të bëhet duke i parë pasojat.",
+    "sectionPin": "Si hyn në sistem",
+    "sectionPinHint": "Një PIN, jo fjalëkalim — shtypet dhjetëra herë në ditë pranë karriges.",
+    "previewTitle": "Llogari e re"
   },
   "activity": {
     "title": "Regjistri i aktivitetit",
@@ -717,7 +763,56 @@
     "chartSuggestion": "Mbushje",
     "addToPlan": "Shto në plan",
     "notNow": "Jo tani",
-    "noneCompleted": "Asnjë plan trajtimi nuk është përfunduar ende."
+    "noneCompleted": "Asnjë plan trajtimi nuk është përfunduar ende.",
+    "newSubtitle": "Zgjidhni hapat nga karta dentare dhe lista e trajtimeve — një plan ndërtohet këtu, nuk shkruhet.",
+    "newSubtitleFor": "Një plan trajtimi për {name}.",
+    "sectionPlan": "Për çfarë është plani",
+    "sectionPlanHint": "Për kë është dhe si do të quhet në listë.",
+    "sectionStepsHint": "Puna, sipas radhës që do të kryhet. Një gjetje e regjistruar tashmë në kartë e sjell dhëmbin me vete.",
+    "sectionNotesHint": "Çdo gjë që hapat nuk e thonë — një paralajmërim, një preferencë, çfarë u ra dakord.",
+    "previewTitle": "Plan i ri",
+    "stepCount": "{count, plural, =0 {ende asnjë hap} one {# hap} other {# hapa}}"
+  },
+  "works": {
+    "title": "Punimet",
+    "subtitle": "Gjithçka që shkon te laboratori, në një regjistër të vetëm.",
+    "new": "Punim i ri",
+    "newSubtitle": "Kopjoje fletën e laboratorit në regjistër.",
+    "edit": "Ndrysho punimin",
+    "number": "Nr. i pacientit",
+    "labSerial": "Nr. serial i lab.",
+    "labSerialHint": "Numri që laboratori i ka vënë rastit, sipas fletës së tyre.",
+    "patientName": "Pacienti",
+    "phone": "Telefoni",
+    "diagnosis": "Diagnoza",
+    "diagnosisHint": "Përse po bëhet punimi.",
+    "linkPatient": "Gjej pacientin",
+    "lines": "Punimet",
+    "elements": "Elementet",
+    "elementsPlaceholder": "14, 15, 16",
+    "procedure": "Punimi",
+    "procedurePlaceholder": "Kurorë zirkoni",
+    "lab": "Laboratori",
+    "labPlaceholder": "Emri i laboratorit",
+    "addLine": "Shto rresht",
+    "noLinesYet": "Ende asnjë punim në këtë rast.",
+    "lineCount": "{count, plural, =0 {ende asnjë punim} one {# punim} other {# punime}}",
+    "sectionPatient": "Për kë është",
+    "sectionPatientHint": "Gjej pacientin që të plotësohet vetë, ose shkruaje siç e ka fleta.",
+    "sectionWork": "Rasti",
+    "sectionWorkHint": "Një rresht për çdo punim: cilët elementë, çfarë po bëhet dhe nga cili laborator.",
+    "sectionNotesHint": "Çdo gjë tjetër që duhet mbajtur shënim — ngjyra, data e premtuar, një riparim.",
+    "previewTitle": "Ky rast",
+    "empty": "Regjistri i punimeve është bosh.",
+    "emptyFiltered": "Asnjë rast nuk përputhet me këtë filtër.",
+    "searchPlaceholder": "Emri, telefoni, seriali, punimi…",
+    "anyLab": "Të gjithë laboratorët",
+    "noLab": "Pa laborator",
+    "showing": "Duke shfaqur {count} nga {total} raste",
+    "export": "Eksporto",
+    "exportFileName": "punimet",
+    "exportNotes": "Shënime",
+    "createdAt": "Shkruar më"
   },
   "documents": {
     "new": "Shto skedar",
@@ -771,7 +866,14 @@
     "saveAsTemplate": "Ruaje këtë tekst si model",
     "linkToWork": "Propozoje pas {work}",
     "afterTreatment": "Shkruhet pas",
-    "afterTreatmentHint": "Zgjidhni trajtimet pas të cilave përdoret ky tekst. Pastaj propozohet i pari kur njëri prej tyre sapo është regjistruar."
+    "afterTreatmentHint": "Zgjidhni trajtimet pas të cilave përdoret ky tekst. Pastaj propozohet i pari kur njëri prej tyre sapo është regjistruar.",
+    "newTemplateSubtitle": "Një tekst i shkruar një herë dhe i lexuar pacientëve me vite — këtu teksti është gjithçka.",
+    "sectionNaming": "Si ta quajmë",
+    "sectionNamingHint": "Emri nga i cili do të zgjedhë dentisti dhe një grupim opsional që lista të mbetet e shkurtër.",
+    "sectionAfterTreatmentHint": "Përparësia që e bën këtë listë të vlefshme: pas këtij trajtimi, ofro së pari këtë tekst.",
+    "sectionBodyHint": "Doza, shpeshtësia dhe çfarë të bëjë nëse përkeqësohet. Kjo është ajo që pacienti merr me vete.",
+    "previewTitle": "Model i ri",
+    "afterTreatmentCount": "{count, plural, =0 {i palidhur me një trajtim} one {pas # trajtimi} other {pas # trajtimesh}}"
   },
   "reorder": {
     "title": "Porosi e sugjeruar",
@@ -879,7 +981,9 @@
     "feedCopied": "U kopjua",
     "feedWarning": "Trajtoje si fjalëkalim: kushdo që ka këtë lidhje mund të lexojë orarin tënd pa u kyçur.",
     "currency": "Monedha",
-    "currencyHint": "Kod me tre shkronja — ALL, EUR, USD. Përdoret kudo ku shfaqet një çmim."
+    "currencyHint": "Kod me tre shkronja — ALL, EUR, USD. Përdoret kudo ku shfaqet një çmim.",
+    "operatoryNewSubtitle": "Sa karrige ka është ajo që vendos sa mund të rezervohet njëkohësisht.",
+    "operatoriesNamed": "{count, plural, =0 {ende asnjë} one {deri tani # karrige} other {deri tani # karrige}}"
   },
   "contacts": {
     "subtitle": "Çfarë iu paraqit pacientit dhe kur. Hapja e një mesazhi regjistrohet këtu — nuk është provë dërgimi.",
@@ -927,7 +1031,14 @@
     "noContact": "Asnjë kontakt",
     "itemCount": "{count, plural, =0 {asnjë material} one {# material} other {# materiale}}",
     "subtitle": "Nga kush blihen materialet",
-    "empty": "Ende asnjë furnitor. Shto ata nga të cilët klinika porosit tashmë, pastaj zgjidh një për çdo material."
+    "empty": "Ende asnjë furnitor. Shto ata nga të cilët klinika porosit tashmë, pastaj zgjidh një për çdo material.",
+    "newSubtitle": "Mjafton një emër — por është numri i telefonit që e vë vërtet një porosi në lëvizje.",
+    "sectionIdentity": "Kush është",
+    "sectionIdentityHint": "Emri te i cili do të lidhet çdo material.",
+    "sectionContact": "Si t’i kontaktoni",
+    "sectionContactHint": "Në këtë aplikacion nuk ka porositje, me qëllim — ky është numri që formohet.",
+    "sectionNotesHint": "Kërkoni për kë, dorëzimet në cilat ditë, porosia minimale — çfarëdo që e bën punën si duhet herën e parë.",
+    "previewTitle": "Furnitor i ri"
   },
   "stockCategories": {
     "title": "Kategoritë",
@@ -937,7 +1048,11 @@
     "empty": "Ende asnjë kategori. Shto raftet që magazina i ka tashmë, pastaj vendos çdo material në një prej tyre.",
     "itemCount": "{count, plural, =0 {asnjë material} one {# material} other {# materiale}}",
     "confirmDelete": "Ta heqim këtë kategori? Materialet mbeten në raft dhe kalojnë pa kategori.",
-    "subtitle": "Raftet sipas të cilave renditet magazina"
+    "subtitle": "Raftet sipas të cilave renditet magazina",
+    "newSubtitle": "Emërtojeni një herë këtu dhe çdo material e zgjedh nga një listë — kështu një raft nuk bëhet tri shkrime të ndryshme të vetes.",
+    "sectionNaming": "Rafti",
+    "sectionNamingHint": "Një raft është vetëm një emër. Shtojini të gjithë me një herë.",
+    "alreadyNamed": "Të emërtuar tashmë"
   },
   "daySheet": {
     "title": "Fleta e ditës",

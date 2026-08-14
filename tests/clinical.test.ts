@@ -6,7 +6,9 @@ import {
   dentitionOf,
   formatSurfaces,
   isValidTooth,
+  quadrantOf,
   selectedTeeth,
+  toothKind,
 } from '../src/lib/teeth';
 import { matches, parseServiceList } from '../src/lib/utils';
 
@@ -110,6 +112,43 @@ describe('FDI teeth', () => {
 
   it('drops letters that are not surfaces', () => {
     assert.equal(formatSurfaces('MZQ'), formatSurfaces('M'));
+  });
+});
+
+describe('naming a tooth — what the findings list says out loud', () => {
+  it('reads the position within the quadrant', () => {
+    assert.equal(toothKind(11), 'CENTRAL_INCISOR');
+    assert.equal(toothKind(13), 'CANINE');
+    assert.equal(toothKind(14), 'FIRST_PREMOLAR');
+    assert.equal(toothKind(48), 'THIRD_MOLAR');
+  });
+
+  it('gives a milk quadrant molars where a permanent one has premolars', () => {
+    // A child has no premolars at all: 54 is the first *molar* of the upper
+    // right milk quadrant, and naming it a premolar would describe a tooth that
+    // is not in the mouth.
+    assert.equal(toothKind(54), 'FIRST_MOLAR');
+    assert.equal(toothKind(55), 'SECOND_MOLAR');
+    assert.equal(toothKind(53), 'CANINE');
+  });
+
+  it('refuses to name something that is not a tooth', () => {
+    assert.equal(toothKind(19), null);
+    assert.equal(toothKind(0), null);
+  });
+
+  it('places the quadrant the way the chart is read', () => {
+    assert.equal(quadrantOf(18), 'UPPER_RIGHT');
+    assert.equal(quadrantOf(28), 'UPPER_LEFT');
+    assert.equal(quadrantOf(38), 'LOWER_LEFT');
+    assert.equal(quadrantOf(48), 'LOWER_RIGHT');
+    // Primary quadrants follow the same four corners: 5 and 8 are the right.
+    assert.equal(quadrantOf(55), 'UPPER_RIGHT');
+    assert.equal(quadrantOf(85), 'LOWER_RIGHT');
+  });
+
+  it('names every tooth on the chart', () => {
+    assert.equal(ALL_TEETH.every((toothNum) => toothKind(toothNum) !== null), true);
   });
 });
 

@@ -126,8 +126,11 @@ export function PlanRow({
   return (
     <li
       className={cn(
-        'relative px-5 py-4 transition-colors first:rounded-t-[var(--radius-card)]',
-        'last:rounded-b-[var(--radius-card)] hover:bg-surface-soft',
+        // A card of its own rather than a band between two hairlines. A plan is
+        // half a dozen facts and a row of buttons, so the rows were reading as
+        // one long wall in which the boundary between "this plan" and "the next
+        // one" was the faintest line on the page.
+        'card relative px-5 py-5 transition-shadow hover:shadow-pop',
         // Worst-first is the sort order; this is what makes it visible without
         // reading a word. A badge alone puts the whole burden of triage on
         // somebody actually reading each row.
@@ -232,7 +235,7 @@ export function PlanRow({
           tabs — what a cancelled plan left undone is history, and history does
           not come with buttons. */}
       {next ? (
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-line-strong bg-surface px-3 py-2">
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-line-strong bg-surface px-3 py-2.5">
           <span className="text-[0.75rem] font-bold tracking-wide text-ink-faint uppercase">
             {t('nextStep')}
           </span>
@@ -280,7 +283,7 @@ export function PlanRow({
         </div>
       ) : null}
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2">
         {/* What is left after the next one, so the row answers "how much more"
             without a second navigation. Anything past the cap is counted rather
             than dropped — "and four more" is information; showing five of nine

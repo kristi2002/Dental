@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { syncPlanStatus } from '@/lib/plan-sync';
@@ -93,7 +94,7 @@ export async function savePlan(_prev: ActionState, formData: FormData): Promise<
     status: toPlanStatus(requiredString(formData.get('status'))),
   };
 
-  // A brand-new plan is built in one go, so the dialog posts its whole opening
+  // A brand-new plan is built in one go, so the form posts its whole opening
   // sequence rather than making the dentist save and then add steps one dialog
   // at a time. Each carries its tooth, which is the half the old
   // newline-separated list could not express at all.
@@ -133,6 +134,15 @@ export async function savePlan(_prev: ActionState, formData: FormData): Promise<
   });
 
   revalidateAll();
+
+  // Writing a plan is done on a page of its own, and the thing you do next is
+  // always to the patient it was written for — book the first step, look at the
+  // chart it came from. An edit is submitted from a dialog on the plan itself,
+  // so it stays put.
+  if (!id) {
+    redirect({ href: `/patients/${patientId}?tab=plans`, locale: await getLocale() });
+  }
+
   return actionOk();
 }
 

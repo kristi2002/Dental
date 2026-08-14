@@ -1,0 +1,183 @@
+'use client';
+
+import { FlaskConical, StickyNote, User } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useId, useState } from 'react';
+import { PatientPicker } from '@/components/patients/PatientPicker';
+import { TextAreaField, TextField } from '@/components/ui/Field';
+import { FormActions, FormLayout, FormPreview, FormSection } from '@/components/ui/FormPage';
+import { WorkLinesField, WorkLinesHeader, type LineDraft } from '@/components/works/WorkLinesField';
+import { saveWork } from '@/lib/actions/works';
+import { useRecoveredForm } from '@/lib/form-recovery';
+
+/**
+ * A new row of the works register, as a screen rather than a dialog.
+ *
+ * The same rule the rest of the app follows: a record the practice *sets up* is
+ * a page, a correction to a row you are already looking at is a dialog. A case
+ * is set up — it is copied off a docket with several pieces of work on it, and a
+ * modal that throws all of that away on a stray Escape is the wrong container.
+ *
+ * Picking a patient fills the name and the number in rather than replacing them:
+ * the register keeps its own copy of both, because the docket that went to the
+ * lab has them printed on it. See `Work.patientName`.
+ */
+export function NewWorkForm({ labs = [] }: { labs?: string[] }) {
+  const t = useTranslations('works');
+  const tc = useTranslations('common');
+  const uid = useId();
+
+  const { state, formAction, formRef } = useRecoveredForm(saveWork);
+
+  const [lines, setLines] = useState<LineDraft[]>([
+    // One empty row to start: the case is the reason this screen was opened, and
+    // making the first act "press Add" is a step that teaches nothing.
+    { key: 'line-1', elements: '', procedure: '', lab: '' },
+  ]);
+  const [preview, setPreview] = useState({ patientName: '', phone: '', labSerial: '' });
+
+  return (
+    <form ref={formRef} action={formAction}>
+      <FormLayout
+        aside={
+          <FormPreview title={t('previewTitle')}>
+            <p className="text-[1.12rem] font-bold text-ink">
+              {preview.patientName.trim() || <span className="text-ink-faint">{t('new')}</span>}
+            </p>
+            <p className="mt-1 text-[0.95rem] text-ink-soft tabular-nums">
+              {preview.phone.trim() || '—'}
+            </p>
+            {preview.labSerial.trim() ? (
+              <p className="mt-1 text-[0.95rem] text-ink-soft">
+                {t('labSerial')}: <span className="tabular-nums">{preview.labSerial}</span>
+              </p>
+            ) : null}
+
+            <p className="mt-3 text-[0.95rem] text-ink-soft">
+              {t('lineCount', { count: lines.filter((line) => line.procedure.trim()).length })}
+            </p>
+
+            <ul className="mt-2 space-y-1">
+              {lines
+                .filter((line) => line.procedure.trim())
+                .map((line) => (
+                  <li key={line.key} className="truncate text-[0.95rem] text-ink-soft">
+                    {[line.elements, line.procedure, line.lab].filter(Boolean).join(' · ')}
+                  </li>
+                ))}
+            </ul>
+          </FormPreview>
+        }
+      >
+        <FormSection
+          title={t('sectionPatient')}
+          subtitle={t('sectionPatientHint')}
+          icon={<User size={22} aria-hidden />}
+        >
+          <PatientPicker
+            name="patientId"
+            label={t('linkPatient')}
+            onPick={(patient) => {
+              if (!patient) return;
+              // Written straight into the fields, which stay editable: what goes
+              // on the docket is whatever the practice writes here.
+              const form = formRef.current;
+              const name = form?.elements.namedItem('patientName');
+              const phone = form?.elements.namedItem('phone');
+              if (name instanceof HTMLInputElement) name.value = patient.name;
+              if (phone instanceof HTMLInputElement) phone.value = patient.phone ?? '';
+              setPreview((current) => ({
+                ...current,
+                patientName: patient.name,
+                phone: patient.phone ?? '',
+              }));
+            }}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              id={`${uid}-patientName`}
+              name="patientName"
+              label={t('patientName')}
+              required
+              autoComplete="off"
+              defaultValue=""
+              onChange={(event) =>
+                setPreview((current) => ({ ...current, patientName: event.target.value }))
+              }
+            />
+            <TextField
+              id={`${uid}-phone`}
+              name="phone"
+              type="tel"
+              label={t('phone')}
+              required
+              autoComplete="off"
+              defaultValue=""
+              onChange={(event) =>
+                setPreview((current) => ({ ...current, phone: event.target.value }))
+              }
+            />
+          </div>
+
+          <TextAreaField
+            id={`${uid}-diagnosis`}
+            name="diagnosis"
+            label={t('diagnosis')}
+            hint={t('diagnosisHint')}
+            optional={tc('optional')}
+            rows={2}
+          />
+        </FormSection>
+
+        <FormSection
+          title={t('sectionWork')}
+          subtitle={t('sectionWorkHint')}
+          icon={<FlaskConical size={22} aria-hidden />}
+        >
+          <TextField
+            id={`${uid}-labSerial`}
+            name="labSerial"
+            label={t('labSerial')}
+            hint={t('labSerialHint')}
+            optional={tc('optional')}
+            autoComplete="off"
+            className="sm:max-w-64"
+            onChange={(event) =>
+              setPreview((current) => ({ ...current, labSerial: event.target.value }))
+            }
+          />
+
+          <div>
+            <p className="field-label">{t('lines')}</p>
+            <WorkLinesHeader />
+            <WorkLinesField value={lines} onChange={setLines} labs={labs} />
+          </div>
+        </FormSection>
+
+        <FormSection
+          title={tc('notes')}
+          subtitle={t('sectionNotesHint')}
+          icon={<StickyNote size={22} aria-hidden />}
+        >
+          <TextAreaField
+            id={`${uid}-notes`}
+            name="notes"
+            label={tc('notes')}
+            labelHidden
+            optional={tc('optional')}
+            rows={3}
+          />
+        </FormSection>
+      </FormLayout>
+
+      <FormActions
+        state={state}
+        cancelHref="/works"
+        cancelLabel={tc('cancel')}
+        saveLabel={tc('save')}
+        pendingLabel={tc('saving')}
+      />
+    </form>
+  );
+}

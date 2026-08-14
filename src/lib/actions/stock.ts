@@ -405,6 +405,20 @@ export async function saveStockCategory(
   });
 
   revalidateAll();
+
+  // Naming a shelf is done on a page of its own, so there is nowhere for the
+  // form to return to. Which page depends on which button was pressed: the
+  // shelves are named in a batch, and "save and add another" comes straight back
+  // here. A rename is submitted from a dialog on the list itself, so it stays
+  // put.
+  if (!id) {
+    const again = requiredString(formData.get('again')) === '1';
+    redirect({
+      href: again ? '/stock/categories/new' : '/stock/categories',
+      locale: await getLocale(),
+    });
+  }
+
   return actionOk();
 }
 
@@ -468,6 +482,19 @@ export async function saveSupplier(_prev: ActionState, formData: FormData): Prom
   });
 
   revalidateAll();
+
+  // Recording a supplier is done on a page of its own, so there is nowhere for
+  // the form to return to — and "save and add another" comes straight back here,
+  // because the list is entered in a batch. An edit is submitted from a dialog
+  // on the list itself, so it stays put.
+  if (!id) {
+    const again = requiredString(formData.get('again')) === '1';
+    redirect({
+      href: again ? '/stock/suppliers/new' : '/stock/suppliers',
+      locale: await getLocale(),
+    });
+  }
+
   return actionOk();
 }
 

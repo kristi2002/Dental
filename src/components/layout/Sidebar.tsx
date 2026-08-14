@@ -4,6 +4,7 @@ import {
   BellRing,
   CalendarDays,
   ChartColumn,
+  ChevronDown,
   ClipboardList,
   FlaskConical,
   LayoutDashboard,
@@ -35,11 +36,11 @@ const ICONS: Record<string, LucideIcon> = {
   appointments: CalendarDays,
   patients: Users,
   plans: ClipboardList,
+  works: FlaskConical,
   recalls: BellRing,
   services: Stethoscope,
   serviceCategories: Tags,
   prescriptions: Pill,
-  lab: FlaskConical,
   stock: Package,
   stockCategories: Tags,
   suppliers: Truck,
@@ -51,12 +52,24 @@ const WIDE = '(min-width: 64rem)';
 
 type Item = { href: string; key: string; children?: ReadonlyArray<Item> };
 
+/** A year, like the rail's own shape: how someone keeps their menu is a
+ *  preference, not a session. */
+function remember(name: string, value: string) {
+  document.cookie = `${name}=${value}; path=/; max-age=31536000; samesite=lax`;
+}
+
 /**
  * One row of the rail, at either level.
  *
  * A sub-destination is the same link a size down — same shapes, same active
  * treatment — because it is the same kind of thing: somewhere to go. Only the
  * weight says which of the two you are looking at.
+ *
+ * A row that heads a section keeps the trip and nothing else. Going to Stock and
+ * looking at what is filed under Stock are two intentions, and the second must
+ * not cost the first: the fold is the chevron beside this link, its own target
+ * (see `FoldButton`), so a section can be tidied away from anywhere in the app
+ * without being dragged to it first.
  */
 function RailLink({
   href,
@@ -65,6 +78,7 @@ function RailLink({
   active,
   collapsed,
   nested = false,
+  className,
 }: {
   href: string;
   label: string;
@@ -72,6 +86,7 @@ function RailLink({
   active: boolean;
   collapsed: boolean;
   nested?: boolean;
+  className?: string;
 }) {
   return (
     <Link
@@ -91,6 +106,7 @@ function RailLink({
         // findable without relying on colour alone, and white is what ties the
         // rail to the page beside it.
         active ? 'bg-surface text-brand-deep' : 'text-white/85 hover:bg-white/15 hover:text-white',
+        className,
       )}
     >
       <Icon
@@ -98,8 +114,51 @@ function RailLink({
         aria-hidden
         className={cn('shrink-0', !active && 'text-white')}
       />
-      <span className={cn('truncate', collapsed && 'lg:sr-only')}>{label}</span>
+      <span className={cn('min-w-0 truncate', collapsed && 'lg:sr-only')}>{label}</span>
     </Link>
+  );
+}
+
+/**
+ * The fold on a section: a chevron beside the section's link, turned down when
+ * the sub-destinations are showing and a quarter turn back when they are not.
+ *
+ * Thumb-sized on a phone, where the drawer is what gets tapped, and trimmer on a
+ * desktop, where the pointer is exact. A pinched rail has room for neither the
+ * chevron nor a second target, so the fold goes with it — the stacked sub-icons
+ * are what says open there, and widening the rail brings the control back.
+ */
+function FoldButton({
+  label,
+  expanded,
+  collapsed,
+  onToggle,
+}: {
+  label: string;
+  expanded: boolean;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      aria-label={label}
+      className={cn(
+        'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg',
+        'text-white/85 transition-colors hover:bg-white/15 hover:text-white',
+        'focus-visible:outline-white focus-visible:outline-offset-[-1px]',
+        'lg:min-h-9 lg:min-w-9',
+        collapsed && 'lg:hidden',
+      )}
+    >
+      <ChevronDown
+        size={16}
+        aria-hidden
+        className={cn('transition-transform', !expanded && '-rotate-90')}
+      />
+    </button>
   );
 }
 
@@ -117,7 +176,10 @@ function RailLink({
  *
  * A destination may carry sub-destinations, indented under it — the lists a
  * section is kept by rather than the work done in it. They are the one thing
- * the sideways bar could never have held.
+ * the sideways bar could never have held. Such a section shuts on the chevron
+ * beside its name — from wherever you happen to be standing, without a trip to
+ * the section first — and stays shut, in a cookie: a receptionist who never
+ * touches the stock shelves should not have to read past them nine times a day.
  *
  * Three shapes, one component:
  *   phone   a slim teal top bar plus an off-canvas drawer
@@ -128,6 +190,7 @@ export function Sidebar({
   items,
   user,
   defaultCollapsed,
+  defaultClosedSections,
 }: {
   items: Item[];
   user: {
@@ -141,6 +204,9 @@ export function Sidebar({
   /** Read from the `rail` cookie on the server, so a collapsed rail does not
    *  flash open on first paint. */
   defaultCollapsed: boolean;
+  /** Keys of the sections folded shut, from the `rail-sections` cookie — read on
+   *  the server for the same reason. */
+  defaultClosedSections: ReadonlyArray<string>;
 }) {
   const t = useTranslations('nav');
   const tApp = useTranslations('app');
@@ -153,6 +219,38 @@ export function Sidebar({
   // and it has to keep lighting up on `/stock/categories`.
   const isCurrent = (href: string) =>
     href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+
+  // A section that holds the screen you are standing on is never left folded:
+  // hiding the page you are on is the one thing this fold must not do.
+  const holdsCurrent = (key: string) =>
+    (items.find((item) => item.key === key)?.children ?? []).some((child) => isCurrent(child.href));
+
+  const [closed, setClosed] = useState<ReadonlySet<string>>(
+    () => new Set(defaultClosedSections.filter((key) => !holdsCurrent(key))),
+  );
+
+  function toggleSection(key: string) {
+    const next = new Set(closed);
+    if (!next.delete(key)) next.add(key);
+    setClosed(next);
+  }
+
+  // Arriving inside a folded section — from a breadcrumb, a card, a typed URL —
+  // unfolds it for good: you have shown you go there. The first render has
+  // already done this for the screen the page loaded on, which is why a folded
+  // section never flashes its contents open after hydration.
+  useEffect(() => {
+    setClosed((was) => {
+      const next = new Set([...was].filter((key) => !holdsCurrent(key)));
+      return next.size === was.size ? was : next;
+    });
+  }, [pathname]);
+
+  // The cookie mirrors the fold, so the rail comes back the way it was left —
+  // including the section the first render just unfolded.
+  useEffect(() => {
+    remember('rail-sections', [...closed].join('.'));
+  }, [closed]);
 
   const rail = useRef<HTMLElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
@@ -225,8 +323,7 @@ export function Sidebar({
   function toggleCollapsed() {
     const next = !collapsed;
     setCollapsed(next);
-    // A year, because which shape the rail is in is a preference, not a session.
-    document.cookie = `rail=${next ? 'collapsed' : 'expanded'}; path=/; max-age=31536000; samesite=lax`;
+    remember('rail', next ? 'collapsed' : 'expanded');
   }
 
   const account = (placement: 'top' | 'bottom') => (
@@ -358,19 +455,34 @@ export function Sidebar({
               const kids = children ?? [];
               // A section reads as current only while you are on the section
               // itself: standing on one of its sub-screens, that one is the tab.
-              const onChild = kids.some((child) => isCurrent(child.href));
+              // Folded shut, the section takes the tab back — the sub-screen has
+              // nowhere to show it.
+              const unfolded = !closed.has(key);
+              const onChild = kids.some((child) => isCurrent(child.href)) && unfolded;
 
               return (
                 <li key={href}>
-                  <RailLink
-                    href={href}
-                    label={t(key)}
-                    icon={ICONS[key] ?? LayoutDashboard}
-                    active={isCurrent(href) && !onChild}
-                    collapsed={collapsed}
-                  />
+                  <div className="flex items-center gap-0.5">
+                    <RailLink
+                      href={href}
+                      label={t(key)}
+                      icon={ICONS[key] ?? LayoutDashboard}
+                      active={isCurrent(href) && !onChild}
+                      collapsed={collapsed}
+                      className="min-w-0 flex-1"
+                    />
 
-                  {kids.length > 0 ? (
+                    {kids.length > 0 ? (
+                      <FoldButton
+                        label={t(unfolded ? 'foldSection' : 'unfoldSection', { section: t(key) })}
+                        expanded={unfolded}
+                        collapsed={collapsed}
+                        onToggle={() => toggleSection(key)}
+                      />
+                    ) : null}
+                  </div>
+
+                  {kids.length > 0 && unfolded ? (
                     // Indented off a hairline, which is what says "inside this"
                     // without a second word of chrome. The pinched rail has no
                     // room for the indent, so the icons simply stack.

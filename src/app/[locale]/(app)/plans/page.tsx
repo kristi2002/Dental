@@ -2,7 +2,6 @@ import { ListChecks, Search, X } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
-import { PlanFormDialog } from '@/components/plans/PlanFormDialog';
 import { PlanRow, type PlanRowStep, type PlanRowView } from '@/components/plans/PlanRow';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -135,24 +134,12 @@ export default async function PlansPage({
   // Everything the row's own buttons need. Loaded only for the people who can
   // press them — a read-only account has no use for the catalogue or the diary's
   // chairs, and no reason to be sent either.
-  const [services, staff, operatories, clinicProfile, titleRows] = await Promise.all([
+  const [services, staff, operatories, clinicProfile] = await Promise.all([
     canEdit || canBook ? getServiceOptions() : Promise.resolve([]),
     canBook ? getProviderOptions() : Promise.resolve([]),
     canBook ? getOperatoryOptions() : Promise.resolve([]),
     getClinicProfile(),
-    // Plan names the practice has already used, suggested on the next one so
-    // "Upper right quadrant" does not become four differently worded plans.
-    canEdit
-      ? prisma.treatmentPlan.findMany({
-          distinct: ['title'],
-          orderBy: { title: 'asc' },
-          take: 40,
-          select: { title: true },
-        })
-      : Promise.resolve([]),
   ]);
-
-  const planTitles = titleRows.map((row) => row.title);
 
   /**
    * One box, three things somebody might remember: whose plan it is, what the
@@ -242,11 +229,14 @@ export default async function PlansPage({
           : t('allEmpty');
 
   // A plan needs somebody to be for, and this screen does not know who — so the
-  // dialog asks. Starting a course of treatment from the list of courses of
+  // form asks. Starting a course of treatment from the list of courses of
   // treatment is the obvious move that was not previously possible anywhere but
   // inside one patient's record.
-  const newDialog = canEdit ? (
-    <PlanFormDialog services={services} numbering={clinicProfile.toothNumbering} titles={planTitles} />
+  const newLink = canEdit ? (
+    <Link href="/plans/new" className="btn btn-primary">
+      <ListChecks size={18} aria-hidden />
+      {t('new')}
+    </Link>
   ) : null;
 
   return (
@@ -254,7 +244,7 @@ export default async function PlansPage({
       <PageHeader
         title={t('allTitle')}
         subtitle={t('allSubtitle')}
-        actions={newDialog}
+        actions={newLink}
         trail={[{ label: t('allTitle') }]}
       />
 
@@ -335,11 +325,13 @@ export default async function PlansPage({
           <EmptyState
             icon={<ListChecks size={40} aria-hidden />}
             title={emptyTitle}
-            action={searching || filter !== 'open' ? null : newDialog}
+            action={searching || filter !== 'open' ? null : newLink}
           />
         </Card>
       ) : (
-        <ul className="card divide-y-2 divide-line">
+        // Each plan carries its own card — see `PlanRow`. A shared card with
+        // dividers made two neighbouring plans look like one long entry.
+        <ul className="space-y-4">
           {visible.map((plan) => (
             <PlanRow
               key={plan.id}

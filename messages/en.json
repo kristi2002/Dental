@@ -14,10 +14,13 @@
     "menu": "Menu",
     "recalls": "Recalls",
     "plans": "Plans",
+    "works": "Works",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "collapseRail": "Collapse the menu",
     "expandRail": "Expand the menu",
+    "foldSection": "Hide what is under {section}",
+    "unfoldSection": "Show what is under {section}",
     "stockCategories": "Categories",
     "suppliers": "Suppliers",
     "serviceCategories": "Categories",
@@ -57,7 +60,8 @@
     "filter": "Filter",
     "filters": "Filters",
     "clearFilters": "Clear",
-    "breadcrumb": "Breadcrumb"
+    "breadcrumb": "Breadcrumb",
+    "saveAndAddAnother": "Save and add another"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -270,7 +274,15 @@
     "department": "Department",
     "subcategory": "Subcategory",
     "wholeDepartment": "Whole department",
-    "categoryEmptyHint": "No categories yet — add them under \"Categories\" on this page."
+    "categoryEmptyHint": "No categories yet — add them under \"Categories\" on this page.",
+    "newSubtitle": "A name and a duration are all that is needed — the department and the materials can be filled in later.",
+    "sectionIdentity": "What it is called",
+    "sectionIdentityHint": "The name the booking form will offer, and where it is filed in the price list.",
+    "sectionDuration": "How long it takes",
+    "sectionDurationHint": "The diary blocks out this much whenever the treatment is booked.",
+    "sectionMaterialsHint": "Set this once and every recorded visit deducts it — the whole point is that nobody counts gloves by hand.",
+    "previewTitle": "New treatment",
+    "materialCount": "{count, plural, =0 {no materials} one {# material} other {# materials}}"
   },
   "serviceCategories": {
     "title": "Categories",
@@ -286,7 +298,12 @@
     "serviceCount": "{count, plural, =0 {no services} one {# service} other {# services}}",
     "confirmDelete": "Remove this category? The services in it stay in the catalogue and become uncategorized.",
     "confirmDeleteParent": "Remove this department and its {count, plural, one {# subcategory} other {# subcategories}}? The services in them stay in the catalogue and become uncategorized.",
-    "subtitle": "The departments the catalogue is filed by"
+    "subtitle": "The departments the catalogue is filed by",
+    "newSubtitle": "Name it once here and every treatment picks it from a list — which is what keeps one department from becoming three spellings of itself.",
+    "newChildSubtitle": "A subdivision inside a department. The catalogue goes two levels deep and no further.",
+    "sectionNaming": "The heading",
+    "sectionNamingHint": "What it is called, and whether it sits inside a department or is one.",
+    "previewTitle": "Where it will sit"
   },
   "stock": {
     "title": "Stock",
@@ -436,7 +453,23 @@
     "surface_I": "Incisal",
     "surface_D": "Distal",
     "surface_B": "Buccal",
-    "surface_L": "Lingual"
+    "surface_L": "Lingual",
+    "findings": "Findings",
+    "findingsEmpty": "Nothing recorded on this chart yet. Teeth you chart appear here, with their surfaces and notes.",
+    "chartedOn": "Charted {date}",
+    "primaryTooth": "Baby tooth",
+    "quadrant_UPPER_RIGHT": "Upper right",
+    "quadrant_UPPER_LEFT": "Upper left",
+    "quadrant_LOWER_RIGHT": "Lower right",
+    "quadrant_LOWER_LEFT": "Lower left",
+    "name_CENTRAL_INCISOR": "Central incisor",
+    "name_LATERAL_INCISOR": "Lateral incisor",
+    "name_CANINE": "Canine",
+    "name_FIRST_PREMOLAR": "First premolar",
+    "name_SECOND_PREMOLAR": "Second premolar",
+    "name_FIRST_MOLAR": "First molar",
+    "name_SECOND_MOLAR": "Second molar",
+    "name_THIRD_MOLAR": "Third molar"
   },
   "reminders": {
     "whatsappTemplate": "Hello {name}, this is a reminder of your dental appointment on {date} at {time}. See you soon!",
@@ -525,6 +558,11 @@
       "view": "See treatment plans",
       "edit": "Create and update treatment plans"
     },
+    "work": {
+      "view": "See the works register",
+      "edit": "Add and edit works",
+      "delete": "Delete works"
+    },
     "document": {
       "view": "See X-rays and files",
       "edit": "Upload X-rays and files",
@@ -591,7 +629,15 @@
     "notAllowed": "Not allowed",
     "errorPinRequired": "A new account needs a PIN.",
     "errorPinFormat": "A PIN must be 4 to 6 digits.",
-    "errorLastOwner": "This is the only owner — someone must keep managing staff."
+    "errorLastOwner": "This is the only owner — someone must keep managing staff.",
+    "newSubtitle": "The role decides what this person can see and change — it is the field worth pausing on.",
+    "sectionIdentity": "Who they are",
+    "sectionIdentityHint": "The name that will appear on visits, bookings and the audit trail.",
+    "sectionRole": "What they can do",
+    "sectionRoleHint": "Everything the role grants is listed under it, so the choice is made with its consequences in view.",
+    "sectionPin": "How they sign in",
+    "sectionPinHint": "A PIN, not a password — it is typed at a chairside screen a dozen times a day.",
+    "previewTitle": "New account"
   },
   "activity": {
     "title": "Activity log",
@@ -717,7 +763,56 @@
     "chartSuggestion": "Filling",
     "addToPlan": "Add to plan",
     "notNow": "Not now",
-    "noneCompleted": "No course of treatment has been finished yet."
+    "noneCompleted": "No course of treatment has been finished yet.",
+    "newSubtitle": "Pick the steps from the chart and the treatment list — a plan is built here, not typed.",
+    "newSubtitleFor": "A course of treatment for {name}.",
+    "sectionPlan": "What the plan is",
+    "sectionPlanHint": "Who it is for, and what it will be called on the list.",
+    "sectionStepsHint": "The work, in the order it will be done. A finding already on the chart brings its tooth with it.",
+    "sectionNotesHint": "Anything the steps do not say — a warning, a preference, what was agreed.",
+    "previewTitle": "New plan",
+    "stepCount": "{count, plural, =0 {no steps yet} one {# step} other {# steps}}"
+  },
+  "works": {
+    "title": "Works",
+    "subtitle": "Everything sent to a laboratory, in one register.",
+    "new": "New case",
+    "newSubtitle": "Copy the laboratory's docket into the register.",
+    "edit": "Edit case",
+    "number": "Patient no.",
+    "labSerial": "Lab serial no.",
+    "labSerialHint": "The laboratory's own number for the case, from their docket.",
+    "patientName": "Patient",
+    "phone": "Phone",
+    "diagnosis": "Diagnosis",
+    "diagnosisHint": "Why the work is being made.",
+    "linkPatient": "Find the patient",
+    "lines": "Works",
+    "elements": "Elements",
+    "elementsPlaceholder": "14, 15, 16",
+    "procedure": "Work",
+    "procedurePlaceholder": "Zirconia crown",
+    "lab": "Laboratory",
+    "labPlaceholder": "Laboratory name",
+    "addLine": "Add a row",
+    "noLinesYet": "No work on this case yet.",
+    "lineCount": "{count, plural, =0 {no work yet} one {# piece of work} other {# pieces of work}}",
+    "sectionPatient": "Who it is for",
+    "sectionPatientHint": "Find the patient to fill these in, or type them as the docket has them.",
+    "sectionWork": "The case",
+    "sectionWorkHint": "One row per piece of work: which elements, what is being made, and by which laboratory.",
+    "sectionNotesHint": "Anything else the register should carry — a shade, a date promised, a repair.",
+    "previewTitle": "This case",
+    "empty": "The works register is empty.",
+    "emptyFiltered": "No case matches this filter.",
+    "searchPlaceholder": "Name, phone, serial, work…",
+    "anyLab": "Any laboratory",
+    "noLab": "No laboratory named",
+    "showing": "Showing {count} of {total} cases",
+    "export": "Export",
+    "exportFileName": "works",
+    "exportNotes": "Notes",
+    "createdAt": "Written on"
   },
   "documents": {
     "new": "Add file",
@@ -771,7 +866,14 @@
     "saveAsTemplate": "Save this wording as a template",
     "linkToWork": "Offer it after {work}",
     "afterTreatment": "Written after",
-    "afterTreatmentHint": "Pick the treatments this wording follows. It is then offered first when one of them has just been recorded."
+    "afterTreatmentHint": "Pick the treatments this wording follows. It is then offered first when one of them has just been recorded.",
+    "newTemplateSubtitle": "Wording written once and read out to patients for years — this is the screen where the text is the point.",
+    "sectionNaming": "What to call it",
+    "sectionNamingHint": "The name the dentist will pick from, and an optional grouping to keep the list short.",
+    "sectionAfterTreatmentHint": "The edge that makes this list worth having: after this treatment, offer this wording first.",
+    "sectionBodyHint": "Dosage, frequency, and what to do if it gets worse. This is what the patient walks out with.",
+    "previewTitle": "New template",
+    "afterTreatmentCount": "{count, plural, =0 {not tied to a treatment} one {after # treatment} other {after # treatments}}"
   },
   "reorder": {
     "title": "Suggested order",
@@ -879,7 +981,9 @@
     "feedCopied": "Copied",
     "feedWarning": "Treat it like a password: anyone with this link can read your schedule without signing in.",
     "currency": "Currency",
-    "currencyHint": "Three-letter code — ALL, EUR, USD. Used everywhere a price is shown."
+    "currencyHint": "Three-letter code — ALL, EUR, USD. Used everywhere a price is shown.",
+    "operatoryNewSubtitle": "How many chairs there are is what decides how much can be booked at once.",
+    "operatoriesNamed": "{count, plural, =0 {none yet} one {# chair so far} other {# chairs so far}}"
   },
   "contacts": {
     "subtitle": "What was put in front of this patient, and when. Opening a message records it here — it is not proof of delivery.",
@@ -927,7 +1031,14 @@
     "noContact": "No contact details",
     "itemCount": "{count, plural, =0 {no materials} one {# material} other {# materials}}",
     "subtitle": "Who the materials are bought from",
-    "empty": "No suppliers yet. Add the ones the practice already orders from, then pick one on each material."
+    "empty": "No suppliers yet. Add the ones the practice already orders from, then pick one on each material.",
+    "newSubtitle": "A name is all that is needed — but it is the phone number that actually gets an order placed.",
+    "sectionIdentity": "Who they are",
+    "sectionIdentityHint": "The name every material will point at.",
+    "sectionContact": "How to reach them",
+    "sectionContactHint": "There is no ordering in this app by design — this is what somebody dials.",
+    "sectionNotesHint": "Ask for whom, deliveries on which days, minimum order — whatever gets it right the first time.",
+    "previewTitle": "New supplier"
   },
   "stockCategories": {
     "title": "Categories",
@@ -937,7 +1048,11 @@
     "empty": "No categories yet. Add the shelves your storage room already has, then file each material under one.",
     "itemCount": "{count, plural, =0 {no materials} one {# material} other {# materials}}",
     "confirmDelete": "Remove this category? The materials in it stay on the shelf and become uncategorized.",
-    "subtitle": "The shelves the storage room is filed by"
+    "subtitle": "The shelves the storage room is filed by",
+    "newSubtitle": "Name it once here and every material picks it from a list — which is what keeps one shelf from becoming three spellings of itself.",
+    "sectionNaming": "The shelf",
+    "sectionNamingHint": "A shelf is a name and nothing else. Add them all in one go.",
+    "alreadyNamed": "Already named"
   },
   "daySheet": {
     "title": "Day sheet",

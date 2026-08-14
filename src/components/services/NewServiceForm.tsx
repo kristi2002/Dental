@@ -1,0 +1,136 @@
+'use client';
+
+import { Clock, Package, Stethoscope } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useId, useState } from 'react';
+import {
+  CatalogueFields,
+  DurationField,
+  MaterialsField,
+  NameField,
+  type StockOption,
+} from '@/components/services/ServiceFields';
+import { FormActions, FormLayout, FormPreview, FormSection } from '@/components/ui/FormPage';
+import { saveService } from '@/lib/actions/services';
+import { useRecoveredForm } from '@/lib/form-recovery';
+import type { ServiceCategoryOption } from '@/lib/queries';
+
+/**
+ * Adding a treatment to the catalogue, as a screen rather than as a dialog.
+ *
+ * The catalogue is built once, at the start, usually straight off the practice's
+ * own price list and a dozen treatments at a sitting. Each one carries three
+ * decisions that reach far beyond this form — where it is filed, how long it
+ * takes, and what it takes off the shelf — and every screen in the app quotes
+ * them afterwards. A modal had no room to say what a bill of materials is *for*,
+ * scrolled its own little window inside the page, and lost everything if it was
+ * dismissed by accident.
+ *
+ * Editing stays a dialog — that is a price-list correction to a row you are
+ * already looking at.
+ */
+export function NewServiceForm({
+  categories,
+  stockItems,
+}: {
+  categories: ServiceCategoryOption[];
+  stockItems: StockOption[];
+}) {
+  const t = useTranslations('services');
+  const tc = useTranslations('common');
+  const uid = useId();
+
+  const { state, formAction, formRef } = useRecoveredForm(saveService);
+
+  // What the catalogue row will look like once saved, kept in step as it is
+  // built. The department and the subcategory are named rather than shown as
+  // ids, because "Kirurgji · Implante" is the line the booking form will offer.
+  const [preview, setPreview] = useState({
+    name: '',
+    departmentId: '',
+    subcategoryId: '',
+    durationMin: '30',
+    materialCount: 0,
+  });
+
+  const department = categories.find((option) => option.id === preview.departmentId);
+  const subcategory = categories.find((option) => option.id === preview.subcategoryId);
+  const minutes = Math.max(0, Number(preview.durationMin) || 0);
+
+  return (
+    <form ref={formRef} action={formAction}>
+      <FormLayout
+        aside={
+          <FormPreview title={t('previewTitle')}>
+            <p className="text-[1.12rem] font-bold text-ink">
+              {preview.name.trim() || <span className="text-ink-faint">{t('new')}</span>}
+            </p>
+
+            <p className="mt-1 text-[0.95rem] text-ink-soft">
+              {[department?.name || t('uncategorized'), subcategory?.name]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+
+            <p className="mt-3 text-[1.15rem] font-bold tabular-nums text-ink">
+              {minutes} <span className="text-[0.9rem] font-semibold">{tc('minutes')}</span>
+            </p>
+
+            <p className="mt-1 text-[0.95rem] text-ink-soft">
+              {t('materialCount', { count: preview.materialCount })}
+            </p>
+          </FormPreview>
+        }
+      >
+        <FormSection
+          title={t('sectionIdentity')}
+          subtitle={t('sectionIdentityHint')}
+          icon={<Stethoscope size={22} aria-hidden />}
+        >
+          <NameField
+            uid={uid}
+            onChange={(name) => setPreview((current) => ({ ...current, name }))}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <CatalogueFields
+              uid={uid}
+              categories={categories}
+              onChange={(chosen) => setPreview((current) => ({ ...current, ...chosen }))}
+            />
+          </div>
+        </FormSection>
+
+        <FormSection
+          title={t('sectionDuration')}
+          subtitle={t('sectionDurationHint')}
+          icon={<Clock size={22} aria-hidden />}
+        >
+          <DurationField
+            uid={uid}
+            onChange={(durationMin) => setPreview((current) => ({ ...current, durationMin }))}
+          />
+        </FormSection>
+
+        <FormSection
+          title={t('materials')}
+          subtitle={t('sectionMaterialsHint')}
+          icon={<Package size={22} aria-hidden />}
+        >
+          <MaterialsField
+            stockItems={stockItems}
+            onChange={(materialCount) => setPreview((current) => ({ ...current, materialCount }))}
+          />
+        </FormSection>
+      </FormLayout>
+
+      <FormActions
+        state={state}
+        cancelHref="/services"
+        cancelLabel={tc('cancel')}
+        saveLabel={tc('save')}
+        pendingLabel={tc('saving')}
+      />
+    </form>
+  );
+}
