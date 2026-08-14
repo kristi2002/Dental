@@ -84,6 +84,14 @@
     "title": "Patients",
     "count": "{count, plural, =0 {No patients} one {# patient} other {# patients}}",
     "new": "New patient",
+    "newSubtitle": "A name and a phone number are all that is needed — the rest can be filled in later.",
+    "sectionIdentity": "Who they are",
+    "sectionIdentityHint": "The name and number the front desk will search for.",
+    "contactHint": "Whether reminders may be sent, and how.",
+    "guardianHint": "For a child, or for anyone whose consent somebody else gives.",
+    "sectionRecords": "For the file",
+    "sectionRecordsHint": "Address, billing details, and how they found the clinic.",
+    "previewTitle": "New record",
     "edit": "Edit patient",
     "firstName": "First name",
     "lastName": "Last name",
@@ -282,6 +290,7 @@
     "edit": "Edit material",
     "name": "Material name",
     "category": "Category",
+    "categoryEmptyHint": "No categories yet — add one under Categories on the stock page.",
     "quantity": "Quantity",
     "minLimit": "Minimum level",
     "unit": "Unit",
@@ -338,7 +347,26 @@
     "stocktakeOnRecord": "On record: {qty} {unit}",
     "stocktakeCountOf": "Counted quantity of {name}",
     "stocktakeChanged": "{count, plural, =0 {Nothing changed yet} one {# line to record} other {# lines to record}}",
-    "stocktakeSaved": "Counts recorded"
+    "stocktakeSaved": "Counts recorded",
+    "code": "Article number",
+    "codeHint": "The number on the shelf label. Staff read it off boxes and order forms.",
+    "unitPrice": "Price per unit ({currency})",
+    "unitPriceHint": "What one costs to buy. A delivery that records its price overwrites this.",
+    "eachCosts": "{price} each",
+    "usedTotal": "{qty} {unit} used",
+    "stockValue": "Stock value {value}",
+    "unpricedNote": "{count, plural, one {# material not priced} other {# materials not priced}}",
+    "takeOut": "Take out",
+    "takeOutLabel": "How many {unit} to take out",
+    "takeOutPlaceholder": "qty",
+    "batchPurchased": "Purchased",
+    "batchPurchasedHint": "When it arrived, not when you type this in.",
+    "batchManufactured": "Manufactured",
+    "batchPrice": "Price per {unit} ({currency})",
+    "batchPriceHint": "What this delivery cost. Becomes the price of the material.",
+    "batchBoughtOn": "bought {date}",
+    "batchMadeOn": "made {date}",
+    "batchEach": "{price} each"
   },
   "analytics": {
     "title": "Statistics",
@@ -424,6 +452,10 @@
     "rangeBackwards": "The end date cannot be before the start date.",
     "substanceRequired": "Name the substance — an allergy without one cannot be checked against a prescription.",
     "allergyClash": "This patient is recorded as allergic to: {list}.",
+    "invalidPrice": "That is not a price. Use digits, with at most two decimals.",
+    "codeTaken": "Another material already uses this article number.",
+    "invalidCurrency": "A currency is a three-letter code, like ALL or EUR.",
+    "categoryTaken": "A category with this name already exists.",
     "categoryDepth": "A category can go one level deep, no further."
   },
   "roles": {
@@ -651,7 +683,16 @@
     "customStep": "Something else",
     "customStepHint": "Type it and press Add",
     "noStepsYet": "No steps yet — pick from above, or type your own.",
-    "pickTooth": "Tooth"
+    "pickTooth": "Tooth",
+    "andMore": "+{count} more",
+    "showingRecent": "Showing the {count} most recently finished, of {total}.",
+    "chartPlanTitle": "Treatment plan",
+    "chartOfferTitle": "Plan the treatment?",
+    "chartOfferBody": "Decay recorded on tooth {tooth}. Put it on this patient's treatment plan before it is forgotten.",
+    "chartSuggestion": "Filling",
+    "addToPlan": "Add to plan",
+    "notNow": "Not now",
+    "noneCompleted": "No course of treatment has been finished yet."
   },
   "documents": {
     "new": "Add file",
@@ -811,7 +852,9 @@
     "feedUrl": "Subscription address",
     "feedCopy": "Copy",
     "feedCopied": "Copied",
-    "feedWarning": "Treat it like a password: anyone with this link can read your schedule without signing in."
+    "feedWarning": "Treat it like a password: anyone with this link can read your schedule without signing in.",
+    "currency": "Currency",
+    "currencyHint": "Three-letter code — ALL, EUR, USD. Used everywhere a price is shown."
   },
   "contacts": {
     "subtitle": "What was put in front of this patient, and when. Opening a message records it here — it is not proof of delivery.",
@@ -858,6 +901,15 @@
     "email": "Email",
     "noContact": "No contact details",
     "itemCount": "{count, plural, =0 {no materials} one {# material} other {# materials}}"
+  },
+  "stockCategories": {
+    "title": "Categories",
+    "new": "Add category",
+    "edit": "Edit category",
+    "nameHint": "What the shelf is called. Every material picks from this list.",
+    "empty": "No categories yet. Add the shelves your storage room already has, then file each material under one.",
+    "itemCount": "{count, plural, =0 {no materials} one {# material} other {# materials}}",
+    "confirmDelete": "Remove this category? The materials in it stay on the shelf and become uncategorized."
   },
   "daySheet": {
     "title": "Day sheet",

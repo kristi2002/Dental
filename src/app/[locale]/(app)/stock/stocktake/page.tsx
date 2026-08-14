@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { requirePermission } from '@/lib/auth/guard';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
-import { ACTIVE_STOCK } from '@/lib/queries';
+import { ACTIVE_STOCK, getStockCategories } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,15 +30,23 @@ export default async function StocktakePage({
   const t = await getTranslations('stock');
   const tc = await getTranslations('common');
 
+  // Not for the list it returns — for what it does before returning it. This is
+  // where the practice's old typed-in categories become rows, and a stocktake
+  // opened before the stock page would otherwise group the entire room under
+  // one "Uncategorized" heading, which is the one thing this screen must not do.
+  await getStockCategories();
+
   // Category first so the form's groups come out in a stable order, and the
-  // room can be walked the same way twice.
+  // room can be walked the same way twice. Uncategorized materials sort last,
+  // which is where a shelf that has not been named belongs.
   const items = await prisma.stockItem.findMany({
     where: ACTIVE_STOCK,
-    orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    orderBy: [{ category: { name: 'asc' } }, { name: 'asc' }],
     select: {
       id: true,
       name: true,
-      category: true,
+      code: true,
+      category: { select: { name: true } },
       unit: true,
       quantity: true,
       packSize: true,
@@ -65,7 +73,11 @@ export default async function StocktakePage({
         </div>
       ) : (
         <StocktakeForm
-          items={items.map((item) => ({ ...item, category: item.category ?? '' }))}
+          items={items.map((item) => ({
+            ...item,
+            code: item.code ?? '',
+            category: item.category?.name ?? '',
+          }))}
         />
       )}
     </>

@@ -18,10 +18,13 @@ import { IDLE_STATE } from '@/lib/actions/types';
 export function ClinicProfileForm({
   name,
   toothNumbering,
+  currency,
   canEdit,
 }: {
   name: string;
   toothNumbering: string;
+  /** ISO 4217 code every price in the app is written in. */
+  currency: string;
   canEdit: boolean;
 }) {
   const t = useTranslations('settings');
@@ -52,6 +55,23 @@ export function ClinicProfileForm({
           <option value="FDI">{t('numbering_FDI')}</option>
           <option value="UNIVERSAL">{t('numbering_UNIVERSAL')}</option>
         </SelectField>
+
+        {/* The practice buys in one currency, so this is asked once here rather
+            than beside every price. Three letters, because that is what
+            `Intl.NumberFormat` reads — it renders the symbol itself.
+
+            Not styled uppercase: the class lands on the wrapper and shouts the
+            label and the hint along with the value. `saveClinicProfile`
+            uppercases what is typed, so "eur" is already accepted. */}
+        <TextField
+          id={`${uid}-currency`}
+          name="currency"
+          label={t('currency')}
+          hint={t('currencyHint')}
+          defaultValue={currency}
+          maxLength={3}
+          disabled={!canEdit}
+        />
       </div>
 
       {canEdit ? (

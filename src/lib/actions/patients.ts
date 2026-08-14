@@ -14,7 +14,7 @@ import {
   patientSearchClauses,
   phoneKey,
 } from '@/lib/patient-search';
-import { completeStepForAppointment } from '@/lib/plan-progress';
+import { completeStepForAppointment } from '@/lib/plan-sync';
 import { prisma } from '@/lib/prisma';
 import { timeToMinutes, toDay } from '@/lib/dates';
 import { consumeMaterialsForServices } from '@/lib/stock-consumption';
@@ -158,6 +158,14 @@ export async function savePatient(_prev: ActionState, formData: FormData): Promi
   });
 
   revalidateAll();
+
+  // Registering somebody is done on a page of its own, and the thing you do next
+  // is always to the record you have just made — book them in, note an allergy.
+  // An edit is submitted from a dialog on the record itself, so it stays put.
+  if (!id) {
+    redirect({ href: `/patients/${savedId}`, locale: await getLocale() });
+  }
+
   return actionOk();
 }
 

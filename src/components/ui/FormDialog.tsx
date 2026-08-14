@@ -1,8 +1,9 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useActionState, useEffect, useId, useRef, type ReactNode } from 'react';
-import { IDLE_STATE, type ActionState } from '@/lib/actions/types';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+import type { ActionState } from '@/lib/actions/types';
+import { useRecoveredForm } from '@/lib/form-recovery';
 import { cn } from '@/lib/utils';
 import { SubmitButton } from './SubmitButton';
 
@@ -43,51 +44,19 @@ export function FormDialog({
   wide = false,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   const handledTs = useRef<number | undefined>(undefined);
-  const submitted = useRef<FormData | null>(null);
   const titleId = useId();
 
-  // React 19 clears an uncontrolled form once its action resolves. That is right
-  // after a save and wrong after a refusal — nobody wants to retype a visit
-  // because the slot clashed — so the submitted values are kept and put back.
-  const [state, formAction] = useActionState(
-    async (previous: ActionState, formData: FormData) => {
-      submitted.current = formData;
-      return action(previous, formData);
-    },
-    IDLE_STATE,
-  );
+  // Nobody wants to retype a visit because the slot clashed: a refusal leaves
+  // the fields as they were typed. See `useRecoveredForm`.
+  const { state, formAction, formRef } = useRecoveredForm(action);
 
   useEffect(() => {
     if (state.status !== 'ok' || state.ts === handledTs.current) return;
     handledTs.current = state.ts;
     if (resetOnSuccess) formRef.current?.reset();
     dialogRef.current?.close();
-  }, [state, resetOnSuccess]);
-
-  useEffect(() => {
-    if (state.status !== 'error' || state.ts === handledTs.current) return;
-    handledTs.current = state.ts;
-
-    const form = formRef.current;
-    const values = submitted.current;
-    if (!form || !values) return;
-
-    for (const [name, value] of values.entries()) {
-      // React's own action bookkeeping fields, and anything non-textual.
-      if (name.startsWith('$') || typeof value !== 'string') continue;
-
-      const field = form.elements.namedItem(name);
-      if (
-        (field instanceof HTMLInputElement && field.type !== 'checkbox' && field.type !== 'radio') ||
-        field instanceof HTMLSelectElement ||
-        field instanceof HTMLTextAreaElement
-      ) {
-        field.value = value;
-      }
-    }
-  }, [state]);
+  }, [state, resetOnSuccess, formRef]);
 
   return (
     <>

@@ -3,12 +3,19 @@
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { parseMoney } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
+import { recordConsumption } from '@/lib/stock-consumption';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
 function revalidateAll() {
   revalidatePath('/', 'layout');
+}
+
+/** `YYYY-MM-DD` out of a date input, as the UTC midnight the rest of the app uses. */
+function parseDay(raw: string | null): Date | null {
+  return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
 }
 
 export async function saveStockItem(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -29,9 +36,32 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
   const rawOrderQty = optionalString(formData.get('orderQty'));
   const orderQty = rawOrderQty === null ? null : Math.max(1, toInt(rawOrderQty, 1));
 
+  // A mistyped price is rejected rather than dropped. Silently storing nothing
+  // would leave the material looking unpriced, and the valuation quietly short
+  // by however much of the cupboard it holds.
+  const rawPrice = optionalString(formData.get('unitPrice'));
+  const unitPrice = parseMoney(rawPrice);
+  if (rawPrice !== null && unitPrice === null) return actionError(t('invalidPrice'));
+
+  // An article number is a label the practice reads off a shelf, so two rows
+  // wearing the same one is a real mix-up. Checked here rather than by a unique
+  // constraint — see the field's comment in `schema.prisma` for why the database
+  // cannot be the one to say no.
+  const code = optionalString(formData.get('code'));
+  if (code !== null) {
+    const clash = await prisma.stockItem.findFirst({
+      where: { code, ...(id ? { NOT: { id } } : {}) },
+      select: { id: true },
+    });
+    if (clash) return actionError(t('codeTaken'));
+  }
+
   const data = {
     name,
-    category: optionalString(formData.get('category')),
+    code,
+    // Blank is "no shelf", which is a real answer — a material can sit
+    // uncategorized, and the list has a heading for exactly that.
+    categoryId: optionalString(formData.get('categoryId')),
     quantity,
     supplierId,
     minLimit: Math.max(0, toInt(formData.get('minLimit'), 5)),
@@ -39,6 +69,7 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
     // A pack of zero or half a glove is not a thing anyone can order.
     packSize: Math.max(1, toInt(formData.get('packSize'), 1)),
     orderQty,
+    unitPrice,
   };
 
   let savedId = id;
@@ -88,12 +119,6 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
  * The one-tap +1 / −1 buttons on the stock page. Quantity never goes below zero,
  * and the movement is logged so the statistics page can show real consumption.
  *
- * The read and the write are **the same statement**. Computing the next quantity
- * in JavaScript from a row read beforehand loses one of two simultaneous taps —
- * both read 8, both write 7 — while still writing *two* movement rows, so the
- * ledger and the counter stop agreeing and `reorder.ts` (which trusts the
- * ledger) diverges from the low-stock badge (which trusts the counter).
- *
  * No audit entry: the StockMovement row already records who and when, and one
  * audit line per tap would bury everything else in the activity feed.
  */
@@ -105,6 +130,48 @@ export async function adjustStock(formData: FormData): Promise<void> {
   const delta = toInt(formData.get('delta'), 0);
   if (!id || delta === 0) return;
 
+  await applyStockChange(id, delta, user.id);
+  revalidateAll();
+}
+
+/**
+ * Take a stated number off the shelf in one go.
+ *
+ * The ±1 buttons are the whole of manual use, which means six of something is
+ * six presses and a mistake in the middle is invisible. This is the same action
+ * the dentist's spreadsheet already had — type how many were used, and the
+ * count and the ledger both move once.
+ *
+ * Refuses to take more than is there rather than clamping: the shelf disagreeing
+ * with the screen is worth a second look, and silently deducting 8 when 10 were
+ * typed writes a number nobody chose.
+ */
+export async function takeStock(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  const quantity = toInt(formData.get('quantity'), 0);
+  if (!id || quantity <= 0) return;
+
+  await applyStockChange(id, -quantity, user.id);
+  revalidateAll();
+}
+
+/**
+ * Move the counter and write the ledger entry that explains it.
+ *
+ * The read and the write are **the same statement**. Computing the next quantity
+ * in JavaScript from a row read beforehand loses one of two simultaneous taps —
+ * both read 8, both write 7 — while still writing *two* movement rows, so the
+ * ledger and the counter stop agreeing and `reorder.ts` (which trusts the
+ * ledger) diverges from the low-stock badge (which trusts the counter).
+ *
+ * Anything taken out goes through the same lot allocation a visit does, so a
+ * material used by hand draws down its oldest lot rather than leaving every lot
+ * looking untouched.
+ */
+async function applyStockChange(id: string, delta: number, staffUserId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     // Postgres does the arithmetic. The `gte` guard is the floor at zero: when
     // it matches nothing the shelf did not hold enough, and nothing is written
@@ -115,17 +182,20 @@ export async function adjustStock(formData: FormData): Promise<void> {
     });
     if (applied.count === 0) return;
 
-    await tx.stockMovement.create({
-      data: {
+    if (delta < 0) {
+      await recordConsumption(tx, {
         itemId: id,
-        delta,
-        reason: delta < 0 ? 'used' : 'restock',
-        staffUserId: user.id,
-      },
+        quantity: -delta,
+        reason: 'used',
+        staffUserId,
+      });
+      return;
+    }
+
+    await tx.stockMovement.create({
+      data: { itemId: id, delta, reason: 'restock', staffUserId },
     });
   });
-
-  revalidateAll();
 }
 
 /**
@@ -278,6 +348,81 @@ export async function restoreStockItem(formData: FormData): Promise<void> {
   revalidateAll();
 }
 
+/**
+ * Name a shelf.
+ *
+ * The duplicate check is here rather than on a unique index because `db push`
+ * will not add one without taking the deploy with it (see `StockCategory`), and
+ * it is case-insensitive because "Higjienë" and "higjienë" are one shelf to
+ * everybody except a database index.
+ */
+export async function saveStockCategory(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('stock.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const id = optionalString(formData.get('id'));
+  const name = requiredString(formData.get('name'));
+  if (!name) return actionError(t('fillRequired'));
+
+  const clash = await prisma.stockCategory.findFirst({
+    where: { name: { equals: name, mode: 'insensitive' }, ...(id ? { NOT: { id } } : {}) },
+    select: { id: true },
+  });
+  if (clash) return actionError(t('categoryTaken'));
+
+  try {
+    if (id) {
+      // A rename reaches every material at once, which is the point of the row
+      // existing: the old text box could only ever be corrected one item at a time.
+      await prisma.stockCategory.update({ where: { id }, data: { name } });
+    } else {
+      await prisma.stockCategory.create({ data: { name } });
+    }
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: id ? 'update' : 'create',
+    entity: 'stockCategory',
+    entityId: id,
+    summary: name,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/**
+ * Drop a shelf. The materials on it stay exactly where they are and become
+ * uncategorized (`onDelete: SetNull`) — a category is a label for the storage
+ * room, and deleting a label has never been a reason to lose the boxes.
+ */
+export async function deleteStockCategory(formData: FormData): Promise<void> {
+  const user = await authorize('stock.delete');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const category = await prisma.stockCategory.findUnique({ where: { id }, select: { name: true } });
+  if (!category) return;
+
+  await prisma.stockCategory.delete({ where: { id } });
+  await recordAudit(user, {
+    action: 'delete',
+    entity: 'stockCategory',
+    entityId: id,
+    summary: category.name,
+  });
+  revalidateAll();
+}
+
 export async function saveSupplier(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const t = await getTranslations('errors');
 
@@ -355,11 +500,15 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
   const quantity = Math.max(0, toInt(formData.get('quantity'), 0));
   if (!itemId || quantity <= 0) return actionError(t('fillRequired'));
 
-  const rawExpiry = optionalString(formData.get('expiryDate'));
-  const expiryDate =
-    rawExpiry && /^\d{4}-\d{2}-\d{2}$/.test(rawExpiry)
-      ? new Date(`${rawExpiry}T00:00:00.000Z`)
-      : null;
+  const expiryDate = parseDay(optionalString(formData.get('expiryDate')));
+  const manufacturedAt = parseDay(optionalString(formData.get('manufacturedAt')));
+  // Blank means "arrived today" rather than "unknown": a delivery being recorded
+  // is a delivery that happened, and the common case should not need a keystroke.
+  const purchasedAt = parseDay(optionalString(formData.get('purchasedAt'))) ?? new Date();
+
+  const rawPrice = optionalString(formData.get('unitPrice'));
+  const unitPrice = parseMoney(rawPrice);
+  if (rawPrice !== null && unitPrice === null) return actionError(t('invalidPrice'));
 
   try {
     await prisma.$transaction([
@@ -368,6 +517,9 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
           itemId,
           lotNumber: optionalString(formData.get('lotNumber')),
           expiryDate,
+          manufacturedAt,
+          purchasedAt,
+          unitPrice,
           quantity,
           notes: optionalString(formData.get('notes')),
         },
@@ -376,7 +528,15 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
       // see IMPROVEMENTS §1.2 for what an absolute write costs here.
       prisma.stockItem.update({
         where: { id: itemId },
-        data: { quantity: { increment: quantity }, orderedAt: null, expectedAt: null },
+        data: {
+          quantity: { increment: quantity },
+          orderedAt: null,
+          expectedAt: null,
+          // What the delivery cost becomes what the material costs. Leaving the
+          // item's price at whatever was typed months ago would value the
+          // cupboard at last year's invoices while the lots hold this year's.
+          ...(unitPrice === null ? {} : { unitPrice }),
+        },
       }),
       prisma.stockMovement.create({
         data: { itemId, delta: quantity, reason: 'delivery', staffUserId: user.id },

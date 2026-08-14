@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
-import { syncPlanStatus } from '@/lib/plan-progress';
+import { syncPlanStatus } from '@/lib/plan-sync';
 import { prisma } from '@/lib/prisma';
 import { isValidTooth } from '@/lib/teeth';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
@@ -200,6 +200,75 @@ export async function saveStep(_prev: ActionState, formData: FormData): Promise<
     entity: 'plan',
     entityId: planId,
     summary: title,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/**
+ * Turn a finding on the chart into work on the plan.
+ *
+ * Marking decay and planning the filling are one thought and were two screens:
+ * the chart recorded "caries on 46" and then offered nothing, so the treatment
+ * got remembered rather than written down. This is the other half of that click.
+ *
+ * The step joins the course of treatment already under way, and only starts a
+ * new one when the patient has none — being asked *which plan* at the moment a
+ * cavity is found is how an offer like this stops being taken up.
+ */
+export async function planStepForTooth(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('errors');
+  const tp = await getTranslations('plans');
+
+  const user = await authorize('plan.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const patientId = requiredString(formData.get('patientId'));
+  const title = requiredString(formData.get('title'));
+  const toothNum = toToothNum(formData.get('toothNum'));
+  // The tooth is the whole point here, so a step without one is a mistake rather
+  // than the "not about one tooth" case the plans tab allows for.
+  if (!patientId || !title || toothNum === null) return actionError(t('fillRequired'));
+
+  let planId: string;
+  try {
+    const open = await prisma.treatmentPlan.findFirst({
+      where: { patientId, status: TreatmentPlanStatus.ACTIVE },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+    });
+
+    planId =
+      open?.id ??
+      (
+        await prisma.treatmentPlan.create({
+          data: { patientId, title: tp('chartPlanTitle') },
+          select: { id: true },
+        })
+      ).id;
+
+    const last = await prisma.treatmentStep.findFirst({
+      where: { planId },
+      orderBy: { position: 'desc' },
+      select: { position: true },
+    });
+
+    await prisma.treatmentStep.create({
+      data: { planId, title, toothNum, position: (last?.position ?? 0) + 1 },
+    });
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: 'create',
+    entity: 'plan',
+    entityId: planId,
+    summary: `${title} · #${toothNum}`,
   });
 
   revalidateAll();

@@ -7,15 +7,17 @@ function Label({
   label,
   hint,
   optional,
+  labelHidden,
 }: {
   htmlFor: string;
   label: string;
   hint?: string;
   optional?: string;
+  labelHidden?: boolean;
 }) {
   return (
     <>
-      <label className="field-label" htmlFor={htmlFor}>
+      <label className={cn('field-label', labelHidden && 'sr-only')} htmlFor={htmlFor}>
         {label}
         {optional ? (
           <span className="ml-1.5 font-normal text-ink-faint">({optional})</span>
@@ -26,19 +28,31 @@ function Label({
   );
 }
 
-type FieldWrapper = { label: string; hint?: string; optional?: string; className?: string };
+type FieldWrapper = {
+  label: string;
+  hint?: string;
+  optional?: string;
+  className?: string;
+  /**
+   * Keep the label for screen readers but not on screen — for the one place a
+   * heading directly above the field already says the same words, and printing
+   * them twice reads as a mistake.
+   */
+  labelHidden?: boolean;
+};
 
 export function TextField({
   label,
   hint,
   optional,
   className,
+  labelHidden,
   id,
   ...props
 }: FieldWrapper & InputHTMLAttributes<HTMLInputElement> & { id: string }) {
   return (
     <div className={className}>
-      <Label htmlFor={id} label={label} hint={hint} optional={optional} />
+      <Label htmlFor={id} label={label} hint={hint} optional={optional} labelHidden={labelHidden} />
       <input id={id} className="field-input" {...props} />
     </div>
   );
@@ -49,12 +63,13 @@ export function TextAreaField({
   hint,
   optional,
   className,
+  labelHidden,
   id,
   ...props
 }: FieldWrapper & TextareaHTMLAttributes<HTMLTextAreaElement> & { id: string }) {
   return (
     <div className={className}>
-      <Label htmlFor={id} label={label} hint={hint} optional={optional} />
+      <Label htmlFor={id} label={label} hint={hint} optional={optional} labelHidden={labelHidden} />
       <textarea id={id} className={cn('field-input', 'min-h-24 resize-y')} {...props} />
     </div>
   );
@@ -65,6 +80,7 @@ export function SelectField({
   hint,
   optional,
   className,
+  labelHidden,
   id,
   children,
   ...props
@@ -72,7 +88,7 @@ export function SelectField({
   SelectHTMLAttributes<HTMLSelectElement> & { id: string; children: ReactNode }) {
   return (
     <div className={className}>
-      <Label htmlFor={id} label={label} hint={hint} optional={optional} />
+      <Label htmlFor={id} label={label} hint={hint} optional={optional} labelHidden={labelHidden} />
       <select id={id} className="field-input" {...props}>
         {children}
       </select>

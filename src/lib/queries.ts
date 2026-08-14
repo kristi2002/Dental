@@ -82,12 +82,12 @@ export const getProviderOptions = cache(async (): Promise<StaffOption[]> => {
  * step is needed and every screen can assume it exists.
  */
 export const getClinicProfile = cache(
-  async (): Promise<{ name: string; toothNumbering: ToothNumbering }> => {
+  async (): Promise<{ name: string; toothNumbering: ToothNumbering; currency: string }> => {
     const profile = await prisma.clinicProfile.upsert({
       where: { id: 'clinic' },
       create: {},
       update: {},
-      select: { name: true, toothNumbering: true },
+      select: { name: true, toothNumbering: true, currency: true },
     });
     return profile;
   },
@@ -471,6 +471,92 @@ export async function getPatientAppointments(patientId: string): Promise<Appoint
  * something to count, order or run out of.
  */
 export const ACTIVE_STOCK = { archivedAt: null } as const;
+
+export type StockCategoryOption = { id: string; name: string };
+
+/**
+ * The shelves, in picker order — and the only place the old free-text
+ * categories are carried over to them.
+ *
+ * The categories the practice already has were typed into a text box, one
+ * material at a time, and they are real information: the stocktake screen walks
+ * the room by them. They cannot be moved by a migration, because the deploy runs
+ * `prisma db push` and never runs migration SQL or a backfill script (see
+ * `docker/entrypoint.sh`), so the app has to do it the first time it looks.
+ *
+ * Each distinct spelling becomes one `StockCategory`, the materials wearing it
+ * are pointed at that row, and `legacyCategory` is cleared in the same
+ * transaction — which is what makes this run once and cost a single empty query
+ * on every load afterwards, rather than being a permanent second code path.
+ */
+export async function getStockCategories(): Promise<StockCategoryOption[]> {
+  const orphaned = await prisma.stockItem.findMany({
+    where: { categoryId: null, NOT: { legacyCategory: null } },
+    select: { id: true, legacyCategory: true },
+  });
+  if (orphaned.length > 0) await adoptLegacyCategories(orphaned);
+
+  return prisma.stockCategory.findMany({
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true },
+  });
+}
+
+/**
+ * Turn the typed-in category names into rows, once.
+ *
+ * Two requests can arrive together on the deploy that first exposes this, and
+ * without a unique index on `name` (see `StockCategory`) both would create their
+ * own "Higjienë". The advisory lock is held for the transaction only, so the
+ * second request waits, then finds nothing left to adopt.
+ */
+async function adoptLegacyCategories(
+  orphaned: Array<{ id: string; legacyCategory: string | null }>,
+): Promise<void> {
+  const wanted = new Map<string, { name: string; itemIds: string[] }>();
+  for (const item of orphaned) {
+    const name = item.legacyCategory?.trim();
+    if (!name) continue;
+
+    const key = name.toLowerCase();
+    const group = wanted.get(key) ?? { name, itemIds: [] };
+    group.itemIds.push(item.id);
+    wanted.set(key, group);
+  }
+  if (wanted.size === 0) return;
+
+  await prisma.$transaction(async (tx) => {
+    // An arbitrary constant, and the only advisory lock in the app.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(4207310001)`;
+
+    const known = new Map(
+      (await tx.stockCategory.findMany({ select: { id: true, name: true } })).map((category) => [
+        category.name.toLowerCase(),
+        category.id,
+      ]),
+    );
+
+    for (const [key, group] of wanted) {
+      const categoryId =
+        known.get(key) ??
+        (await tx.stockCategory.create({ data: { name: group.name }, select: { id: true } })).id;
+
+      await tx.stockItem.updateMany({
+        // `categoryId: null` again: a material somebody has since filed by hand
+        // keeps the shelf they chose, not the one the old text box remembers.
+        where: { id: { in: group.itemIds }, categoryId: null },
+        data: { categoryId, legacyCategory: null },
+      });
+    }
+
+    // Anything left holding a blank or whitespace-only category — nothing to
+    // adopt, but it would make this run again on every single load.
+    await tx.stockItem.updateMany({
+      where: { id: { in: orphaned.map((item) => item.id) }, categoryId: null },
+      data: { legacyCategory: null },
+    });
+  });
+}
 
 export async function getLowStockItems() {
   const items = await prisma.stockItem.findMany({

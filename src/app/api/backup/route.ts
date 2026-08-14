@@ -70,6 +70,7 @@ export async function POST(request: Request) {
     contacts,
     suppliers,
     batches,
+    stockCategories,
     serviceCategories,
     operatories,
     closures,
@@ -110,6 +111,9 @@ export async function POST(request: Request) {
     prisma.contact.findMany(),
     prisma.supplier.findMany(),
     prisma.stockBatch.findMany(),
+    // Without these the materials restore holding an id that names nothing, and
+    // the storage room comes back as one undivided list.
+    prisma.stockCategory.findMany(),
     // Same for the catalogue: without these the services restore holding an id
     // that names nothing, and the price list comes back as one undivided list.
     //
@@ -156,6 +160,7 @@ export async function POST(request: Request) {
         contacts,
         suppliers,
         batches,
+        stockCategories,
         serviceCategories,
         operatories,
         closures,

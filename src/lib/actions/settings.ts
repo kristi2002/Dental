@@ -308,11 +308,17 @@ export async function saveClinicProfile(
   const toothNumbering = raw in ToothNumbering ? (raw as ToothNumbering) : ToothNumbering.FDI;
   const name = optionalString(formData.get('name')) ?? '';
 
+  // Three letters is the whole of ISO 4217, and `Intl.NumberFormat` throws on
+  // anything else — a typo here would take down every page that shows a price.
+  const rawCurrency = (optionalString(formData.get('currency')) ?? '').toUpperCase();
+  if (rawCurrency && !/^[A-Z]{3}$/.test(rawCurrency)) return actionError(t('invalidCurrency'));
+  const currency = rawCurrency || 'ALL';
+
   try {
     await prisma.clinicProfile.upsert({
       where: { id: 'clinic' },
-      create: { name, toothNumbering },
-      update: { name, toothNumbering },
+      create: { name, toothNumbering, currency },
+      update: { name, toothNumbering, currency },
     });
   } catch {
     return actionError(t('generic'));

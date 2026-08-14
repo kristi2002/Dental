@@ -217,8 +217,9 @@ async function main() {
   await prisma.appointment.deleteMany();
   await prisma.patient.deleteMany();
   await prisma.stockItem.deleteMany();
+  await prisma.stockCategory.deleteMany();
   await prisma.service.deleteMany();
-  // Subcategories first: the parent’s own `onDelete: Cascade` would take them,
+  // Subcategories first: the parent's own `onDelete: Cascade` would take them,
   // but `deleteMany` gives no order and the children must not outlive the run.
   await prisma.serviceCategory.deleteMany({ where: { NOT: { parentId: null } } });
   await prisma.serviceCategory.deleteMany();
@@ -286,6 +287,14 @@ async function main() {
     const created = await prisma.serviceCategory.create({ data: { name }, select: { id: true } });
     serviceCategories.set(name, created.id);
   }
+  for (const { category, subcategory } of SERVICES) {
+    if (!subcategory || serviceCategories.has(`${category}/${subcategory}`)) continue;
+    const created = await prisma.serviceCategory.create({
+      data: { name: subcategory, parentId: serviceCategories.get(category) },
+      select: { id: true },
+    });
+    serviceCategories.set(`${category}/${subcategory}`, created.id);
+  }
 
   const services = [];
   for (const { category, subcategory, ...service } of SERVICES) {
@@ -309,11 +318,20 @@ async function main() {
   }
 
   console.log('Seeding stock…');
+  // The shelves exist before anything is put on them — a material can only pick
+  // from the categories the practice has named.
+  const categories = new Map<string, string>();
+  for (const name of new Set(STOCK.map((item) => item.category))) {
+    const created = await prisma.stockCategory.create({ data: { name }, select: { id: true } });
+    categories.set(name, created.id);
+  }
+
   const stockItems = [];
-  for (const [index, item] of STOCK.entries()) {
+  for (const [index, { category, ...item }] of STOCK.entries()) {
     const created = await prisma.stockItem.create({
       data: {
         ...item,
+        categoryId: categories.get(category),
         supplierId: suppliers[index % suppliers.length].id,
         // One item already on order, so the reorder list has something in the
         // "decision already taken" state to demonstrate.

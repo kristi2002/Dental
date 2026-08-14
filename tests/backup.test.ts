@@ -83,6 +83,7 @@ describe('backup and restore agree with each other', () => {
     assert.ok(at('services') < at('serviceMaterials'), 'and the service');
     assert.ok(at('stock') < at('batches'), 'a lot needs its material');
     assert.ok(at('suppliers') < at('stock'), 'a material may name a supplier');
+    assert.ok(at('stockCategories') < at('stock'), 'a material may name a shelf');
     assert.ok(at('serviceCategories') < at('services'), 'a service may name a catalogue heading');
     assert.ok(at('patients') < at('plans'), 'a plan needs its patient');
     assert.ok(at('appointments') < at('plans'), 'a plan step may name the slot it was booked into');

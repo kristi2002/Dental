@@ -7,13 +7,13 @@ import {
   Package,
   ShieldAlert,
   TriangleAlert,
+  UserPlus,
   Users,
 } from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { AppointmentRow } from '@/components/appointments/AppointmentRow';
 import { FreeTimeCard } from '@/components/appointments/FreeTimeCard';
-import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -63,6 +63,7 @@ export default async function DashboardPage({
   const ts = await getTranslations('stock');
   const talerts = await getTranslations('alerts');
   const tw = await getTranslations('waitlist');
+  const tp = await getTranslations('patients');
   const format = await getFormatter();
 
   const day = today();
@@ -188,10 +189,10 @@ export default async function DashboardPage({
       {canAddPatient || canAddAppointment ? (
         <div className="mb-6 grid gap-3 sm:grid-cols-2">
           {canAddPatient ? (
-            <PatientFormDialog
-              canEditMedical={canEditMedical}
-              triggerClassName="btn btn-primary btn-lg w-full"
-            />
+            <Link href="/patients/new" className="btn btn-primary btn-lg w-full">
+              <UserPlus size={22} aria-hidden />
+              {tp('new')}
+            </Link>
           ) : null}
           {canAddAppointment ? (
             <AppointmentFormDialog

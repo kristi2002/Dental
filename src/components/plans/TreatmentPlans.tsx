@@ -15,6 +15,7 @@ import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { deletePlan, deleteStep, moveStep, setStepStatus } from '@/lib/actions/plans';
+import { planProgress } from '@/lib/plan-progress';
 import type { ToothNumbering } from '@/lib/teeth';
 import { cn } from '@/lib/utils';
 import { PlanFormDialog } from './PlanFormDialog';
@@ -105,11 +106,10 @@ export function TreatmentPlans({
   return (
     <div className="divide-y-2 divide-line">
       {plans.map((plan) => {
-        const done = plan.steps.filter((s) => s.status === TreatmentStepStatus.DONE).length;
-        const relevant = plan.steps.filter(
-          (s) => s.status !== TreatmentStepStatus.SKIPPED,
-        ).length;
-        const percent = relevant === 0 ? 0 : Math.round((done / relevant) * 100);
+        // The same arithmetic the practice-wide list uses, from the same place —
+        // two screens quoting different progress for one plan is the kind of
+        // disagreement nobody reports and everybody stops trusting.
+        const { done, relevant, percent } = planProgress(plan.steps);
 
         return (
           <section key={plan.id} className="px-5 py-4">

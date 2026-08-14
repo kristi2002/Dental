@@ -1,12 +1,13 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { ClipboardList, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { SurfaceTarget, SURFACE_UNMARKED } from '@/components/dental/SurfaceTarget';
 import { ToothDefs, ToothGlyph } from '@/components/dental/ToothGlyph';
 import { SubmitButton } from '@/components/ui/SubmitButton';
 import { saveToothRecord } from '@/lib/actions/patients';
+import { planStepForTooth } from '@/lib/actions/plans';
 import { IDLE_STATE } from '@/lib/actions/types';
 import {
   DEFAULT_TOOTH_STATUS,
@@ -124,6 +125,7 @@ export function DentalChart({
   numbering = 'FDI',
   showPrimary: initialShowPrimary = false,
   readOnly = false,
+  canPlan = false,
 }: {
   patientId: string;
   records: ToothRecordMap;
@@ -133,9 +135,12 @@ export function DentalChart({
   showPrimary?: boolean;
   /** A locum can study the chart; only clinical staff may change it. */
   readOnly?: boolean;
+  /** Whether finding decay may go straight onto the treatment plan. */
+  canPlan?: boolean;
 }) {
   const t = useTranslations('teeth');
   const tc = useTranslations('common');
+  const tp = useTranslations('plans');
   const uid = useId();
 
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -145,11 +150,36 @@ export function DentalChart({
   const [state, formAction] = useActionState(saveToothRecord, IDLE_STATE);
   const handledTs = useRef<number | undefined>(undefined);
 
+  /** What the tooth was before this edit — the offer below turns on the change. */
+  const [openedAs, setOpenedAs] = useState<ToothStatus>(DEFAULT_TOOTH_STATUS);
+  /** The tooth whose decay is waiting to be planned, once one has been found. */
+  const [offerFor, setOfferFor] = useState<number | null>(null);
+  const [planState, planFormAction] = useActionState(planStepForTooth, IDLE_STATE);
+  const handledPlanTs = useRef<number | undefined>(undefined);
+
   useEffect(() => {
     if (state.status !== 'ok' || state.ts === handledTs.current) return;
     handledTs.current = state.ts;
+
+    // Decay found is the one moment the next action is not in doubt: somebody
+    // has to fill it. So the dialog stays open and offers the step rather than
+    // closing onto a chart that has recorded the problem and planned nothing.
+    //
+    // Only on the way *into* caries — re-saving a note on a tooth already marked
+    // would ask again every time, and an offer that nags is one that gets
+    // dismissed without being read.
+    if (canPlan && selected !== null && status === 'CARIES' && openedAs !== 'CARIES') {
+      setOfferFor(selected);
+      return;
+    }
     dialogRef.current?.close();
   }, [state]);
+
+  useEffect(() => {
+    if (planState.status !== 'ok' || planState.ts === handledPlanTs.current) return;
+    handledPlanTs.current = planState.ts;
+    dialogRef.current?.close();
+  }, [planState]);
 
   // Which status is chosen decides whether surfaces make sense at all.
   const [status, setStatus] = useState<ToothStatus>(DEFAULT_TOOTH_STATUS);
@@ -169,6 +199,8 @@ export function DentalChart({
     setSelected(toothNum);
     setFocusSurface(surface);
     setStatus(opening);
+    setOpenedAs(recorded);
+    setOfferFor(null);
     dialogRef.current?.showModal();
   }
 
@@ -282,6 +314,7 @@ export function DentalChart({
         onClose={() => {
           setSelected(null);
           setFocusSurface(null);
+          setOfferFor(null);
         }}
       >
         {selected === null ? null : (
@@ -300,7 +333,63 @@ export function DentalChart({
               </button>
             </header>
 
-            {readOnly ? (
+            {offerFor !== null ? (
+              // Keyed so the suggested wording comes back fresh for each tooth
+              // rather than carrying the last one's edit across.
+              <form action={planFormAction} key={`offer-${offerFor}`}>
+                <div className="space-y-4 px-5 py-5">
+                  <input type="hidden" name="patientId" value={patientId} />
+                  <input type="hidden" name="toothNum" value={offerFor} />
+
+                  <p className="flex items-start gap-2.5 rounded-lg border border-brand bg-brand-soft px-3.5 py-3 text-brand-deep">
+                    <ClipboardList size={20} aria-hidden className="mt-0.5 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block font-bold">{tp('chartOfferTitle')}</span>
+                      <span className="block text-[0.95rem]">
+                        {tp('chartOfferBody', { tooth: label(offerFor) })}
+                      </span>
+                    </span>
+                  </p>
+
+                  <div>
+                    <label className="field-label" htmlFor={`${uid}-step`}>
+                      {tp('stepTitle')}
+                    </label>
+                    {/* Prefilled with the treatment decay actually gets, so the
+                        common case is one press — and editable, because the
+                        common case is not the only one. */}
+                    <input
+                      id={`${uid}-step`}
+                      name="title"
+                      className="field-input"
+                      defaultValue={tp('chartSuggestion')}
+                      maxLength={180}
+                      required
+                    />
+                  </div>
+
+                  {planState.status === 'error' ? (
+                    <p
+                      role="alert"
+                      className="rounded-lg border border-danger bg-danger-soft px-3 py-2 font-semibold text-danger"
+                    >
+                      {planState.message}
+                    </p>
+                  ) : null}
+                </div>
+
+                <footer className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => dialogRef.current?.close()}
+                  >
+                    {tp('notNow')}
+                  </button>
+                  <SubmitButton label={tp('addToPlan')} pendingLabel={tc('saving')} />
+                </footer>
+              </form>
+            ) : readOnly ? (
               <>
                 <div className="space-y-4 px-5 py-5">
                   <div>

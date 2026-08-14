@@ -7,7 +7,7 @@ import { authorize, recordAudit } from '@/lib/auth/guard';
 import { NEW_PATIENT_VALUE } from '@/lib/booking';
 import { toDateKey } from '@/lib/dates';
 import { buildSearchKey } from '@/lib/patient-search';
-import { completeStepForAppointment } from '@/lib/plan-progress';
+import { completeStepForAppointment } from '@/lib/plan-sync';
 import { findConflicts } from '@/lib/scheduling';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString, toInt } from '@/lib/utils';

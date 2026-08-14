@@ -438,6 +438,11 @@ model ClinicProfile {
   id             String        @id @default("clinic")
   name           String        @default("")
   toothNumbering ToothNumbering @default(FDI)
+
+  /// ISO 4217 code the money on the stock page is written in. A practice buys
+  /// in one currency, so this is a setting rather than a column on every price.
+  currency String @default("ALL")
+
   updatedAt      DateTime      @updatedAt
 }
 
@@ -451,11 +456,47 @@ enum ToothNumbering {
 model StockItem {
   id        String   @id @default(uuid())
   name      String
-  category  String?
   quantity  Int      @default(0)
   minLimit  Int      @default(5)
   unit      String   @default("pcs")
   updatedAt DateTime @updatedAt
+
+  /// Which shelf this lives on. Null is a real answer — see `StockCategory`.
+  categoryId String?
+  category   StockCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  /// What `category` used to be: whatever anyone typed into a free-text box.
+  ///
+  /// Superseded by `categoryId`, and kept only because the deploy cannot drop
+  /// it — `db push` runs without `--accept-data-loss`, so removing the column
+  /// would halt the release rather than migrate it. `@map` keeps the database
+  /// column exactly where it was, which is what lets the value survive the
+  /// deploy at all: `getStockCategories` reads it once, turns each distinct
+  /// spelling into a `StockCategory`, and clears it. Nothing writes it again.
+  legacyCategory String? @map("category")
+
+  /// The practice's own article number, as written on the shelf label.
+  ///
+  /// A uuid is the database's name for a row, not the clinic's name for a
+  /// material — the storage room is already numbered, and staff read those
+  /// numbers off boxes and order forms. Optional, because a practice that never
+  /// numbered anything should not be made to invent them.
+  ///
+  /// Kept unique by `saveStockItem` rather than by a constraint: the deploy runs
+  /// `prisma db push` *without* `--accept-data-loss` on purpose, and adding a
+  /// unique index is exactly the change that stops it dead (see
+  /// `docker/entrypoint.sh`). Two people typing the same number in the same
+  /// second would slip through; the cost of that is a duplicate label somebody
+  /// edits, against a deploy that will not start.
+  code String?
+
+  /// What one `unit` costs to buy — the last price actually paid.
+  ///
+  /// Set by hand, or overwritten by a delivery that records what it cost, so
+  /// the figure ages with the invoices rather than with whoever last edited the
+  /// material. Null means nobody has priced it, which is not the same as free:
+  /// an unpriced material is left out of the valuation instead of counted as 0.
+  unitPrice Decimal? @db.Decimal(12, 2)
 
   /// How many pieces are in one `unit` — 100 gloves in a box.
   ///
@@ -495,6 +536,30 @@ model StockItem {
   movements  StockMovement[]
   usedBy     ServiceMaterial[]
   batches    StockBatch[]
+
+  /// Both the duplicate check on save and searching the shelf by label.
+  @@index([code])
+}
+
+/// A shelf in the storage room, named once and then picked from.
+///
+/// This was free text on every material, which meant "Higjienë", "higjiene" and
+/// "Higjena" were three different shelves as far as the filter, the stocktake
+/// grouping and the search were concerned — and nothing on screen ever said so.
+/// A named row is a closed list: the category picker offers what the practice
+/// decided, and a rename fixes every material at once instead of none of them.
+///
+/// `name` is deliberately **not** `@unique`, for the reason `StockItem.code`
+/// is not: the deploy runs `prisma db push`, which refuses to add a unique
+/// constraint and takes the release down with it. `saveStockCategory` is the
+/// gate instead, and it compares case-insensitively — which a unique index
+/// would not have done anyway.
+model StockCategory {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  items StockItem[]
 }
 
 /// Who the practice buys from. Enough to place the order, nothing more — there
@@ -537,6 +602,23 @@ model StockBatch {
   /// allocates oldest-expiry-first, which is also the order a shelf should be
   /// worked, and `StockMovement.batchId` records where each one went.
   usedQuantity Int @default(0)
+
+  /// When the delivery was actually bought, which is not when somebody got
+  /// round to typing it in. `createdAt` is the keystroke; this is the invoice.
+  /// Without it a lot entered a fortnight late lands in the wrong week and
+  /// drags the 90-day burn rate in `reorder.ts` with it.
+  purchasedAt DateTime?
+
+  /// Printed on the box beside the expiry date. Two lots of the same material
+  /// with the same expiry are told apart by this and nothing else, and a recall
+  /// notice is as likely to name a manufacturing run as a lot number.
+  manufacturedAt DateTime?
+
+  /// What one unit of *this* lot cost. Prices move between deliveries, and the
+  /// figure on `StockItem` is only ever the latest one — this is the record of
+  /// what was really paid, which is the number an invoice can be checked
+  /// against months later.
+  unitPrice Decimal? @db.Decimal(12, 2)
 
   notes     String?
   createdAt DateTime @default(now())

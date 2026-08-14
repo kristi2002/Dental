@@ -1,40 +1,28 @@
 'use client';
 
-import { Pencil, TriangleAlert, UserPlus } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId, useState } from 'react';
-import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
+import { useId } from 'react';
+import {
+  ContactFields,
+  GuardianFields,
+  IdentityFields,
+  MedicalField,
+  RecordFields,
+  type PatientDefaults,
+} from '@/components/patients/PatientFields';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { savePatient } from '@/lib/actions/patients';
 
-export type PatientDefaults = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email: string;
-  /** `YYYY-MM-DD`, or empty. */
-  dateOfBirth: string;
-  medicalNotes: string;
-  /** How often to recall this patient. 0 = never. */
-  recallMonths: number;
-  /** `''` = never asked, `'1'` = yes, `'0'` = no. */
-  contactConsent: string;
-  preferredChannel: string;
-  locale: string;
-  guardianName: string;
-  guardianPhone: string;
-  address: string;
-  fiscalCode: string;
-  emergencyContact: string;
-  referralSource: string;
-};
+export type { PatientDefaults };
 
-/** The intervals a clinic actually uses, plus "never" for the one-off patient. */
-const RECALL_CHOICES = [0, 3, 4, 6, 12, 24] as const;
-
-const CHANNELS = ['WHATSAPP', 'EMAIL', 'PHONE'] as const;
-
+/**
+ * Correcting a record you are already looking at.
+ *
+ * Registering somebody is a page — `/patients/new` — because it is a form to be
+ * worked through. Editing is the opposite errand: one wrong digit in a phone
+ * number, fixed from the record it is wrong on, without losing your place in it.
+ */
 export function PatientFormDialog({
   patient,
   referralSources = [],
@@ -42,7 +30,7 @@ export function PatientFormDialog({
   compact = false,
   canEditMedical = true,
 }: {
-  patient?: PatientDefaults;
+  patient: PatientDefaults;
   /** Answers already given, offered as autocomplete so they group in analytics. */
   referralSources?: string[];
   triggerClassName?: string;
@@ -53,255 +41,44 @@ export function PatientFormDialog({
 }) {
   const t = useTranslations('patients');
   const tc = useTranslations('common');
-  const editing = Boolean(patient);
   const uid = useId();
-  // Set only after the server reports somebody already using this number, and
-  // cleared when the dialog closes: creating a second record for one person
-  // should be a decision, never a default.
-  const [force, setForce] = useState(false);
 
   return (
     <FormDialog
-      key={patient?.id ?? 'new'}
+      key={patient.id}
       action={savePatient}
-      resetOnSuccess={!editing}
-      onClose={() => setForce(false)}
-      title={editing ? t('edit') : t('new')}
+      resetOnSuccess={false}
+      title={t('edit')}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
-      triggerTitle={editing ? t('edit') : t('new')}
-      triggerClassName={triggerClassName ?? (editing ? 'btn btn-secondary' : 'btn btn-primary')}
+      triggerTitle={t('edit')}
+      triggerClassName={triggerClassName ?? 'btn btn-secondary'}
       trigger={
-        editing ? (
-          <>
-            <Pencil size={19} aria-hidden />
-            {compact ? <span className="sr-only">{t('edit')}</span> : tc('edit')}
-          </>
-        ) : (
-          <>
-            <UserPlus size={20} aria-hidden />
-            {t('new')}
-          </>
-        )
+        <>
+          <Pencil size={19} aria-hidden />
+          {compact ? <span className="sr-only">{t('edit')}</span> : tc('edit')}
+        </>
       }
     >
-      {(state) => (
-        <>
-      {patient ? <input type="hidden" name="id" value={patient.id} /> : null}
-      {force ? <input type="hidden" name="force" value="1" /> : null}
+      <input type="hidden" name="id" value={patient.id} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          id={`${uid}-firstName`}
-          name="firstName"
-          label={t('firstName')}
-          required
-          autoComplete="off"
-          defaultValue={patient?.firstName}
-        />
-        <TextField
-          id={`${uid}-lastName`}
-          name="lastName"
-          label={t('lastName')}
-          required
-          autoComplete="off"
-          defaultValue={patient?.lastName}
-        />
-      </div>
+      <IdentityFields uid={uid} patient={patient} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          id={`${uid}-phone`}
-          name="phone"
-          type="tel"
-          inputMode="tel"
-          label={t('phone')}
-          required
-          placeholder="069 12 34 567"
-          defaultValue={patient?.phone}
-        />
-        <TextField
-          id={`${uid}-dateOfBirth`}
-          name="dateOfBirth"
-          type="date"
-          label={t('dateOfBirth')}
-          optional={tc('optional')}
-          defaultValue={patient?.dateOfBirth}
-        />
-      </div>
-
-      <TextField
-        id={`${uid}-email`}
-        name="email"
-        type="email"
-        label={t('email')}
-        optional={tc('optional')}
-        defaultValue={patient?.email}
-      />
-
-      {/* Messaging a patient needs a lawful basis, and "we always have" is not
-          one. Three states rather than a checkbox, because a record nobody has
-          asked about is not the same as a refusal — and only the refusal should
-          stop a reminder going out. */}
       <fieldset className="grid gap-4 rounded-lg border border-line p-3.5 sm:grid-cols-3">
         <legend className="px-1 font-bold text-ink">{t('contactTitle')}</legend>
-
-        <SelectField
-          id={`${uid}-contactConsent`}
-          name="contactConsent"
-          label={t('contactConsent')}
-          defaultValue={patient?.contactConsent ?? ''}
-        >
-          <option value="">{t('consentUnknown')}</option>
-          <option value="1">{t('consentYes')}</option>
-          <option value="0">{t('consentNo')}</option>
-        </SelectField>
-
-        <SelectField
-          id={`${uid}-preferredChannel`}
-          name="preferredChannel"
-          label={t('preferredChannel')}
-          optional={tc('optional')}
-          defaultValue={patient?.preferredChannel ?? ''}
-        >
-          <option value="">{tc('none')}</option>
-          {CHANNELS.map((channel) => (
-            <option key={channel} value={channel}>
-              {t(`channel_${channel}`)}
-            </option>
-          ))}
-        </SelectField>
-
-        {/* Their language, not the receptionist's — this is what decides which
-            language the reminder is actually written in. */}
-        <SelectField
-          id={`${uid}-locale`}
-          name="locale"
-          label={t('patientLocale')}
-          optional={tc('optional')}
-          defaultValue={patient?.locale ?? ''}
-        >
-          <option value="">{t('localeDefault')}</option>
-          <option value="sq">Shqip</option>
-          <option value="en">English</option>
-          <option value="it">Italiano</option>
-        </SelectField>
+        <ContactFields uid={uid} patient={patient} />
       </fieldset>
 
-      {/* A child's phone number is their parent's, and the consent form has to
-          be signed by them — without somewhere to put that, it ends up in the
-          patient's own fields, where it is simply wrong. */}
       <fieldset className="grid gap-4 rounded-lg border border-line p-3.5 sm:grid-cols-2">
         <legend className="px-1 font-bold text-ink">{t('guardianTitle')}</legend>
-
-        <TextField
-          id={`${uid}-guardianName`}
-          name="guardianName"
-          label={t('guardianName')}
-          optional={tc('optional')}
-          defaultValue={patient?.guardianName}
-        />
-        <TextField
-          id={`${uid}-guardianPhone`}
-          name="guardianPhone"
-          type="tel"
-          inputMode="tel"
-          label={t('guardianPhone')}
-          optional={tc('optional')}
-          defaultValue={patient?.guardianPhone}
-        />
+        <GuardianFields uid={uid} patient={patient} />
       </fieldset>
 
-      <TextField
-        id={`${uid}-address`}
-        name="address"
-        label={t('address')}
-        optional={tc('optional')}
-        defaultValue={patient?.address}
-      />
+      <RecordFields uid={uid} patient={patient} referralSources={referralSources} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          id={`${uid}-fiscalCode`}
-          name="fiscalCode"
-          label={t('fiscalCode')}
-          optional={tc('optional')}
-          defaultValue={patient?.fiscalCode}
-        />
-        <TextField
-          id={`${uid}-emergencyContact`}
-          name="emergencyContact"
-          label={t('emergencyContact')}
-          optional={tc('optional')}
-          defaultValue={patient?.emergencyContact}
-        />
-      </div>
-
-      {/* The one CRM question an owner actually asks, and the statistics page
-          could not answer at all without somewhere to record the answer. */}
-      <TextField
-        id={`${uid}-referralSource`}
-        name="referralSource"
-        label={t('referralSource')}
-        hint={t('referralSourceHint')}
-        optional={tc('optional')}
-        list={`${uid}-referrals`}
-        defaultValue={patient?.referralSource}
-      />
-      <datalist id={`${uid}-referrals`}>
-        {referralSources.map((source) => (
-          <option key={source} value={source} />
-        ))}
-      </datalist>
-
-      <SelectField
-        id={`${uid}-recallMonths`}
-        name="recallMonths"
-        label={t('recallEvery')}
-        hint={t('recallHint')}
-        defaultValue={String(patient?.recallMonths ?? 6)}
-      >
-        {RECALL_CHOICES.map((months) => (
-          <option key={months} value={months}>
-            {months === 0 ? t('recallOff') : t('recallMonths', { months })}
-          </option>
-        ))}
-      </SelectField>
-
-      {canEditMedical ? (
-        <TextAreaField
-          id={`${uid}-medicalNotes`}
-          name="medicalNotes"
-          label={t('medicalNotes')}
-          hint={t('medicalNotesHint')}
-          optional={tc('optional')}
-          rows={4}
-          defaultValue={patient?.medicalNotes}
-        />
-      ) : null}
-
-      {/* Two people can genuinely share a number — a family does — so this is
-          reported and overridable, never enforced. What it catches is the second
-          "Arta Krasniqi", created once at the desk and once from a booking,
-          whose history then lives in two places. */}
-      {state.status === 'error' && state.code === 'duplicate' ? (
-        <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5 font-semibold text-warn">
-          <input
-            type="checkbox"
-            checked={force}
-            onChange={(event) => setForce(event.target.checked)}
-            className="mt-1 size-4 shrink-0 accent-current"
-          />
-          <span className="flex items-start gap-1.5">
-            <TriangleAlert size={18} aria-hidden className="mt-0.5 shrink-0" />
-            {t('addAnyway')}
-          </span>
-        </label>
-      ) : null}
-        </>
-      )}
+      {canEditMedical ? <MedicalField uid={uid} patient={patient} /> : null}
     </FormDialog>
   );
 }

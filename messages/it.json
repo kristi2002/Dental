@@ -84,6 +84,14 @@
     "title": "Pazienti",
     "count": "{count, plural, =0 {Nessun paziente} one {# paziente} other {# pazienti}}",
     "new": "Nuovo paziente",
+    "newSubtitle": "Bastano un nome e un numero di telefono — il resto si può aggiungere dopo.",
+    "sectionIdentity": "Chi è il paziente",
+    "sectionIdentityHint": "Il nome e il numero con cui la reception lo cercherà.",
+    "contactHint": "Se è possibile inviare promemoria, e in che modo.",
+    "guardianHint": "Per un minore, o per chi dà il consenso al posto del paziente.",
+    "sectionRecords": "Per la scheda",
+    "sectionRecordsHint": "Indirizzo, dati di fatturazione e come ha conosciuto lo studio.",
+    "previewTitle": "Nuova scheda",
     "edit": "Modifica paziente",
     "firstName": "Nome",
     "lastName": "Cognome",
@@ -282,6 +290,7 @@
     "edit": "Modifica materiale",
     "name": "Nome del materiale",
     "category": "Categoria",
+    "categoryEmptyHint": "Nessuna categoria — aggiungine una in Categorie nella pagina del magazzino.",
     "quantity": "Quantità",
     "minLimit": "Livello minimo",
     "unit": "Unità",
@@ -338,7 +347,26 @@
     "stocktakeOnRecord": "In archivio: {qty} {unit}",
     "stocktakeCountOf": "Quantità contata di {name}",
     "stocktakeChanged": "{count, plural, =0 {Ancora nessuna modifica} one {# riga da registrare} other {# righe da registrare}}",
-    "stocktakeSaved": "Conteggi registrati"
+    "stocktakeSaved": "Conteggi registrati",
+    "code": "Codice articolo",
+    "codeHint": "Il numero sull'etichetta dello scaffale. Lo staff lo legge su scatole e ordini.",
+    "unitPrice": "Prezzo per unità ({currency})",
+    "unitPriceHint": "Quanto costa una unità. Una consegna che registra il prezzo sostituisce questo.",
+    "eachCosts": "{price} ciascuna",
+    "usedTotal": "{qty} {unit} usate",
+    "stockValue": "Valore del magazzino {value}",
+    "unpricedNote": "{count, plural, one {# materiale senza prezzo} other {# materiali senza prezzo}}",
+    "takeOut": "Preleva",
+    "takeOutLabel": "Quante {unit} prelevare",
+    "takeOutPlaceholder": "qtà",
+    "batchPurchased": "Acquistato il",
+    "batchPurchasedHint": "Quando è arrivato, non quando lo stai registrando.",
+    "batchManufactured": "Prodotto il",
+    "batchPrice": "Prezzo per {unit} ({currency})",
+    "batchPriceHint": "Quanto è costata questa consegna. Diventa il prezzo del materiale.",
+    "batchBoughtOn": "acquistato {date}",
+    "batchMadeOn": "prodotto {date}",
+    "batchEach": "{price} ciascuna"
   },
   "analytics": {
     "title": "Statistiche",
@@ -424,6 +452,10 @@
     "rangeBackwards": "La data finale non può precedere quella iniziale.",
     "substanceRequired": "Indica la sostanza — un'allergia senza nome non può essere confrontata con una ricetta.",
     "allergyClash": "Il paziente risulta allergico a: {list}.",
+    "invalidPrice": "Questo non è un prezzo. Usa cifre, con al massimo due decimali.",
+    "codeTaken": "Un altro materiale usa già questo codice articolo.",
+    "invalidCurrency": "Una valuta è un codice di tre lettere, come ALL o EUR.",
+    "categoryTaken": "Esiste già una categoria con questo nome.",
     "categoryDepth": "Una categoria può avere un solo livello sotto, non di più."
   },
   "roles": {
@@ -651,7 +683,16 @@
     "customStep": "Altro",
     "customStepHint": "Scrivilo e premi Aggiungi",
     "noStepsYet": "Ancora nessuna fase — scegli qui sopra, o scrivi la tua.",
-    "pickTooth": "Dente"
+    "pickTooth": "Dente",
+    "andMore": "+{count} altri",
+    "showingRecent": "Mostrati i {count} piani conclusi più di recente, su {total}.",
+    "chartPlanTitle": "Piano di cura",
+    "chartOfferTitle": "Pianificare la cura?",
+    "chartOfferBody": "Carie registrata sul dente {tooth}. Mettila nel piano di cura del paziente prima che venga dimenticata.",
+    "chartSuggestion": "Otturazione",
+    "addToPlan": "Aggiungi al piano",
+    "notNow": "Non ora",
+    "noneCompleted": "Nessun percorso di cura è stato ancora concluso."
   },
   "documents": {
     "new": "Aggiungi file",
@@ -811,7 +852,9 @@
     "feedUrl": "Indirizzo dell'abbonamento",
     "feedCopy": "Copia",
     "feedCopied": "Copiato",
-    "feedWarning": "Trattalo come una password: chiunque abbia questo link può leggere la tua agenda senza accedere."
+    "feedWarning": "Trattalo come una password: chiunque abbia questo link può leggere la tua agenda senza accedere.",
+    "currency": "Valuta",
+    "currencyHint": "Codice di tre lettere — ALL, EUR, USD. Usato ovunque compaia un prezzo."
   },
   "contacts": {
     "subtitle": "Cosa è stato mostrato al paziente e quando. Aprire un messaggio lo registra qui — non è prova di consegna.",
@@ -858,6 +901,15 @@
     "email": "Email",
     "noContact": "Nessun contatto",
     "itemCount": "{count, plural, =0 {nessun materiale} one {# materiale} other {# materiali}}"
+  },
+  "stockCategories": {
+    "title": "Categorie",
+    "new": "Aggiungi categoria",
+    "edit": "Modifica categoria",
+    "nameHint": "Come si chiama lo scaffale. Ogni materiale sceglie da questo elenco.",
+    "empty": "Nessuna categoria. Aggiungi gli scaffali che il magazzino ha già, poi assegna ogni materiale a uno.",
+    "itemCount": "{count, plural, =0 {nessun materiale} one {# materiale} other {# materiali}}",
+    "confirmDelete": "Rimuovere questa categoria? I materiali restano sullo scaffale e passano a senza categoria."
   },
   "daySheet": {
     "title": "Foglio del giorno",

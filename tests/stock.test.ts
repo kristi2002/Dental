@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { allocateOldestFirst } from '../src/lib/batch-allocation';
 import { byExpiry, expiryLevel, summariseBatches, usableQuantity } from '../src/lib/expiry';
+import { isPrice, moneyFormat, moneyToInput, parseMoney, stockValue } from '../src/lib/money';
 import { orderAmount, reorderAsText, type ReorderLine } from '../src/lib/reorder';
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
@@ -244,5 +245,95 @@ describe('allocateOldestFirst — which lot it comes out of', () => {
   it('treats a lot expiring today as still usable', () => {
     const result = allocateOldestFirst([batch('today', '2026-08-12', 5)], 2, NOW);
     assert.deepEqual(result, [{ batchId: 'today', quantity: 2 }]);
+  });
+});
+
+describe('parseMoney — reading a price off a form', () => {
+  it('reads a plain price', () => {
+    assert.equal(parseMoney('2214.28')?.toFixed(2), '2214.28');
+    assert.equal(parseMoney('198')?.toFixed(2), '198.00');
+  });
+
+  it('accepts the comma every keyboard in the practice types', () => {
+    assert.equal(parseMoney('2214,28')?.toFixed(2), '2214.28');
+  });
+
+  it('ignores the spaces people put in thousands', () => {
+    assert.equal(parseMoney('25 000')?.toFixed(2), '25000.00');
+  });
+
+  it('treats a blank field as no price rather than as free', () => {
+    assert.equal(parseMoney(null), null);
+    assert.equal(parseMoney(''), null);
+  });
+
+  it('refuses what is not a price, so the caller can say so', () => {
+    // Silently storing nothing would leave the material looking unpriced and
+    // the valuation quietly short.
+    assert.equal(parseMoney('about 200'), null);
+    assert.equal(parseMoney('-5'), null);
+    assert.equal(parseMoney('1.234'), null);
+    assert.equal(isPrice('1.234'), false);
+    assert.equal(isPrice(''), true);
+  });
+
+  it('round-trips through the form field', () => {
+    assert.equal(moneyToInput(parseMoney('700')), '700.00');
+    assert.equal(moneyToInput(null), '');
+  });
+});
+
+describe('stockValue — what the cupboard is worth', () => {
+  const priced = (quantity: number, price: string | null) => ({
+    quantity,
+    unitPrice: parseMoney(price),
+  });
+
+  it('multiplies each line and adds them up', () => {
+    const result = stockValue([priced(28, '2214.28'), priced(6, '198')]);
+    assert.equal(result.total, 63187.84);
+    assert.equal(result.unpriced, 0);
+  });
+
+  it('adds decimals exactly, which a float does not', () => {
+    // 0.1 + 0.2 in binary floating point is 0.30000000000000004. A cupboard
+    // valued by adding a few hundred of these drifts by real money.
+    assert.equal(stockValue([priced(1, '0.10'), priced(1, '0.20')]).total, 0.3);
+  });
+
+  it('counts an unpriced material as unknown rather than as free', () => {
+    const result = stockValue([priced(28, '2214.28'), priced(6, null)]);
+    assert.equal(result.total, 61999.84);
+    assert.equal(result.unpriced, 1);
+  });
+
+  it('does not call an unpriced empty shelf a hole in the valuation', () => {
+    assert.equal(stockValue([priced(0, null)]).unpriced, 0);
+  });
+});
+
+describe('moneyFormat — writing a price down', () => {
+  // Intl separates a currency *code* from the number with a non-breaking space.
+  const write = (currency: string, value: number) =>
+    new Intl.NumberFormat('en', moneyFormat(currency, value)).format(value).replace(/ /g, ' ');
+
+  it('shows the decimals a no-minor-unit currency would otherwise round away', () => {
+    // CLDR gives lek zero fraction digits, so the default turns a price copied
+    // off an invoice into a different number, silently.
+    assert.equal(write('ALL', 2214.28), 'ALL 2,214.28');
+  });
+
+  it('gives a fraction both its digits rather than one', () => {
+    // "2,300.5" reads as a price with a digit missing.
+    assert.equal(write('ALL', 2300.5), 'ALL 2,300.50');
+  });
+
+  it('leaves a round price round', () => {
+    assert.equal(write('ALL', 25000), 'ALL 25,000');
+  });
+
+  it('leaves a currency that always wants two decimals alone', () => {
+    assert.equal(write('EUR', 5), '€5.00');
+    assert.equal(write('EUR', 5.5), '€5.50');
   });
 });

@@ -338,16 +338,24 @@ sheet, activity) will be discovered by accident or not at all.
 These are structural holes in the graph above — drawn as dashed lines that do
 not yet exist in code.
 
+> **Read [§8](#8-gap-register) first.** The register's *Done* column is this
+> document's authority on what is still open. The prose and diagrams below were
+> written at audit time and describe the gap as it was found; many have since
+> been closed and not every mention has been rewritten. Where the two disagree,
+> the register wins — and the code wins over both.
+
 ```mermaid
 flowchart LR
-    PLAN[Treatment plan step] -. "G-02: booking a step<br/>never links the appointment" .-> APPT[Appointment]
-    APPT -. "G-03: completing an appointment<br/>never offers to tick the step" .-> PLAN
-    LAB[Lab case dueAt] -. "G-04: booking a fitting is not<br/>checked against the due date" .-> APPT
+    LAB[Lab case dueAt] -. "G-04: booking a fitting is not<br/>checked against the due date" .-> APPT[Appointment]
     CANCEL[Cancelled appointment] -. "G-05: a freed slot never<br/>reaches the waiting list" .-> WAIT[Waitlist]
     VISIT[Visit record] -. "G-06: tooth changes never carry<br/>their visitRecordId" .-> TOOTH[Tooth record]
     VISIT -. "G-07: stock movements carry no<br/>visitRecordId, only prose" .-> MOVE[StockMovement]
-    PLANS[Plans across all patients] -. "G-08: no page lists them" .-> NOWHERE(( ))
 ```
+
+The two plan edges that used to sit here — a step that could not be booked
+(G-02) and a completed appointment that never ticked one off (G-03) — are joined
+up in code now, as is the cross-patient plan list (G-08). See
+[§4.6.4](#464-tab-plans-treatment-plans).
 
 Each is specified in the page section where it belongs and repeated in
 [§8](#8-gap-register).
@@ -582,7 +590,7 @@ on paper.
 | g | **Booking somebody from the waiting list resolves their entry.** Today `resolvedAt` is a separate manual click, so the list keeps people who were already booked | T1 | ❌ **G-14** |
 | h | **A lab case due date blocks its own fitting.** Booking an appointment for a patient with an outstanding `SENT` case whose `dueAt` is after the proposed date should warn exactly the way a double-booking does — same shape, same override | T0+T2 | ❌ **G-04** |
 | i | **A patient's medical alerts appear at booking time.** The day sheet prints them; the booking dialog does not show them. A CRITICAL alert should be visible when the slot is chosen, not when the sheet is printed | T2 | ❌ **G-15** |
-| j | **A treatment plan step can be booked directly, and the booking links back.** `TreatmentStep.appointmentId` exists, is `@unique`, and is documented in the schema as "booking the step links it here, so '3 of 5 done' and the calendar agree" — **nothing reads or writes it** | T1 | ❌ **G-02** |
+| j | **A treatment plan step can be booked directly, and the booking links back.** `TreatmentStep.appointmentId` is written at booking time and read back by the plan lists, so "3 of 5 done" and the calendar agree | T1 | ✅ G-02 |
 | k | **Completing an appointment offers to record the visit.** The single most common two-step action in the app (`status → COMPLETED`, then open the patient, then Record a visit) is not chained | T2 | ❌ **G-16** |
 | l | **A past appointment left `SCHEDULED` is closed.** See G-13 | T3 | ❌ |
 
@@ -815,9 +823,14 @@ saveToothRecord(patientId, toothNum, status, surfaces[], notes)
   therefore permanently a snapshot: there is no way to ask "what did this mouth
   look like in March", and the visit timeline cannot show what was actually done
   to which tooth.
-- ❌ **G-22 — a tooth marked CARIES creates nothing.** The natural next action
-  after finding decay is to add a treatment plan step for that tooth. The chart
-  should offer it inline.
+- ✅ **G-22 — a tooth marked CARIES offers the step that follows from it.**
+  Saving a tooth *into* `CARIES` keeps the dialog open and offers to put the work
+  on the plan, prefilled with the treatment decay actually gets and with the
+  tooth carried across. `planStepForTooth` appends it to the course of treatment
+  already under way, and only starts a plan when the patient has none — being
+  asked *which plan* at the moment a cavity is found is how an offer like this
+  stops being taken up. Only on the transition in, so re-saving a note on a
+  tooth already marked does not ask again.
 
 ---
 
@@ -902,32 +915,40 @@ other "is this data or is this an intention?" decisions.
 **Should be automatic**
 
 - **T1** — completing the last step closes the plan. ✅
-- ❌ **G-02 — a step cannot be booked.** There is no "book this step" action.
-  `TreatmentStep.appointmentId` is `@unique`, `SetNull`, and **completely
-  dead** — zero reads, zero writes outside the generated client. The schema
-  comment promises a feature that does not exist. The intended flow:
+- ✅ **G-02 — a step is booked from the plan, and the booking links back.** The
+  flow runs end to end:
 
   ```
   Plan step "Crown 46, fit"  ──[Book]──►  AppointmentFormDialog
                                             prefilled: patient, service, duration
                                           on save → step.appointmentId = appt.id
-  Appointment → COMPLETED    ──────────►  "Tick off 'Crown 46, fit'?"  [Yes]
-                                          → step.status = DONE
+  Appointment → COMPLETED    ──────────►  step.status = DONE
                                           → plan closes if it was the last one
   ```
 
-- ❌ **G-08 — there is no cross-patient plan list.** Plans are only visible from
-  inside one patient's record. "Which plans have been stalled for two months?"
-  — the exact question a half-finished plan exists to answer — is unanswerable
-  in this app. A `/plans` page (or a dashboard panel) filtered to `ACTIVE` with
-  no future appointment for that patient is the missing screen.
-- ⚠️ **G-26 — the tooth number on a plan step is validated as Universal 1–32.**
-  [`plans.ts`](../src/lib/actions/plans.ts) `toToothNum()` accepts `1..32`. The
-  chart is FDI. So a step for tooth **46** is silently stored as `null`, and a
-  step for tooth **21** is accepted but means the upper-left central incisor to
-  the chart and the upper-right second premolar to whoever typed it under the
-  old system. This is a live data-integrity bug, not a cosmetic one — it should
-  use `isValidTooth()` from [`teeth.ts`](../src/lib/teeth.ts).
+  [`appointments.ts`](../src/lib/actions/appointments.ts) writes the link inside
+  the same save, guarded on `appointmentId: null` so a second booking cannot
+  steal a step that already has a slot. The button is offered only while the step
+  is outstanding and unbooked — the relation is one-to-one, so a second booking
+  would have nothing to bind itself to.
+- ✅ **G-03 — completing the appointment ticks the step off.**
+  `completeStepForAppointment` in [`plan-sync.ts`](../src/lib/plan-sync.ts) is
+  called from both paths that finish an appointment, and is deliberately one-way:
+  moving back out of `COMPLETED` does not un-tick, because the treatment was
+  still given.
+- ✅ **G-08 — the cross-patient plan list exists.**
+  [`/plans`](../src/app/[locale]/(app)/plans/page.tsx) lists every course of
+  treatment the practice has going, worst-neglected first, with tabs for open,
+  stalled and finished. The arithmetic behind it —
+  [`summarisePlan`](../src/lib/plan-progress.ts) — is pure and tested
+  ([`tests/plans.test.ts`](../tests/plans.test.ts)), and the patient tab shares
+  its `planProgress` so two screens cannot quote different progress for one plan.
+- ✅ **G-26 — plan step tooth numbers are FDI.**
+  [`plans.ts`](../src/lib/actions/plans.ts) `toToothNum()` uses `isValidTooth()`
+  from [`teeth.ts`](../src/lib/teeth.ts): set membership, not a range. It had
+  accepted `1..32`, which silently dropped every step written for a lower-left or
+  lower-right tooth and accepted numbers meaning one tooth to the chart and
+  another to whoever typed them.
 
 ---
 
@@ -1526,7 +1547,7 @@ stateDiagram-v2
 
     note right of COMPLETED
         MUST offer to record the visit. (G-16)
-        MUST offer to tick the plan step. (G-03)
+        Ticks off the plan step it was booked for. ✅ (G-03)
     end note
 
     note right of NO_SHOW
@@ -1562,12 +1583,19 @@ stateDiagram-v2
     }
 ```
 
-**The missing edge, in both directions:**
+**The edge that joins a plan to the diary, in both directions:**
 
 ```
-Step --[book]--> Appointment      writes step.appointmentId    ❌ G-02
-Appointment --[COMPLETED]--> Step offers "tick it off"         ❌ G-03
+Step --[book]--> Appointment      writes step.appointmentId    ✅ G-02
+Appointment --[COMPLETED]--> Step ticks it off, closes the plan ✅ G-03
+                                  if it was the last one
 ```
+
+A step's slot is the reason a quiet plan is not a neglected one: `/plans` counts
+a course of treatment as stalled only when nothing has been done for
+`STALLED_DAYS` **and** no outstanding step has a future `SCHEDULED` or `ARRIVED`
+appointment. A cancelled or missed slot is no such promise, and is not treated as
+one.
 
 ### 5.4 Stock item
 
@@ -1645,7 +1673,7 @@ Legend: ✅ happens · ⚠️ partial · ❌ missing · 🔒 deliberately not do
 | | Warn if the patient has a CRITICAL alert | T2 | ❌ G-15 |
 | | Warn if it is a fitting before a lab `dueAt` | T0 | ❌ G-04 |
 | | Resolve the patient's open waitlist entry | T1 | ❌ G-14 |
-| | Link `TreatmentStep.appointmentId` when booked from a plan | T1 | ❌ G-02 |
+| | Link `TreatmentStep.appointmentId` when booked from a plan | T1 | ✅ G-02 |
 | | Remove the patient from the recall list | T0 | ✅ (derived) |
 | **Reminder link opened** | Write a `Contact` row with the exact body | T1 | ✅ |
 | | Drop the appointment off "to remind" | T0 | ✅ |
@@ -1659,7 +1687,7 @@ Legend: ✅ happens · ⚠️ partial · ❌ missing · 🔒 deliberately not do
 | | Offer the freed slot to fitting waitlist entries | T1+T2 | ❌ G-05 |
 | **Status → ARRIVED** | The day list becomes a queue | T2 | ✅ |
 | **Status → COMPLETED** | Offer to record the visit | T2 | ❌ G-16 |
-| | Offer to tick the linked plan step | T2 | ❌ G-03 |
+| | Tick the linked plan step, closing the plan if it was the last | T2 | ✅ G-03 |
 | **Status → CANCELLED** | Record reason + actor | T1 | ✅ |
 | | Do not count against the patient when clinic-cancelled | T0 | ✅ |
 | | Offer the slot to the waitlist | T1+T2 | ❌ G-05 |
@@ -1810,7 +1838,7 @@ Ranked by what it actually costs. 🔴 correctness · 🟠 a loop that cannot cl
 | **G-32** | 🟠 | `lastRecallAt` and the `Contact` log are two unreconciled memories | Recalls | Small |  |
 | **G-10** | ⚪ | Today's lab deliveries are not on the dashboard | Dashboard | Small | ✅ |
 | **G-11** | ⚪ | Expired stock does not reach the dashboard | Dashboard | Small | ✅ |
-| **G-22** | ⚪ | A tooth marked CARIES offers no plan step | Chart | Small |  |
+| **G-22** | ⚪ | A tooth marked CARIES offers no plan step | Chart | Small | ✅ |
 | **G-24** | ⚪ | Recording a visit does not say when the next recall falls | Visit | Small |  |
 | **G-30** | ⚪ | Contact rows must read as "composed", not "delivered" | Contacts | Copy |  |
 | **G-34** | ⚪ | A lab case cannot be tied to a plan step | Lab · Plans | Medium |  |

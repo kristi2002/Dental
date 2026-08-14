@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 export type StocktakeItem = {
   id: string;
   name: string;
+  /** The article number, when the practice numbers its shelves. */
+  code: string;
   category: string;
   unit: string;
   quantity: number;
@@ -81,6 +83,14 @@ export function StocktakeForm({ items }: { items: StocktakeItem[] }) {
                     <div className="min-w-48 flex-1">
                       <label htmlFor={fieldId} className="text-[1.05rem] font-bold text-ink">
                         {item.name}
+                        {/* Counting is done off the shelf labels, and the labels
+                            are numbered. Matching the row to the box is the
+                            slowest part of a stocktake without this. */}
+                        {item.code ? (
+                          <span className="ml-2 font-semibold tabular-nums text-ink-faint">
+                            #{item.code}
+                          </span>
+                        ) : null}
                       </label>
                       <p className="text-[0.9rem] text-ink-soft">
                         {t('stocktakeOnRecord', { qty: item.quantity, unit: item.unit })}

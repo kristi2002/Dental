@@ -700,6 +700,9 @@ export default async function PatientDetailPage({
               numbering={clinicProfile.toothNumbering}
               showPrimary={patient.dateOfBirth ? age(patient.dateOfBirth) < 13 : false}
               readOnly={!canEditMedical}
+              // Finding decay and planning the filling are one thought; whether
+              // the chart may offer the second half is its own permission.
+              canPlan={can('plan.edit')}
             />
           </CardBody>
         </Card>

@@ -1,6 +1,5 @@
-import { Cake, Mail, Phone, Search, TriangleAlert, Users } from 'lucide-react';
+import { Cake, Mail, Phone, Search, TriangleAlert, UserPlus, Users } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { ReliabilityBadge } from '@/components/patients/ReliabilityBadge';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -28,7 +27,6 @@ export default async function PatientsPage({
 
   const user = await requirePermission('patient.view');
   const canEdit = user.permissions.includes('patient.edit');
-  const canEditMedical = user.permissions.includes('patient.medical.edit');
   const canSeeMedical = user.permissions.includes('patient.medical.view');
 
   const t = await getTranslations('patients');
@@ -36,6 +34,14 @@ export default async function PatientsPage({
 
   const { q } = await searchParams;
   const query = (q ?? '').trim();
+
+  // Registering somebody is a screen of its own — see `/patients/new`.
+  const addButton = (
+    <Link href="/patients/new" className="btn btn-primary">
+      <UserPlus size={20} aria-hidden />
+      {t('new')}
+    </Link>
+  );
 
   // One folded column, one comparison — the same answer the in-memory `matches()`
   // helper gives, so typing the same thing into any box in the app finds the
@@ -56,7 +62,7 @@ export default async function PatientsPage({
       <PageHeader
         title={t('title')}
         subtitle={t('count', { count: patients.length })}
-        actions={canEdit ? <PatientFormDialog canEditMedical={canEditMedical} /> : null}
+        actions={canEdit ? addButton : null}
         trail={[{ label: t('title') }]}
       />
 
@@ -83,9 +89,7 @@ export default async function PatientsPage({
           <EmptyState
             icon={<Users size={40} aria-hidden />}
             title={query ? t('emptySearch', { query }) : t('empty')}
-            action={
-              query || !canEdit ? null : <PatientFormDialog canEditMedical={canEditMedical} />
-            }
+            action={query || !canEdit ? null : addButton}
           />
         </div>
       ) : (

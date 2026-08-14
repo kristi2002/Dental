@@ -19,12 +19,15 @@ export function BatchFormDialog({
   itemId,
   itemName,
   unit,
+  currency,
   today,
 }: {
   itemId: string;
   itemName: string;
   unit: string;
-  /** `YYYY-MM-DD`, only used to bound the expiry picker sensibly. */
+  /** ISO 4217 code, so the price field says which money it means. */
+  currency: string;
+  /** `YYYY-MM-DD`, used to bound the date pickers and to default the purchase. */
   today: string;
 }) {
   const t = useTranslations('stock');
@@ -72,6 +75,44 @@ export function BatchFormDialog({
           min={today}
         />
       </div>
+
+      {/* The invoice, not the keystroke. A delivery typed in a fortnight late
+          belongs in the week it arrived — the burn rate reads these dates. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          id={`${uid}-purchased`}
+          name="purchasedAt"
+          type="date"
+          label={t('batchPurchased')}
+          hint={t('batchPurchasedHint')}
+          max={today}
+          defaultValue={today}
+        />
+        <TextField
+          id={`${uid}-manufactured`}
+          name="manufacturedAt"
+          type="date"
+          label={t('batchManufactured')}
+          optional={tc('optional')}
+          max={today}
+        />
+      </div>
+
+      {/* What this delivery actually cost per unit. Also becomes the material's
+          price, so the valuation follows the invoices.
+
+          Text rather than `type="number"` for the reason spelled out in
+          `StockFormDialog`: a number input throws away `2214,28` instead of
+          sending it, and a price that disappears without a word is worse than
+          one the server refuses by name. */}
+      <TextField
+        id={`${uid}-price`}
+        name="unitPrice"
+        inputMode="decimal"
+        label={t('batchPrice', { currency, unit })}
+        hint={t('batchPriceHint')}
+        optional={tc('optional')}
+      />
 
       {/* The number a recall notice asks for. Nothing else can answer it. */}
       <TextField

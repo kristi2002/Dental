@@ -92,6 +92,7 @@ export default async function SettingsPage({
           <ClinicProfileForm
             name={profile.name}
             toothNumbering={profile.toothNumbering}
+            currency={profile.currency}
             canEdit={canEdit}
           />
         </Card>

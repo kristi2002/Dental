@@ -80,7 +80,7 @@ erDiagram
     Patient        ||--o{ WaitlistEntry   : "Cascade"
 
     TreatmentPlan  ||--o{ TreatmentStep   : "Cascade"
-    Appointment    ||--o| TreatmentStep   : "unique, SetNull (UNUSED)"
+    Appointment    ||--o| TreatmentStep   : "unique, SetNull"
 
     PrescriptionTemplate ||--o{ Prescription : "SetNull"
     PrescriptionTemplate ||--o{ PrescriptionTemplateService : "Cascade"
@@ -191,7 +191,7 @@ orders by.
 | `status` | `SCHEDULED` · `COMPLETED` · `CANCELLED` · `NO_SHOW` |
 | `serviceName` | String? — a **label**, no FK to `Service` |
 | `confirmedAt`, `declinedAt` | Set by the patient's own confirmation link |
-| `planStep` | Back-relation from `TreatmentStep` — **never written or read by the app** |
+| `planStep` | Back-relation from `TreatmentStep` — the plan step this slot was booked for, when it was booked from a plan |
 
 Indexes: `date`, `patientId`.
 
@@ -235,8 +235,14 @@ A course of treatment that outlives one visit.
 - `TreatmentStep` → `TreatmentPlan` (Cascade), ordered by a 1-based `position`
   (gaps allowed; only the order matters), status `PENDING` · `DONE` · `SKIPPED`.
 - `TreatmentStep.appointmentId` is `@unique`, FK → `Appointment`, `SetNull` —
-  the intended "booking a step links it to the calendar" edge. **It is dead:**
-  no code path writes or reads it.
+  the "booking a step links it to the calendar" edge. Written by
+  `saveAppointment` when a booking is started from a plan step (guarded on
+  `appointmentId: null`, so a second booking cannot steal a step that already has
+  a slot), and read back two ways: `completeStepForAppointment` ticks the step
+  off when the appointment completes, and `/plans` treats a future `SCHEDULED` or
+  `ARRIVED` slot as the promise that stops a quiet plan counting as neglected.
+  `SetNull` is right: deleting the appointment unbooks the step rather than
+  deleting the treatment.
 
 #### `PatientDocument`
 The index for X-rays, photos and consent forms. The bytes are on disk.
@@ -343,7 +349,7 @@ automatically; booking the person is a separate manual action.
 | `StockItem` → `StockMovement` | **Cascade** | Deleting a material silently erases its entire consumption history from the analytics chart |
 | `StaffUser` → AuditLog, VisitRecord, StockMovement, PatientDocument, Prescription | SetNull | Correct, and paired with "deactivate, never delete" |
 | `PrescriptionTemplate` → `Prescription` | SetNull | Correct — the issued text is kept separately |
-| `Appointment` → `TreatmentStep` | SetNull | Correct in principle; the relation is unused |
+| `Appointment` → `TreatmentStep` | SetNull | Correct — deleting the slot unbooks the step, leaving the treatment on the plan to be rebooked |
 
 ---
 

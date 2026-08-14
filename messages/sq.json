@@ -84,6 +84,14 @@
     "title": "Pacientët",
     "count": "{count, plural, =0 {Asnjë pacient} one {# pacient} other {# pacientë}}",
     "new": "Pacient i ri",
+    "newSubtitle": "Mjafton një emër dhe një numër telefoni — pjesa tjetër plotësohet më vonë.",
+    "sectionIdentity": "Kush është pacienti",
+    "sectionIdentityHint": "Emri dhe numri me të cilin do ta kërkojë recepsioni.",
+    "contactHint": "Nëse mund t'i dërgohen përkujtues, dhe si.",
+    "guardianHint": "Për një fëmijë, ose për këdo që pëlqimin e jep dikush tjetër.",
+    "sectionRecords": "Për kartelën",
+    "sectionRecordsHint": "Adresa, të dhënat e faturimit dhe si e gjeti klinikën.",
+    "previewTitle": "Kartelë e re",
     "edit": "Ndrysho pacientin",
     "firstName": "Emri",
     "lastName": "Mbiemri",
@@ -282,6 +290,7 @@
     "edit": "Ndrysho materialin",
     "name": "Emri i materialit",
     "category": "Kategoria",
+    "categoryEmptyHint": "Ende asnjë kategori — shtoje te Kategoritë në faqen e magazinës.",
     "quantity": "Sasia",
     "minLimit": "Niveli minimal",
     "unit": "Njësia",
@@ -338,7 +347,26 @@
     "stocktakeOnRecord": "Në regjistër: {qty} {unit}",
     "stocktakeCountOf": "Sasia e numëruar e {name}",
     "stocktakeChanged": "{count, plural, =0 {Ende asnjë ndryshim} one {# rresht për regjistrim} other {# rreshta për regjistrim}}",
-    "stocktakeSaved": "Numërimet u regjistruan"
+    "stocktakeSaved": "Numërimet u regjistruan",
+    "code": "Numri i artikullit",
+    "codeHint": "Numri në etiketën e raftit. Stafi e lexon nga kutitë dhe fletët e porosisë.",
+    "unitPrice": "Çmimi për njësi ({currency})",
+    "unitPriceHint": "Sa kushton një njësi. Një furnizim që shënon çmimin e zëvendëson këtë.",
+    "eachCosts": "{price} secila",
+    "usedTotal": "{qty} {unit} të përdorura",
+    "stockValue": "Vlera e magazinës {value}",
+    "unpricedNote": "{count, plural, one {# material pa çmim} other {# materiale pa çmim}}",
+    "takeOut": "Hiq nga magazina",
+    "takeOutLabel": "Sa {unit} të hiqen",
+    "takeOutPlaceholder": "sasia",
+    "batchPurchased": "Blerë më",
+    "batchPurchasedHint": "Kur mbërriti, jo kur po e shkruani këtu.",
+    "batchManufactured": "Prodhuar më",
+    "batchPrice": "Çmimi për {unit} ({currency})",
+    "batchPriceHint": "Sa kushtoi ky furnizim. Bëhet çmimi i materialit.",
+    "batchBoughtOn": "blerë {date}",
+    "batchMadeOn": "prodhuar {date}",
+    "batchEach": "{price} secila"
   },
   "analytics": {
     "title": "Statistikat",
@@ -424,6 +452,10 @@
     "rangeBackwards": "Data e fundit nuk mund të jetë para asaj të fillimit.",
     "substanceRequired": "Shëno substancën — një alergji pa emër nuk mund të krahasohet me recetën.",
     "allergyClash": "Ky pacient figuron alergjik ndaj: {list}.",
+    "invalidPrice": "Ky nuk është çmim. Përdorni shifra, me së shumti dy presje dhjetore.",
+    "codeTaken": "Një material tjetër e përdor tashmë këtë numër artikulli.",
+    "invalidCurrency": "Monedha është kod me tre shkronja, si ALL ose EUR.",
+    "categoryTaken": "Një kategori me këtë emër ekziston tashmë.",
     "categoryDepth": "Një kategori mund të ketë vetëm një nivel poshtë, jo më shumë."
   },
   "roles": {
@@ -651,7 +683,16 @@
     "customStep": "Diçka tjetër",
     "customStepHint": "Shkruajeni dhe shtypni Shto",
     "noStepsYet": "Ende pa hapa — zgjidhni nga lart, ose shkruani tuajin.",
-    "pickTooth": "Dhëmbi"
+    "pickTooth": "Dhëmbi",
+    "andMore": "+{count} të tjera",
+    "showingRecent": "Po shfaqen {count} planet e përfunduara më së fundi, nga {total} gjithsej.",
+    "chartPlanTitle": "Plan trajtimi",
+    "chartOfferTitle": "Ta planifikojmë trajtimin?",
+    "chartOfferBody": "Karies i regjistruar te dhëmbi {tooth}. Shtoje në planin e trajtimit të pacientit para se të harrohet.",
+    "chartSuggestion": "Mbushje",
+    "addToPlan": "Shto në plan",
+    "notNow": "Jo tani",
+    "noneCompleted": "Asnjë plan trajtimi nuk është përfunduar ende."
   },
   "documents": {
     "new": "Shto skedar",
@@ -811,7 +852,9 @@
     "feedUrl": "Adresa e abonimit",
     "feedCopy": "Kopjo",
     "feedCopied": "U kopjua",
-    "feedWarning": "Trajtoje si fjalëkalim: kushdo që ka këtë lidhje mund të lexojë orarin tënd pa u kyçur."
+    "feedWarning": "Trajtoje si fjalëkalim: kushdo që ka këtë lidhje mund të lexojë orarin tënd pa u kyçur.",
+    "currency": "Monedha",
+    "currencyHint": "Kod me tre shkronja — ALL, EUR, USD. Përdoret kudo ku shfaqet një çmim."
   },
   "contacts": {
     "subtitle": "Çfarë iu paraqit pacientit dhe kur. Hapja e një mesazhi regjistrohet këtu — nuk është provë dërgimi.",
@@ -858,6 +901,15 @@
     "email": "Email",
     "noContact": "Asnjë kontakt",
     "itemCount": "{count, plural, =0 {asnjë material} one {# material} other {# materiale}}"
+  },
+  "stockCategories": {
+    "title": "Kategoritë",
+    "new": "Shto kategori",
+    "edit": "Ndrysho kategorinë",
+    "nameHint": "Si quhet rafti. Çdo material zgjidhet nga kjo listë.",
+    "empty": "Ende asnjë kategori. Shto raftet që magazina i ka tashmë, pastaj vendos çdo material në një prej tyre.",
+    "itemCount": "{count, plural, =0 {asnjë material} one {# material} other {# materiale}}",
+    "confirmDelete": "Ta heqim këtë kategori? Materialet mbeten në raft dhe kalojnë pa kategori."
   },
   "daySheet": {
     "title": "Fleta e ditës",
