@@ -21,7 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { type MouseEvent, useEffect, useRef, useState } from 'react';
 import type { Role } from '@/generated/prisma/enums';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -65,11 +65,12 @@ function remember(name: string, value: string) {
  * treatment — because it is the same kind of thing: somewhere to go. Only the
  * weight says which of the two you are looking at.
  *
- * A row that heads a section keeps the trip and nothing else. Going to Stock and
- * looking at what is filed under Stock are two intentions, and the second must
- * not cost the first: the fold is the chevron beside this link, its own target
- * (see `FoldButton`), so a section can be tidied away from anywhere in the app
- * without being dragged to it first.
+ * A row that heads a section carries the fold as well as the trip, over its whole
+ * width: something with more behind it opens by being clicked, and a 36px chevron
+ * is not where anyone aims. Going to Stock and looking at what is filed under
+ * Stock are still two intentions, so the chevron stays its own target beside the
+ * link (see `FoldButton`) — that one is the fold without the trip, which is what
+ * lets a section be tidied away from anywhere in the app.
  */
 function RailLink({
   href,
@@ -78,6 +79,8 @@ function RailLink({
   active,
   collapsed,
   nested = false,
+  expanded,
+  onClick,
   className,
 }: {
   href: string;
@@ -86,12 +89,17 @@ function RailLink({
   active: boolean;
   collapsed: boolean;
   nested?: boolean;
+  /** Set only on a row that heads a section: whether its list is showing. */
+  expanded?: boolean;
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
   className?: string;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       aria-current={active ? 'page' : undefined}
+      aria-expanded={expanded}
       // The only label a pinched rail has room for.
       title={collapsed ? label : undefined}
       className={cn(
@@ -120,13 +128,15 @@ function RailLink({
 }
 
 /**
- * The fold on a section: a chevron beside the section's link, turned down when
- * the sub-destinations are showing and a quarter turn back when they are not.
+ * The fold on a section, without the trip: a chevron beside the section's link,
+ * turned down when the sub-destinations are showing and a quarter turn back when
+ * they are not. The link itself folds too — this is the way to fold a section you
+ * are not going to.
  *
  * Thumb-sized on a phone, where the drawer is what gets tapped, and trimmer on a
  * desktop, where the pointer is exact. A pinched rail has room for neither the
- * chevron nor a second target, so the fold goes with it — the stacked sub-icons
- * are what says open there, and widening the rail brings the control back.
+ * chevron nor a second target, so it goes with it: the fold is on the icon there,
+ * and the stacked sub-icons are what says open.
  */
 function FoldButton({
   label,
@@ -176,10 +186,12 @@ function FoldButton({
  *
  * A destination may carry sub-destinations, indented under it — the lists a
  * section is kept by rather than the work done in it. They are the one thing
- * the sideways bar could never have held. Such a section shuts on the chevron
- * beside its name — from wherever you happen to be standing, without a trip to
- * the section first — and stays shut, in a cookie: a receptionist who never
- * touches the stock shelves should not have to read past them nine times a day.
+ * the sideways bar could never have held. Such a section starts shut and opens
+ * by being clicked, anywhere along its row — or on the chevron beside its name,
+ * which is the same fold from wherever you happen to be standing, without a trip
+ * to the section first. Either way it stays however it was left, in a cookie. The
+ * rail therefore reads as the short list of sections it is, and a receptionist
+ * who never touches the stock shelves never reads past them.
  *
  * Three shapes, one component:
  *   phone   a slim teal top bar plus an off-canvas drawer
@@ -470,6 +482,26 @@ export function Sidebar({
                       active={isCurrent(href) && !onChild}
                       collapsed={collapsed}
                       className="min-w-0 flex-1"
+                      expanded={kids.length > 0 ? unfolded : undefined}
+                      onClick={
+                        kids.length > 0
+                          ? (event) => {
+                              // A modified click opens the section in a new tab
+                              // and leaves this one where it was, so the rail
+                              // must not move under the hand either.
+                              if (
+                                event.metaKey ||
+                                event.ctrlKey ||
+                                event.shiftKey ||
+                                event.altKey ||
+                                event.button !== 0
+                              ) {
+                                return;
+                              }
+                              toggleSection(key);
+                            }
+                          : undefined
+                      }
                     />
 
                     {kids.length > 0 ? (

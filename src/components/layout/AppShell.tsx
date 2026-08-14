@@ -23,8 +23,6 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   // itself a cookie — so this costs nothing.
   const store = await cookies();
   const railCollapsed = store.get('rail')?.value === 'collapsed';
-  // Which sections are folded shut, by key — same reasoning, same first paint.
-  const closedSections = (store.get('rail-sections')?.value ?? '').split('.').filter(Boolean);
 
   const allowed = (permission: (typeof NAV_DESTINATIONS)[number]['permission']) =>
     permission === null || user.permissions.includes(permission);
@@ -41,6 +39,17 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
       })),
     }),
   );
+
+  // Which sections are folded shut, by key — same reasoning, same first paint.
+  //
+  // No cookie at all means nobody has touched the fold yet, and the rail opens
+  // the way it reads best: the short list of sections, with the lists each one is
+  // filed by waiting behind a chevron. An empty cookie is a different answer —
+  // somebody opened everything — so it is honoured as written.
+  const stored = store.get('rail-sections');
+  const closedSections = stored
+    ? stored.value.split('.').filter(Boolean)
+    : items.filter(({ children }) => children && children.length > 0).map(({ key }) => key);
 
   return (
     // Column on a phone — top bar above the page. Row on a desktop — rail beside it.
