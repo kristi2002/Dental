@@ -248,13 +248,32 @@
     "materialQuantity": "Quantità di {name}",
     "materialByTheBox": "Contato a {unit}: scalarne 1 per visita toglierebbe ogni volta {unit} dallo scaffale.",
     "materialByTheBoxShort": "a {unit}",
-    "searchPlaceholder": "Cerca per nome o categoria",
+    "searchPlaceholder": "Cerca per nome, reparto o sottocategoria",
     "anyCategory": "Tutte le categorie",
     "filterMaterialsLabel": "Filtra per materiali",
     "filterWithMaterials": "Con materiali",
     "filterNoMaterials": "Senza materiali",
     "showing": "Mostrati {count} di {total} servizi",
-    "emptyFiltered": "Nessun servizio corrisponde a questi filtri."
+    "emptyFiltered": "Nessun servizio corrisponde a questi filtri.",
+    "department": "Reparto",
+    "subcategory": "Sottocategoria",
+    "wholeDepartment": "Tutto il reparto",
+    "categoryEmptyHint": "Ancora nessuna categoria — aggiungile in \"Categorie\" su questa pagina."
+  },
+  "serviceCategories": {
+    "title": "Categorie",
+    "new": "Aggiungi reparto",
+    "newChild": "Aggiungi sottocategoria",
+    "edit": "Modifica categoria",
+    "nameHint": "Come si chiama questa parte del catalogo. Ogni servizio sceglie da questo elenco.",
+    "parent": "Dentro il reparto",
+    "parentHint": "Lascia vuoto per un reparto a sé.",
+    "topLevel": "Un reparto a sé",
+    "parentLocked": "Un reparto con sottocategorie non può essere spostato dentro un altro.",
+    "empty": "Nessuna categoria. Aggiungi i reparti in cui lo studio già lavora, poi assegna ogni servizio a uno.",
+    "serviceCount": "{count, plural, =0 {nessun servizio} one {# servizio} other {# servizi}}",
+    "confirmDelete": "Rimuovere questa categoria? I servizi restano a catalogo e passano a senza categoria.",
+    "confirmDeleteParent": "Rimuovere questo reparto e {count, plural, one {la sua # sottocategoria} other {le sue # sottocategorie}}? I servizi restano a catalogo e passano a senza categoria."
   },
   "stock": {
     "title": "Magazzino",
@@ -404,7 +423,8 @@
     "hoursInvalid": "Un giorno aperto deve chiudere dopo l’orario di apertura.",
     "rangeBackwards": "La data finale non può precedere quella iniziale.",
     "substanceRequired": "Indica la sostanza — un'allergia senza nome non può essere confrontata con una ricetta.",
-    "allergyClash": "Il paziente risulta allergico a: {list}."
+    "allergyClash": "Il paziente risulta allergico a: {list}.",
+    "categoryDepth": "Una categoria può avere un solo livello sotto, non di più."
   },
   "roles": {
     "OWNER": "Titolare / Dentista",

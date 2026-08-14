@@ -56,16 +56,27 @@ const STAFF = [
   { firstName: 'Marco', lastName: 'Rossi', role: 'READONLY', pin: '4567' },
 ] as const;
 
+/**
+ * The catalogue, filed the way the app files it: a department, and for the two
+ * departments that are worth subdividing, a subcategory inside it. Seeded with
+ * both shapes on purpose — a demo where every service sits directly under its
+ * department never shows what the second level looks like.
+ */
 const SERVICES = [
-  { name: 'Kontroll i përgjithshëm', category: 'Diagnostikë', durationMin: 20 },
-  { name: 'Pastrim guri (detartrazh)', category: 'Profilaksi', durationMin: 40 },
-  { name: 'Mbushje kompozite', category: 'Terapi', durationMin: 45 },
-  { name: 'Devitalizim (trajtim kanali)', category: 'Endodonci', durationMin: 90 },
-  { name: 'Heqje dhëmbi', category: 'Kirurgji', durationMin: 40 },
-  { name: 'Kurorë porcelani', category: 'Protetikë', durationMin: 60 },
-  { name: 'Zbardhim dhëmbësh', category: 'Estetikë', durationMin: 60 },
-  { name: 'Implant dentar', category: 'Kirurgji', durationMin: 120 },
-  { name: 'Kontroll ortodontik', category: 'Ortodonci', durationMin: 30 },
+  { name: 'Kontroll i përgjithshëm', category: 'Diagnostikë', subcategory: '', durationMin: 20 },
+  { name: 'Pastrim guri (detartrazh)', category: 'Profilaksi', subcategory: '', durationMin: 40 },
+  { name: 'Mbushje kompozite', category: 'Terapi', subcategory: '', durationMin: 45 },
+  { name: 'Devitalizim (trajtim kanali)', category: 'Endodonci', subcategory: '', durationMin: 90 },
+  { name: 'Heqje dhëmbi', category: 'Kirurgji', subcategory: 'Kirurgji orale', durationMin: 40 },
+  { name: 'Kurorë porcelani', category: 'Protetikë', subcategory: 'Fikse', durationMin: 60 },
+  { name: 'Zbardhim dhëmbësh', category: 'Estetikë', subcategory: '', durationMin: 60 },
+  {
+    name: 'Implant dentar',
+    category: 'Kirurgji',
+    subcategory: 'Implantologji',
+    durationMin: 120,
+  },
+  { name: 'Kontroll ortodontik', category: 'Ortodonci', subcategory: '', durationMin: 30 },
 ];
 
 const STOCK = [
@@ -207,6 +218,10 @@ async function main() {
   await prisma.patient.deleteMany();
   await prisma.stockItem.deleteMany();
   await prisma.service.deleteMany();
+  // Subcategories first: the parent’s own `onDelete: Cascade` would take them,
+  // but `deleteMany` gives no order and the children must not outlive the run.
+  await prisma.serviceCategory.deleteMany({ where: { NOT: { parentId: null } } });
+  await prisma.serviceCategory.deleteMany();
   await prisma.staffUser.deleteMany();
   await prisma.closure.deleteMany();
   await prisma.clinicHours.deleteMany();
@@ -264,9 +279,25 @@ async function main() {
   const assistant = staff[1];
 
   console.log('Seeding services…');
+  // The headings exist before anything is filed under them — a service can only
+  // pick from the categories the practice has named.
+  const serviceCategories = new Map<string, string>();
+  for (const name of new Set(SERVICES.map((service) => service.category))) {
+    const created = await prisma.serviceCategory.create({ data: { name }, select: { id: true } });
+    serviceCategories.set(name, created.id);
+  }
+
   const services = [];
-  for (const service of SERVICES) {
-    services.push(await prisma.service.create({ data: service }));
+  for (const { category, subcategory, ...service } of SERVICES) {
+    services.push(
+      await prisma.service.create({
+        data: {
+          ...service,
+          // The deeper of the two, which is what a service is filed against.
+          categoryId: serviceCategories.get(subcategory ? `${category}/${subcategory}` : category),
+        },
+      }),
+    );
   }
   /** Name → catalogue id, so recorded visits link to the real entry. */
   const serviceIdByName = new Map(services.map((service) => [service.name, service.id]));

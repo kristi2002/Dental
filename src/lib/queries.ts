@@ -18,6 +18,7 @@ import {
   type DayHours,
   type DaySchedule,
 } from '@/lib/clinic-hours';
+import { departmentOf } from '@/lib/catalog';
 import { usableQuantity } from '@/lib/expiry';
 import { prisma } from '@/lib/prisma';
 import { addDays, toDateKey, timeToMinutes, today } from '@/lib/dates';
@@ -100,24 +101,142 @@ export const getOperatoryOptions = cache(async (): Promise<OperatoryOption[]> =>
   });
 });
 
-/** The catalog in picker order: by department, then by name inside each one. */
+export type ServiceCategoryOption = {
+  id: string;
+  name: string;
+  /** Null for a department; the department's id for a subcategory. */
+  parentId: string | null;
+};
+
+/**
+ * The catalogue's headings, flat and in name order — and the only place the old
+ * free-text categories are carried over to them.
+ *
+ * Flat rather than nested because every caller wants a different shape of tree,
+ * and one level of `parentId` is cheaper to re-nest than to un-nest.
+ *
+ * The carry-over is `getStockCategories`' twin, for the same reason: the
+ * categories the practice already typed are real information — the whole
+ * catalogue is grouped by them — and the deploy runs `prisma db push` without
+ * ever running migration SQL or a backfill script (see `docker/entrypoint.sh`),
+ * so the app has to do it the first time it looks. Each distinct spelling
+ * becomes one top-level `ServiceCategory`; nothing arrives as a subcategory,
+ * because the old text box could not express one.
+ */
+export async function getServiceCategories(): Promise<ServiceCategoryOption[]> {
+  const orphaned = await prisma.service.findMany({
+    where: { categoryId: null, NOT: { legacyCategory: null } },
+    select: { id: true, legacyCategory: true },
+  });
+  if (orphaned.length > 0) await adoptLegacyServiceCategories(orphaned);
+
+  return prisma.serviceCategory.findMany({
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true, parentId: true },
+  });
+}
+
+/**
+ * Turn the typed-in category names into rows, once.
+ *
+ * Two requests can arrive together on the deploy that first exposes this, and
+ * without a unique index on `name` (see `saveServiceCategory`) both would create
+ * their own "Kirurgji". The advisory lock is held for the transaction only, so
+ * the second request waits, then finds nothing left to adopt.
+ */
+async function adoptLegacyServiceCategories(
+  orphaned: Array<{ id: string; legacyCategory: string | null }>,
+): Promise<void> {
+  const wanted = new Map<string, { name: string; serviceIds: string[] }>();
+  for (const service of orphaned) {
+    const name = service.legacyCategory?.trim();
+    if (!name) continue;
+
+    const key = name.toLowerCase();
+    const group = wanted.get(key) ?? { name, serviceIds: [] };
+    group.serviceIds.push(service.id);
+    wanted.set(key, group);
+  }
+  if (wanted.size === 0) return;
+
+  await prisma.$transaction(async (tx) => {
+    // A second arbitrary constant, distinct from the storage room's: the two
+    // adoptions touch different tables and must not queue behind each other.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(4207310002)`;
+
+    const known = new Map(
+      (
+        await tx.serviceCategory.findMany({
+          where: { parentId: null },
+          select: { id: true, name: true },
+        })
+      ).map((category) => [category.name.toLowerCase(), category.id]),
+    );
+
+    for (const [key, group] of wanted) {
+      const categoryId =
+        known.get(key) ??
+        (await tx.serviceCategory.create({ data: { name: group.name }, select: { id: true } })).id;
+
+      await tx.service.updateMany({
+        // `categoryId: null` again: a treatment somebody has since filed by hand
+        // keeps the heading they chose, not the one the old text box remembers.
+        where: { id: { in: group.serviceIds }, categoryId: null },
+        data: { categoryId, legacyCategory: null },
+      });
+    }
+
+    // Anything left holding a blank or whitespace-only category — nothing to
+    // adopt, but it would make this run again on every single load.
+    await tx.service.updateMany({
+      where: { id: { in: orphaned.map((service) => service.id) }, categoryId: null },
+      data: { legacyCategory: null },
+    });
+  });
+}
+
+/**
+ * The catalog in picker order: by department, then by name inside each one.
+ *
+ * `category` is the *department* even for a treatment filed under a
+ * subcategory — every picker in the app groups by this string and prints it as
+ * a heading, and "Kirurgji" is the heading whether the treatment sits directly
+ * under it or under "Implantologji" inside it.
+ *
+ * The categories are read first, and not beside the services: this is the call
+ * every other screen makes, so it is also where the practice's old typed-in
+ * categories get adopted for anyone who books an appointment before opening the
+ * services page.
+ */
 export async function getServiceOptions(): Promise<ServiceOption[]> {
+  await getServiceCategories();
+
   const services = await prisma.service.findMany({
-    orderBy: [{ category: 'asc' }, { name: 'asc' }],
     select: {
       id: true,
       name: true,
-      category: true,
       durationMin: true,
+      category: { select: { name: true, parent: { select: { name: true } } } },
       _count: { select: { materials: true } },
     },
   });
 
-  return services.map(({ _count, category, ...service }) => ({
-    ...service,
-    category: category ?? '',
-    materialCount: _count.materials,
-  }));
+  // Sorted here rather than by the database, which can order by the leaf
+  // heading but not by the department above it.
+  return services
+    .map(({ _count, category, ...service }) => ({
+      ...service,
+      category: departmentOf(category),
+      subcategory: category?.parent ? category.name : '',
+      materialCount: _count.materials,
+    }))
+    .sort(
+      (a, b) =>
+        a.category.localeCompare(b.category) ||
+        a.subcategory.localeCompare(b.subcategory) ||
+        a.name.localeCompare(b.name),
+    )
+    .map(({ subcategory: _subcategory, ...option }) => option);
 }
 
 type AppointmentWithPatient = {

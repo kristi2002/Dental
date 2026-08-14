@@ -248,13 +248,32 @@
     "materialQuantity": "Quantity of {name}",
     "materialByTheBox": "Counted by the {unit}: deducting 1 per visit would take a whole {unit} off the shelf each time.",
     "materialByTheBoxShort": "by the {unit}",
-    "searchPlaceholder": "Search by name or category",
+    "searchPlaceholder": "Search by name, department or subcategory",
     "anyCategory": "All categories",
     "filterMaterialsLabel": "Filter by materials",
     "filterWithMaterials": "With materials",
     "filterNoMaterials": "No materials set",
     "showing": "Showing {count} of {total} services",
-    "emptyFiltered": "No services match these filters."
+    "emptyFiltered": "No services match these filters.",
+    "department": "Department",
+    "subcategory": "Subcategory",
+    "wholeDepartment": "Whole department",
+    "categoryEmptyHint": "No categories yet — add them under \"Categories\" on this page."
+  },
+  "serviceCategories": {
+    "title": "Categories",
+    "new": "Add department",
+    "newChild": "Add subcategory",
+    "edit": "Edit category",
+    "nameHint": "What this part of the catalogue is called. Every service picks from this list.",
+    "parent": "Inside department",
+    "parentHint": "Leave empty for a department of its own.",
+    "topLevel": "A department of its own",
+    "parentLocked": "A department with subcategories cannot be moved inside another one.",
+    "empty": "No categories yet. Add the departments the clinic already works in, then file each service under one.",
+    "serviceCount": "{count, plural, =0 {no services} one {# service} other {# services}}",
+    "confirmDelete": "Remove this category? The services in it stay in the catalogue and become uncategorized.",
+    "confirmDeleteParent": "Remove this department and its {count, plural, one {# subcategory} other {# subcategories}}? The services in them stay in the catalogue and become uncategorized."
   },
   "stock": {
     "title": "Stock",
@@ -404,7 +423,8 @@
     "hoursInvalid": "An open day needs a closing time later than its opening time.",
     "rangeBackwards": "The end date cannot be before the start date.",
     "substanceRequired": "Name the substance — an allergy without one cannot be checked against a prescription.",
-    "allergyClash": "This patient is recorded as allergic to: {list}."
+    "allergyClash": "This patient is recorded as allergic to: {list}.",
+    "categoryDepth": "A category can go one level deep, no further."
   },
   "roles": {
     "OWNER": "Owner / Dentist",

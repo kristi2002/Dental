@@ -3,9 +3,10 @@
 import { Package, Pencil, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
-import { TextField } from '@/components/ui/Field';
+import { SelectField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { saveService } from '@/lib/actions/services';
+import type { ServiceCategoryOption } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 export type StockOption = { id: string; name: string; unit: string; packSize: number };
@@ -13,7 +14,10 @@ export type StockOption = { id: string; name: string; unit: string; packSize: nu
 export type ServiceDefaults = {
   id: string;
   name: string;
-  category: string;
+  /** The department, whether this treatment is filed against it or a child of it. */
+  departmentId: string;
+  /** The subcategory inside that department, or empty. */
+  subcategoryId: string;
   durationMin: number;
   /** Materials this treatment consumes, keyed by stock item id. */
   materials: Array<{ itemId: string; quantity: number }>;
@@ -27,8 +31,8 @@ export function ServiceFormDialog({
   compact = false,
 }: {
   service?: ServiceDefaults;
-  /** Existing categories, offered as autocomplete so spelling stays consistent. */
-  categories: string[];
+  /** Every heading the practice has named, departments and subcategories alike. */
+  categories: ServiceCategoryOption[];
   /** The cupboard, for building this treatment's bill of materials. */
   stockItems: StockOption[];
   triggerClassName?: string;
@@ -39,9 +43,24 @@ export function ServiceFormDialog({
   const uid = useId();
   const editing = Boolean(service);
 
+  // The second select is a function of the first, so the department is state
+  // rather than an uncontrolled default: picking Kirurgji has to replace the
+  // subcategories of whatever was selected before it.
+  const [departmentId, setDepartmentId] = useState(service?.departmentId ?? '');
+  const [subcategoryId, setSubcategoryId] = useState(service?.subcategoryId ?? '');
+
+  const departments = categories.filter((category) => category.parentId === null);
+  const subcategories = categories.filter((category) => category.parentId === departmentId);
+
   const [materials, setMaterials] = useState<Record<string, number>>(
     Object.fromEntries((service?.materials ?? []).map((m) => [m.itemId, m.quantity])),
   );
+
+  function reset() {
+    setDepartmentId(service?.departmentId ?? '');
+    setSubcategoryId(service?.subcategoryId ?? '');
+    setMaterials(Object.fromEntries((service?.materials ?? []).map((m) => [m.itemId, m.quantity])));
+  }
 
   function toggleMaterial(itemId: string) {
     setMaterials((current) => {
@@ -59,11 +78,7 @@ export function ServiceFormDialog({
       key={service?.id ?? 'new'}
       action={saveService}
       resetOnSuccess={!editing}
-      onClose={() =>
-        setMaterials(
-          Object.fromEntries((service?.materials ?? []).map((m) => [m.itemId, m.quantity])),
-        )
-      }
+      onClose={reset}
       title={editing ? t('edit') : t('new')}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
@@ -97,19 +112,53 @@ export function ServiceFormDialog({
         defaultValue={service?.name}
       />
 
-      <TextField
-        id={`${uid}-category`}
-        name="category"
-        label={t('category')}
-        optional={tc('optional')}
-        list={`${uid}-categories`}
-        defaultValue={service?.category}
-      />
-      <datalist id={`${uid}-categories`}>
-        {categories.map((category) => (
-          <option key={category} value={category} />
-        ))}
-      </datalist>
+      {/* A closed list, not a text box. Typing the department per treatment is
+          what produced three spellings of one heading, and five screens group
+          the catalogue by it — so a typo splits a department in two. The hint
+          carries the only thing a select cannot: where new ones come from, said
+          just once, when there are none yet. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SelectField
+          id={`${uid}-category`}
+          name="categoryId"
+          label={t('department')}
+          hint={departments.length === 0 ? t('categoryEmptyHint') : undefined}
+          optional={tc('optional')}
+          value={departmentId}
+          onChange={(event) => {
+            setDepartmentId(event.target.value);
+            // The old subcategory belongs to the old department.
+            setSubcategoryId('');
+          }}
+        >
+          <option value="">{t('uncategorized')}</option>
+          {departments.map((department) => (
+            <option key={department.id} value={department.id}>
+              {department.name}
+            </option>
+          ))}
+        </SelectField>
+
+        {/* Only once the chosen department has been subdivided — an empty second
+            select on every treatment would read as a question left unanswered. */}
+        {subcategories.length > 0 ? (
+          <SelectField
+            id={`${uid}-subcategory`}
+            name="subcategoryId"
+            label={t('subcategory')}
+            optional={tc('optional')}
+            value={subcategoryId}
+            onChange={(event) => setSubcategoryId(event.target.value)}
+          >
+            <option value="">{t('wholeDepartment')}</option>
+            {subcategories.map((subcategory) => (
+              <option key={subcategory.id} value={subcategory.id}>
+                {subcategory.name}
+              </option>
+            ))}
+          </SelectField>
+        ) : null}
+      </div>
 
       <TextField
         id={`${uid}-duration`}

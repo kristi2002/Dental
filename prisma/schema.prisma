@@ -583,11 +583,54 @@ model StockMovement {
   @@index([itemId, createdAt])
 }
 
+/// A heading in the treatment catalogue — a department, or one subdivision of a
+/// department.
+///
+/// A category typed per service becomes three spellings of itself, and the
+/// catalogue is grouped by it on five different screens — so it is a row the
+/// practice names once and every treatment picks from. Unlike a storage-room
+/// shelf, a price list has two levels, not one — "Kirurgji" is a department,
+/// "Implantologji" is a part of it, and flattening the two would either lose the
+/// distinction or turn every heading into "Kirurgji — Implantologji".
+///
+/// Exactly two levels. `parentId` is null for a department and set for a
+/// subcategory, and `saveServiceCategory` refuses a parent that already has one
+/// — a third level has nowhere to be printed.
+model ServiceCategory {
+  id   String @id @default(uuid())
+  name String
+
+  parentId String?
+  parent   ServiceCategory?  @relation("ServiceCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children ServiceCategory[] @relation("ServiceCategoryTree")
+
+  createdAt DateTime @default(now())
+
+  services Service[]
+
+  @@index([parentId])
+}
+
 model Service {
-  id          String  @id @default(uuid())
+  id          String @id @default(uuid())
   name        String
-  category    String?
-  durationMin Int     @default(30)
+  durationMin Int    @default(30)
+
+  /// Where this sits in the catalogue: a department, or a subcategory inside
+  /// one. Null is a real answer — an unfiled treatment is still a treatment.
+  categoryId String?
+  category   ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  /// What `category` used to be: whatever anyone typed into a free-text box.
+  ///
+  /// Superseded by `categoryId`, and kept only because the deploy cannot drop
+  /// it — `db push` runs without `--accept-data-loss`, so removing the column
+  /// would halt the release rather than migrate it. `@map` keeps the database
+  /// column exactly where it was, which is what lets the value survive the
+  /// deploy at all: `getServiceCategories` reads it once, turns each distinct
+  /// spelling into a top-level `ServiceCategory`, and clears it. Nothing writes
+  /// it again.
+  legacyCategory String? @map("category")
 
   materials    ServiceMaterial[]
   visits       VisitService[]
@@ -595,6 +638,8 @@ model Service {
   waitlist     WaitlistEntry[]
   /// Standard prescription wording written after this treatment.
   prescriptionTemplates PrescriptionTemplateService[]
+
+  @@index([categoryId])
 }
 
 /// One treatment performed at one visit.

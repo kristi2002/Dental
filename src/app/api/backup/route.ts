@@ -70,6 +70,7 @@ export async function POST(request: Request) {
     contacts,
     suppliers,
     batches,
+    serviceCategories,
     operatories,
     closures,
     clinicHours,
@@ -109,6 +110,13 @@ export async function POST(request: Request) {
     prisma.contact.findMany(),
     prisma.supplier.findMany(),
     prisma.stockBatch.findMany(),
+    // Same for the catalogue: without these the services restore holding an id
+    // that names nothing, and the price list comes back as one undivided list.
+    //
+    // Departments first, because this table references itself and the restore
+    // writes each key in one `createMany` — a subcategory ahead of its own
+    // department is a foreign key violation partway through the restore.
+    prisma.serviceCategory.findMany({ orderBy: { parentId: { sort: 'asc', nulls: 'first' } } }),
     prisma.operatory.findMany(),
     prisma.closure.findMany(),
     prisma.clinicHours.findMany(),
@@ -148,6 +156,7 @@ export async function POST(request: Request) {
         contacts,
         suppliers,
         batches,
+        serviceCategories,
         operatories,
         closures,
         clinicHours,

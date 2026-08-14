@@ -7,6 +7,21 @@
 
 export type Categorised = { category: string };
 
+/**
+ * The heading a catalogue entry is printed under.
+ *
+ * A treatment is filed against one `ServiceCategory`, which is either a
+ * department or a subcategory of one — so the department is the parent's name
+ * when there is a parent, and the category's own otherwise. Every picker groups
+ * by this, which is what keeps subdividing a department from splitting it.
+ */
+export function departmentOf(
+  category: { name: string; parent: { name: string } | null } | null,
+): string {
+  if (!category) return '';
+  return category.parent?.name ?? category.name;
+}
+
 export type Department<T> = { department: string; items: T[] };
 
 /**

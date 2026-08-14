@@ -248,13 +248,32 @@
     "materialQuantity": "Sasia e {name}",
     "materialByTheBox": "Numërohet me {unit}: zbritja e 1 për vizitë do të hiqte çdo herë një {unit} të tërë nga rafti.",
     "materialByTheBoxShort": "me {unit}",
-    "searchPlaceholder": "Kërko sipas emrit ose kategorisë",
+    "searchPlaceholder": "Kërko sipas emrit, departamentit ose nënkategorisë",
     "anyCategory": "Të gjitha kategoritë",
     "filterMaterialsLabel": "Filtro sipas materialeve",
     "filterWithMaterials": "Me materiale",
     "filterNoMaterials": "Pa materiale të caktuara",
     "showing": "Duke shfaqur {count} nga {total} shërbime",
-    "emptyFiltered": "Asnjë shërbim nuk përputhet me këta filtra."
+    "emptyFiltered": "Asnjë shërbim nuk përputhet me këta filtra.",
+    "department": "Departamenti",
+    "subcategory": "Nënkategoria",
+    "wholeDepartment": "I gjithë departamenti",
+    "categoryEmptyHint": "Ende asnjë kategori — shtoji te \"Kategoritë\" në këtë faqe."
+  },
+  "serviceCategories": {
+    "title": "Kategoritë",
+    "new": "Shto departament",
+    "newChild": "Shto nënkategori",
+    "edit": "Ndrysho kategorinë",
+    "nameHint": "Si quhet kjo pjesë e katalogut. Çdo shërbim zgjidhet nga kjo listë.",
+    "parent": "Brenda departamentit",
+    "parentHint": "Lëreni bosh për një departament më vete.",
+    "topLevel": "Një departament më vete",
+    "parentLocked": "Një departament me nënkategori nuk mund të futet brenda një tjetri.",
+    "empty": "Ende asnjë kategori. Shto departamentet ku klinika tashmë punon, pastaj vendos çdo shërbim në një prej tyre.",
+    "serviceCount": "{count, plural, =0 {asnjë shërbim} one {# shërbim} other {# shërbime}}",
+    "confirmDelete": "Ta heqim këtë kategori? Shërbimet mbeten në katalog dhe kalojnë pa kategori.",
+    "confirmDeleteParent": "Ta heqim këtë departament dhe {count, plural, one {# nënkategorinë e tij} other {# nënkategoritë e tij}}? Shërbimet mbeten në katalog dhe kalojnë pa kategori."
   },
   "stock": {
     "title": "Inventari",
@@ -404,7 +423,8 @@
     "hoursInvalid": "Një ditë e hapur duhet të mbyllet pas orës së hapjes.",
     "rangeBackwards": "Data e fundit nuk mund të jetë para asaj të fillimit.",
     "substanceRequired": "Shëno substancën — një alergji pa emër nuk mund të krahasohet me recetën.",
-    "allergyClash": "Ky pacient figuron alergjik ndaj: {list}."
+    "allergyClash": "Ky pacient figuron alergjik ndaj: {list}.",
+    "categoryDepth": "Një kategori mund të ketë vetëm një nivel poshtë, jo më shumë."
   },
   "roles": {
     "OWNER": "Pronar / Dentist",
