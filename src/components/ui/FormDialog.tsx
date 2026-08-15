@@ -25,6 +25,16 @@ type Props = {
   resetOnSuccess?: boolean;
   /** Called whenever the dialog closes, so callers can reset their own state. */
   onClose?: () => void;
+  /**
+   * Called after the action succeeded, whether or not the browser gets round to
+   * firing a `close` event.
+   *
+   * `onClose` is the DOM event and answers "the dialog went away" — which is not
+   * the same question, fires on cancel too, and does not fire at all in every
+   * environment. A caller that has to react to the *save* needs to be told about
+   * the save.
+   */
+  onSuccess?: () => void;
   wide?: boolean;
 };
 
@@ -41,6 +51,7 @@ export function FormDialog({
   closeLabel,
   resetOnSuccess = true,
   onClose,
+  onSuccess,
   wide = false,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -52,11 +63,15 @@ export function FormDialog({
   const { state, formAction, formRef } = useRecoveredForm(action);
 
   useEffect(() => {
+    // `ts` rather than a boolean, for the reason `useRecoveredForm` uses it:
+    // two saves in a row are two events, and the second must not be treated as
+    // already handled.
     if (state.status !== 'ok' || state.ts === handledTs.current) return;
     handledTs.current = state.ts;
     if (resetOnSuccess) formRef.current?.reset();
     dialogRef.current?.close();
-  }, [state, resetOnSuccess, formRef]);
+    onSuccess?.();
+  }, [state, resetOnSuccess, formRef, onSuccess]);
 
   return (
     <>

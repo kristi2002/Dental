@@ -1,4 +1,4 @@
-import { CircleCheck, Clock, DoorOpen, Trash2, UserX } from 'lucide-react';
+import { CalendarSync, CircleCheck, Clock, DoorOpen, Hourglass, Trash2, UserX } from 'lucide-react';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Badge } from '@/components/ui/Badge';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -12,6 +12,7 @@ import { composeReminder } from '@/lib/reminder-messages';
 import { AppointmentFormDialog, type ServiceOption } from './AppointmentFormDialog';
 import { AppointmentStatusBadge } from './AppointmentStatusBadge';
 import { ReminderLinks } from './ReminderLinks';
+import { RescheduleDialog } from './RescheduleDialog';
 import type { AppointmentView } from './types';
 
 /**
@@ -42,6 +43,14 @@ export async function AppointmentRow({
   const patientName = `${appointment.patient.firstName} ${appointment.patient.lastName}`;
   // Both are `YYYY-MM-DD`, which compares correctly as text.
   const isPast = appointment.date < toDateKey(today());
+
+  // Worked out at render rather than stored, and only while they are actually
+  // in the waiting room. Floored at zero because a clock skew between the
+  // database and the renderer should read "just arrived", never "-2 min".
+  const waitingMinutes =
+    appointment.status === 'ARRIVED' && appointment.arrivedAt
+      ? Math.max(0, Math.round((Date.now() - new Date(appointment.arrivedAt).getTime()) / 60000))
+      : null;
 
   // The link the patient taps to answer. Derived, not stored — see confirmations.ts.
   // It points at *their* language, not the reader's, so the confirmation page
@@ -100,6 +109,25 @@ export async function AppointmentRow({
               <Badge tone="ok">{t('confirmed')}</Badge>
             ) : appointment.declined ? (
               <Badge tone="danger">{t('declined')}</Badge>
+            ) : null}
+
+            {/* How long they have been sitting there. The status said somebody
+                was waiting and never since when, which is the half that decides
+                who gets seen next and whether the day is running late. */}
+            {waitingMinutes !== null ? (
+              <Badge tone={waitingMinutes >= 20 ? 'warn' : 'neutral'}>
+                <Hourglass size={14} aria-hidden />
+                {t('waitingFor', { minutes: waitingMinutes })}
+              </Badge>
+            ) : null}
+
+            {/* This slot replaced an earlier one. Worth seeing before agreeing
+                to move it again. */}
+            {appointment.moved ? (
+              <Badge tone="neutral">
+                <CalendarSync size={14} aria-hidden />
+                {t('movedBadge')}
+              </Badge>
             ) : null}
           </div>
 
@@ -170,6 +198,24 @@ export async function AppointmentRow({
                 <span className="sr-only @[30rem]:not-sr-only">{t('markNoShow')}</span>
               </button>
             </ActionForm>
+          ) : null}
+
+          {/* Moving a live booking is a different act from editing it — see
+              `RescheduleDialog`. Not offered once the slot is closed: a
+              completed or missed appointment is a record of what happened, and
+              what happens next is a new booking. */}
+          {canEdit &&
+          (appointment.status === 'SCHEDULED' || appointment.status === 'ARRIVED') ? (
+            <RescheduleDialog
+              appointment={{
+                id: appointment.id,
+                date: appointment.date,
+                startTime: appointment.startTime,
+                durationMin: appointment.durationMin,
+                staffUserId: appointment.staffUserId,
+              }}
+              compact
+            />
           ) : null}
 
           {canEdit ? (

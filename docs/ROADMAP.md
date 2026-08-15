@@ -257,3 +257,90 @@ Error reporting beyond the health endpoint is still nothing more than
   page. There is no scheduled job producing "tomorrow's six need reminding".
 - **No health check, no error reporting.** On a clinic mini-PC, a silent failure
   is found by a receptionist rather than by you.
+
+---
+
+## Phase 11 — The screens were right and the work was slow 🟣⚪
+
+**Status: implemented.**
+
+Everything above is about what the app could not *represent*. This phase is
+about what it could represent and still made somebody do by hand — the gap
+between a correct data model and a fast front desk. Nothing here is a new
+concept; all of it is an act the practice already performs, performed in fewer
+presses.
+
+**Finding a slot.** `findFreeGaps` took exactly one date, so *"when is your first
+free hour?"* — the question asked over the counter more than any other — was
+answered by paging the diary a day at a time. `findNextGaps` walks forward
+across days on one query for the bookings and none for the hours (the week and
+the closures are request-cached), and `SlotFinder` puts the answer inside the
+booking dialog, asked *after* the treatment is chosen because the duration is
+what decides whether a gap is a fit.
+
+**Booking.** An empty hour on the day grid now books itself, instead of being
+read off the screen and typed back into a field. `Ctrl+K` opens one box that
+finds a patient or a screen from anywhere, over the same `searchPatients` the
+booking dialog already used. A course of treatment can be booked as a course —
+same slot, every N weeks — with the dates that fall on a closure or a clash left
+unbooked rather than double-booked, which is said on the form before the press
+and in the audit line after it.
+
+**Moving.** `Appointment.rescheduledFromId` had carried a comment promising
+"moved three times" visibility since it was added, with nothing writing it.
+A move is now two rows: the original is called off as a **clinic** cancellation —
+`reliability.ts` reads that column, and a patient who rings ahead to move an
+appointment has done the opposite of missing it — and the new booking points back
+at it and carries a mark. The plan step follows the slot that fulfils it.
+
+**Waiting.** `ARRIVED` said somebody was waiting and never since when.
+`arrivedAt` is stamped on the way in, kept through `COMPLETED`, and wound back on
+any status that means they are not in the room.
+
+**The next appointment.** Booked from the chair, inside the visit form, defaulted
+to the patient's own recall interval — the moment a follow-up actually gets made
+is while they are still sitting there. It cannot fail the write-up: a clash is
+booked over rather than costing somebody their clinical note.
+
+**Materials.** Consumption stayed scan-only, and a practice with no scanner in
+the surgery had a cupboard whose count moved once a quarter. `suggestMaterials`
+is not the retired bill of materials returning — it is the ledger read back: what
+past visits *for this treatment* actually spent, in the amounts they spent,
+offered as a figure somebody confirms. Same guarded take, same oldest-lot-first
+allocation, same trace.
+
+**Expiry.** Was a property of a material, which is the wrong unit to act on:
+"composite: expired" says a shelf is wrong and not which box to take off it.
+`/stock/expiry` is one row per lot with the one verb that answers it, and
+`writeOffBatch` finally names the lot — `recordConsumption` has taken a preferred
+batch since scanning existed and nothing in the storage room could offer one. The
+reason is its own word, so binned stock does not read as consumption and drag the
+reorder projection with it.
+
+**Ordering.** The shopping list is placed per supplier and was only ever
+answerable per material. `bySupplier` groups it, the message goes to the number
+or address on the supplier's own record rather than to a share sheet, and one
+press answers the whole order.
+
+**Patients.** The list loaded every row with two sub-counts and a score each; it
+is paged. Archiving finally applies to the record with the most history hanging
+off it and the longest retention period — the rule staff and materials have lived
+under all along — and hard deletion stays, owner-only, for an actual erasure
+request. Duplicates were detected on the way in and unanswerable afterwards;
+`mergePatients` repoints every child table, fills the survivor's blanks from the
+loser (which is *why* two records exist — one has the email, the other the date
+of birth), settles the one table that cannot simply be repointed (`ToothRecord`
+is unique on patient-and-tooth, so the later examination wins), and archives the
+husk.
+
+**Paper and figures.** A plan prints for the patient. Statistics answer the two
+questions an owner opens the page with and neither could be read off it: chair
+use — booked minutes against the hours the practice was open, because eight
+check-ups and three implants are the same *count* and nothing like the same day —
+and missed appointments per dentist, which the per-patient score cannot see from
+its end.
+
+One bug fell out of the reading: `getReliabilityMap` did not exclude clinic
+cancellations while `getReliability` did, so the badge on the patient list and
+the badge on the patient's own screen were two different claims about the same
+person.

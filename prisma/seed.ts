@@ -6,6 +6,7 @@
  */
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hashPin } from '../src/lib/auth/crypto';
+import { gtinCheckDigit } from '../src/lib/barcode';
 import { storeFile } from '../src/lib/files';
 import { PrismaClient } from '../src/generated/prisma/client';
 
@@ -106,39 +107,19 @@ const PATIENTS = [
 ];
 
 /**
- * What each treatment consumes, by service name → [stock name, quantity].
- * This is what makes recording a visit deduct materials on its own.
+ * A demo GTIN-14 with a real check digit, so the scanning screen has something
+ * that actually resolves on a fresh install.
+ *
+ * `0590` is a GS1 prefix, and the digits after it are invented — these are not
+ * anybody's real products. The check digit is computed rather than typed
+ * because `normaliseGtin` refuses one that does not verify, which is exactly the
+ * behaviour worth demonstrating and exactly what a hand-typed constant would
+ * quietly break.
  */
-const SERVICE_MATERIALS: Record<string, Array<[string, number]>> = {
-  'Kontroll i përgjithshëm': [['Dorashka nitrili (M)', 1]],
-  'Pastrim guri (detartrazh)': [
-    ['Dorashka nitrili (M)', 1],
-    ['Rula pambuku', 2],
-  ],
-  'Mbushje kompozite': [
-    ['Dorashka nitrili (M)', 1],
-    ['Kompozit A2', 1],
-    ['Freza diamanti', 1],
-    ['Anestezi Lidokainë 2%', 1],
-  ],
-  'Devitalizim (trajtim kanali)': [
-    ['Dorashka nitrili (M)', 2],
-    ['Anestezi Lidokainë 2%', 2],
-    ['Gjilpëra anestezie', 1],
-    ['Cimento qelqjonomer', 1],
-  ],
-  'Heqje dhëmbi': [
-    ['Dorashka nitrili (M)', 1],
-    ['Anestezi Lidokainë 2%', 2],
-    ['Fije suture 4-0', 1],
-    ['Rula pambuku', 3],
-  ],
-  'Implant dentar': [
-    ['Dorashka nitrili (M)', 2],
-    ['Anestezi Lidokainë 2%', 2],
-    ['Fije suture 4-0', 2],
-  ],
-};
+function demoGtin(seed: number): string {
+  const body = `059012${String(seed).padStart(7, '0')}`;
+  return `${body}${gtinCheckDigit(body)}`;
+}
 
 /**
  * Standard wording, each tied to the treatments it follows — which is what turns
@@ -205,6 +186,9 @@ async function main() {
   console.log('Clearing existing data…');
   await prisma.auditLog.deleteMany();
   await prisma.stockMovement.deleteMany();
+  await prisma.productBarcode.deleteMany();
+  // Retired, and no longer seeded — cleared so a re-seed leaves no rows behind
+  // from a database that predates the change. See `drop-service-materials.ts`.
   await prisma.serviceMaterial.deleteMany();
   await prisma.toothRecord.deleteMany();
   await prisma.visitRecord.deleteMany();
@@ -372,13 +356,23 @@ async function main() {
     }
   }
 
-  console.log('Seeding service materials…');
-  for (const service of services) {
-    for (const [itemName, quantity] of SERVICE_MATERIALS[service.name] ?? []) {
-      const item = stockItems.find((candidate) => candidate.name === itemName);
-      if (!item) continue;
-      await prisma.serviceMaterial.create({
-        data: { serviceId: service.id, itemId: item.id, quantity },
+  console.log('Seeding product barcodes…');
+  for (const [index, item] of stockItems.entries()) {
+    // The each-level code every material gets, plus a carton code on the two
+    // that are genuinely bought by the box — which is the case that proves
+    // `packQty` is doing something.
+    await prisma.productBarcode.create({
+      data: { code: demoGtin(index + 1), itemId: item.id, packQty: 1 },
+    });
+
+    if (item.packSize > 1) {
+      await prisma.productBarcode.create({
+        data: {
+          code: demoGtin(500 + index),
+          itemId: item.id,
+          packQty: item.packSize,
+          label: `Carton of ${item.packSize}`,
+        },
       });
     }
   }
@@ -707,8 +701,8 @@ async function main() {
     appointments: await prisma.appointment.count(),
     visits: await prisma.visitRecord.count(),
     services: await prisma.service.count(),
-    serviceMaterials: await prisma.serviceMaterial.count(),
     stock: await prisma.stockItem.count(),
+    barcodes: await prisma.productBarcode.count(),
     waitlist: await prisma.waitlistEntry.count(),
     plans: await prisma.treatmentPlan.count(),
     documents: await prisma.patientDocument.count(),

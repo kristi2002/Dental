@@ -12,24 +12,6 @@ function revalidateAll() {
   revalidatePath('/', 'layout');
 }
 
-/**
- * Materials arrive as repeated `material` fields shaped `itemId:quantity`, which
- * keeps the bill of materials inside the same plain form as the rest.
- */
-function parseMaterials(formData: FormData): Array<{ itemId: string; quantity: number }> {
-  const seen = new Map<string, number>();
-
-  for (const raw of formData.getAll('material')) {
-    if (typeof raw !== 'string') continue;
-    const [itemId, rawQuantity] = raw.split(':');
-    const quantity = Number.parseInt(rawQuantity ?? '', 10);
-    if (!itemId || !Number.isFinite(quantity) || quantity <= 0) continue;
-    seen.set(itemId, Math.min(999, quantity));
-  }
-
-  return [...seen].map(([itemId, quantity]) => ({ itemId, quantity }));
-}
-
 export async function saveService(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const t = await getTranslations('errors');
 
@@ -61,25 +43,14 @@ export async function saveService(_prev: ActionState, formData: FormData): Promi
     // `Service.legacyCategory`.
     legacyCategory: null,
   };
-  const materials = parseMaterials(formData);
 
   let savedId = id;
   try {
-    await prisma.$transaction(async (tx) => {
-      if (id) {
-        await tx.service.update({ where: { id }, data });
-      } else {
-        savedId = (await tx.service.create({ data, select: { id: true } })).id;
-      }
-
-      // Replace wholesale — the form always submits the complete list.
-      await tx.serviceMaterial.deleteMany({ where: { serviceId: savedId! } });
-      if (materials.length > 0) {
-        await tx.serviceMaterial.createMany({
-          data: materials.map((material) => ({ ...material, serviceId: savedId! })),
-        });
-      }
-    });
+    if (id) {
+      await prisma.service.update({ where: { id }, data });
+    } else {
+      savedId = (await prisma.service.create({ data, select: { id: true } })).id;
+    }
   } catch {
     return actionError(t('generic'));
   }

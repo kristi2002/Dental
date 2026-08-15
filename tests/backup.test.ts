@@ -81,6 +81,7 @@ describe('backup and restore agree with each other', () => {
     assert.ok(at('stock') < at('movements'), 'a movement needs its material');
     assert.ok(at('stock') < at('serviceMaterials'), 'a bill of materials needs the material');
     assert.ok(at('services') < at('serviceMaterials'), 'and the service');
+    assert.ok(at('stock') < at('productBarcodes'), 'a barcode names a material');
     assert.ok(at('stock') < at('batches'), 'a lot needs its material');
     assert.ok(at('suppliers') < at('stock'), 'a material may name a supplier');
     assert.ok(at('stockCategories') < at('stock'), 'a material may name a shelf');

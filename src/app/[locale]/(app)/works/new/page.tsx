@@ -5,6 +5,7 @@ import { NewWorkForm } from '@/components/works/NewWorkForm';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
+import { toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -61,7 +62,9 @@ export default async function NewWorkPage({ params }: { params: Promise<{ locale
         }
       />
 
-      <NewWorkForm labs={labs} />
+      {/* The clinic's today, not the browser's — a laptop left on overnight, or
+          one set to another zone, would otherwise file the case a day out. */}
+      <NewWorkForm labs={labs} today={toDateKey(today())} />
     </>
   );
 }

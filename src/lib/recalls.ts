@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { AppointmentStatus } from '@/generated/prisma/enums';
 import { addMonths, today, toDateKey } from '@/lib/dates';
+import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -84,8 +85,10 @@ const loadCandidates = cache(async (): Promise<PatientForRecall[]> => {
   const now = today();
 
   return prisma.patient.findMany({
-    // `recallMonths: 0` is how a patient opts out entirely.
-    where: { recallMonths: { gt: 0 } },
+    // `recallMonths: 0` is how a patient opts out entirely; archiving is how the
+    // practice does — chasing somebody who has been filed away is exactly the
+    // call that makes a recall list stop being trusted.
+    where: { ...ACTIVE_PATIENTS, recallMonths: { gt: 0 } },
     select: {
       id: true,
       firstName: true,

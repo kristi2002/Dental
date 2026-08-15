@@ -80,7 +80,15 @@ export async function getReliabilityMap(
 
   const rows = await prisma.appointment.groupBy({
     by: ['patientId', 'status'],
-    where: { patientId: { in: patientIds }, date: { lt: today() } },
+    // The same exclusion `getReliability` makes, and it was missing here: the
+    // list badge and the badge on the patient's own screen are the same claim
+    // about the same person, and a slot the *clinic* called off was counting
+    // towards one of them and not the other.
+    where: {
+      patientId: { in: patientIds },
+      date: { lt: today() },
+      NOT: { cancelledBy: CancelledBy.CLINIC },
+    },
     _count: { _all: true },
   });
 

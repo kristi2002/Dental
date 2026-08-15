@@ -1,4 +1,6 @@
 import {
+  Archive,
+  ArchiveRestore,
   Baby,
   BellRing,
   Cake,
@@ -40,7 +42,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Link } from '@/i18n/navigation';
-import { deletePatient } from '@/lib/actions/patients';
+import { archivePatient, deletePatient } from '@/lib/actions/patients';
+import { MergeDialog } from '@/components/patients/MergeDialog';
 import { requirePermission } from '@/lib/auth/guard';
 import type { Permission } from '@/lib/auth/permissions';
 import { DocumentKind } from '@/generated/prisma/enums';
@@ -335,6 +338,25 @@ export default async function PatientDetailPage({
         ]}
       />
 
+      {/* This record is out of every list and every picker. Said at the top,
+          because everything below it still works and would otherwise read as an
+          ordinary patient somebody could book. */}
+      {patient.archivedAt ? (
+        <p
+          role="status"
+          className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-warn bg-warn-soft px-4 py-3 font-semibold text-warn"
+        >
+          <Archive size={19} aria-hidden />
+          {t('archivedOn', {
+            date: format.dateTime(patient.archivedAt, {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            }),
+          })}
+        </p>
+      ) : null}
+
       <header className="card mb-6 flex flex-wrap items-start gap-5 p-5">
         <span
           aria-hidden
@@ -436,6 +458,36 @@ export default async function PatientDetailPage({
               }}
             />
           ) : null}
+          {/* Folding a duplicate in. Owner-only, beside the delete it exists to
+              make unnecessary — the front desk's two bad options were leaving
+              both records or erasing one. */}
+          {canDelete ? <MergeDialog keepId={patient.id} keepName={fullName} /> : null}
+
+          {/* The ordinary way to get somebody out of the lists, and the one that
+              keeps their record. Sits before the delete deliberately. */}
+          {canEdit ? (
+            <ActionForm
+              action={archivePatient}
+              values={{ id: patient.id, archived: patient.archivedAt ? '0' : '1' }}
+              confirmMessage={patient.archivedAt ? undefined : t('archiveWarning')}
+            >
+              <button
+                type="submit"
+                className="btn btn-secondary"
+                title={patient.archivedAt ? t('restore') : t('archive')}
+              >
+                {patient.archivedAt ? (
+                  <ArchiveRestore size={19} aria-hidden />
+                ) : (
+                  <Archive size={19} aria-hidden />
+                )}
+                <span className="sr-only">
+                  {patient.archivedAt ? t('restore') : t('archive')}
+                </span>
+              </button>
+            </ActionForm>
+          ) : null}
+
           {canDelete ? (
             <ActionForm
               action={deletePatient}
@@ -729,6 +781,17 @@ export default async function PatientDetailPage({
                   staff={staff}
                   currentUserId={user.id}
                   today={toDateKey(today())}
+                  canBook={user.permissions.includes('appointment.edit')}
+                  canSpendStock={user.permissions.includes('stock.edit')}
+                  // Their own recall interval, which is the answer to "when
+                  // should I see you again" the record already holds. A patient
+                  // with recall switched off gets no suggested date, only the
+                  // empty field and the slot finder.
+                  followUpDefault={
+                    patient.recallMonths > 0
+                      ? toDateKey(addMonths(today(), patient.recallMonths))
+                      : undefined
+                  }
                 />
               ) : null
             }

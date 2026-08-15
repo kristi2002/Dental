@@ -8,6 +8,7 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { PatientPicker } from '@/components/patients/PatientPicker';
 import { saveAppointment } from '@/lib/actions/appointments';
 import { byDepartment } from '@/lib/catalog';
+import { SlotFinder } from './SlotFinder';
 
 export type PatientOption = {
   id: string;
@@ -21,8 +22,6 @@ export type ServiceOption = {
   /** Department this treatment belongs to. Empty when it has not been filed. */
   category: string;
   durationMin: number;
-  /** How many materials this service consumes — drives the deduction notice. */
-  materialCount: number;
 };
 
 export type StaffOption = { id: string; name: string };
@@ -104,9 +103,44 @@ export function AppointmentFormDialog({
 
   // A new booking starts at half an hour, or at whatever a tight gap allows.
   const initialDuration = appointment?.durationMin ?? Math.min(30, slot?.minutes ?? 30);
+  const initialDate = appointment?.date ?? defaultDate ?? '';
+  const initialStartTime = appointment?.startTime ?? defaultStartTime ?? '09:00';
+  const initialStaff = appointment?.staffUserId ?? defaultStaffUserId ?? '';
 
   // Picking a service pre-fills the duration — the dentist can still override it.
   const [duration, setDuration] = useState(initialDuration);
+  // Day, time and dentist are held here rather than left to the DOM because the
+  // slot finder writes into all three: choosing "Tue 19th, 09:00" from a list
+  // has to land in the fields the form actually submits.
+  const [date, setDate] = useState(initialDate);
+  const [startTime, setStartTime] = useState(initialStartTime);
+  const [staffUserId, setStaffUserId] = useState(initialStaff);
+
+  // Follow the screen when the screen moves.
+  //
+  // These three used to be uncontrolled with a `defaultValue`, which a browser
+  // re-reads while the field is untouched — so stepping the calendar to tomorrow
+  // moved the date the button would book. Holding them in state bought the slot
+  // finder somewhere to write, and would have quietly cost that: the dialog on
+  // Thursday's page would still offer to book Tuesday. This is React's
+  // adjust-state-during-render pattern, and it is deliberately keyed on the
+  // *incoming* defaults rather than run in an effect, so the fields are already
+  // right on the first paint rather than corrected after it.
+  const [lastDefaults, setLastDefaults] = useState({
+    date: initialDate,
+    startTime: initialStartTime,
+    staff: initialStaff,
+  });
+  if (
+    lastDefaults.date !== initialDate ||
+    lastDefaults.startTime !== initialStartTime ||
+    lastDefaults.staff !== initialStaff
+  ) {
+    setLastDefaults({ date: initialDate, startTime: initialStartTime, staff: initialStaff });
+    setDate(initialDate);
+    setStartTime(initialStartTime);
+    setStaffUserId(initialStaff);
+  }
   // Seeded by matching the stored name, so an appointment booked before the id
   // existed acquires one the next time it is saved. A name that matches nothing
   // — a service since renamed or removed — resolves to no id and keeps the name.
@@ -116,6 +150,9 @@ export function AppointmentFormDialog({
   // Set only after the server reports a clash, and cleared as soon as the dialog
   // closes: overriding a double-booking should be a decision, never a default.
   const [force, setForce] = useState(false);
+  // Days between the appointments of a run — 0 for the ordinary single booking.
+  const [repeat, setRepeat] = useState(0);
+  const [repeatCount, setRepeatCount] = useState(4);
   // The patient select mirrors itself into state so the inline fields can appear.
   // It stays uncontrolled so that FormDialog can put values back after a refusal.
   const [addingPatient, setAddingPatient] = useState(false);
@@ -130,9 +167,13 @@ export function AppointmentFormDialog({
       resetOnSuccess={!editing}
       onClose={() => {
         setDuration(initialDuration);
+        setDate(initialDate);
+        setStartTime(initialStartTime);
+        setStaffUserId(initialStaff);
         setServiceId(services.find((s) => s.name === appointment?.serviceName)?.id ?? '');
         setForce(false);
         setAddingPatient(false);
+        setRepeat(0);
       }}
       title={editing ? t('edit') : t('new')}
       submitLabel={tc('save')}
@@ -246,7 +287,8 @@ export function AppointmentFormDialog({
               type="date"
               label={t('date')}
               required
-              defaultValue={appointment?.date ?? defaultDate}
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
             />
             <TextField
               id={`${uid}-startTime`}
@@ -257,7 +299,8 @@ export function AppointmentFormDialog({
               step={300}
               min={slot?.startTime}
               max={slot?.endTime}
-              defaultValue={appointment?.startTime ?? defaultStartTime ?? '09:00'}
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
             />
             <TextField
               id={`${uid}-duration`}
@@ -271,6 +314,20 @@ export function AppointmentFormDialog({
               onChange={(event) => setDuration(Number(event.target.value))}
             />
           </div>
+
+          {/* Offered only when the slot is not already decided: booking into a
+              gap somebody picked off the free-time card has its answer. */}
+          {slot ? null : (
+            <SlotFinder
+              minutes={duration}
+              staffUserId={staffUserId}
+              fromDate={date}
+              onPick={(pickedDate, pickedTime) => {
+                setDate(pickedDate);
+                setStartTime(pickedTime);
+              }}
+            />
+          )}
 
           {/* The arithmetic the receptionist would otherwise do in their head:
               an hour free, a half-hour treatment, half an hour still to sell. */}
@@ -339,7 +396,8 @@ export function AppointmentFormDialog({
                   name="staffUserId"
                   label={t('provider')}
                   optional={tc('optional')}
-                  defaultValue={appointment?.staffUserId ?? defaultStaffUserId ?? ''}
+                  value={staffUserId}
+                  onChange={(event) => setStaffUserId(event.target.value)}
                 >
                   <option value="">{t('selectProvider')}</option>
                   {staff.map((person) => (
@@ -390,6 +448,51 @@ export function AppointmentFormDialog({
             rows={3}
             defaultValue={appointment?.notes}
           />
+
+          {/* A course of treatment booked as a course.
+              Only when creating: turning one existing appointment into eight is
+              not an edit, and a run already booked is changed one slot at a
+              time. Hidden behind a select set to "no" so the ordinary single
+              booking is unchanged by its existence. */}
+          {editing ? null : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SelectField
+                id={`${uid}-repeat`}
+                name="repeatEveryDays"
+                label={t('repeat')}
+                value={repeat}
+                onChange={(event) => setRepeat(Number(event.target.value))}
+              >
+                <option value={0}>{t('repeatNone')}</option>
+                {[7, 14, 21, 28, 42, 56, 84].map((days) => (
+                  <option key={days} value={days}>
+                    {t('repeatEvery', { weeks: days / 7 })}
+                  </option>
+                ))}
+              </SelectField>
+
+              {repeat > 0 ? (
+                <TextField
+                  id={`${uid}-repeatCount`}
+                  name="repeatCount"
+                  type="number"
+                  min={2}
+                  max={24}
+                  label={t('repeatCount')}
+                  value={repeatCount}
+                  onChange={(event) => setRepeatCount(Number(event.target.value))}
+                />
+              ) : null}
+            </div>
+          )}
+
+          {/* Said before the press, not discovered afterwards: a run at a fixed
+              interval will land on a closed day or somebody else's slot sooner
+              or later, and those dates are left unbooked rather than
+              double-booked. */}
+          {repeat > 0 ? (
+            <p className="text-[0.92rem] text-ink-soft">{t('repeatHint')}</p>
+          ) : null}
 
           {/* Both warnings are reported, not enforced, and both are overridden
               the same way — one deliberate tap. Squeezing in an emergency is a

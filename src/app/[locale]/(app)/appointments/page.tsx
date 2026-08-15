@@ -351,6 +351,12 @@ export default async function AppointmentsPage({
                 appointments={appointments}
                 services={services}
                 schedule={schedule}
+                date={toDateKey(anchor)}
+                staff={providers}
+                operatories={operatories}
+                defaultStaffUserId={staffFilter}
+                canEdit={canEdit}
+                canCreatePatient={user.permissions.includes('patient.edit')}
               />
             ) : view === 'week' ? (
               <WeekView
@@ -400,7 +406,7 @@ export default async function AppointmentsPage({
         {/* Stacked under the schedule below `xl`, the two panels sit side by
             side rather than each stretching the full width — a month drawn
             across 900px is mostly the whitespace between its days. */}
-        <aside className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+        <aside className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
           <MiniCalendar
             anchor={anchor}
             counts={dayCounts}

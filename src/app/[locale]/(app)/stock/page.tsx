@@ -4,6 +4,7 @@ import {
   Minus,
   Package,
   Plus,
+  ScanBarcode,
   Truck,
   Trash2,
   TriangleAlert,
@@ -59,6 +60,7 @@ export default async function StockPage({
 
   const t = await getTranslations('stock');
   const tc = await getTranslations('common');
+  const tscan = await getTranslations('scan');
   const format = await getFormatter();
 
   // On its own, and first: the load that ships this feature is also the one that
@@ -160,6 +162,13 @@ export default async function StockPage({
         actions={
           canEdit ? (
             <>
+              {/* Reading the box is now how stock moves in both directions, so
+                  it leads — the manual controls further down the page are the
+                  fallback for a symbol too damaged to read, not the main road. */}
+              <Link href="/stock/scan" className="btn btn-secondary">
+                <ScanBarcode size={18} aria-hidden />
+                {tscan('action')}
+              </Link>
               {/* Counting the room is the interaction bulk stock actually gets,
                   so it sits beside "new material" rather than buried in a menu. */}
               <Link href="/stock/stocktake" className="btn btn-secondary">
@@ -205,6 +214,14 @@ export default async function StockPage({
           {expiringCount > 0 ? (
             <span className="text-warn">{t('expiringAlert', { count: expiringCount })}</span>
           ) : null}
+          {/* The line said which shelves were wrong and stopped there — finding
+              the actual box meant opening each material in turn. This is the
+              lot-by-lot list, with the one action that answers it. */}
+          {canEdit ? (
+            <Link href="/stock/expiry" className="btn btn-secondary btn-sm">
+              {t('expiryTitle')}
+            </Link>
+          ) : null}
         </p>
       ) : null}
 
@@ -247,7 +264,7 @@ export default async function StockPage({
 
       {/* What to buy comes before what is on the shelf: the shelf is a fact,
           the order is the decision that needs making. */}
-      {canEdit ? <ReorderPanel lines={reorderLines} /> : null}
+      {canEdit ? <ReorderPanel lines={reorderLines} canEdit={canEdit} /> : null}
 
       {/* Retired materials. Folded away and last, because the point of retiring
           one is that it stops being part of the daily list — but recoverable,
@@ -364,9 +381,16 @@ export default async function StockPage({
                   </p>
 
                   {/* An order already placed answers the low-stock badge above
-                      it, so the two are read together rather than separately. */}
+                      it, so the two are read together rather than separately.
+
+                      A `div` rather than a `p`: this is a badge and a button, not
+                      a sentence, and a `p` cannot legally hold the `form` that
+                      `ActionForm` renders. The browser closes the paragraph
+                      before the form and reparents it, which does not match what
+                      the server sent — React then throws away the whole page's
+                      tree and rebuilds it on the client, every load. */}
                   {item.orderedAt ? (
-                    <p className="mt-1 flex flex-wrap items-center gap-2">
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
                       <Badge tone="brand">
                         {item.expectedAt
                           ? t('onOrderBy', {
@@ -387,7 +411,7 @@ export default async function StockPage({
                           </button>
                         </ActionForm>
                       ) : null}
-                    </p>
+                    </div>
                   ) : null}
 
                   <BatchList

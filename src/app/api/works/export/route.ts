@@ -5,10 +5,10 @@ import { routing } from '@/i18n/routing';
 import { recordAudit } from '@/lib/auth/guard';
 import { getCurrentUser } from '@/lib/auth/session';
 import { csvResponse } from '@/lib/csv';
-import { toDateKey } from '@/lib/dates';
+import { toDateKey, toMonthKey } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { matches } from '@/lib/utils';
-import { worksToRows } from '@/lib/works';
+import { fromMonthKey, monthsPresent, totalElements, worksToRows } from '@/lib/works';
 
 /** Same sentinel the register's own lab filter uses. */
 const NO_LAB = '__none__';
@@ -44,14 +44,26 @@ export async function GET(request: Request) {
 
   const works = await prisma.work.findMany({
     // Oldest first, unlike the screen: a register read in a spreadsheet is read
-    // forwards, and row 1 should be case 1.
-    orderBy: { number: 'asc' },
+    // forwards, and row 1 should be the first case of the month.
+    orderBy: [{ sentAt: 'asc' }, { number: 'asc' }],
     include: { lines: { orderBy: { position: 'asc' } } },
   });
 
-  // The same two filters the page applies, in the same order and with the same
-  // accent-folding comparison, so the file and the screen can never disagree.
+  // Same rule as the page: a month unless the caller asked for the whole run,
+  // defaulting to the newest month the register has anything in. The invoice
+  // arrives monthly, so that is the file somebody means by "export".
+  const requestedMonth = url.searchParams.get('month');
+  const monthFilter =
+    requestedMonth === 'all'
+      ? null
+      : ((requestedMonth && fromMonthKey(requestedMonth) ? requestedMonth : monthsPresent(works)[0]) ??
+        null);
+
+  // The same three filters the page applies, with the same accent-folding
+  // comparison, so the file and the screen can never disagree.
   const filtered = works.filter((work) => {
+    if (monthFilter && toMonthKey(work.sentAt) !== monthFilter) return false;
+
     if (labFilter === NO_LAB) {
       if (work.lines.some((line) => line.lab?.trim())) return false;
     } else if (labFilter && !work.lines.some((line) => line.lab?.trim() === labFilter)) {
@@ -67,7 +79,8 @@ export async function GET(request: Request) {
       work.phone,
       work.diagnosis ?? '',
       work.notes ?? '',
-      ...work.lines.flatMap((line) => [line.elements, line.procedure, line.lab ?? '']),
+      ...work.lines.map((line) => line.procedure),
+      ...work.lines.map((line) => line.lab ?? ''),
     ];
     return haystack.some((field) => field && matches(field, query));
   });
@@ -84,18 +97,23 @@ export async function GET(request: Request) {
       procedure: t('procedure'),
       lab: t('lab'),
       notes: t('exportNotes'),
-      createdAt: t('createdAt'),
+      sentAt: t('sentAt'),
+      total: t('elementsTotal'),
     },
     toDateKey,
   );
 
   // A file of patient names and phone numbers leaving the building is worth a
-  // line in the trail, the same as a backup is.
+  // line in the trail, the same as a backup is. The element count goes in it
+  // too: this file is what a billing dispute will be argued from, so the trail
+  // should say what figure left the building and when.
   await recordAudit(user, {
     action: 'export',
     entity: 'work',
-    summary: `${filtered.length} / ${works.length}`,
+    summary: `${monthFilter ?? 'all'} · ${filtered.length} · ${totalElements(filtered)}`,
   });
 
-  return csvResponse(`${t('exportFileName')}-${toDateKey(new Date())}.csv`, rows);
+  // Named for the month it holds, so a folder of these sorts itself.
+  const stamp = monthFilter ?? toDateKey(new Date());
+  return csvResponse(`${t('exportFileName')}-${stamp}.csv`, rows);
 }

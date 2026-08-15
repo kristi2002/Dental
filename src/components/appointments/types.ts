@@ -19,6 +19,16 @@ export type AppointmentView = {
   /** Which chair. Empty when the practice has only one. */
   operatoryId: string;
   operatoryName: string;
+  /**
+   * ISO instant they walked in, or empty. The waiting-room clock: `ARRIVED`
+   * says somebody is waiting and this says since when, which is the half that
+   * answers "who has been sitting longest".
+   */
+  arrivedAt: string;
+  /** This booking replaced an earlier one — it has been moved at least once. */
+  moved: boolean;
+  /** The run of appointments this belongs to, or empty for a single booking. */
+  seriesId: string;
   patient: {
     id: string;
     firstName: string;

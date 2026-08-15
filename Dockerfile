@@ -53,8 +53,12 @@ ENV NEXT_PUBLIC_CLINIC_NAME=${NEXT_PUBLIC_CLINIC_NAME}
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# The project ships no `public/` yet; create it so the runtime COPY always has a
-# source, and drop the mkdir the day real assets land there.
+# `npm run build` stages the barcode decoder's WebAssembly into `public/` (see
+# scripts/copy-zxing-wasm.mjs), but that step is deliberately non-fatal — a
+# missing decoder costs Safari and Firefox their camera, which is not worth
+# failing a release over. This mkdir is the safety net for exactly that case:
+# without it the runtime stage's `COPY /app/public` would have no source and the
+# image build would fail for the one reason the copy script refuses to.
 #
 # Both placeholders are scoped to this one command rather than set as ENV, so
 # nothing resembling a credential is recorded in the image metadata:

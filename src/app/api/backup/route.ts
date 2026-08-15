@@ -70,6 +70,7 @@ export async function POST(request: Request) {
     contacts,
     suppliers,
     batches,
+    productBarcodes,
     stockCategories,
     serviceCategories,
     operatories,
@@ -111,6 +112,11 @@ export async function POST(request: Request) {
     prisma.contact.findMany(),
     prisma.supplier.findMany(),
     prisma.stockBatch.findMany(),
+    // Which code names which material. Learned one carton at a time by whoever
+    // was holding it, and impossible to reconstruct from anywhere else — a
+    // restore without these hands the practice a working cupboard and a scanner
+    // that has forgotten every product in it.
+    prisma.productBarcode.findMany(),
     // Without these the materials restore holding an id that names nothing, and
     // the storage room comes back as one undivided list.
     prisma.stockCategory.findMany(),
@@ -160,6 +166,7 @@ export async function POST(request: Request) {
         contacts,
         suppliers,
         batches,
+        productBarcodes,
         stockCategories,
         serviceCategories,
         operatories,

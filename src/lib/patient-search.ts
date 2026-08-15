@@ -8,6 +8,16 @@
  * an ë or a ç, which in an Albanian practice is most of them.
  */
 
+/**
+ * The "not retired" filter, shared by every list and picker that looks people up.
+ *
+ * The same shape and the same job as `ACTIVE_STOCK`: an archived patient keeps
+ * every word of their record (see `Patient.archivedAt`) but must not turn up in
+ * a search, a picker or a count, or archiving would be a label nobody sees.
+ * Their own screen is reached by id and deliberately still works.
+ */
+export const ACTIVE_PATIENTS = { archivedAt: null } as const;
+
 /** Lowercase, strip diacritics, collapse whitespace. */
 export function fold(value: string): string {
   return value

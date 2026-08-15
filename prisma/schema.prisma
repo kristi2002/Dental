@@ -163,8 +163,24 @@ model Patient {
   /// one comparison, indexable.
   searchKey String @default("")
 
+  /// Retired from the lists, not erased — the rule staff and materials already
+  /// live under, finally applied to the record that has the most history hanging
+  /// off it and the longest legal retention period.
+  ///
+  /// Set by two different acts. Archiving is the ordinary one: somebody who has
+  /// moved away stops cluttering the list and keeps their chart. Merging is the
+  /// other — the losing side of a duplicate is emptied of its history first (see
+  /// `mergePatients`), so what stays behind is a husk kept only so a stale link
+  /// or a printed slip still resolves to something.
+  ///
+  /// True deletion stays, owner-only, for the one case archiving cannot answer:
+  /// a request to actually be erased.
+  archivedAt DateTime?
+
   /// Every patient list in the app orders by this pair, and nothing served it.
   @@index([lastName, firstName])
+  /// Every list filters it out, so it leads the ordering index the lists use.
+  @@index([archivedAt])
   @@index([searchKey])
   /// "A patient with this number already exists" needs to be a lookup, not a scan.
   @@index([phone])
@@ -197,6 +213,26 @@ model Appointment {
   confirmedAt DateTime?
   declinedAt  DateTime?
 
+  /// When they actually walked in.
+  ///
+  /// `ARRIVED` said *that* somebody is waiting and never *since when*, which is
+  /// the half the front desk needs: "who has been sitting longest" and "we are
+  /// running twenty minutes behind" are the same question asked of this column,
+  /// and neither could be answered from a status alone. Cleared when the slot
+  /// leaves `ARRIVED` for anything other than being seen, so a mis-tap does not
+  /// leave a waiting-room clock running on somebody who went home.
+  arrivedAt DateTime?
+
+  /// The run of appointments this one was booked as part of — an ortho check
+  /// every six weeks, a perio maintenance course.
+  ///
+  /// A plain shared uuid rather than a `Series` table: nothing about the run is
+  /// true that is not already true of each appointment in it, and a table would
+  /// only hold a rule that the bookings themselves already express. What it buys
+  /// is the thing a series actually needs — "this is 3 of 8, here are the rest" —
+  /// which is one indexed lookup.
+  seriesId String?
+
   /// Who is treating, and in which chair. Both optional: a practice with one
   /// dentist and one room never has to answer, and every appointment booked
   /// before this existed keeps working.
@@ -228,6 +264,8 @@ model Appointment {
   @@index([patientId])
   /// The conflict search filters on both at once.
   @@index([date, status])
+  /// "The rest of this run" — asked of every appointment that belongs to one.
+  @@index([seriesId])
 }
 
 /// A course of treatment that spans several visits. The point is that a
@@ -569,9 +607,67 @@ model StockItem {
   movements  StockMovement[]
   usedBy     ServiceMaterial[]
   batches    StockBatch[]
+  barcodes   ProductBarcode[]
 
   /// Both the duplicate check on save and searching the shelf by label.
   @@index([code])
+}
+
+/// A symbol printed on a product, and the material it names.
+///
+/// Its own table rather than a column on `StockItem`, because one material
+/// wears several codes: the manufacturer's each-level GTIN, the carton-level
+/// GTIN above it, an older EAN from before a repack, and whatever label the
+/// practice sticks on a decanted container. All of them have to resolve to one
+/// row on the shelf, and a single column could only ever hold the last one
+/// somebody scanned.
+///
+/// This is the table that makes scanning possible at all. Everything else the
+/// symbol carries — the lot number, the expiry — is already modelled by
+/// `StockBatch`; the only thing missing was the sentence "this GTIN is that
+/// box", and it is the one fact no supplier can tell us and every practice
+/// knows.
+model ProductBarcode {
+  id String @id @default(uuid())
+
+  /// What a scan is matched on, after normalisation: a GTIN-14 for anything
+  /// GS1, otherwise the symbol's raw text. Normalised on the way in so a carton
+  /// scanned off its EAN-13 and the same carton scanned off its GS1 DataMatrix
+  /// find one row rather than two — see `normaliseGtin` in `src/lib/barcode.ts`.
+  ///
+  /// Unique, and here rather than enforced in the action the way `StockItem.code`
+  /// is: the reason that one cannot have a constraint is that adding a unique
+  /// index to a *populated* table stops `prisma db push` (see
+  /// `docker/entrypoint.sh`). This table is new, so it ships empty and the
+  /// constraint costs nothing. It also has to be a constraint: two rows claiming
+  /// one code would make a scan ambiguous, which is the one thing a scanner
+  /// must never be.
+  code String @unique
+
+  itemId String
+  item   StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  /// How many `StockItem.unit`s one scan of this symbol is worth.
+  ///
+  /// A carton of 100 gloves and a single box of 100 gloves carry *different*
+  /// GTINs, and scanning the carton has to add what the carton holds. Without
+  /// this the only honest options were to refuse pack-level codes or to count a
+  /// pallet as one glove.
+  packQty Int @default(1)
+
+  /// What this symbol is on, in the words the storage room uses — "carton of 10
+  /// boxes", "single blister". Shown when a material has more than one code, so
+  /// the list is readable by someone holding the box.
+  label String?
+
+  /// The scan this was linked from, kept verbatim. A code that turns out to have
+  /// been linked to the wrong material is diagnosed from what the scanner
+  /// actually emitted, not from what we made of it.
+  rawSample String?
+
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
 }
 
 /// A shelf in the storage room, named once and then picked from.
@@ -747,6 +843,8 @@ model Service {
   /// it again.
   legacyCategory String? @map("category")
 
+  /// Retired — see `ServiceMaterial`. Declared because Prisma requires both
+  /// sides of a relation, not because anything reads it.
   materials    ServiceMaterial[]
   visits       VisitService[]
   appointments Appointment[]
@@ -791,9 +889,24 @@ model VisitService {
   @@index([serviceId])
 }
 
-/// The bill of materials for a treatment. Recording a visit that includes the
-/// service automatically logs the matching StockMovements, so consumption is
-/// captured without anyone tapping −1 ten times.
+/// Retired. Nothing in the application reads or writes this table.
+///
+/// It was the bill of materials for a treatment: set once per service, and
+/// recording a visit deducted it. Consumption is now recorded by scanning the
+/// product itself (see `ProductBarcode`), which is both more accurate — the
+/// actual box, its actual lot — and honest about the case a bill of materials
+/// could never handle, where a treatment used two anaesthetic carpules instead
+/// of the one the catalogue predicted.
+///
+/// Still declared only because the deploy runs `prisma db push` *without*
+/// `--accept-data-loss` (see `docker/entrypoint.sh`): removing a model whose
+/// table holds rows is exactly the change that stops the release dead. The same
+/// reason `Service.legacyCategory` is still here.
+///
+/// To be rid of it: run `tsx prisma/drop-service-materials.ts` once against the
+/// live database, which empties the table, then delete this model and the two
+/// relation fields that name it (`Service.materials`, `StockItem.usedBy`). With
+/// no rows to lose, the next `db push` drops it without complaint.
 model ServiceMaterial {
   id        String    @id @default(uuid())
   serviceId String
@@ -1011,16 +1124,38 @@ model Work {
   patientName String
   phone       String
 
+  /// The span, in the shorthand the practice already writes: `3 x 4 x 7`, `5 x 7`.
+  ///
+  /// Called the diagnosis because that is the column's name on the paper
+  /// register, but what goes in it is which teeth the work bridges. Free text and
+  /// staying that way — the notation is the dentist's, not the app's, and a form
+  /// that rejects how somebody has written it for twenty years is a form that
+  /// gets worked around.
   diagnosis String?
   notes     String?
+
+  /// The day the case went to the laboratory, at UTC midnight.
+  ///
+  /// Not `createdAt`, for the reason `StockBatch.purchasedAt` is not: `createdAt`
+  /// is the keystroke, and a docket typed up on Monday for an impression that
+  /// went out on Friday lands in the wrong month. The month is the unit this
+  /// register is read and billed in, so the date has to be the one that is true.
+  ///
+  /// The default is for the deploy, not for the app — `saveWork` always sets
+  /// this. Without one, `db push` refuses to add a required column to a table
+  /// that already has rows and takes the release down on boot (see
+  /// `docker/entrypoint.sh`); with one, a row written before the column existed
+  /// simply lands on the day of the deploy.
+  sentAt DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   lines WorkLine[]
 
-  /// The register is read newest-first, and searched by the lab's serial.
-  @@index([createdAt])
+  /// The register is read a month at a time, newest first, and searched by the
+  /// laboratory's serial.
+  @@index([sentAt])
   @@index([patientId])
   @@index([labSerial])
 }
@@ -1039,11 +1174,15 @@ model WorkLine {
   /// Position in the case as it was written, so the display order survives.
   position Int @default(1)
 
-  /// Which teeth. Free text on purpose: FDI numbers are what is usually written
-  /// ("14, 15, 16", or "22:MO" with surfaces — see `parseToothSelection`), but a
-  /// real docket also says "harku i sipërm", and a register that refuses what
-  /// the paper one accepted is a register nobody fills in.
-  elements String
+  /// **How many** elements went to the laboratory for this piece of work.
+  ///
+  /// A count, not a list of teeth — which teeth is what `Work.diagnosis` already
+  /// says (`3 x 4 x 7`). This is the number the laboratory bills on, and the
+  /// whole reason a practice keeps its own register: the invoice at the end of
+  /// the month says how many elements were made, and this is the only copy of
+  /// how many were actually sent. Everything that sums — the case, the month,
+  /// the export — sums this column.
+  elements Int @default(1)
 
   /// What is being made — a crown, a bridge, a denture, a repair.
   procedure String

@@ -275,9 +275,6 @@ export function needsAttention(status: string): boolean {
  * Anatomy, for the drawn chart
  * ------------------------------------------------------------------ */
 
-/** Which of the four silhouettes a tooth is drawn with. */
-export type ToothShape = 'INCISOR' | 'CANINE' | 'PREMOLAR' | 'MOLAR';
-
 /** Quadrants 1, 2 (and primary 5, 6) hang from the upper jaw. */
 export function isUpperArch(toothNum: number): boolean {
   const q = Math.floor(toothNum / 10);
@@ -298,9 +295,9 @@ export function quadrantOf(toothNum: number): ToothQuadrant {
  *
  * The number is what gets stored and what fits on the chart; the name is what
  * gets *said* — "the upper right first molar" — and what a nurse or a patient
- * can check a finding against without knowing FDI. `toothShape` is the same
- * position read for a different purpose: it groups 4 and 5 as one silhouette,
- * where this has to tell the first premolar from the second.
+ * can check a finding against without knowing FDI. It is also what the drawn
+ * chart is modelled from: each of these is a different tooth with a different
+ * outline, and one silhouette shared between two of them is visible.
  */
 export type ToothKind =
   | 'CENTRAL_INCISOR'
@@ -339,22 +336,6 @@ export function toothKind(toothNum: number): ToothKind | null {
   if (!isValidTooth(toothNum)) return null;
   const kinds = dentitionOf(toothNum) === 'PRIMARY' ? PRIMARY_KINDS : PERMANENT_KINDS;
   return kinds[(toothNum % 10) - 1] ?? null;
-}
-
-/**
- * Position within the quadrant decides the shape. Primary quadrants stop at
- * five, where the fourth and fifth are already molars — a milk dentition has no
- * premolars at all, and drawing one there would be a picture of a tooth the
- * child does not have.
- */
-export function toothShape(toothNum: number): ToothShape {
-  const position = toothNum % 10;
-  const primary = dentitionOf(toothNum) === 'PRIMARY';
-
-  if (position <= 2) return 'INCISOR';
-  if (position === 3) return 'CANINE';
-  if (primary) return 'MOLAR';
-  return position <= 5 ? 'PREMOLAR' : 'MOLAR';
 }
 
 /* ------------------------------------------------------------------ *

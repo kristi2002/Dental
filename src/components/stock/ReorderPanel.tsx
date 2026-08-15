@@ -1,24 +1,39 @@
-import { ShoppingCart, TrendingDown } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { Mail, MessageCircle, PackageCheck, ShoppingCart, TrendingDown } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
+import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
+import { markSupplierOrdered } from '@/lib/actions/stock';
+import { mailtoLink, whatsappLink } from '@/lib/reminders';
 import type { ReorderLine } from '@/lib/reorder';
-import { orderAmount, reorderAsText } from '@/lib/reorder';
+import { bySupplier, orderAmount, reorderAsText } from '@/lib/reorder';
 import { cn } from '@/lib/utils';
 
 /**
- * The shopping list, derived from what was actually consumed.
+ * The shopping list, cut the way it is actually placed: one order per supplier.
  *
  * Nothing here is ordered automatically — a purchase is the owner's decision.
- * The WhatsApp button just hands the finished list to whoever places the order.
+ * What changed is that the decision is now taken once per company instead of
+ * once per material: the message is addressed to the supplier who can fill it,
+ * it goes to the number or address already on their record rather than to a
+ * blank WhatsApp share sheet, and answering it marks the whole order at once.
+ *
+ * A server component, because the links are built from the supplier's own
+ * details and none of this needs to react to anything in the browser.
  */
-export function ReorderPanel({ lines }: { lines: ReorderLine[] }) {
-  const t = useTranslations('reorder');
+export async function ReorderPanel({
+  lines,
+  canEdit,
+}: {
+  lines: ReorderLine[];
+  /** Whether the "ordered" flag may be set. Viewers get the list, not the verb. */
+  canEdit: boolean;
+}) {
+  const t = await getTranslations('reorder');
 
   if (lines.length === 0) return null;
 
-  const text = reorderAsText(lines, t('messageHeading'));
-  const whatsapp = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  const groups = bySupplier(lines);
 
   return (
     <Card className="mb-6">
@@ -26,77 +41,135 @@ export function ReorderPanel({ lines }: { lines: ReorderLine[] }) {
         title={t('title')}
         subtitle={t('subtitle', { count: lines.length })}
         icon={<ShoppingCart size={22} aria-hidden />}
-        action={
-          <a
-            href={whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary btn-sm"
-          >
-            {t('send')}
-          </a>
-        }
       />
 
-      <ul className="divide-y border-line">
-        {lines.map((line) => (
-          <li
-            key={line.id}
-            className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-5 py-3 last:border-b-0"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="flex flex-wrap items-center gap-2">
-                <span className="truncate text-[1.05rem] font-bold text-ink">{line.name}</span>
-                {line.urgent ? <Badge tone="danger">{t('urgent')}</Badge> : null}
-                {/* Already answered: shown, not hidden, so nobody re-orders it
-                    and nobody forgets it is still not on the shelf. */}
-                {line.orderedAt ? <Badge tone="brand">{t('onOrder')}</Badge> : null}
-                {line.supplierName ? (
-                  <span className="text-[0.88rem] text-ink-faint">{line.supplierName}</span>
-                ) : null}
-              </p>
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[0.92rem] text-ink-soft">
-                {/* Bulk stock is counted on the shelf every few months, so its
-                    burn rate is lumpy and "days left" would be a made-up
-                    number. What is on the shelf against the minimum is the only
-                    honest thing to show for it. */}
-                {line.stated ? (
-                  <span>
-                    {t('onShelf', {
-                      qty: line.quantity,
-                      unit: line.unit,
-                      min: line.minLimit,
-                    })}
-                  </span>
-                ) : (
-                  <>
-                    <span className="flex items-center gap-1.5">
-                      <TrendingDown size={15} aria-hidden />
-                      {t('monthlyUse', { qty: line.monthlyUse, unit: line.unit })}
-                    </span>
-                    <span
-                      className={cn(
-                        line.daysLeft !== null && line.daysLeft <= 14 ? 'font-bold text-warn' : '',
-                      )}
-                    >
-                      {line.daysLeft === null
-                        ? t('noUsage')
-                        : t('daysLeft', { days: line.daysLeft })}
-                    </span>
-                  </>
-                )}
-              </p>
-            </div>
+      <div className="divide-y divide-line">
+        {groups.map((group) => {
+          const text = reorderAsText(group.lines, t('messageHeading'));
+          // Their own number, not a share sheet — `wa.me/` with no number opens
+          // a contact picker, which is one more decision at the wrong moment.
+          const whatsapp = group.supplierPhone
+            ? whatsappLink(group.supplierPhone, text)
+            : `https://wa.me/?text=${encodeURIComponent(text)}`;
+          const mail = group.supplierEmail
+            ? mailtoLink(group.supplierEmail, t('messageHeading'), text)
+            : null;
 
-            <p className="shrink-0 text-right">
-              <span className="block text-[1.15rem] font-bold text-brand-deep tabular-nums">
-                +{orderAmount(line)}
-              </span>
-              <span className="block text-[0.85rem] text-ink-faint">{t('suggested')}</span>
-            </p>
-          </li>
-        ))}
-      </ul>
+          return (
+            <section key={group.supplierId || 'none'}>
+              <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-surface-soft px-5 py-3">
+                <p className="min-w-0 font-bold text-ink">
+                  {group.supplierName || t('noSupplier')}
+                  <span className="ml-2 font-normal text-ink-soft">
+                    {t('linesInOrder', { count: group.lines.length })}
+                  </span>
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {whatsapp ? (
+                    <a
+                      href={whatsapp}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary btn-sm"
+                    >
+                      <MessageCircle size={17} aria-hidden />
+                      {t('send')}
+                    </a>
+                  ) : null}
+
+                  {mail ? (
+                    <a href={mail} className="btn btn-secondary btn-sm">
+                      <Mail size={17} aria-hidden />
+                      {t('sendEmail')}
+                    </a>
+                  ) : null}
+
+                  {/* Answering the whole order at once. Absent when every line in
+                      the group is already on its way — there is nothing left to
+                      say yes to. */}
+                  {canEdit && group.pendingIds.length > 0 ? (
+                    <ActionForm
+                      action={markSupplierOrdered}
+                      values={{
+                        ids: group.pendingIds.join(','),
+                        supplierName: group.supplierName,
+                      }}
+                    >
+                      <button type="submit" className="btn btn-secondary btn-sm">
+                        <PackageCheck size={17} aria-hidden />
+                        {t('markAllOrdered', { count: group.pendingIds.length })}
+                      </button>
+                    </ActionForm>
+                  ) : null}
+                </div>
+              </header>
+
+              <ul>
+                {group.lines.map((line) => (
+                  <li
+                    key={line.id}
+                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-5 py-3 last:border-b-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-[1.05rem] font-bold text-ink">
+                          {line.name}
+                        </span>
+                        {line.urgent ? <Badge tone="danger">{t('urgent')}</Badge> : null}
+                        {/* Already answered: shown, not hidden, so nobody
+                            re-orders it and nobody forgets it is still not on
+                            the shelf. */}
+                        {line.orderedAt ? <Badge tone="brand">{t('onOrder')}</Badge> : null}
+                      </p>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[0.92rem] text-ink-soft">
+                        {/* Bulk stock is counted on the shelf every few months,
+                            so its burn rate is lumpy and "days left" would be a
+                            made-up number. What is on the shelf against the
+                            minimum is the only honest thing to show for it. */}
+                        {line.stated ? (
+                          <span>
+                            {t('onShelf', {
+                              qty: line.quantity,
+                              unit: line.unit,
+                              min: line.minLimit,
+                            })}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="flex items-center gap-1.5">
+                              <TrendingDown size={15} aria-hidden />
+                              {t('monthlyUse', { qty: line.monthlyUse, unit: line.unit })}
+                            </span>
+                            <span
+                              className={cn(
+                                line.daysLeft !== null && line.daysLeft <= 14
+                                  ? 'font-bold text-warn'
+                                  : '',
+                              )}
+                            >
+                              {line.daysLeft === null
+                                ? t('noUsage')
+                                : t('daysLeft', { days: line.daysLeft })}
+                            </span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+
+                    <p className="shrink-0 text-right">
+                      <span className="block text-[1.15rem] font-bold text-brand-deep tabular-nums">
+                        +{orderAmount(line)}
+                      </span>
+                      <span className="block text-[0.85rem] text-ink-faint">{t('suggested')}</span>
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
     </Card>
   );
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { collides } from '../src/lib/scheduling';
+import { collides, gapsIn } from '../src/lib/scheduling';
 import { rangesFor, scheduleFor, type DayHours } from '../src/lib/clinic-hours';
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
@@ -133,5 +133,63 @@ describe('scheduleFor — closures', () => {
     const schedule = scheduleFor(wednesday, [{ ...OPEN, open: false }], []);
     assert.equal(schedule.closed, true);
     assert.equal(schedule.closureReason, null);
+  });
+});
+
+describe('gapsIn — the free stretches left in a day', () => {
+  const week = [OPEN];
+  const wednesday = utc('2026-08-12');
+  const schedule = scheduleFor(wednesday, week, []);
+
+  it('offers the whole open day when nothing is booked', () => {
+    assert.deepEqual(gapsIn(schedule, []), [
+      { startTime: '08:00', endTime: '13:00', minutes: 300 },
+      { startTime: '14:00', endTime: '18:00', minutes: 240 },
+    ]);
+  });
+
+  it('never spans the lunch break', () => {
+    // One free stretch either side of the break, never one that swallows it.
+    const gaps = gapsIn(schedule, [{ startTime: '08:00', durationMin: 300 }]);
+    assert.deepEqual(gaps, [{ startTime: '14:00', endTime: '18:00', minutes: 240 }]);
+  });
+
+  it('leaves no phantom gap between back-to-back bookings', () => {
+    const gaps = gapsIn(schedule, [
+      { startTime: '08:00', durationMin: 60 },
+      { startTime: '09:00', durationMin: 60 },
+    ]);
+    assert.deepEqual(gaps, [
+      { startTime: '10:00', endTime: '13:00', minutes: 180 },
+      { startTime: '14:00', endTime: '18:00', minutes: 240 },
+    ]);
+  });
+
+  it('counts overlapping bookings once', () => {
+    const gaps = gapsIn(schedule, [
+      { startTime: '08:00', durationMin: 120 },
+      { startTime: '09:00', durationMin: 120 },
+    ]);
+    assert.equal(gaps[0]?.startTime, '11:00');
+  });
+
+  it('drops stretches shorter than what is being looked for', () => {
+    // 08:00–09:00 is free but a 90-minute treatment does not fit in it.
+    const gaps = gapsIn(schedule, [{ startTime: '09:00', durationMin: 240 }], {
+      minMinutes: 90,
+    });
+    assert.deepEqual(gaps, [{ startTime: '14:00', endTime: '18:00', minutes: 240 }]);
+  });
+
+  it('ignores everything before the cutoff', () => {
+    const gaps = gapsIn(schedule, [], { after: '15:30' });
+    assert.deepEqual(gaps, [{ startTime: '15:30', endTime: '18:00', minutes: 150 }]);
+  });
+
+  it('offers nothing on a closed day', () => {
+    const shut = scheduleFor(wednesday, week, [
+      { from: wednesday, to: wednesday, reason: 'Holiday' },
+    ]);
+    assert.deepEqual(gapsIn(shut, []), []);
   });
 });

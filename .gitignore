@@ -14,6 +14,11 @@ dist/
 *.db
 *.db-journal
 
+# Staged out of node_modules by scripts/copy-zxing-wasm.mjs on install and on
+# build. Not committed, so it can never drift from the version of the decoder
+# that loads it.
+/public/zxing_reader.wasm
+
 # misc
 .DS_Store
 *.pem

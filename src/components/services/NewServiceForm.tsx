@@ -1,15 +1,9 @@
 'use client';
 
-import { Clock, Package, Stethoscope } from 'lucide-react';
+import { Clock, Stethoscope } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
-import {
-  CatalogueFields,
-  DurationField,
-  MaterialsField,
-  NameField,
-  type StockOption,
-} from '@/components/services/ServiceFields';
+import { CatalogueFields, DurationField, NameField } from '@/components/services/ServiceFields';
 import { FormActions, FormLayout, FormPreview, FormSection } from '@/components/ui/FormPage';
 import { saveService } from '@/lib/actions/services';
 import { useRecoveredForm } from '@/lib/form-recovery';
@@ -19,23 +13,16 @@ import type { ServiceCategoryOption } from '@/lib/queries';
  * Adding a treatment to the catalogue, as a screen rather than as a dialog.
  *
  * The catalogue is built once, at the start, usually straight off the practice's
- * own price list and a dozen treatments at a sitting. Each one carries three
- * decisions that reach far beyond this form — where it is filed, how long it
- * takes, and what it takes off the shelf — and every screen in the app quotes
- * them afterwards. A modal had no room to say what a bill of materials is *for*,
- * scrolled its own little window inside the page, and lost everything if it was
- * dismissed by accident.
+ * own price list and a dozen treatments at a sitting. Each entry carries two
+ * decisions that reach far beyond this form — where it is filed and how long it
+ * takes — and every screen in the app quotes them afterwards. A modal scrolled
+ * its own little window inside the page and lost everything if it was dismissed
+ * by accident.
  *
  * Editing stays a dialog — that is a price-list correction to a row you are
  * already looking at.
  */
-export function NewServiceForm({
-  categories,
-  stockItems,
-}: {
-  categories: ServiceCategoryOption[];
-  stockItems: StockOption[];
-}) {
+export function NewServiceForm({ categories }: { categories: ServiceCategoryOption[] }) {
   const t = useTranslations('services');
   const tc = useTranslations('common');
   const uid = useId();
@@ -50,7 +37,6 @@ export function NewServiceForm({
     departmentId: '',
     subcategoryId: '',
     durationMin: '30',
-    materialCount: 0,
   });
 
   const department = categories.find((option) => option.id === preview.departmentId);
@@ -74,10 +60,6 @@ export function NewServiceForm({
 
             <p className="mt-3 text-[1.15rem] font-bold tabular-nums text-ink">
               {minutes} <span className="text-[0.9rem] font-semibold">{tc('minutes')}</span>
-            </p>
-
-            <p className="mt-1 text-[0.95rem] text-ink-soft">
-              {t('materialCount', { count: preview.materialCount })}
             </p>
           </FormPreview>
         }
@@ -109,17 +91,6 @@ export function NewServiceForm({
           <DurationField
             uid={uid}
             onChange={(durationMin) => setPreview((current) => ({ ...current, durationMin }))}
-          />
-        </FormSection>
-
-        <FormSection
-          title={t('materials')}
-          subtitle={t('sectionMaterialsHint')}
-          icon={<Package size={22} aria-hidden />}
-        >
-          <MaterialsField
-            stockItems={stockItems}
-            onChange={(materialCount) => setPreview((current) => ({ ...current, materialCount }))}
           />
         </FormSection>
       </FormLayout>

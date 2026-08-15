@@ -3,7 +3,9 @@ import { describe, it } from 'node:test';
 import { allocateOldestFirst } from '../src/lib/batch-allocation';
 import { byExpiry, expiryLevel, summariseBatches, usableQuantity } from '../src/lib/expiry';
 import { isPrice, moneyFormat, moneyToInput, parseMoney, stockValue } from '../src/lib/money';
-import { orderAmount, reorderAsText, type ReorderLine } from '../src/lib/reorder';
+import { bySupplier, orderAmount, reorderAsText, type ReorderLine } from '../src/lib/reorder';
+import { parseMaterialList } from '../src/lib/material-history';
+import { asHours, overallUtilisation } from '../src/lib/utilisation';
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 const NOW = utc('2026-08-12');
@@ -103,6 +105,9 @@ const line = (over: Partial<ReorderLine> = {}): ReorderLine => ({
   orderedAt: null,
   expectedAt: null,
   supplierName: '',
+  supplierId: '',
+  supplierPhone: '',
+  supplierEmail: '',
   ...over,
 });
 
@@ -335,5 +340,81 @@ describe('moneyFormat — writing a price down', () => {
   it('leaves a currency that always wants two decimals alone', () => {
     assert.equal(write('EUR', 5), '€5.00');
     assert.equal(write('EUR', 5.5), '€5.50');
+  });
+});
+
+describe('bySupplier — the list cut the way an order is placed', () => {
+  it('gathers each company’s materials into one order', () => {
+    const groups = bySupplier([
+      line({ id: 'a', supplierId: 's1', supplierName: 'Dental Co' }),
+      line({ id: 'b', supplierId: 's2', supplierName: 'Medix' }),
+      line({ id: 'c', supplierId: 's1', supplierName: 'Dental Co' }),
+    ]);
+
+    assert.deepEqual(
+      groups.map((group) => [group.supplierName, group.lines.length]),
+      [['Dental Co', 2], ['Medix', 1]],
+    );
+  });
+
+  it('sinks the materials nobody has said where to buy to the bottom', () => {
+    // The group cannot be sent anywhere, so it is a list of things to file
+    // rather than an order to place.
+    const groups = bySupplier([
+      line({ id: 'a', supplierId: '', supplierName: '' }),
+      line({ id: 'b', supplierId: 's1', supplierName: 'Dental Co' }),
+    ]);
+    assert.deepEqual(groups.map((group) => group.supplierId), ['s1', '']);
+  });
+
+  it('leaves what is already coming out of what is being asked for', () => {
+    const groups = bySupplier([
+      line({ id: 'a', supplierId: 's1', orderedAt: '2026-08-01T00:00:00.000Z' }),
+      line({ id: 'b', supplierId: 's1' }),
+      // Nothing to order is nothing to mark as ordered either.
+      line({ id: 'c', supplierId: 's1', suggested: 0 }),
+    ]);
+    assert.deepEqual(groups[0]?.pendingIds, ['b']);
+  });
+});
+
+describe('parseMaterialList — what the visit form says came off the shelf', () => {
+  it('reads the itemId:quantity pairs', () => {
+    assert.deepEqual(parseMaterialList('a:2,b:1'), [
+      { itemId: 'a', quantity: 2 },
+      { itemId: 'b', quantity: 1 },
+    ]);
+  });
+
+  it('drops anything without a real quantity', () => {
+    // A blank, a zero and a word are all "nothing was spent", not a deduction.
+    assert.deepEqual(parseMaterialList('a:0,b:,c:x,d:3'), [{ itemId: 'd', quantity: 3 }]);
+  });
+
+  it('reads an empty field as nothing at all', () => {
+    assert.deepEqual(parseMaterialList(''), []);
+  });
+});
+
+describe('utilisation arithmetic', () => {
+  it('measures the window as a whole rather than averaging the months', () => {
+    // A quiet month with few open hours must not weigh as much as a full one.
+    const percent = overallUtilisation([
+      { month: '2026-07', bookedMinutes: 100, openMinutes: 1000, percent: 10 },
+      { month: '2026-08', bookedMinutes: 900, openMinutes: 1000, percent: 90 },
+    ]);
+    assert.equal(percent, 50);
+  });
+
+  it('reads a practice that was never open as nought, not as a division', () => {
+    assert.equal(
+      overallUtilisation([{ month: '2026-07', bookedMinutes: 0, openMinutes: 0, percent: 0 }]),
+      0,
+    );
+  });
+
+  it('writes minutes in the unit chair time is discussed in', () => {
+    assert.equal(asHours(390), '6h 30m');
+    assert.equal(asHours(360), '6h');
   });
 });

@@ -5,8 +5,7 @@ import { NewServiceForm } from '@/components/services/NewServiceForm';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
-import { prisma } from '@/lib/prisma';
-import { ACTIVE_STOCK, getServiceCategories } from '@/lib/queries';
+import { getServiceCategories } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,14 +43,6 @@ export default async function NewServicePage({
   // names become rows, and it has to finish before the departments are offered.
   const categories = await getServiceCategories();
 
-  // A retired material must not be offered as something a new treatment
-  // consumes; existing bills of materials that name one keep working.
-  const stockItems = await prisma.stockItem.findMany({
-    where: ACTIVE_STOCK,
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, unit: true, packSize: true },
-  });
-
   return (
     <>
       <PageHeader
@@ -66,7 +57,7 @@ export default async function NewServicePage({
         }
       />
 
-      <NewServiceForm categories={categories} stockItems={stockItems} />
+      <NewServiceForm categories={categories} />
     </>
   );
 }

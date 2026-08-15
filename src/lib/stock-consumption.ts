@@ -1,17 +1,14 @@
 import type { Prisma } from '@/generated/prisma/client';
-import { allocateOldestFirst } from '@/lib/batch-allocation';
-import { prisma } from '@/lib/prisma';
-
-export type ConsumedLine = { itemId: string; name: string; quantity: number; unit: string };
+import { allocateOldestFirst, type Allocation } from '@/lib/batch-allocation';
 
 /**
  * Write the ledger side of a consumption that has already been taken off the
  * counter: which lots it came out of, and one movement per lot.
  *
- * Shared by the visit path and the manual take-out box, because a lot has to be
+ * Shared by the manual take-out box and the scanner, because a lot has to be
  * drawn down the same way whichever one did it. When they differed, using a
  * material by hand left every lot untouched, so the oldest-first allocation and
- * the recall trace only worked for materials attached to a service.
+ * the recall trace only worked for one path.
  *
  * The caller has already decremented `StockItem.quantity` — the shelf is the
  * authority, and this is the trace over it.
@@ -24,12 +21,25 @@ export async function recordConsumption(
     reason,
     staffUserId,
     visitRecordId = null,
+    preferBatchId = null,
   }: {
     itemId: string;
     quantity: number;
     reason: string;
     staffUserId: string;
     visitRecordId?: string | null;
+    /**
+     * The lot the scanner read off the box in somebody's hand.
+     *
+     * Honoured ahead of the oldest-first rule, and honoured even when that lot
+     * has expired. Oldest-first is a *guess* at which lot was used, made because
+     * nothing better was available; a scanned lot number is the answer. Quietly
+     * attributing a scanned expired box to a different, healthier lot would put
+     * a lot number on a patient's record that never went near them — which is
+     * the one question these rows exist to answer. The console warns before the
+     * commit instead.
+     */
+    preferBatchId?: string | null;
   },
 ): Promise<void> {
   if (quantity <= 0) return;
@@ -38,7 +48,27 @@ export async function recordConsumption(
     where: { itemId },
     select: { id: true, expiryDate: true, quantity: true, usedQuantity: true },
   });
-  const allocations = allocateOldestFirst(batches, quantity);
+
+  const allocations: Allocation[] = [];
+  let left = quantity;
+
+  const preferred = preferBatchId ? batches.find((batch) => batch.id === preferBatchId) : undefined;
+  if (preferred) {
+    const take = Math.min(left, preferred.quantity - preferred.usedQuantity);
+    if (take > 0) {
+      allocations.push({ batchId: preferred.id, quantity: take });
+      left -= take;
+    }
+  }
+
+  if (left > 0) {
+    allocations.push(
+      ...allocateOldestFirst(
+        batches.filter((batch) => batch.id !== preferred?.id),
+        left,
+      ),
+    );
+  }
 
   for (const allocation of allocations) {
     await tx.stockBatch.update({
@@ -70,99 +100,71 @@ export async function recordConsumption(
 }
 
 /**
- * Turn "this visit included a filling and a cleaning" into the stock movements
- * that actually happened.
+ * Take a stated number off the shelf, and write the ledger that explains it.
  *
- * Two services that share a material are summed into a single movement, so the
- * log reads as one line per material per visit rather than a scatter of −1s.
- * Quantity is floored at zero: a cupboard cannot hold −3 gloves, and refusing to
- * record the treatment because the count drifted would be the wrong trade.
+ * The floor at zero is enforced **inside the write**, not by a figure read
+ * beforehand. Clamping against a stale count lets two people scanning the same
+ * cupboard at the same moment both pass the check for the last two syringes and
+ * both decrement, landing at −2 — the exact state the guard is there to prevent.
  *
- * The floor is enforced **inside the write**, not by a figure read beforehand.
- * Clamping against a stale `onHand` lets two visits recorded at the same moment
- * both pass the check for the last two syringes and both decrement, landing at
- * −2 — exactly the state this function's own comment says is impossible.
+ * Short stock is taken as far as it goes rather than refused. A material that
+ * has physically been used has been used, and refusing to record it because the
+ * count had drifted would leave the ledger *further* from the shelf, not closer.
+ * The caller is told how many actually moved so the screen can say so.
  */
-export async function consumeMaterialsForServices(
-  serviceIds: string[],
-  staffUserId: string,
-  /** The visit that caused it, so the ledger can explain itself later. */
-  visitRecordId?: string | null,
-): Promise<ConsumedLine[]> {
-  if (serviceIds.length === 0) return [];
+export async function takeFromShelf(
+  tx: Prisma.TransactionClient,
+  {
+    itemId,
+    quantity,
+    reason,
+    staffUserId,
+    visitRecordId = null,
+    preferBatchId = null,
+  }: {
+    itemId: string;
+    quantity: number;
+    reason: string;
+    staffUserId: string;
+    visitRecordId?: string | null;
+    preferBatchId?: string | null;
+  },
+): Promise<number> {
+  if (quantity <= 0) return 0;
 
-  const materials = await prisma.serviceMaterial.findMany({
-    where: { serviceId: { in: serviceIds } },
-    select: {
-      quantity: true,
-      item: { select: { id: true, name: true, unit: true } },
-    },
+  // One statement, so no other transaction can slip between the check and the
+  // decrement.
+  let applied = quantity;
+  let taken = await tx.stockItem.updateMany({
+    where: { id: itemId, quantity: { gte: quantity } },
+    data: { quantity: { decrement: quantity } },
   });
-  if (materials.length === 0) return [];
 
-  const totals = new Map<string, ConsumedLine>();
-  for (const material of materials) {
-    const existing = totals.get(material.item.id);
-    if (existing) {
-      existing.quantity += material.quantity;
-    } else {
-      totals.set(material.item.id, {
-        itemId: material.item.id,
-        name: material.item.name,
-        quantity: material.quantity,
-        unit: material.item.unit,
-      });
-    }
+  if (taken.count === 0) {
+    // Not enough on hand. Read inside the transaction, and still write it as a
+    // guarded decrement so a concurrent scan cannot push it under zero.
+    const current = await tx.stockItem.findUnique({
+      where: { id: itemId },
+      select: { quantity: true },
+    });
+    applied = Math.min(quantity, current?.quantity ?? 0);
+    if (applied <= 0) return 0;
+
+    taken = await tx.stockItem.updateMany({
+      where: { id: itemId, quantity: { gte: applied } },
+      data: { quantity: { decrement: applied } },
+    });
+    if (taken.count === 0) return 0;
   }
 
-  const consumed: ConsumedLine[] = [];
-
-  await prisma.$transaction(async (tx) => {
-    for (const line of totals.values()) {
-      // Take the whole amount when the shelf holds it. One statement, so no
-      // other transaction can slip between the check and the decrement.
-      let applied = line.quantity;
-      let taken = await tx.stockItem.updateMany({
-        where: { id: line.itemId, quantity: { gte: line.quantity } },
-        data: { quantity: { decrement: line.quantity } },
-      });
-
-      if (taken.count === 0) {
-        // Not enough on hand: take what is there instead of refusing to record
-        // the treatment. Read inside the transaction, and still write it as a
-        // guarded decrement so a concurrent visit cannot push it under zero.
-        const current = await tx.stockItem.findUnique({
-          where: { id: line.itemId },
-          select: { quantity: true },
-        });
-        applied = Math.min(line.quantity, current?.quantity ?? 0);
-        if (applied <= 0) continue;
-
-        taken = await tx.stockItem.updateMany({
-          where: { id: line.itemId, quantity: { gte: applied } },
-          data: { quantity: { decrement: applied } },
-        });
-        if (taken.count === 0) continue;
-      }
-
-      // Which lots it came out of, oldest expiry first. A consumption spanning
-      // two lots writes one movement per lot, so a recall notice naming a lot
-      // number can be traced to the exact visits it touched.
-      //
-      // `visitRecordId` is what makes the ledger explain itself: `reason` alone
-      // is prose, and with the id "why did we burn 40 syringes in March?" is a
-      // query rather than a guess.
-      await recordConsumption(tx, {
-        itemId: line.itemId,
-        quantity: applied,
-        reason: 'used in visit',
-        staffUserId,
-        visitRecordId: visitRecordId ?? null,
-      });
-
-      consumed.push({ ...line, quantity: applied });
-    }
+  await recordConsumption(tx, {
+    itemId,
+    quantity: applied,
+    reason,
+    staffUserId,
+    visitRecordId,
+    preferBatchId,
   });
 
-  return consumed;
+  return applied;
 }

@@ -1,6 +1,6 @@
 import { Download, FlaskConical, Plus, Trash2 } from 'lucide-react';
 import type { Metadata } from 'next';
-import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { WorkFormDialog } from '@/components/works/WorkFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -9,8 +9,10 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { deleteWork } from '@/lib/actions/works';
 import { requirePermission } from '@/lib/auth/guard';
+import { toDateKey, toMonthKey } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { cn, matches } from '@/lib/utils';
+import { elementsOf, fromMonthKey, monthsPresent, totalElements } from '@/lib/works';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +23,7 @@ const NO_LAB = '__none__';
  * The three sub-columns inside the works cell, so the heading and every line
  * underneath it stand in the same places. One template, quoted twice.
  */
-const LINE_GRID = 'grid grid-cols-[minmax(4.5rem,auto)_minmax(0,1fr)_minmax(4.5rem,auto)] gap-x-3';
+const LINE_GRID = 'grid grid-cols-[3rem_minmax(0,1fr)_minmax(4.5rem,auto)] gap-x-3';
 
 export async function generateMetadata({
   params,
@@ -37,13 +39,17 @@ export async function generateMetadata({
  * The works register.
  *
  * One wide table, the way the practice already keeps it on paper: a row per case
- * with the lab's serial, our number, who it is for, a number to ring, the
- * diagnosis — and the work itself as rows stacked inside its own column, because
- * a case is hardly ever one thing.
+ * with the lab's serial, our number, who it is for, a number to ring, the span —
+ * and the work itself as rows stacked inside its own column, because a case is
+ * hardly ever one thing.
  *
- * Everything is on one screen on purpose. This is a register: it gets read
- * across, scanned down and exported whole, and a paged one answers none of
- * those. Filtering happens in memory rather than in the query for the reason the
+ * What the register is *for* is the last column and the line under the table.
+ * A laboratory bills by the element and sometimes bills for more than it was
+ * sent; this is the practice's own count, and the monthly total at the foot is
+ * the figure the invoice gets held against. That is also why the default view is
+ * this month rather than everything: the month is the unit the bill arrives in.
+ *
+ * Filtering happens in memory rather than in the query for the reason the
  * catalogue does the same — `matches()` folds accents and `ILIKE` does not, so
  * typing *puron* has to find *Purón*.
  */
@@ -52,7 +58,7 @@ export default async function WorksPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ q?: string; lab?: string }>;
+  searchParams: Promise<{ q?: string; lab?: string; month?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -63,17 +69,25 @@ export default async function WorksPage({
 
   const t = await getTranslations('works');
   const tc = await getTranslations('common');
+  const format = await getFormatter();
 
   const allWorks = await prisma.work.findMany({
     // Newest first: the row somebody is looking for is nearly always the one
-    // written this week.
-    orderBy: { number: 'desc' },
+    // written this week. `number` breaks the tie so two cases sent on one day
+    // keep the order they were written in.
+    orderBy: [{ sentAt: 'desc' }, { number: 'desc' }],
     include: { lines: { orderBy: { position: 'asc' } } },
   });
 
-  const { q, lab } = await searchParams;
+  const { q, lab, month } = await searchParams;
   const query = (q ?? '').trim();
   const labFilter = lab ?? '';
+
+  const months = monthsPresent(allWorks);
+  // `all` is a deliberate choice, `''` is nobody having chosen yet — and the
+  // month a practice wants on arriving is the one it is billed for.
+  const monthFilter =
+    month === 'all' ? null : ((month && fromMonthKey(month) ? month : months[0]) ?? null);
 
   // Every laboratory the register has ever named, for the filter.
   const labs = [
@@ -83,6 +97,8 @@ export default async function WorksPage({
   ].sort((a, b) => a!.localeCompare(b!)) as string[];
 
   const works = allWorks.filter((work) => {
+    if (monthFilter && toMonthKey(work.sentAt) !== monthFilter) return false;
+
     if (labFilter === NO_LAB) {
       if (work.lines.some((line) => line.lab?.trim())) return false;
     } else if (labFilter && !work.lines.some((line) => line.lab?.trim() === labFilter)) {
@@ -100,12 +116,17 @@ export default async function WorksPage({
       work.phone,
       work.diagnosis ?? '',
       work.notes ?? '',
-      ...work.lines.flatMap((line) => [line.elements, line.procedure, line.lab ?? '']),
+      ...work.lines.map((line) => line.procedure),
+      ...work.lines.map((line) => line.lab ?? ''),
     ];
     return haystack.some((field) => field && matches(field, query));
   });
 
-  const isFiltered = Boolean(query || labFilter);
+  const isFiltered = Boolean(query || labFilter || (monthFilter && monthFilter !== months[0]));
+  const elementTotal = totalElements(works);
+
+  const monthLabel = (key: string) =>
+    format.dateTime(new Date(`${key}-01T00:00:00.000Z`), { month: 'long', year: 'numeric' });
 
   // The export carries whatever the screen is showing — a filtered register is a
   // deliberate selection, and exporting the whole thing instead would silently
@@ -113,6 +134,7 @@ export default async function WorksPage({
   const exportQuery = new URLSearchParams();
   if (query) exportQuery.set('q', query);
   if (labFilter) exportQuery.set('lab', labFilter);
+  exportQuery.set('month', monthFilter ?? 'all');
   // The route sits outside the `[locale]` segment and so has no language of its
   // own — without this the column headings would always come out in Albanian.
   exportQuery.set('locale', locale);
@@ -124,6 +146,8 @@ export default async function WorksPage({
       {t('new')}
     </Link>
   ) : null;
+
+  const columnCount = 6 + (canEdit || canDelete ? 1 : 0);
 
   return (
     <>
@@ -150,10 +174,23 @@ export default async function WorksPage({
         <FilterBar
           basePath="/works"
           label={tc('filters')}
-          values={{ q: query, lab: labFilter }}
+          values={{ q: query, lab: labFilter, month: monthFilter ?? 'all' }}
           search={{ name: 'q', label: tc('search'), placeholder: t('searchPlaceholder') }}
-          selects={
-            labs.length > 0
+          selects={[
+            {
+              name: 'month',
+              label: t('month'),
+              // Not "any month" first: the register is kept and billed a month
+              // at a time, so the whole run is the exception here.
+              anyLabel: monthFilter ? monthLabel(monthFilter) : t('allMonths'),
+              options: [
+                ...months
+                  .filter((key) => key !== monthFilter)
+                  .map((key) => ({ value: key, label: monthLabel(key) })),
+                ...(monthFilter ? [{ value: 'all', label: t('allMonths') }] : []),
+              ],
+            },
+            ...(labs.length > 0
               ? [
                   {
                     name: 'lab',
@@ -165,8 +202,8 @@ export default async function WorksPage({
                     ],
                   },
                 ]
-              : []
-          }
+              : []),
+          ]}
           submitLabel={tc('filter')}
           clearLabel={tc('clearFilters')}
           summary={t('showing', { count: works.length, total: allWorks.length })}
@@ -177,17 +214,19 @@ export default async function WorksPage({
         <div className="card">
           <EmptyState
             icon={<FlaskConical size={40} aria-hidden />}
-            title={isFiltered ? t('emptyFiltered') : t('empty')}
-            action={isFiltered ? null : newLink}
+            title={isFiltered || monthFilter ? t('emptyFiltered') : t('empty')}
+            action={isFiltered || monthFilter ? null : newLink}
           />
         </div>
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[64rem] border-collapse text-left">
-            <caption className="sr-only">{t('title')}</caption>
+            <caption className="sr-only">
+              {monthFilter ? `${t('title')} — ${monthLabel(monthFilter)}` : t('title')}
+            </caption>
             <thead>
               <tr className="border-b-2 border-line">
-                {[t('labSerial'), t('number'), t('patientName'), t('phone'), t('diagnosis')].map(
+                {[t('sentAt'), t('labSerial'), t('number'), t('patientName'), t('phone')].map(
                   (heading) => (
                     <th
                       key={heading}
@@ -212,7 +251,7 @@ export default async function WorksPage({
                       'mt-1 text-[0.72rem] font-semibold tracking-wide text-ink-faint uppercase',
                     )}
                   >
-                    <span>{t('elements')}</span>
+                    <span className="text-right">{t('elements')}</span>
                     <span>{t('procedure')}</span>
                     <span>{t('lab')}</span>
                   </span>
@@ -229,7 +268,11 @@ export default async function WorksPage({
             <tbody>
               {works.map((work) => (
                 <tr key={work.id} className="border-b border-line align-top last:border-b-0">
-                  <td className="px-3 py-3 pl-5 text-[1rem] font-semibold text-ink tabular-nums">
+                  <td className="px-3 py-3 pl-5 text-[0.95rem] text-ink-soft tabular-nums">
+                    {format.dateTime(work.sentAt, { day: '2-digit', month: '2-digit' })}
+                  </td>
+
+                  <td className="px-3 py-3 text-[1rem] font-semibold text-ink tabular-nums">
                     {work.labSerial || <span className="text-ink-faint">—</span>}
                   </td>
 
@@ -247,16 +290,20 @@ export default async function WorksPage({
                     ) : (
                       <span className="font-semibold">{work.patientName}</span>
                     )}
+                    {/* The span, under the name: it is a property of the case,
+                        and giving it a column of its own on a table this wide
+                        costs more than it is worth. */}
+                    {work.diagnosis ? (
+                      <span className="mt-0.5 block text-[0.92rem] text-ink-soft tabular-nums">
+                        {work.diagnosis}
+                      </span>
+                    ) : null}
                   </td>
 
                   <td className="px-3 py-3 text-[1rem] text-ink-soft tabular-nums">
                     <a href={`tel:${work.phone.replace(/\s/g, '')}`}>{work.phone}</a>
-                  </td>
-
-                  <td className="max-w-56 px-3 py-3 text-[0.98rem] text-ink-soft">
-                    {work.diagnosis || <span className="text-ink-faint">—</span>}
                     {work.notes ? (
-                      <span className="mt-1 block text-[0.88rem] text-ink-faint italic">
+                      <span className="mt-0.5 block text-[0.88rem] text-ink-faint italic">
                         {work.notes}
                       </span>
                     ) : null}
@@ -266,19 +313,38 @@ export default async function WorksPage({
                     {work.lines.length === 0 ? (
                       <span className="text-[0.95rem] text-ink-faint">—</span>
                     ) : (
-                      <ul className="divide-y divide-line">
-                        {work.lines.map((line) => (
-                          <li key={line.id} className={cn(LINE_GRID, 'py-1 first:pt-0 last:pb-0')}>
-                            <span className="text-[0.95rem] text-ink-soft tabular-nums">
-                              {line.elements || '—'}
+                      <>
+                        <ul className="divide-y divide-line">
+                          {work.lines.map((line) => (
+                            <li key={line.id} className={cn(LINE_GRID, 'py-1 first:pt-0')}>
+                              <span className="text-right text-[1rem] font-bold text-ink tabular-nums">
+                                {line.elements}
+                              </span>
+                              <span className="text-[0.98rem] font-semibold text-ink">
+                                {line.procedure}
+                              </span>
+                              <span className="text-[0.95rem] text-ink-soft">
+                                {line.lab || '—'}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        {/* Only once there is something to add up. On a
+                            single-line case the line is already the total. */}
+                        {work.lines.length > 1 ? (
+                          <p
+                            className={cn(LINE_GRID, 'border-t-2 border-line pt-1')}
+                          >
+                            <span className="text-right text-[1rem] font-bold text-ink tabular-nums">
+                              {elementsOf(work)}
                             </span>
-                            <span className="text-[0.98rem] font-semibold text-ink">
-                              {line.procedure}
+                            <span className="text-[0.82rem] font-semibold tracking-wide text-ink-faint uppercase">
+                              {t('elementsTotal')}
                             </span>
-                            <span className="text-[0.95rem] text-ink-soft">{line.lab || '—'}</span>
-                          </li>
-                        ))}
-                      </ul>
+                          </p>
+                        ) : null}
+                      </>
                     )}
                   </td>
 
@@ -295,6 +361,7 @@ export default async function WorksPage({
                               phone: work.phone,
                               diagnosis: work.diagnosis ?? '',
                               notes: work.notes ?? '',
+                              sentAt: toDateKey(work.sentAt),
                               lines: work.lines.map((line) => ({
                                 elements: line.elements,
                                 procedure: line.procedure,
@@ -325,6 +392,28 @@ export default async function WorksPage({
                 </tr>
               ))}
             </tbody>
+
+            {/* The month's bill, in one number. This is the line the invoice is
+                held against, so it stays under the table rather than being left
+                for whoever opens the export to select a column and add up. */}
+            <tfoot>
+              <tr className="border-t-2 border-line-strong bg-surface-soft">
+                <td colSpan={columnCount} className="px-5 py-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+                    <span className="text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+                      {monthFilter ? monthLabel(monthFilter) : t('allMonths')} ·{' '}
+                      {t('caseCount', { count: works.length })}
+                    </span>
+                    <span className="text-[1.05rem] font-semibold text-ink-soft">
+                      {t('elementsTotal')}{' '}
+                      <span className="text-[1.6rem] font-bold text-ink tabular-nums">
+                        {elementTotal}
+                      </span>
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}

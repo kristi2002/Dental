@@ -3,17 +3,22 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useRef, useState } from 'react';
-import { MAX_WORK_LINES, type DraftLine } from '@/lib/works';
+import { cn } from '@/lib/utils';
+import { MAX_ELEMENTS, MAX_WORK_LINES, elementsOf, type DraftLine } from '@/lib/works';
 
 export type LineDraft = DraftLine & { key: string };
 
 /**
  * The work itself: rows inside the case, not columns beside it.
  *
- * A case is hardly ever one thing — a bridge on 14–16 and a crown on 24 travel
- * on the same impression — so this is the one field on the form that is a small
- * table. Three columns, the same three the register prints: which teeth, what is
- * being made, and which laboratory is making it.
+ * A case is hardly ever one thing — a bridge and a crown travel on the same
+ * impression — so this is the one field on the form that is a small table. Three
+ * columns, the same three the register prints: how many elements, what is being
+ * made, and which laboratory is making it.
+ *
+ * The element count is a number and it adds up as it is typed, because the
+ * running total is the point of the whole screen: the laboratory bills by the
+ * element, and this is the practice's only other copy of that figure.
  *
  * The whole set posts as one JSON field rather than as repeated inputs. That is
  * what lets a row be removed from the middle without renumbering anything, and
@@ -40,10 +45,12 @@ export function WorkLinesField({
   function addLine() {
     if (value.length >= MAX_WORK_LINES) return;
     seq.current += 1;
-    onChange([...value, { key: `${uid}-${seq.current}`, elements: '', procedure: '', lab: '' }]);
+    // One element is what a new row nearly always is — a single crown. Starting
+    // at zero would mean typing a 1 on most rows of most cases.
+    onChange([...value, { key: `${uid}-${seq.current}`, elements: 1, procedure: '', lab: '' }]);
   }
 
-  function patch(key: string, field: keyof DraftLine, next: string) {
+  function patch(key: string, field: keyof DraftLine, next: string | number) {
     onChange(value.map((line) => (line.key === key ? { ...line, [field]: next } : line)));
   }
 
@@ -78,17 +85,30 @@ export function WorkLinesField({
                   {index + 1}
                 </span>
 
-                <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,7rem)_minmax(0,1fr)_minmax(0,9rem)]">
+                <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,9rem)]">
                   <div>
                     <label className="field-label sr-only" htmlFor={`${line.key}-elements`}>
                       {t('elements')}
                     </label>
                     <input
                       id={`${line.key}-elements`}
-                      className="field-input"
-                      placeholder={t('elementsPlaceholder')}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={MAX_ELEMENTS}
+                      step={1}
+                      className="field-input text-right tabular-nums"
                       value={line.elements}
-                      onChange={(event) => patch(line.key, 'elements', event.target.value)}
+                      onChange={(event) =>
+                        // Kept as typed while the box is being worked in — an
+                        // emptied field that snapped back to 0 could not be
+                        // retyped without selecting the 0 first.
+                        patch(
+                          line.key,
+                          'elements',
+                          event.target.value === '' ? 0 : Number(event.target.value),
+                        )
+                      }
                     />
                   </div>
 
@@ -141,15 +161,26 @@ export function WorkLinesField({
         ))}
       </datalist>
 
-      <button
-        type="button"
-        className="btn btn-secondary btn-sm mt-2"
-        onClick={addLine}
-        disabled={value.length >= MAX_WORK_LINES}
-      >
-        <Plus size={17} aria-hidden />
-        {t('addLine')}
-      </button>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={addLine}
+          disabled={value.length >= MAX_WORK_LINES}
+        >
+          <Plus size={17} aria-hidden />
+          {t('addLine')}
+        </button>
+
+        {/* The figure the invoice gets checked against, kept in step as the case
+            is written rather than added up afterwards. */}
+        <p aria-live="polite" className="text-[0.95rem] text-ink-soft">
+          {t('elementsTotal')}{' '}
+          <span className="text-[1.15rem] font-bold text-ink tabular-nums">
+            {elementsOf({ lines: value })}
+          </span>
+        </p>
+      </div>
     </div>
   );
 }
@@ -159,14 +190,21 @@ export function WorkLinesHeader() {
   const t = useTranslations('works');
 
   return (
-    <div className="hidden pl-8 sm:grid sm:grid-cols-[minmax(0,7rem)_minmax(0,1fr)_minmax(0,9rem)_2.5rem] sm:gap-2">
-      {[t('elements'), t('procedure'), t('lab')].map((heading) => (
+    <div className="hidden pl-8 sm:grid sm:grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,9rem)_2.5rem] sm:gap-2">
+      {[
+        { key: 'elements', label: t('elements'), align: 'text-right' },
+        { key: 'procedure', label: t('procedure'), align: '' },
+        { key: 'lab', label: t('lab'), align: '' },
+      ].map((column) => (
         <span
-          key={heading}
+          key={column.key}
           aria-hidden
-          className="text-[0.78rem] font-bold tracking-wide text-ink-faint uppercase"
+          className={cn(
+            'text-[0.78rem] font-bold tracking-wide text-ink-faint uppercase',
+            column.align,
+          )}
         >
-          {heading}
+          {column.label}
         </span>
       ))}
     </div>

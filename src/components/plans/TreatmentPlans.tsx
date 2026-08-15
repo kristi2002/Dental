@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronUp,
   ListChecks,
+  Printer,
   RotateCcw,
   SkipForward,
   Trash2,
@@ -125,6 +126,18 @@ export function TreatmentPlans({
               </div>
 
               <div className="flex items-center gap-2">
+                {/* The sheet the patient takes home — six visits and four teeth
+                    is a conversation, and it was only ever a progress bar
+                    behind a login. */}
+                <Link
+                  href={`/plans/${plan.id}/print`}
+                  className="btn btn-ghost btn-sm"
+                  title={t('print')}
+                >
+                  <Printer size={16} aria-hidden />
+                  <span className="sr-only">{t('print')}</span>
+                </Link>
+
                 {canEdit ? (
                   <PlanFormDialog
                     patientId={patientId}

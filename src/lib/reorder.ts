@@ -42,6 +42,11 @@ export type ReorderLine = {
   orderedAt: string | null;
   expectedAt: string | null;
   supplierName: string;
+  /** Empty for a material nobody has said where to buy. */
+  supplierId: string;
+  /** Where the order actually goes. Empty when the supplier has no such column. */
+  supplierPhone: string;
+  supplierEmail: string;
 };
 
 export async function getReorderSuggestions(): Promise<ReorderLine[]> {
@@ -52,7 +57,7 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
       where: ACTIVE_STOCK,
       orderBy: { name: 'asc' },
       include: {
-        supplier: { select: { name: true } },
+        supplier: { select: { name: true, phone: true, email: true } },
         batches: { select: { expiryDate: true, quantity: true } },
       },
     }),
@@ -120,6 +125,9 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
       orderedAt: item.orderedAt ? item.orderedAt.toISOString() : null,
       expectedAt: item.expectedAt ? item.expectedAt.toISOString() : null,
       supplierName: item.supplier?.name ?? '',
+      supplierId: item.supplierId ?? '',
+      supplierPhone: item.supplier?.phone ?? '',
+      supplierEmail: item.supplier?.email ?? '',
     });
   }
 
@@ -159,4 +167,55 @@ export function reorderAsText(lines: ReorderLine[], heading: string): string {
     .join('\n');
 
   return `${heading}\n${body}`;
+}
+
+export type SupplierOrder = {
+  /** Empty for the group of materials with no supplier recorded. */
+  supplierId: string;
+  supplierName: string;
+  supplierPhone: string;
+  supplierEmail: string;
+  lines: ReorderLine[];
+  /** Ids of the lines that are actually being asked for — what "ordered" marks. */
+  pendingIds: string[];
+};
+
+/**
+ * The shopping list cut the way it is actually placed: one order per supplier.
+ *
+ * The panel listed twelve materials in urgency order and offered one WhatsApp
+ * button carrying all twelve — which is not an order anybody can send, because
+ * those twelve come from three different companies. So the real workflow was to
+ * read the list, sort it in your head, write three messages by hand, and then
+ * press "ordered" twelve times.
+ *
+ * Urgency still decides the order of the groups — the supplier holding the thing
+ * that runs out on Tuesday comes first — and it still decides the order of the
+ * lines inside each one, because `getReorderSuggestions` already sorted them and
+ * grouping preserves it.
+ */
+export function bySupplier(lines: ReorderLine[]): SupplierOrder[] {
+  const groups = new Map<string, SupplierOrder>();
+
+  for (const line of lines) {
+    const key = line.supplierId;
+    const group = groups.get(key) ?? {
+      supplierId: line.supplierId,
+      supplierName: line.supplierName,
+      supplierPhone: line.supplierPhone,
+      supplierEmail: line.supplierEmail,
+      lines: [],
+      pendingIds: [],
+    };
+    group.lines.push(line);
+    if (line.suggested > 0 && line.orderedAt === null) group.pendingIds.push(line.id);
+    groups.set(key, group);
+  }
+
+  // Materials nobody has said where to buy sink to the bottom: the group cannot
+  // be sent anywhere, so it is a list of things to file rather than to order.
+  return [...groups.values()].sort((a, b) => {
+    if (!a.supplierId !== !b.supplierId) return a.supplierId ? -1 : 1;
+    return 0;
+  });
 }

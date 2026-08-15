@@ -217,18 +217,16 @@ export async function getServiceOptions(): Promise<ServiceOption[]> {
       name: true,
       durationMin: true,
       category: { select: { name: true, parent: { select: { name: true } } } },
-      _count: { select: { materials: true } },
     },
   });
 
   // Sorted here rather than by the database, which can order by the leaf
   // heading but not by the department above it.
   return services
-    .map(({ _count, category, ...service }) => ({
+    .map(({ category, ...service }) => ({
       ...service,
       category: departmentOf(category),
       subcategory: category?.parent ? category.name : '',
-      materialCount: _count.materials,
     }))
     .sort(
       (a, b) =>
@@ -253,6 +251,9 @@ type AppointmentWithPatient = {
   staffUser: { firstName: string; lastName: string } | null;
   operatoryId: string | null;
   operatory: { name: string } | null;
+  arrivedAt: Date | null;
+  rescheduledFromId: string | null;
+  seriesId: string | null;
   patient: {
     id: string;
     firstName: string;
@@ -281,6 +282,12 @@ export function toAppointmentView(appointment: AppointmentWithPatient): Appointm
       : '',
     operatoryId: appointment.operatoryId ?? '',
     operatoryName: appointment.operatory?.name ?? '',
+    // An instant rather than a count of minutes: the page is rendered once and
+    // read for the next twenty, and a number baked in at render time would be
+    // wrong the moment it was printed. The reader works out the wait.
+    arrivedAt: appointment.arrivedAt?.toISOString() ?? '',
+    moved: appointment.rescheduledFromId !== null,
+    seriesId: appointment.seriesId ?? '',
     patient: {
       id: appointment.patient.id,
       firstName: appointment.patient.firstName,
@@ -307,6 +314,9 @@ const APPOINTMENT_SELECT = {
   staffUser: { select: { firstName: true, lastName: true } },
   operatoryId: true,
   operatory: { select: { name: true } },
+  arrivedAt: true,
+  rescheduledFromId: true,
+  seriesId: true,
   patient: {
     select: {
       id: true,

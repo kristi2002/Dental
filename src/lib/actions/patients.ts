@@ -9,17 +9,19 @@ import { authorize, recordAudit } from '@/lib/auth/guard';
 import { deleteStoredFile } from '@/lib/files';
 import type { PatientOption } from '@/components/appointments/AppointmentFormDialog';
 import {
+  ACTIVE_PATIENTS,
   buildSearchKey,
   fold,
   patientSearchClauses,
   phoneKey,
 } from '@/lib/patient-search';
+import { parseMaterialList } from '@/lib/material-history';
 import { completeStepForAppointment } from '@/lib/plan-sync';
 import { prisma } from '@/lib/prisma';
+import { takeFromShelf } from '@/lib/stock-consumption';
 import { timeToMinutes, toDay } from '@/lib/dates';
-import { consumeMaterialsForServices } from '@/lib/stock-consumption';
 import { DEFAULT_TOOTH_STATUS, formatSurfaces, isToothStatus, isValidTooth } from '@/lib/teeth';
-import { optionalString, parseServiceList, requiredString } from '@/lib/utils';
+import { optionalString, parseServiceList, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
 function revalidateAll() {
@@ -62,7 +64,7 @@ export async function searchPatients(query: string): Promise<PatientOption[]> {
   const rows = await prisma.patient.findMany({
     // Same fallback as the patient list: `searchKey` is filled by a backfill,
     // and a deployment that has not run it yet must still find people.
-    where: { OR: patientSearchClauses(query, folded, digits) },
+    where: { ...ACTIVE_PATIENTS, OR: patientSearchClauses(query, folded, digits) },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     // Enough to recognise the right person, few enough that the list stays a
     // list rather than becoming the drawer again.
@@ -102,6 +104,9 @@ export async function savePatient(_prev: ActionState, formData: FormData): Promi
     const key = phoneKey(phone);
     if (key.length >= 6) {
       const existing = await prisma.patient.findMany({
+        // An archived duplicate is exactly the one worth warning about: it is
+        // out of every list, so the person creating a second record has no way
+        // to have seen it.
         where: { phone: { endsWith: key } },
         select: { firstName: true, lastName: true },
         take: 5,
@@ -210,6 +215,203 @@ export async function deletePatient(formData: FormData): Promise<void> {
   redirect({ href: '/patients', locale });
 }
 
+/**
+ * Retire a patient from the lists without touching a word of their record.
+ *
+ * Staff are deactivated rather than deleted, and materials are archived rather
+ * than removed, both for the same stated reason: the history hanging off the row
+ * is the asset and the row is only its label. Patients — who carry more history
+ * than either, and whose records carry a legal retention period in every
+ * jurisdiction this ships to — were the one thing the app still erased outright.
+ *
+ * `patient.edit`, not `patient.delete`: this is the *safe* action, the one that
+ * should be easy to reach, and gating it behind the owner would leave hard
+ * deletion as the only thing the front desk could do with somebody who has moved
+ * away.
+ */
+export async function archivePatient(formData: FormData): Promise<void> {
+  const user = await authorize('patient.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  // A blank `archived` un-archives: one action, both directions, so restoring
+  // somebody who was filed away by mistake needs no second verb.
+  const archiving = requiredString(formData.get('archived')) !== '0';
+
+  const patient = await prisma.patient.update({
+    where: { id },
+    data: { archivedAt: archiving ? new Date() : null },
+    select: { firstName: true, lastName: true },
+  });
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'patient',
+    entityId: id,
+    summary: `${patient.lastName} ${patient.firstName} → ${archiving ? 'archived' : 'restored'}`,
+  });
+  revalidateAll();
+}
+
+/**
+ * Fold one duplicate record into another.
+ *
+ * The app has detected duplicates on the way in since inline booking made them
+ * likely — "a patient with this number already exists" — and then had nothing to
+ * say about the two that already exist. So the front desk's real options were to
+ * leave both (and have half the history on each) or to delete one (and lose that
+ * half). Both are worse than the third answer nobody could reach.
+ *
+ * Everything that points at the loser is repointed at the survivor, in one
+ * transaction, and the blanks on the survivor are filled from the loser — which
+ * is the practical reason two records exist at all: one has the email, the other
+ * has the date of birth.
+ *
+ * The loser is archived rather than deleted. It keeps a stale link, a printed
+ * slip and an audit entry resolving to *something*, and it costs one row.
+ *
+ * Owner-only. It is not reversible by pressing anything.
+ */
+export async function mergePatients(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('patient.delete');
+  if (!user) return actionError(t('forbidden'));
+
+  const keepId = requiredString(formData.get('keepId'));
+  const mergeId = requiredString(formData.get('mergeId'));
+  if (!keepId || !mergeId) return actionError(t('fillRequired'));
+  if (keepId === mergeId) return actionError(t('mergeSame'));
+
+  const [keep, merge] = await Promise.all([
+    prisma.patient.findUnique({ where: { id: keepId } }),
+    prisma.patient.findUnique({ where: { id: mergeId } }),
+  ]);
+  if (!keep || !merge) return actionError(t('notFound'));
+
+  // Only what the survivor is missing. A merge must never overwrite a value
+  // somebody has looked at and confirmed with one nobody has.
+  const fill: Record<string, unknown> = {};
+  const takeIfBlank = <K extends keyof typeof keep>(field: K) => {
+    if ((keep[field] === null || keep[field] === '') && merge[field] !== null && merge[field] !== '') {
+      fill[field as string] = merge[field];
+    }
+  };
+  takeIfBlank('email');
+  takeIfBlank('dateOfBirth');
+  takeIfBlank('address');
+  takeIfBlank('fiscalCode');
+  takeIfBlank('guardianName');
+  takeIfBlank('guardianPhone');
+  takeIfBlank('emergencyContact');
+  takeIfBlank('referralSource');
+  takeIfBlank('locale');
+  takeIfBlank('preferredChannel');
+  takeIfBlank('contactConsent');
+
+  // Two sets of clinical notes are two things somebody wrote; neither may be
+  // dropped, so they are joined rather than chosen between.
+  if (merge.medicalNotes && merge.medicalNotes !== keep.medicalNotes) {
+    fill.medicalNotes = keep.medicalNotes
+      ? `${keep.medicalNotes}\n\n${merge.medicalNotes}`
+      : merge.medicalNotes;
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // The chart is the one table that cannot simply be repointed: it is
+      // unique on (patient, tooth), so two records charting tooth 11 would
+      // collide. The survivor's own row wins unless the duplicate's is newer —
+      // the later note is the later examination — and the row that loses is
+      // dropped rather than kept as an unreachable second opinion.
+      const [keepTeeth, mergeTeeth] = await Promise.all([
+        tx.toothRecord.findMany({
+          where: { patientId: keepId },
+          select: { id: true, toothNum: true, updatedAt: true },
+        }),
+        tx.toothRecord.findMany({
+          where: { patientId: mergeId },
+          select: { id: true, toothNum: true, updatedAt: true },
+        }),
+      ]);
+
+      const keptByTooth = new Map(keepTeeth.map((row) => [row.toothNum, row]));
+      const moveTeeth: string[] = [];
+      const dropTeeth: string[] = [];
+
+      for (const tooth of mergeTeeth) {
+        const rival = keptByTooth.get(tooth.toothNum);
+        if (!rival) {
+          moveTeeth.push(tooth.id);
+        } else if (tooth.updatedAt > rival.updatedAt) {
+          dropTeeth.push(rival.id);
+          moveTeeth.push(tooth.id);
+        } else {
+          dropTeeth.push(tooth.id);
+        }
+      }
+
+      if (dropTeeth.length > 0) {
+        await tx.toothRecord.deleteMany({ where: { id: { in: dropTeeth } } });
+      }
+      if (moveTeeth.length > 0) {
+        await tx.toothRecord.updateMany({
+          where: { id: { in: moveTeeth } },
+          data: { patientId: keepId },
+        });
+      }
+
+      const move = { where: { patientId: mergeId }, data: { patientId: keepId } };
+      await tx.appointment.updateMany(move);
+      await tx.visitRecord.updateMany(move);
+      await tx.waitlistEntry.updateMany(move);
+      await tx.treatmentPlan.updateMany(move);
+      await tx.patientDocument.updateMany(move);
+      await tx.prescription.updateMany(move);
+      await tx.contact.updateMany(move);
+      await tx.patientAlert.updateMany(move);
+      // The works register keeps its own copy of the name and number as written
+      // on the docket (see `Work.patientName`); only the link moves.
+      await tx.work.updateMany(move);
+
+      if (Object.keys(fill).length > 0) {
+        await tx.patient.update({ where: { id: keepId }, data: fill });
+      }
+
+      // Rebuilt, because the merge may have just given the survivor an email
+      // address that the search key does not know about.
+      const merged = await tx.patient.findUniqueOrThrow({ where: { id: keepId } });
+      await tx.patient.update({
+        where: { id: keepId },
+        data: { searchKey: buildSearchKey(merged) },
+      });
+
+      await tx.patient.update({
+        where: { id: mergeId },
+        data: { archivedAt: new Date() },
+      });
+    });
+  } catch (error) {
+    console.error('[patients] merge failed', error);
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'patient',
+    entityId: keepId,
+    summary: `merged ${merge.lastName} ${merge.firstName} → ${keep.lastName} ${keep.firstName}`,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
 export async function saveVisit(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const t = await getTranslations('errors');
 
@@ -220,8 +422,9 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
   const notes = requiredString(formData.get('notes'));
   const services = requiredString(formData.get('services'));
   const visitDate = optionalString(formData.get('visitDate'));
-  // Ids of catalog services picked as chips — free-typed names have none, which
-  // is exactly why deduction is driven by ids rather than by the text field.
+  // Ids of catalog services picked as chips. Free-typed names have none, which
+  // is what keeps a treatment written by hand out of the statistics as a
+  // catalogue entry it never was.
   const serviceIds = requiredString(formData.get('serviceIds'))
     .split(',')
     .map((value) => value.trim())
@@ -236,8 +439,7 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
   // What was done, as rows rather than as a sentence to be split on commas.
   //
   // The chips carry catalogue ids; anything typed by hand has none, and gets a
-  // row with a name and a null `serviceId` — which is honest, and is the same
-  // distinction that already decides whether stock is deducted. Ids are matched
+  // row with a name and a null `serviceId` — which is honest. Ids are matched
   // back to the text in the order the names were typed, so the line reads the
   // way it was written.
   const catalogue = await prisma.service.findMany({
@@ -341,14 +543,35 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
   });
   const patientName = patient ? `${patient.firstName} ${patient.lastName}` : patientId;
 
-  // Recording the visit is also the moment the materials left the cupboard.
-  const consumed = await consumeMaterialsForServices(serviceIds, user.id, visitId);
-  if (consumed.length > 0) {
-    await recordAudit(user, {
-      action: 'update',
-      entity: 'stock',
-      summary: consumed.map((line) => `${line.name} −${line.quantity}`).join(', '),
-    });
+  // What came off the shelf, as stated on the form.
+  //
+  // Nothing is deducted from a *prediction* here — the treatment's old bill of
+  // materials is gone and stays gone. These are the amounts somebody looked at
+  // and confirmed, seeded from what past visits for the same treatment actually
+  // spent (see `suggestMaterials`), and they go through the same guarded take,
+  // the same oldest-lot-first allocation and the same ledger as a scan. The
+  // scanner is still the better instrument; this is for the practice that has
+  // one at the chair and not in the surgery.
+  //
+  // After the visit exists, and unable to fail it: a cupboard that has drifted
+  // must not cost somebody their clinical note.
+  const materials = parseMaterialList(requiredString(formData.get('materials')));
+  if (materials.length > 0 && user.permissions.includes('stock.edit')) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const material of materials) {
+          await takeFromShelf(tx, {
+            itemId: material.itemId,
+            quantity: material.quantity,
+            reason: 'used in visit',
+            staffUserId: user.id,
+            visitRecordId: visitId,
+          });
+        }
+      });
+    } catch (error) {
+      console.error('[visit] material consumption failed', error);
+    }
   }
 
   await recordAudit(user, {
@@ -357,6 +580,50 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
     entityId: visitId,
     summary: patientName,
   });
+
+  // The next appointment, booked from the chair.
+  //
+  // Deliberately after the visit is committed and deliberately unable to fail
+  // it: the write-up is the thing that must not be lost, and refusing to record
+  // a treatment because the follow-up slot turned out to be busy would throw
+  // away the wrong half. A clash is booked over — the same "warn, don't block"
+  // rule the booking dialog applies, minus the dialog, because there is no
+  // second screen here to warn on — and the audit line says a follow-up was made.
+  const followUpDate = optionalString(formData.get('followUpDate'));
+  const followUpStartTime = optionalString(formData.get('followUpStartTime'));
+
+  if (
+    followUpDate &&
+    followUpStartTime &&
+    /^\d{4}-\d{2}-\d{2}$/.test(followUpDate) &&
+    /^\d{1,2}:\d{2}$/.test(followUpStartTime) &&
+    user.permissions.includes('appointment.edit')
+  ) {
+    try {
+      const booked = await prisma.appointment.create({
+        data: {
+          patientId,
+          date: new Date(`${followUpDate}T00:00:00.000Z`),
+          startTime: followUpStartTime,
+          durationMin: Math.max(5, toInt(formData.get('followUpDurationMin'), 30)),
+          status: AppointmentStatus.SCHEDULED,
+          // Whoever did the work is the sensible default for who does the next
+          // of it, and it is the only answer this form has.
+          staffUserId: optionalString(formData.get('performedById')) ?? user.id,
+        },
+        select: { id: true },
+      });
+
+      await recordAudit(user, {
+        action: 'create',
+        entity: 'appointment',
+        entityId: booked.id,
+        summary: `${patientName} · ${followUpDate} ${followUpStartTime} · follow-up`,
+      });
+    } catch (error) {
+      console.error('[visit] follow-up booking failed', error);
+    }
+  }
 
   revalidateAll();
   return actionOk();

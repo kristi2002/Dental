@@ -1,4 +1,4 @@
-import { Activity, Clock, Package, Plus, Stethoscope, Trash2 } from 'lucide-react';
+import { Activity, Clock, Plus, Stethoscope, Trash2 } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ServiceFormDialog } from '@/components/services/ServiceFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -12,7 +12,7 @@ import { requirePermission } from '@/lib/auth/guard';
 import { byDepartment, departmentOf } from '@/lib/catalog';
 import { addMonths, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
-import { ACTIVE_STOCK, getServiceCategories } from '@/lib/queries';
+import { getServiceCategories } from '@/lib/queries';
 import { cn, matches } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +25,7 @@ export default async function ServicesPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ q?: string; category?: string; materials?: string }>;
+  searchParams: Promise<{ q?: string; category?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -54,22 +54,12 @@ export default async function ServicesPage({
   // what "recently" means.
   const since = addMonths(today(), -6);
 
-  const [allServices, stockItems, performed] = await Promise.all([
+  const [allServices, performed] = await Promise.all([
     prisma.service.findMany({
       orderBy: { name: 'asc' },
       include: {
         category: { select: { id: true, name: true, parent: { select: { id: true, name: true } } } },
-        materials: {
-          select: { itemId: true, quantity: true, item: { select: { name: true, unit: true } } },
-        },
       },
-    }),
-    // A retired material must not be offered as something a new treatment
-    // consumes; existing bills of materials that name one keep working.
-    prisma.stockItem.findMany({
-      where: ACTIVE_STOCK,
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, unit: true, packSize: true },
     }),
     // How often each treatment was actually performed. The catalogue is where an
     // owner decides what to keep, what to reprice and what to stop offering, and
@@ -86,10 +76,9 @@ export default async function ServicesPage({
     performed.map((row) => [row.serviceId!, row._count._all]),
   );
 
-  const { q, category, materials } = await searchParams;
+  const { q, category } = await searchParams;
   const query = (q ?? '').trim();
   const categoryFilter = category ?? '';
-  const materialsFilter = materials === 'with' || materials === 'none' ? materials : '';
 
   const services = allServices.filter((service) => {
     if (
@@ -111,12 +100,10 @@ export default async function ServicesPage({
     ) {
       return false;
     }
-    if (materialsFilter === 'with' && service.materials.length === 0) return false;
-    if (materialsFilter === 'none' && service.materials.length > 0) return false;
     return true;
   });
 
-  const isFiltered = Boolean(query || categoryFilter || materialsFilter);
+  const isFiltered = Boolean(query || categoryFilter);
 
   // Grouped by department, so the catalog reads like a printed price list —
   // minus the prices. The same split the booking and visit forms use, which is
@@ -162,16 +149,7 @@ export default async function ServicesPage({
         <FilterBar
           basePath="/services"
           label={tc('filters')}
-          values={{ q: query, category: categoryFilter, materials: materialsFilter }}
-          chips={{
-            name: 'materials',
-            label: t('filterMaterialsLabel'),
-            options: [
-              { value: '', label: tc('all') },
-              { value: 'with', label: t('filterWithMaterials') },
-              { value: 'none', label: t('filterNoMaterials') },
-            ],
-          }}
+          values={{ q: query, category: categoryFilter }}
           search={{
             name: 'q',
             label: tc('search'),
@@ -255,24 +233,6 @@ export default async function ServicesPage({
                             : t('performedNever')}
                         </span>
                       </p>
-
-                      {/* What this treatment eats, and therefore what recording
-                          it will take off the shelf. */}
-                      {service.materials.length > 0 ? (
-                        <p className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <Package
-                            size={15}
-                            aria-hidden
-                            className="text-brand"
-                            aria-label={t('materials')}
-                          />
-                          {service.materials.map((material) => (
-                            <Badge key={material.itemId} tone="brand">
-                              {material.item.name} ×{material.quantity} {material.item.unit}
-                            </Badge>
-                          ))}
-                        </p>
-                      ) : null}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -284,13 +244,8 @@ export default async function ServicesPage({
                             departmentId: service.departmentId,
                             subcategoryId: service.subcategoryId,
                             durationMin: service.durationMin,
-                            materials: service.materials.map(({ itemId, quantity }) => ({
-                              itemId,
-                              quantity,
-                            })),
                           }}
                           categories={categories}
-                          stockItems={stockItems}
                           compact
                         />
                       ) : null}

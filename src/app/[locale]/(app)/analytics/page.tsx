@@ -1,10 +1,12 @@
 import {
   CalendarCheck,
   ChartColumn,
+  Clock,
   Package,
   Share2,
   Stethoscope,
   TrendingUp,
+  UserX,
   Users,
 } from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
@@ -21,9 +23,19 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { requirePermission } from '@/lib/auth/guard';
-import { addMonths, lastMonths, startOfMonth, toMonthKey, today } from '@/lib/dates';
+import {
+  addMonths,
+  fromDateKey,
+  lastMonths,
+  startOfMonth,
+  toMonthKey,
+  today,
+} from '@/lib/dates';
+import { moneyFormat, stockValue } from '@/lib/money';
+import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
-import { getProviderOptions } from '@/lib/queries';
+import { ACTIVE_STOCK, getClinicProfile, getProviderOptions } from '@/lib/queries';
+import { getProviderNoShows, getUtilisation, overallUtilisation } from '@/lib/utilisation';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,7 +101,10 @@ export default async function AnalyticsPage({
         where: { date: { gte: windowStart, lt: windowEnd } },
         _count: { _all: true },
       }),
-      prisma.patient.count(),
+      // Active people only, matching every list in the app: an archived record
+      // is out of the drawer, and a headline that counts it disagrees with the
+      // screen the reader just came from.
+      prisma.patient.count({ where: ACTIVE_PATIENTS }),
       prisma.visitRecord.count(),
       // "Where do patients come from" — the one CRM question an owner asks, and
       // the one this page could not answer at all even though the field for it
@@ -133,6 +148,35 @@ export default async function AnalyticsPage({
     ],
   );
 
+  // Asked after the providers are known, because the no-show table names them.
+  //
+  // These two are the questions an owner actually opens this page with, and
+  // neither could be answered from it: how full the chairs were, and whose list
+  // is leaking. Every input has been in the database for a while — opening
+  // hours, closures, a duration on every booking, a dentist on every slot — and
+  // nothing put them together.
+  const providerName = new Map(providers.map((person) => [person.id, person.name]));
+  const profile = await getClinicProfile();
+  const [utilisation, providerNoShows, stockItems] = await Promise.all([
+    getUtilisation({ from: windowStart, to: windowEnd }),
+    getProviderNoShows({ from: windowStart, to: windowEnd, names: providerName }),
+    // What the storage room is worth today. A "now" figure among windowed ones,
+    // and labelled as such — it is an asset, not a rate.
+    prisma.stockItem.findMany({
+      where: ACTIVE_STOCK,
+      select: { quantity: true, unitPrice: true },
+    }),
+  ]);
+
+  const cupboard = stockValue(stockItems);
+
+  // Percentages against the same month labels the other charts use, so the
+  // reader can lay one over another without checking the axis twice.
+  const utilisationPoints: Point[] = utilisation.map((point) => ({
+    label: format.dateTime(fromDateKey(`${point.month}-01`), { month: 'short' }),
+    value: point.percent,
+  }));
+
   /** Bucket timestamps into the tracked months, keeping empty months visible. */
   function bucket(entries: Array<{ date: Date; amount: number }>): Point[] {
     const totals = new Map(months.map((month) => [toMonthKey(month), 0]));
@@ -175,7 +219,6 @@ export default async function AnalyticsPage({
     .slice(0, 8)
     .reverse(); // Recharts stacks a vertical layout bottom-up.
 
-  const providerName = new Map(providers.map((person) => [person.id, person.name]));
   const providerPoints: Point[] = byProvider
     .map((row) => ({
       label: providerName.get(row.staffUserId!) ?? row.staffUserId!,
@@ -214,7 +257,82 @@ export default async function AnalyticsPage({
         />
       </div>
 
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        {/* The number the question "how are we doing" is actually asking, and
+            the one this page counted appointments instead of. Eight check-ups
+            and three implants are the same count and nothing like the same day. */}
+        <StatCard
+          label={t('utilisation')}
+          value={`${overallUtilisation(utilisation)}%`}
+          Icon={Clock}
+        />
+        {cupboard.total > 0 ? (
+          <StatCard
+            label={t('stockValue')}
+            value={format.number(cupboard.total, moneyFormat(profile.currency, cupboard.total))}
+            Icon={Package}
+          />
+        ) : null}
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <CardHeader
+            title={t('utilisationOverTime')}
+            subtitle={t('utilisationHint')}
+            icon={<Clock size={22} aria-hidden />}
+          />
+          <CardBody>
+            <MonthlyBars data={utilisationPoints} name={t('utilisation')} />
+          </CardBody>
+        </Card>
+
+        {/* A table rather than a chart: three numbers per dentist, and the one
+            that matters is a percentage nobody can read off a bar. */}
+        <Card>
+          <CardHeader
+            title={t('noShowByProvider')}
+            subtitle={t('noShowHint')}
+            icon={<UserX size={22} aria-hidden />}
+          />
+          {providerNoShows.length > 0 ? (
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-line">
+                  <th className="px-5 py-2 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                    {ta('provider')}
+                  </th>
+                  <th className="px-5 py-2 text-right text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                    {t('pastAppointments')}
+                  </th>
+                  <th className="px-5 py-2 text-right text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                    {ta('status_NO_SHOW')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {providerNoShows.map((row) => (
+                  <tr key={row.staffUserId} className="border-b border-line last:border-b-0">
+                    <td className="px-5 py-3 font-semibold text-ink">{row.name}</td>
+                    <td className="px-5 py-3 text-right tabular-nums text-ink-soft">{row.past}</td>
+                    <td className="px-5 py-3 text-right tabular-nums">
+                      <span
+                        className={
+                          row.noShowRate >= 15 ? 'font-bold text-warn' : 'font-semibold text-ink'
+                        }
+                      >
+                        {row.noShows} · {row.noShowRate}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <EmptyState icon={<UserX size={40} aria-hidden />} title={t('noData')} />
+          )}
+        </Card>
+
         <Card>
           <CardHeader title={t('visitsOverTime')} icon={<ChartColumn size={22} aria-hidden />} />
           <CardBody>

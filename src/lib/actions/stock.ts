@@ -4,9 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { suggestMaterials, type MaterialSuggestion } from '@/lib/material-history';
 import { parseMoney } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
-import { recordConsumption } from '@/lib/stock-consumption';
+import { recordConsumption, takeFromShelf } from '@/lib/stock-consumption';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
@@ -17,6 +18,86 @@ function revalidateAll() {
 /** `YYYY-MM-DD` out of a date input, as the UTC midnight the rest of the app uses. */
 function parseDay(raw: string | null): Date | null {
   return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
+}
+
+/**
+ * What this practice usually spends on these treatments — see
+ * `suggestMaterials`. An action because the visit form asks it while it is being
+ * filled in, once the treatments are known and not before.
+ */
+export async function getMaterialSuggestions(
+  serviceIds: string[],
+): Promise<MaterialSuggestion[]> {
+  const user = await authorize('stock.view');
+  if (!user) return [];
+  return suggestMaterials(serviceIds);
+}
+
+/**
+ * Take an expired or ruined lot off the shelf, naming the lot.
+ *
+ * `adjustStock` could already remove the units, but only from the top of the
+ * pile: it allocates oldest-expiry-first, which is a *guess* that happens to be
+ * right for an expired box and wrong for the one that got dropped. The lot is
+ * the whole point of writing off — a recall notice and an insurance claim both
+ * ask which one — and `recordConsumption` has accepted a preferred lot since
+ * scanning existed, with nothing in the storage room able to name one.
+ *
+ * The reason is its own word rather than "manual" so the usage figures stay
+ * honest: stock thrown away is not stock used, and a burn rate that counts a
+ * binned lot as consumption would reorder against waste.
+ */
+export async function writeOffBatch(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  const batchId = requiredString(formData.get('batchId'));
+  if (!batchId) return;
+
+  const batch = await prisma.stockBatch.findUnique({
+    where: { id: batchId },
+    select: {
+      itemId: true,
+      lotNumber: true,
+      quantity: true,
+      usedQuantity: true,
+      item: { select: { name: true, unit: true } },
+    },
+  });
+  if (!batch) return;
+
+  // Whatever is left of the lot, unless a smaller number was stated. Nobody
+  // writes off more than the lot holds, and the form offering "all of it" is
+  // the common case — a box goes out of date whole.
+  const remaining = Math.max(0, batch.quantity - batch.usedQuantity);
+  const asked = toInt(formData.get('quantity'), remaining);
+  const quantity = Math.min(remaining, Math.max(1, asked));
+  if (quantity <= 0) return;
+
+  // The same guarded take every other consumption goes through — the shelf count
+  // is the authority, the floor at zero is enforced inside the write, and a
+  // cupboard that had drifted short is written down as far as it actually goes
+  // rather than refused. `preferBatchId` is what makes this a write-off *of this
+  // lot* instead of off the top of the pile.
+  const taken = await prisma.$transaction((tx) =>
+    takeFromShelf(tx, {
+      itemId: batch.itemId,
+      quantity,
+      reason: 'write-off',
+      staffUserId: user.id,
+      preferBatchId: batchId,
+    }),
+  );
+  if (taken <= 0) return;
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'stock',
+    entityId: batch.itemId,
+    summary: `${batch.item.name} · write-off ${taken} ${batch.item.unit}${batch.lotNumber ? ` · lot ${batch.lotNumber}` : ''}`,
+  });
+
+  revalidateAll();
 }
 
 export async function saveStockItem(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -660,6 +741,45 @@ export async function markOrdered(formData: FormData): Promise<void> {
     entity: 'stock',
     entityId: id,
     summary: `${item.name} → ordered`,
+  });
+  revalidateAll();
+}
+
+/**
+ * Mark everything on one supplier's order as ordered, in one press.
+ *
+ * An order is placed per supplier and answered per supplier, and the flag was
+ * only ever settable per material — so sending one message about eight items
+ * meant pressing "ordered" eight times, and the realistic outcome is that
+ * nobody presses it at all and the list nags every morning until the box turns
+ * up. Same write as `markOrdered`, applied to the group that was actually sent.
+ */
+export async function markSupplierOrdered(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  const ids = requiredString(formData.get('ids'))
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (ids.length === 0) return;
+
+  const raw = optionalString(formData.get('expectedAt'));
+  const expectedAt = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
+
+  // Only the ones still waiting for a decision: re-stamping something already on
+  // order would push its expected date forward for no reason.
+  const marked = await prisma.stockItem.updateMany({
+    where: { id: { in: ids }, orderedAt: null },
+    data: { orderedAt: new Date(), expectedAt },
+  });
+  if (marked.count === 0) return;
+
+  const supplierName = optionalString(formData.get('supplierName')) ?? '';
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'stock',
+    summary: `${marked.count} ${supplierName ? `· ${supplierName} ` : ''}→ ordered`,
   });
   revalidateAll();
 }

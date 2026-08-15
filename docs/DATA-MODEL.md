@@ -86,8 +86,7 @@ erDiagram
     PrescriptionTemplate ||--o{ PrescriptionTemplateService : "Cascade"
     Service        ||--o{ PrescriptionTemplateService : "Cascade"
 
-    Service        ||--o{ ServiceMaterial : "Cascade"
-    StockItem      ||--o{ ServiceMaterial : "Cascade"
+    StockItem      ||--o{ ProductBarcode  : "Cascade"
     StockItem      ||--o{ StockMovement   : "Cascade"
 ```
 
@@ -95,8 +94,10 @@ Read it as four clusters that barely touch:
 
 1. **People and access** — `StaffUser`, `AuditLog`.
 2. **The patient record** — `Patient` and everything that hangs off it.
-3. **The catalog and the cupboard** — `Service` ⇄ `ServiceMaterial` ⇄
-   `StockItem` ⇄ `StockMovement`.
+3. **The cupboard** — `ProductBarcode` ⇄ `StockItem` ⇄ `StockBatch` ⇄
+   `StockMovement`. The catalog no longer reaches into it: a treatment used to
+   carry a bill of materials, and consumption is now scanned off the box
+   instead (see `ServiceMaterial`, retired).
 4. **The diary** — `Appointment`, `WaitlistEntry`.
 
 Clusters 2/4 and 3 are joined **by key**, and each key carries a name snapshot
@@ -295,18 +296,36 @@ by; nothing else in the app converts between the two. `orderQty` is the owner's
 stated "buy this many when low", which replaces the projection in `reorder.ts`
 and, when set, also silences the line until the minimum is actually reached.
 
-#### `ServiceMaterial` — the bill of materials
-The only true join table in the schema.
+#### `ProductBarcode` — what is printed on the box
+Maps a scanned symbol to the material it names.
 
 ```
-Service 1──∞ ServiceMaterial ∞──1 StockItem
-              @@unique([serviceId, itemId])
-              quantity Int @default(1)
+ProductBarcode ∞──1 StockItem
+    code    String @unique   — GTIN-14, or the raw symbol text
+    packQty Int    @default(1)
 ```
 
-Both sides Cascade. Saving a service **replaces** its material rows wholesale
-inside one transaction ([`services.ts:51-65`](../src/lib/actions/services.ts)) —
-the form always submits the complete list.
+Its own table rather than a column, because one material wears several codes:
+the each-level GTIN, the carton-level GTIN above it, an older EAN from before a
+repack. `code` is normalised on the way in ([`barcode.ts`](../src/lib/barcode.ts))
+so a carton read off its EAN-13 and off its GS1 DataMatrix resolves to one row.
+`packQty` is what a single scan is worth — a carton of 100 and a box of 100
+carry different codes, and scanning the carton must add what the carton holds.
+
+Unlike `StockItem.code`, this one *does* carry a unique constraint: the table
+ships empty, so `db push` will add it, and an ambiguous scan is the one thing a
+scanner must never produce.
+
+#### `ServiceMaterial` — retired
+Was the bill of materials for a treatment: set once per service, and recording a
+visit deducted it. Nothing reads or writes it now — consumption is scanned off
+the product instead, which records the box that was actually used and its lot
+rather than the catalog's prediction of both.
+
+Still declared only because the deploy runs `prisma db push` without
+`--accept-data-loss`, and removing a populated table halts the release. See
+[`drop-service-materials.ts`](../prisma/drop-service-materials.ts) for the
+two-release removal.
 
 #### `StockMovement` — the ledger
 Append-only quantity changes. This table, not `StockItem.quantity`, is what the
@@ -402,11 +421,19 @@ the whole list in one query, so list screens stay flat.
 
 ### 5.4 Stock consumption and reordering
 
-**Write side** — [`stock-consumption.ts`](../src/lib/stock-consumption.ts):
-recording a visit looks up `ServiceMaterial` for every catalog service picked,
-**sums materials shared by two services into one line**, clamps at what is on
-hand, then in one transaction decrements `StockItem.quantity` and writes one
-`StockMovement` per material.
+**Write side** — [`scan.ts`](../src/lib/actions/scan.ts) and
+[`stock-consumption.ts`](../src/lib/stock-consumption.ts): the scanner resolves
+each symbol to a material, accumulates a basket, and commits once. Taking out
+goes through `takeFromShelf`, which decrements `StockItem.quantity` with a
+guarded `updateMany` (the floor at zero is enforced *inside* the write, never
+against a count read beforehand) and writes one `StockMovement` per lot drawn.
+A scanned lot number is honoured ahead of the oldest-first rule — and honoured
+even when expired, because oldest-first is a guess at which lot was used and a
+scan is the answer.
+
+Receiving creates a `StockBatch` per line that carries a lot or an expiry, never
+adding to an existing one: `StockBatch.quantity` is what a delivery note said,
+and the same lot arriving twice is two deliveries.
 
 **Read side** — [`reorder.ts`](../src/lib/reorder.ts): sums 90 days of *negative*
 movements only (restocking is not demand) to get a burn rate, projects

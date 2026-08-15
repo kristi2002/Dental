@@ -1,5 +1,6 @@
 import { AppointmentStatus } from '@/generated/prisma/enums';
-import { clinicMinutesNow, minutesToTime, timeToMinutes } from '@/lib/dates';
+import type { DaySchedule } from '@/lib/clinic-hours';
+import { addDays, clinicMinutesNow, minutesToTime, timeToMinutes, toDateKey } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { getDaySchedule } from '@/lib/queries';
 
@@ -121,46 +122,21 @@ export function nextSlotTime(now: Date = new Date()): string {
 
 export type FreeGap = { startTime: string; endTime: string; minutes: number };
 
-/**
- * The day's genuinely empty stretches, merged.
- *
- * Whole gaps rather than fixed-size slots, because the question being asked is
- * "will this 45-minute treatment fit?" — and a run of four free quarter-hours
- * answers yes, while four separate quarter-hour slots would each answer no.
- *
- * Bounded by the day's actual opening hours, so a closed Sunday and the lunch
- * break yield nothing rather than yielding the whole day.
- */
-export async function findFreeGaps({
-  date,
-  minMinutes = SLOT_STEP_MINUTES,
-  after,
-  staffUserId,
-}: {
-  date: Date;
-  /** Ignore slivers shorter than this — nobody books a five-minute hole. */
-  minMinutes?: number;
-  /** `HH:MM` — ignore anything earlier, e.g. the rest of today. */
-  after?: string;
-  /**
-   * Whose free time. Given, only that dentist's bookings block and their own
-   * leave closes the day. Left out, the question is the practice-wide one it
-   * has always been: time when *nobody* is busy.
-   */
-  staffUserId?: string | null;
-}): Promise<FreeGap[]> {
-  const [schedule, booked] = await Promise.all([
-    getDaySchedule(date, staffUserId),
-    prisma.appointment.findMany({
-      where: {
-        date,
-        status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED] },
-        ...(staffUserId ? { staffUserId } : {}),
-      },
-      select: { startTime: true, durationMin: true },
-    }),
-  ]);
+/** A booked stretch, as the gap maths needs it and nothing more. */
+type Booked = { startTime: string; durationMin: number };
 
+/**
+ * The free stretches left in one day's opening hours by one day's bookings.
+ *
+ * Pure, and separated from the query so the same arithmetic answers both "what
+ * is free today" and "what is the next free hour this month" — the second walks
+ * thirty days and must not run thirty days of queries to do it.
+ */
+export function gapsIn(
+  schedule: DaySchedule,
+  booked: Booked[],
+  { minMinutes = SLOT_STEP_MINUTES, after }: { minMinutes?: number; after?: string } = {},
+): FreeGap[] {
   if (schedule.closed) return [];
 
   const earliest = after ? timeToMinutes(after) : 0;
@@ -215,4 +191,127 @@ export async function findFreeGaps({
   }
 
   return gaps;
+}
+
+/**
+ * The day's genuinely empty stretches, merged.
+ *
+ * Whole gaps rather than fixed-size slots, because the question being asked is
+ * "will this 45-minute treatment fit?" — and a run of four free quarter-hours
+ * answers yes, while four separate quarter-hour slots would each answer no.
+ *
+ * Bounded by the day's actual opening hours, so a closed Sunday and the lunch
+ * break yield nothing rather than yielding the whole day.
+ */
+export async function findFreeGaps({
+  date,
+  minMinutes = SLOT_STEP_MINUTES,
+  after,
+  staffUserId,
+}: {
+  date: Date;
+  /** Ignore slivers shorter than this — nobody books a five-minute hole. */
+  minMinutes?: number;
+  /** `HH:MM` — ignore anything earlier, e.g. the rest of today. */
+  after?: string;
+  /**
+   * Whose free time. Given, only that dentist's bookings block and their own
+   * leave closes the day. Left out, the question is the practice-wide one it
+   * has always been: time when *nobody* is busy.
+   */
+  staffUserId?: string | null;
+}): Promise<FreeGap[]> {
+  const [schedule, booked] = await Promise.all([
+    getDaySchedule(date, staffUserId),
+    prisma.appointment.findMany({
+      where: {
+        date,
+        status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED] },
+        ...(staffUserId ? { staffUserId } : {}),
+      },
+      select: { startTime: true, durationMin: true },
+    }),
+  ]);
+
+  return gapsIn(schedule, booked, { minMinutes, after });
+}
+
+/** A free stretch, and the day it is on. */
+export type DatedGap = FreeGap & { date: string };
+
+/**
+ * The next free stretches that fit, looking forward across days.
+ *
+ * The question the front desk is actually asked — *"when is your first free
+ * hour?"* — and the one the diary could not answer: `findFreeGaps` takes exactly
+ * one date, so finding the next opening meant paging the calendar a day at a
+ * time and reading each grid. For a practice booked three weeks out that is
+ * twenty page loads to answer one question over the counter.
+ *
+ * Today is included and trimmed to the time still ahead, because "this
+ * afternoon" is the best possible answer and the one a day-by-day search reaches
+ * last. Closed days cost nothing — the week and the closures are request-cached,
+ * and every booking in the window is read in a single query rather than one per
+ * day.
+ */
+export async function findNextGaps({
+  from,
+  minutes,
+  staffUserId,
+  days = 30,
+  limit = 6,
+  after,
+}: {
+  /** First day to consider, inclusive. */
+  from: Date;
+  /** How long the treatment is. Nothing shorter than this is offered. */
+  minutes: number;
+  staffUserId?: string | null;
+  /** How far ahead to look before giving up. */
+  days?: number;
+  /** How many stretches to return. */
+  limit?: number;
+  /** `HH:MM` — ignore anything earlier *on the first day*, e.g. the rest of today. */
+  after?: string;
+}): Promise<DatedGap[]> {
+  const span = Math.max(1, days);
+  const lastDay = addDays(from, span - 1);
+
+  const booked = await prisma.appointment.findMany({
+    where: {
+      date: { gte: from, lte: lastDay },
+      status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED] },
+      ...(staffUserId ? { staffUserId } : {}),
+    },
+    select: { date: true, startTime: true, durationMin: true },
+  });
+
+  const byDay = new Map<string, Booked[]>();
+  for (const appointment of booked) {
+    const key = toDateKey(appointment.date);
+    const list = byDay.get(key);
+    if (list) list.push(appointment);
+    else byDay.set(key, [appointment]);
+  }
+
+  const found: DatedGap[] = [];
+  for (let offset = 0; offset < span && found.length < limit; offset += 1) {
+    const day = addDays(from, offset);
+    const key = toDateKey(day);
+    const schedule = await getDaySchedule(day, staffUserId);
+
+    const gaps = gapsIn(schedule, byDay.get(key) ?? [], {
+      minMinutes: minutes,
+      // Only the first day is bounded by the clock — "after 14:30" means the
+      // rest of today, not half past two on every day of the month.
+      after: offset === 0 ? after : undefined,
+    });
+
+    for (const gap of gaps) {
+      if (found.length >= limit) break;
+      found.push({ ...gap, date: key });
+    }
+  }
+
+  return found;
 }

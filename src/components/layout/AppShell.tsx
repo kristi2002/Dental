@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import type { SessionUser } from '@/lib/auth/session';
+import { CommandPalette } from './CommandPalette';
 import { NAV_DESTINATIONS } from './nav-destinations';
 import { Sidebar } from './Sidebar';
 
@@ -17,6 +18,10 @@ import { Sidebar } from './Sidebar';
  */
 export async function AppShell({ children, user }: { children: ReactNode; user: SessionUser }) {
   const t = await getTranslations('app');
+  const tn = await getTranslations('nav');
+  const tc = await getTranslations('common');
+  // The three screens that live in the user menu keep their labels there.
+  const ta = await getTranslations('auth');
 
   // Which shape the rail is in is read on the server, so a pinched rail does not
   // flash open before hydration. The layout is already dynamic — the session is
@@ -39,6 +44,29 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
       })),
     }),
   );
+
+  // Everywhere the palette can send somebody: the rail's own destinations and
+  // the lists filed under them, flattened, plus the three screens that live in
+  // the user menu rather than the rail. Permission-filtered here, on the server,
+  // so the browser is never handed the name of a screen it may not open.
+  const destinations = [
+    ...items.flatMap(({ href, key, children }) => [
+      { href, label: tn(key) },
+      ...(children ?? []).map((child) => ({
+        href: child.href,
+        label: `${tn(key)} · ${tn(child.key)}`,
+      })),
+    ]),
+    ...(user.permissions.includes('staff.manage')
+      ? [{ href: '/staff', label: ta('manageStaff') }]
+      : []),
+    ...(user.permissions.includes('audit.view')
+      ? [{ href: '/activity', label: ta('activity') }]
+      : []),
+    ...(user.permissions.includes('settings.view')
+      ? [{ href: '/settings', label: ta('settings') }]
+      : []),
+  ];
 
   // Which sections are folded shut, by key — same reasoning, same first paint.
   //
@@ -69,6 +97,24 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* One box, on every screen, that finds a person or a place. Deliberately
+            thin and unpinned: the rail already costs width, and a second bar
+            fixed across the top is exactly what this layout removed. It scrolls
+            away with the page, because the keyboard shortcut is how it is
+            actually opened after the first day. */}
+        <div className="px-4 pt-4 sm:px-8">
+          <div className="mx-auto w-full max-w-6xl">
+            <CommandPalette
+              destinations={destinations}
+              label={tc('search')}
+              placeholder={t('palettePlaceholder')}
+              screensLabel={t('paletteScreens')}
+              patientsLabel={tn('patients')}
+              emptyLabel={t('paletteHint')}
+            />
+          </div>
+        </div>
+
         <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>

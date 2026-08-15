@@ -16,7 +16,9 @@ export type WorkDefaults = {
   phone: string;
   diagnosis: string;
   notes: string;
-  lines: Array<{ elements: string; procedure: string; lab: string }>;
+  /** `YYYY-MM-DD`, for the date input. */
+  sentAt: string;
+  lines: Array<{ elements: number; procedure: string; lab: string }>;
 };
 
 /**
@@ -82,22 +84,31 @@ export function WorkFormDialog({ work }: { work: WorkDefaults }) {
         />
       </div>
 
-      <TextField
-        id={`${uid}-labSerial`}
-        name="labSerial"
-        label={t('labSerial')}
-        optional={tc('optional')}
-        defaultValue={work.labSerial}
-      />
-
-      <TextAreaField
-        id={`${uid}-diagnosis`}
-        name="diagnosis"
-        label={t('diagnosis')}
-        optional={tc('optional')}
-        rows={2}
-        defaultValue={work.diagnosis}
-      />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <TextField
+          id={`${uid}-labSerial`}
+          name="labSerial"
+          label={t('labSerial')}
+          optional={tc('optional')}
+          defaultValue={work.labSerial}
+        />
+        <TextField
+          id={`${uid}-sentAt`}
+          name="sentAt"
+          type="date"
+          label={t('sentAt')}
+          required
+          defaultValue={work.sentAt}
+        />
+        <TextField
+          id={`${uid}-diagnosis`}
+          name="diagnosis"
+          label={t('diagnosis')}
+          placeholder={t('diagnosisPlaceholder')}
+          optional={tc('optional')}
+          defaultValue={work.diagnosis}
+        />
+      </div>
 
       <fieldset>
         <legend className="field-label">{t('lines')}</legend>

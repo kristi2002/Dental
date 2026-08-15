@@ -268,6 +268,11 @@ self-explaining.
 
 ### 2.6 🟠 Patients are hard-deleted; everyone else is archived
 
+**Fixed.** `Patient.archivedAt` is the ordinary action, on `patient.edit`, and
+every list, picker, search, count and recall sweep filters on it
+(`ACTIVE_PATIENTS`, the twin of `ACTIVE_STOCK`). True deletion stays owner-only
+for an actual erasure request and still sweeps the files from §1.1.
+
 Staff are deactivated because "the audit trail, recorded visits and stock
 movements all point at them". Patients — who have far more history hanging off
 them — are `Cascade`-deleted outright. The reasoning that protects a staff
@@ -279,6 +284,11 @@ for an explicit "erase this person" (data-subject request) that also handles the
 files from §1.1.
 
 ### 2.7 🟡 Nothing flags a duplicate patient
+
+**Fixed.** The create path warns on a matching number and can be overridden, and
+`mergePatients` answers the case the warning cannot: two records that already
+exist. Everything pointing at the loser is repointed, the survivor's blanks are
+filled from it, and the husk is archived.
 
 `Patient.phone` is required and has no unique constraint and no index. The
 booking flow now creates patients inline
@@ -298,6 +308,10 @@ Everything here is invisible at 10 patients and painful at 3 000. Worth knowing
 where the cliffs are before the clinic finds them.
 
 ### 3.1 🟡 The entire patient list is sent to the browser on every booking screen
+
+**Fixed.** `searchPatients` + `PatientPicker` replaced the select, and `/patients`
+itself is now paged — it was still loading every row with two sub-counts and a
+reliability score each.
 
 `getPatientOptions()` returns **every** patient, and the result is passed as a
 prop to `AppointmentFormDialog`, which is a client component. It runs on the

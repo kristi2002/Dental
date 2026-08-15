@@ -5,7 +5,12 @@ import { gridHoursFor, type DaySchedule } from '@/lib/clinic-hours';
 import { timeToMinutes } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 import { AppointmentChip } from './AppointmentChip';
-import type { PatientOption, ServiceOption } from './AppointmentFormDialog';
+import {
+  AppointmentFormDialog,
+  type OperatoryOption,
+  type ServiceOption,
+  type StaffOption,
+} from './AppointmentFormDialog';
 import type { AppointmentView } from './types';
 
 /** An hour-by-hour grid, so gaps in the day are as visible as the bookings. */
@@ -13,10 +18,24 @@ export function DayView({
   appointments,
   services,
   schedule,
+  date,
+  staff = [],
+  operatories = [],
+  defaultStaffUserId,
+  canEdit = false,
+  canCreatePatient = false,
 }: {
   appointments: AppointmentView[];
   services: ServiceOption[];
   schedule: DaySchedule;
+  /** `YYYY-MM-DD` the grid is drawing — what an empty hour books itself on. */
+  date: string;
+  staff?: StaffOption[];
+  operatories?: OperatoryOption[];
+  /** Pre-selected dentist, when the calendar is filtered to one. */
+  defaultStaffUserId?: string;
+  canEdit?: boolean;
+  canCreatePatient?: boolean;
 }) {
   const t = useTranslations('appointments');
 
@@ -85,6 +104,27 @@ export function DayView({
               {slot.length === 0 && !open ? (
                 <p className="px-1 py-2 text-[0.9rem] text-ink-faint">{t('closedHour')}</p>
               ) : null}
+
+              {/* An empty open hour books itself.
+                  The grid drew the day and then refused to be used: the only way
+                  to book eleven o'clock was to press the button at the top of
+                  the page and type "11:00" into a field, having just read the
+                  hour off the screen. The dialog opens on the hour the eye is
+                  already on. */}
+              {open && slot.length === 0 && canEdit ? (
+                <AppointmentFormDialog
+                  services={services}
+                  staff={staff}
+                  operatories={operatories}
+                  defaultDate={date}
+                  defaultStartTime={`${String(hour).padStart(2, '0')}:00`}
+                  defaultStaffUserId={defaultStaffUserId}
+                  canCreatePatient={canCreatePatient}
+                  triggerLabel={t('bookAt', { time: `${String(hour).padStart(2, '0')}:00` })}
+                  triggerClassName="btn btn-ghost btn-sm w-full justify-start text-ink-faint hover:text-brand-deep"
+                />
+              ) : null}
+
               {slot.map((appointment) => (
                 <AppointmentChip
                   key={appointment.id}

@@ -9,6 +9,7 @@ import { FormActions, FormLayout, FormPreview, FormSection } from '@/components/
 import { WorkLinesField, WorkLinesHeader, type LineDraft } from '@/components/works/WorkLinesField';
 import { saveWork } from '@/lib/actions/works';
 import { useRecoveredForm } from '@/lib/form-recovery';
+import { elementsOf } from '@/lib/works';
 
 /**
  * A new row of the works register, as a screen rather than a dialog.
@@ -22,7 +23,7 @@ import { useRecoveredForm } from '@/lib/form-recovery';
  * the register keeps its own copy of both, because the docket that went to the
  * lab has them printed on it. See `Work.patientName`.
  */
-export function NewWorkForm({ labs = [] }: { labs?: string[] }) {
+export function NewWorkForm({ labs = [], today }: { labs?: string[]; today: string }) {
   const t = useTranslations('works');
   const tc = useTranslations('common');
   const uid = useId();
@@ -30,9 +31,9 @@ export function NewWorkForm({ labs = [] }: { labs?: string[] }) {
   const { state, formAction, formRef } = useRecoveredForm(saveWork);
 
   const [lines, setLines] = useState<LineDraft[]>([
-    // One empty row to start: the case is the reason this screen was opened, and
-    // making the first act "press Add" is a step that teaches nothing.
-    { key: 'line-1', elements: '', procedure: '', lab: '' },
+    // One row to start: the case is the reason this screen was opened, and making
+    // the first act "press Add" is a step that teaches nothing.
+    { key: 'line-1', elements: 1, procedure: '', lab: '' },
   ]);
   const [preview, setPreview] = useState({ patientName: '', phone: '', labSerial: '' });
 
@@ -53,6 +54,15 @@ export function NewWorkForm({ labs = [] }: { labs?: string[] }) {
               </p>
             ) : null}
 
+            {/* The element count, large, because it is the figure this whole
+                register exists to be able to check an invoice against. */}
+            <p className="mt-4 text-[2rem] leading-none font-bold text-ink tabular-nums">
+              {elementsOf({ lines: lines.filter((line) => line.procedure.trim()) })}
+            </p>
+            <p className="text-[0.9rem] font-semibold tracking-wide text-ink-faint uppercase">
+              {t('elements')}
+            </p>
+
             <p className="mt-3 text-[0.95rem] text-ink-soft">
               {t('lineCount', { count: lines.filter((line) => line.procedure.trim()).length })}
             </p>
@@ -62,7 +72,7 @@ export function NewWorkForm({ labs = [] }: { labs?: string[] }) {
                 .filter((line) => line.procedure.trim())
                 .map((line) => (
                   <li key={line.key} className="truncate text-[0.95rem] text-ink-soft">
-                    {[line.elements, line.procedure, line.lab].filter(Boolean).join(' · ')}
+                    {[`${line.elements}×`, line.procedure, line.lab].filter(Boolean).join(' · ')}
                   </li>
                 ))}
             </ul>
@@ -120,13 +130,15 @@ export function NewWorkForm({ labs = [] }: { labs?: string[] }) {
             />
           </div>
 
-          <TextAreaField
+          <TextField
             id={`${uid}-diagnosis`}
             name="diagnosis"
             label={t('diagnosis')}
             hint={t('diagnosisHint')}
+            placeholder={t('diagnosisPlaceholder')}
             optional={tc('optional')}
-            rows={2}
+            autoComplete="off"
+            className="sm:max-w-64"
           />
         </FormSection>
 
@@ -135,18 +147,32 @@ export function NewWorkForm({ labs = [] }: { labs?: string[] }) {
           subtitle={t('sectionWorkHint')}
           icon={<FlaskConical size={22} aria-hidden />}
         >
-          <TextField
-            id={`${uid}-labSerial`}
-            name="labSerial"
-            label={t('labSerial')}
-            hint={t('labSerialHint')}
-            optional={tc('optional')}
-            autoComplete="off"
-            className="sm:max-w-64"
-            onChange={(event) =>
-              setPreview((current) => ({ ...current, labSerial: event.target.value }))
-            }
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              id={`${uid}-labSerial`}
+              name="labSerial"
+              label={t('labSerial')}
+              hint={t('labSerialHint')}
+              optional={tc('optional')}
+              autoComplete="off"
+              onChange={(event) =>
+                setPreview((current) => ({ ...current, labSerial: event.target.value }))
+              }
+            />
+
+            {/* Which month the case counts towards. Defaults to today, because a
+                docket is nearly always written as the impression goes out — and
+                stays editable, because "nearly always" is not always. */}
+            <TextField
+              id={`${uid}-sentAt`}
+              name="sentAt"
+              type="date"
+              label={t('sentAt')}
+              hint={t('sentAtHint')}
+              defaultValue={today}
+              required
+            />
+          </div>
 
           <div>
             <p className="field-label">{t('lines')}</p>

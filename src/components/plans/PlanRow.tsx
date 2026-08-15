@@ -3,6 +3,7 @@ import {
   CalendarCheck,
   Check,
   ClipboardList,
+  Printer,
   RotateCcw,
   SkipForward,
   Trash2,
@@ -358,6 +359,11 @@ export function PlanRow({
                 ) : null}
               </>
             ) : null}
+
+            <Link href={`/plans/${plan.id}/print`} className="btn btn-ghost btn-sm" title={t('print')}>
+              <Printer size={16} aria-hidden />
+              <span className="sr-only">{t('print')}</span>
+            </Link>
 
             {canDelete ? (
               <ActionForm

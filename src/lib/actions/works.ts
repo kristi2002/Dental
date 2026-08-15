@@ -5,6 +5,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
+import { fromDateKey } from '@/lib/dates';
 import { optionalString, requiredString } from '@/lib/utils';
 import { parseDraftLines } from '@/lib/works';
 import { actionError, actionOk, type ActionState } from './types';
@@ -45,6 +46,9 @@ export async function saveWork(_prev: ActionState, formData: FormData): Promise<
     phone,
     diagnosis: optionalString(formData.get('diagnosis')),
     notes: optionalString(formData.get('notes')),
+    // Which month this case counts towards. `fromDateKey` falls back to today,
+    // which is the right answer for a docket being written as it goes out.
+    sentAt: fromDateKey(optionalString(formData.get('sentAt'))),
   };
 
   const lines = parseDraftLines(requiredString(formData.get('lines')));

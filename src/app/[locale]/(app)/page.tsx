@@ -23,6 +23,7 @@ import { Link } from '@/i18n/navigation';
 import { AlertSeverity, AppointmentStatus } from '@/generated/prisma/enums';
 import { requireUser } from '@/lib/auth/guard';
 import { endOfWeek, startOfWeek, toDateKey, today } from '@/lib/dates';
+import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 import {
   countOpenPastAppointments,
@@ -91,7 +92,9 @@ export default async function DashboardPage({
       prisma.appointment.count({
         where: { date: { gte: startOfWeek(day), lte: endOfWeek(day) } },
       }),
-      prisma.patient.count(),
+      // Active people only — an archived record is out of every list, and a
+      // headline count that includes them contradicts the list under it.
+      prisma.patient.count({ where: ACTIVE_PATIENTS }),
       getLowStockItems(),
       getServiceOptions(),
       getProviderOptions(),
@@ -393,6 +396,8 @@ export default async function DashboardPage({
                       staff={staff}
                       currentUserId={user.id}
                       today={dayKey}
+                      canBook={canAddAppointment}
+                      canSpendStock={user.permissions.includes('stock.edit')}
                       triggerClassName="btn btn-secondary btn-sm"
                     />
                   </li>
@@ -438,9 +443,14 @@ export default async function DashboardPage({
                 one the low-stock check cannot see: an expired box counts as
                 stock everywhere else. */}
             {expiredCount > 0 ? (
-              <p className="flex items-center gap-2 border-b border-line px-5 py-3 font-bold text-danger">
+              <p className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3 font-bold text-danger">
                 <CalendarClock size={18} aria-hidden />
                 {ts('expiredAlert', { count: expiredCount })}
+                {user.permissions.includes('stock.edit') ? (
+                  <Link href="/stock/expiry" className="btn btn-secondary btn-sm">
+                    {ts('expiryTitle')}
+                  </Link>
+                ) : null}
               </p>
             ) : null}
 
