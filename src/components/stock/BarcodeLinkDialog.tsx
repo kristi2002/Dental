@@ -8,7 +8,7 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { linkBarcode } from '@/lib/actions/scan';
 import type { ScanResolution } from '@/lib/actions/scan';
 
-export type LinkableItem = { id: string; name: string; unit: string };
+export type LinkableItem = { id: string; name: string };
 export type LinkableCategory = { id: string; name: string };
 
 /**
@@ -75,13 +75,16 @@ export function BarcodeLinkDialog({
         </span>
       </p>
 
+      {/* A switch between two halves of this dialog, not a second Save — which is
+          what the chosen one used to look like, sitting a few rows above the
+          real one in the same teal. */}
       {items.length > 0 ? (
-        <div className="flex gap-2">
+        <div className="segmented">
           <button
             type="button"
             aria-pressed={!creating}
             onClick={() => setCreating(false)}
-            className={`btn btn-sm ${creating ? 'btn-secondary' : 'btn-primary'}`}
+            className="segment"
           >
             {t('linkExisting')}
           </button>
@@ -89,7 +92,7 @@ export function BarcodeLinkDialog({
             type="button"
             aria-pressed={creating}
             onClick={() => setCreating(true)}
-            className={`btn btn-sm ${creating ? 'btn-primary' : 'btn-secondary'}`}
+            className="segment"
           >
             {t('linkNew')}
           </button>
@@ -105,8 +108,7 @@ export function BarcodeLinkDialog({
             hint={t('linkNewHint')}
             required
           />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField id={`${uid}-unit`} name="unit" label={ts('unit')} defaultValue="pcs" />
+          <div className="grid gap-4">
             <SelectField
               id={`${uid}-category`}
               name="categoryId"

@@ -22,6 +22,7 @@ export function ReminderLinks({
   consent = null,
   purpose = 'REMINDER',
   size = 'sm',
+  variant = 'button',
 }: {
   patientId: string;
   appointmentId?: string;
@@ -37,20 +38,36 @@ export function ReminderLinks({
   consent?: boolean | null;
   purpose?: 'REMINDER' | 'RECALL' | 'CONFIRMATION' | 'FOLLOW_UP' | 'OTHER';
   size?: 'sm' | 'md';
+  /**
+   * `menu` is the same two links as rows inside an `ActionMenu` — same hrefs,
+   * same logging, no box of their own. See `.menu-item`.
+   */
+  variant?: 'button' | 'menu';
 }) {
   const t = useTranslations('appointments');
   const [, startTransition] = useTransition();
 
-  const buttonClass = size === 'sm' ? 'btn btn-secondary btn-sm' : 'btn btn-secondary';
-  const iconSize = size === 'sm' ? 17 : 19;
+  const inMenu = variant === 'menu';
+  const buttonClass = inMenu
+    ? 'menu-item'
+    : size === 'sm'
+      ? 'btn btn-secondary btn-sm'
+      : 'btn btn-secondary';
+  const iconSize = size === 'sm' && !inMenu ? 17 : 19;
 
   // Asking somebody who said not to is worse than not asking at all. The
   // dashboard's chase list already honoured this in its query; every other
   // screen offered the button anyway, which made the setting decorative.
   if (consent === false) {
     return (
-      <p className="flex items-center gap-1.5 text-[0.9rem] font-semibold text-ink-faint">
-        <BellOff size={iconSize} aria-hidden />
+      <p
+        className={
+          inMenu
+            ? 'menu-item menu-item-muted'
+            : 'flex items-center gap-1.5 text-[0.9rem] font-semibold text-ink-faint'
+        }
+      >
+        <BellOff size={iconSize} aria-hidden className="shrink-0" />
         {t('optedOut')}
       </p>
     );
@@ -65,35 +82,48 @@ export function ReminderLinks({
     });
   };
 
+  // Inside a menu the panel is already the box, so the wrapper steps out of the
+  // way with `contents` and the two rows sit straight in the menu.
+  const wrapperClass = inMenu ? 'contents' : 'flex flex-wrap items-center gap-2';
+  const mutedClass = inMenu ? 'menu-item menu-item-muted' : `${buttonClass} opacity-55`;
+  const role = inMenu ? 'menuitem' : undefined;
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={wrapperClass}>
       {whatsapp ? (
         <a
           href={whatsapp}
           target="_blank"
           rel="noopener noreferrer"
+          role={role}
           className={buttonClass}
           title={t('remind')}
           onClick={() => record('WHATSAPP')}
         >
-          <MessageCircle size={iconSize} aria-hidden />
+          <MessageCircle size={iconSize} aria-hidden className="shrink-0" />
           {t('remindWhatsapp')}
         </a>
       ) : (
-        <span className={`${buttonClass} opacity-55`} title={t('noPhoneForReminder')}>
-          <MessageCircle size={iconSize} aria-hidden />
+        <span className={mutedClass} title={t('noPhoneForReminder')}>
+          <MessageCircle size={iconSize} aria-hidden className="shrink-0" />
           {t('remindWhatsapp')}
         </span>
       )}
 
       {mail ? (
-        <a href={mail} className={buttonClass} title={t('remind')} onClick={() => record('EMAIL')}>
-          <Mail size={iconSize} aria-hidden />
+        <a
+          href={mail}
+          role={role}
+          className={buttonClass}
+          title={t('remind')}
+          onClick={() => record('EMAIL')}
+        >
+          <Mail size={iconSize} aria-hidden className="shrink-0" />
           {t('remindEmail')}
         </a>
       ) : (
-        <span className={`${buttonClass} opacity-55`} title={t('noEmailForReminder')}>
-          <Mail size={iconSize} aria-hidden />
+        <span className={mutedClass} title={t('noEmailForReminder')}>
+          <Mail size={iconSize} aria-hidden className="shrink-0" />
           {t('remindEmail')}
         </span>
       )}

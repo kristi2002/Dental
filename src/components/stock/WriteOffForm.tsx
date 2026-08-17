@@ -16,13 +16,11 @@ import { writeOffBatch } from '@/lib/actions/stock';
 export function WriteOffForm({
   batchId,
   remaining,
-  unit,
   itemName,
 }: {
   batchId: string;
-  /** Units this lot still holds — the default, and the ceiling. */
+  /** Boxes this lot still holds — the default, and the ceiling. */
   remaining: number;
-  unit: string;
   /** Named in the confirmation, so nobody bins the wrong row. */
   itemName: string;
 }) {
@@ -35,7 +33,7 @@ export function WriteOffForm({
       action={writeOffBatch}
       className="flex items-center gap-1.5"
       onSubmit={(event) => {
-        if (!window.confirm(t('writeOffConfirm', { qty: quantity, unit, name: itemName }))) {
+        if (!window.confirm(t('writeOffConfirm', { qty: quantity, name: itemName }))) {
           event.preventDefault();
         }
       }}

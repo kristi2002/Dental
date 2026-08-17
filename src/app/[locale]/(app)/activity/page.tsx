@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
-import { cn, initials } from '@/lib/utils';
+import { initials } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,22 +83,22 @@ export default async function ActivityPage({
     <>
       <PageHeader title={t('title')} subtitle={t('subtitle')} trail={[{ label: t('title') }]} />
 
-      <nav aria-label={t('filterLabel')} className="mb-5 flex flex-wrap gap-2">
-        <Link
-          href="/activity"
-          className={cn('btn btn-sm', filter ? 'btn-secondary' : 'btn-primary')}
-        >
-          {tc('all')}
-        </Link>
-        {ENTITIES.map((value) => (
-          <Link
-            key={value}
-            href={`/activity?entity=${value}`}
-            className={cn('btn btn-sm', filter === value ? 'btn-primary' : 'btn-secondary')}
-          >
-            {t(`entity_${value}`)}
+      <nav aria-label={t('filterLabel')} className="mb-5">
+        <div className="segmented">
+          <Link href="/activity" aria-current={filter ? undefined : 'true'} className="segment">
+            {tc('all')}
           </Link>
-        ))}
+          {ENTITIES.map((value) => (
+            <Link
+              key={value}
+              href={`/activity?entity=${value}`}
+              aria-current={filter === value ? 'true' : undefined}
+              className="segment"
+            >
+              {t(`entity_${value}`)}
+            </Link>
+          ))}
+        </div>
       </nav>
 
       <Card>

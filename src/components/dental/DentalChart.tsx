@@ -195,6 +195,9 @@ export function DentalChart({
       return;
     }
     dialogRef.current?.close();
+    // Keyed on the save landing, not on the form: the `handledTs` guard already
+    // makes this run once per result, and the rest is read at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   useEffect(() => {

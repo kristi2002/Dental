@@ -1,0 +1,660 @@
+/**
+ * Making a symbol, rather than reading one.
+ *
+ * `barcode.ts` is the other half of this: it decodes what a *supplier* printed
+ * on a carton. This encodes what the *practice* prints on its own shelf — a QR
+ * code per material, stuck to the box, that opens the app straight onto "how
+ * many did you just put back?".
+ *
+ * Written out rather than installed, for the same reason `barcode.ts` is. The
+ * app is deployed to a clinic mini-PC and already refuses to fetch its decoder
+ * from a CDN (see `scripts/copy-zxing-wasm.mjs`); adding a runtime dependency to
+ * draw a 33×33 grid of squares would be a strange place to start trusting the
+ * network. QR is a closed, published specification with no ambiguity in it, the
+ * whole encoder is one file of arithmetic, and it is exercised by `tests/qr.test.ts`
+ * against the very decoder the scanner uses — so the two halves are checked
+ * against each other rather than against my reading of the spec.
+ *
+ * Byte mode only. The payload is always a URL (see `stock-labels.ts`), so the
+ * numeric and alphanumeric modes would never be reachable — and a mode that is
+ * never reached is a mode that is never tested.
+ *
+ * Versions 1–10, which is 271 bytes at the level these labels use. A label URL
+ * is around 70 characters; the ceiling exists to turn "this origin is absurdly
+ * long" into a clear error instead of a symbol nobody can read.
+ */
+
+/**
+ * How much of the symbol can be destroyed and still read: roughly 7, 15, 25 and
+ * 30 per cent. `Q` is what the labels use — a box in a storage room gets
+ * scuffed, and a quarter is the level that survives a torn corner without
+ * pushing the module count up enough to matter at label size.
+ */
+export type QrEcc = 'L' | 'M' | 'Q' | 'H';
+
+export type QrSymbol = {
+  version: number;
+  /** Modules per side, function patterns included. `4 × version + 17`. */
+  size: number;
+  /** Row-major, `true` where the module is dark. */
+  modules: boolean[][];
+};
+
+/** Raised when the text cannot be fitted into a version 1–10 symbol. */
+export class QrTooLongError extends Error {
+  constructor(bytes: number) {
+    super(`QR payload of ${bytes} bytes does not fit a version 10 symbol`);
+    this.name = 'QrTooLongError';
+  }
+}
+
+/**
+ * Error-correction blocks, per version and level.
+ *
+ * `[ecPerBlock, blocks1, dataPerBlock1, blocks2, dataPerBlock2]` — straight out
+ * of the specification's table. Long symbols are split into blocks so that a
+ * blot destroys part of several blocks rather than all of one, and the two
+ * groups exist because the codewords rarely divide evenly.
+ *
+ * The invariant worth knowing when reading this: for every row,
+ * `blocks1 × data1 + blocks2 × data2 + (blocks1 + blocks2) × ecPerBlock` is the
+ * version's total codeword count (26, 44, 70, 100, 134, 172, 196, 242, 292, 346).
+ * `tests/qr.test.ts` asserts exactly that, which is what makes a typo in this
+ * table a failing test rather than an unreadable label.
+ */
+const BLOCKS: Record<QrEcc, ReadonlyArray<readonly [number, number, number, number, number]>> = {
+  L: [
+    [7, 1, 19, 0, 0],
+    [10, 1, 34, 0, 0],
+    [15, 1, 55, 0, 0],
+    [20, 1, 80, 0, 0],
+    [26, 1, 108, 0, 0],
+    [18, 2, 68, 0, 0],
+    [20, 2, 78, 0, 0],
+    [24, 2, 97, 0, 0],
+    [30, 2, 116, 0, 0],
+    [18, 2, 68, 2, 69],
+  ],
+  M: [
+    [10, 1, 16, 0, 0],
+    [16, 1, 28, 0, 0],
+    [26, 1, 44, 0, 0],
+    [18, 2, 32, 0, 0],
+    [24, 2, 43, 0, 0],
+    [16, 4, 27, 0, 0],
+    [18, 4, 31, 0, 0],
+    [22, 2, 38, 2, 39],
+    [22, 3, 36, 2, 37],
+    [26, 4, 43, 1, 44],
+  ],
+  Q: [
+    [13, 1, 13, 0, 0],
+    [22, 1, 22, 0, 0],
+    [18, 2, 17, 0, 0],
+    [26, 2, 24, 0, 0],
+    [18, 2, 15, 2, 16],
+    [24, 4, 19, 0, 0],
+    [18, 2, 14, 4, 15],
+    [22, 4, 18, 2, 19],
+    [20, 4, 16, 4, 17],
+    [24, 6, 19, 2, 20],
+  ],
+  H: [
+    [17, 1, 9, 0, 0],
+    [28, 1, 16, 0, 0],
+    [22, 2, 13, 0, 0],
+    [16, 4, 9, 0, 0],
+    [22, 2, 11, 2, 12],
+    [28, 4, 15, 0, 0],
+    [26, 4, 13, 1, 14],
+    [26, 4, 14, 2, 15],
+    [24, 4, 12, 4, 13],
+    [28, 6, 15, 2, 16],
+  ],
+};
+
+/**
+ * Where the alignment patterns sit, per version — the row *and* column indexes,
+ * every pairing of which carries one, except the three that would land on a
+ * finder. They are what lets a decoder cope with a label photographed at an
+ * angle or stuck on something curved.
+ */
+const ALIGNMENT: ReadonlyArray<readonly number[]> = [
+  [],
+  [6, 18],
+  [6, 22],
+  [6, 26],
+  [6, 30],
+  [6, 34],
+  [6, 22, 38],
+  [6, 24, 42],
+  [6, 26, 46],
+  [6, 28, 50],
+];
+
+/** The two ECC bits as the format information states them — not L<M<Q<H order. */
+const ECC_BITS: Record<QrEcc, number> = { L: 0b01, M: 0b00, Q: 0b11, H: 0b10 };
+
+const MAX_VERSION = BLOCKS.M.length;
+
+// --- GF(256) ---------------------------------------------------------------
+//
+// Reed–Solomon runs in the field of 256 elements generated by x⁸+x⁴+x³+x²+1
+// (0x11d), where addition is XOR and multiplication is an addition of
+// logarithms. Two tables make every product a lookup; the exponent table is
+// stored twice over so that `LOG[a] + LOG[b]` never has to be reduced mod 255.
+
+const EXP = new Uint8Array(512);
+const LOG = new Uint8Array(256);
+
+for (let i = 0, x = 1; i < 255; i += 1) {
+  EXP[i] = x;
+  LOG[x] = i;
+  x <<= 1;
+  if (x & 0x100) x ^= 0x11d;
+}
+for (let i = 255; i < 512; i += 1) EXP[i] = EXP[i - 255];
+
+function mul(a: number, b: number): number {
+  return a === 0 || b === 0 ? 0 : EXP[LOG[a] + LOG[b]];
+}
+
+/**
+ * The generator polynomial for `count` error-correction codewords:
+ * `(x − α⁰)(x − α¹)…(x − α^(count−1))`, coefficients highest power first.
+ *
+ * Signs are irrelevant — subtraction is XOR here — so it is built by repeatedly
+ * multiplying by `(x + αⁱ)`.
+ */
+function generatorPoly(count: number): Uint8Array {
+  let poly = Uint8Array.of(1);
+
+  for (let i = 0; i < count; i += 1) {
+    const next = new Uint8Array(poly.length + 1);
+    for (let j = 0; j < poly.length; j += 1) {
+      next[j] ^= poly[j];
+      next[j + 1] ^= mul(poly[j], EXP[i]);
+    }
+    poly = next;
+  }
+
+  return poly;
+}
+
+/**
+ * The remainder of the data block divided by the generator — which *is* the
+ * error correction. Long division, one codeword at a time; the leading
+ * coefficient of the generator is 1, so each step cancels exactly one term.
+ */
+function eccFor(data: Uint8Array, count: number): Uint8Array {
+  const gen = generatorPoly(count);
+  const remainder = new Uint8Array(data.length + count);
+  remainder.set(data);
+
+  for (let i = 0; i < data.length; i += 1) {
+    const factor = remainder[i];
+    if (factor === 0) continue;
+    for (let j = 0; j < gen.length; j += 1) remainder[i + j] ^= mul(gen[j], factor);
+  }
+
+  return remainder.slice(data.length);
+}
+
+// --- Bit stream ------------------------------------------------------------
+
+/** How many bits the character count takes. Byte mode widens at version 10. */
+function countBits(version: number): number {
+  return version < 10 ? 8 : 16;
+}
+
+/** Total data codewords a version and level hold, before error correction. */
+function dataCapacity(version: number, ecc: QrEcc): number {
+  const [, blocks1, data1, blocks2, data2] = BLOCKS[ecc][version - 1];
+  return blocks1 * data1 + blocks2 * data2;
+}
+
+/**
+ * The smallest version the payload fits in.
+ *
+ * Smallest rather than fixed, because module size is what decides whether a
+ * phone can read a 25mm sticker: a version 4 symbol is 33 modules across and a
+ * version 10 is 57, and printing the larger one at the same width makes every
+ * module two-thirds the size for no gain.
+ */
+function pickVersion(byteLength: number, ecc: QrEcc): number {
+  for (let version = 1; version <= MAX_VERSION; version += 1) {
+    const needed = 4 + countBits(version) + byteLength * 8;
+    if (needed <= dataCapacity(version, ecc) * 8) return version;
+  }
+  throw new QrTooLongError(byteLength);
+}
+
+/**
+ * Header, payload, terminator and padding, as the data codewords of one symbol.
+ *
+ * The padding is not arbitrary: once the terminator and the byte alignment are
+ * done, the remaining capacity is filled with `0xEC 0x11` repeating, which is
+ * what the specification says and what a decoder expects to find and discard.
+ */
+function dataCodewords(bytes: Uint8Array, version: number, ecc: QrEcc): Uint8Array {
+  const capacity = dataCapacity(version, ecc);
+  const bits: number[] = [];
+
+  const push = (value: number, width: number) => {
+    for (let i = width - 1; i >= 0; i -= 1) bits.push((value >>> i) & 1);
+  };
+
+  push(0b0100, 4); // byte mode
+  push(bytes.length, countBits(version));
+  for (const byte of bytes) push(byte, 8);
+
+  // Terminator, then whatever it takes to land on a byte boundary. Both are
+  // clamped by what is left, because a payload that exactly fills the version
+  // gets neither.
+  for (let i = 0; i < 4 && bits.length < capacity * 8; i += 1) bits.push(0);
+  while (bits.length % 8 !== 0) bits.push(0);
+
+  const out = new Uint8Array(capacity);
+  for (let i = 0; i < bits.length; i += 8) {
+    let byte = 0;
+    for (let j = 0; j < 8; j += 1) byte = (byte << 1) | bits[i + j];
+    out[i / 8] = byte;
+  }
+
+  for (let i = bits.length / 8; i < capacity; i += 1) {
+    out[i] = (i - bits.length / 8) % 2 === 0 ? 0xec : 0x11;
+  }
+
+  return out;
+}
+
+/**
+ * Data and error correction, split into blocks and then woven back together.
+ *
+ * The interleave is the point of the exercise. Written block after block, a
+ * coffee ring over one corner of the label would fall entirely inside one
+ * block and exceed what that block can repair; taken a codeword at a time from
+ * each block in turn, the same damage is spread thinly across all of them and
+ * every block stays inside its budget.
+ */
+function interleave(data: Uint8Array, version: number, ecc: QrEcc): Uint8Array {
+  const [ecPerBlock, blocks1, data1, blocks2, data2] = BLOCKS[ecc][version - 1];
+
+  const dataBlocks: Uint8Array[] = [];
+  const eccBlocks: Uint8Array[] = [];
+
+  let at = 0;
+  for (const [count, size] of [
+    [blocks1, data1],
+    [blocks2, data2],
+  ]) {
+    for (let i = 0; i < count; i += 1) {
+      const block = data.slice(at, at + size);
+      at += size;
+      dataBlocks.push(block);
+      eccBlocks.push(eccFor(block, ecPerBlock));
+    }
+  }
+
+  const out: number[] = [];
+
+  const longest = Math.max(data1, data2);
+  for (let i = 0; i < longest; i += 1) {
+    for (const block of dataBlocks) if (i < block.length) out.push(block[i]);
+  }
+  for (let i = 0; i < ecPerBlock; i += 1) {
+    for (const block of eccBlocks) out.push(block[i]);
+  }
+
+  return Uint8Array.from(out);
+}
+
+// --- The grid --------------------------------------------------------------
+
+type Grid = {
+  size: number;
+  dark: boolean[][];
+  /** Function patterns and the reserved format areas — never masked, never data. */
+  fixed: boolean[][];
+};
+
+function blankGrid(size: number): Grid {
+  return {
+    size,
+    dark: Array.from({ length: size }, () => Array.from<boolean>({ length: size }).fill(false)),
+    fixed: Array.from({ length: size }, () => Array.from<boolean>({ length: size }).fill(false)),
+  };
+}
+
+function set(grid: Grid, row: number, col: number, dark: boolean, fixed = true): void {
+  if (row < 0 || col < 0 || row >= grid.size || col >= grid.size) return;
+  grid.dark[row][col] = dark;
+  if (fixed) grid.fixed[row][col] = true;
+}
+
+/**
+ * A finder — the three big squares a decoder locates the symbol by — together
+ * with the light separator that keeps it from touching the data.
+ */
+function placeFinder(grid: Grid, top: number, left: number): void {
+  for (let r = -1; r <= 7; r += 1) {
+    for (let c = -1; c <= 7; c += 1) {
+      const onRing = r === 0 || r === 6 || c === 0 || c === 6;
+      const inCore = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+      const inside = r >= 0 && r <= 6 && c >= 0 && c <= 6;
+      set(grid, top + r, left + c, inside && (onRing || inCore));
+    }
+  }
+}
+
+function placeFunctionPatterns(grid: Grid, version: number): void {
+  const { size } = grid;
+
+  placeFinder(grid, 0, 0);
+  placeFinder(grid, 0, size - 7);
+  placeFinder(grid, size - 7, 0);
+
+  // Timing: the dotted line across row 6 and down column 6, which tells the
+  // decoder how wide one module is. Laid after the finders so their corners win.
+  for (let i = 8; i < size - 8; i += 1) {
+    set(grid, 6, i, i % 2 === 0);
+    set(grid, i, 6, i % 2 === 0);
+  }
+
+  const centres = ALIGNMENT[version - 1];
+  for (const row of centres) {
+    for (const col of centres) {
+      // The three that would sit on a finder. Every other pairing carries one.
+      if (
+        (row === 6 && col === 6) ||
+        (row === 6 && col === size - 7) ||
+        (row === size - 7 && col === 6)
+      ) {
+        continue;
+      }
+      for (let r = -2; r <= 2; r += 1) {
+        for (let c = -2; c <= 2; c += 1) {
+          set(grid, row + r, col + c, Math.max(Math.abs(r), Math.abs(c)) !== 1);
+        }
+      }
+    }
+  }
+
+  // The one module that is always dark, for no reason beyond the specification
+  // saying so.
+  set(grid, size - 8, 8, true);
+
+  // The format areas are reserved now and written after masking — the mask is
+  // chosen by scoring the finished grid, and the format states which mask.
+  //
+  // Index 6 is skipped in both directions, and it is the whole trap in this
+  // function: row 8 and column 8 each cross a timing pattern, and the format
+  // information runs *around* that crossing rather than through it. Reserving
+  // the full nine would blank the timing modules at (6,8) and (8,6) — two
+  // modules, invisible in a rendering, and enough that no decoder can establish
+  // the module grid at all.
+  for (let i = 0; i < 9; i += 1) {
+    if (i === 6) continue;
+    set(grid, 8, i, false);
+    set(grid, i, 8, false);
+  }
+  for (let i = 0; i < 8; i += 1) {
+    set(grid, 8, size - 1 - i, false);
+    set(grid, size - 1 - i, 8, false);
+  }
+
+  if (version >= 7) {
+    const bits = versionBits(version);
+    for (let i = 0; i < 18; i += 1) {
+      const dark = ((bits >> i) & 1) === 1;
+      set(grid, Math.floor(i / 3), size - 11 + (i % 3), dark);
+      set(grid, size - 11 + (i % 3), Math.floor(i / 3), dark);
+    }
+  }
+}
+
+/** 6 version bits plus 12 of BCH(18,6), generator `0x1f25`. */
+function versionBits(version: number): number {
+  let value = version << 12;
+  for (let i = 17; i >= 12; i -= 1) {
+    if ((value >>> i) & 1) value ^= 0x1f25 << (i - 12);
+  }
+  return (version << 12) | (value & 0xfff);
+}
+
+/**
+ * 5 bits of level-and-mask plus 10 of BCH(15,5), the lot then XORed with a fixed
+ * mask so that an all-zero format cannot read as a valid one.
+ */
+function formatBits(ecc: QrEcc, mask: number): number {
+  const data = (ECC_BITS[ecc] << 3) | mask;
+  let value = data << 10;
+  for (let i = 14; i >= 10; i -= 1) {
+    if ((value >>> i) & 1) value ^= 0b10100110111 << (i - 10);
+  }
+  return (((data << 10) | (value & 0x3ff)) ^ 0b101010000010010) & 0x7fff;
+}
+
+/**
+ * The fifteen format modules, written twice.
+ *
+ * Both copies carry the same bits and neither is a mirror of the other: down
+ * column 8 the low bits come first, along row 8 they come last, and the second
+ * copy is split between the remaining two finders so that a symbol with one
+ * corner torn off can still be told which mask it is wearing.
+ *
+ * The two directions are the trap. Writing both copies in the same bit order
+ * produces a symbol whose finders, timing and data are all perfect and which no
+ * decoder will look at twice, because the first thing it reads is a format that
+ * fails its BCH check.
+ */
+function placeFormat(grid: Grid, ecc: QrEcc, mask: number): void {
+  const { size } = grid;
+  const bits = formatBits(ecc, mask);
+
+  for (let i = 0; i < 15; i += 1) {
+    const dark = ((bits >> i) & 1) === 1;
+
+    // Column 8, low bits first: rows 0–5, then 7 and 8 stepping over the timing
+    // module at row 6, and the high bits against the bottom-left finder.
+    if (i < 6) set(grid, i, 8, dark);
+    else if (i < 8) set(grid, i + 1, 8, dark);
+    else set(grid, size - 15 + i, 8, dark);
+
+    // Row 8, low bits against the top-right finder and running back toward the
+    // top-left one — again stepping over the timing module, here at column 6.
+    if (i < 8) set(grid, 8, size - 1 - i, dark);
+    else if (i === 8) set(grid, 8, 7, dark);
+    else set(grid, 8, 14 - i, dark);
+  }
+}
+
+/**
+ * The eight masks, by their number.
+ *
+ * A mask is XORed over the data so that the symbol does not come out in large
+ * blank fields or in stripes that look like a finder. Which one is used is
+ * decided by scoring all eight, which is why they are a lookup rather than a
+ * choice.
+ */
+const MASKS: ReadonlyArray<(row: number, col: number) => boolean> = [
+  (r, c) => (r + c) % 2 === 0,
+  (r) => r % 2 === 0,
+  (_r, c) => c % 3 === 0,
+  (r, c) => (r + c) % 3 === 0,
+  (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0,
+  (r, c) => ((r * c) % 2) + ((r * c) % 3) === 0,
+  (r, c) => (((r * c) % 2) + ((r * c) % 3)) % 2 === 0,
+  (r, c) => (((r + c) % 2) + ((r * c) % 3)) % 2 === 0,
+];
+
+/** Weave the codeword bits up and down the free columns, right to left. */
+function placeData(grid: Grid, codewords: Uint8Array): void {
+  const { size } = grid;
+  let bit = 0;
+  let upward = true;
+
+  for (let col = size - 1; col > 0; col -= 2) {
+    // Column 6 is the vertical timing pattern and is not part of the weave; the
+    // pair of columns simply shifts one to the left past it.
+    if (col === 6) col -= 1;
+
+    for (let i = 0; i < size; i += 1) {
+      const row = upward ? size - 1 - i : i;
+
+      for (const c of [col, col - 1]) {
+        if (grid.fixed[row][c]) continue;
+
+        // Past the end of the data are the version's remainder bits, which are
+        // defined to be light and carry nothing.
+        const byte = codewords[bit >> 3];
+        grid.dark[row][c] = byte !== undefined && ((byte >> (7 - (bit & 7))) & 1) === 1;
+        bit += 1;
+      }
+    }
+
+    upward = !upward;
+  }
+}
+
+/**
+ * How bad a masked symbol looks, by the specification's four rules: long runs of
+ * one colour, solid 2×2 blocks, sequences that mimic a finder, and an overall
+ * imbalance between dark and light. Lowest wins.
+ */
+function penalty(grid: Grid): number {
+  const { size, dark } = grid;
+  let score = 0;
+
+  // Rule 1 — runs of five or more in a row or a column.
+  for (let i = 0; i < size; i += 1) {
+    for (const read of [(j: number) => dark[i][j], (j: number) => dark[j][i]]) {
+      let run = 1;
+      for (let j = 1; j < size; j += 1) {
+        if (read(j) === read(j - 1)) {
+          run += 1;
+          continue;
+        }
+        if (run >= 5) score += 3 + (run - 5);
+        run = 1;
+      }
+      if (run >= 5) score += 3 + (run - 5);
+    }
+  }
+
+  // Rule 2 — every 2×2 block of one colour.
+  for (let r = 0; r < size - 1; r += 1) {
+    for (let c = 0; c < size - 1; c += 1) {
+      const first = dark[r][c];
+      if (first === dark[r][c + 1] && first === dark[r + 1][c] && first === dark[r + 1][c + 1]) {
+        score += 3;
+      }
+    }
+  }
+
+  // Rule 3 — the 1:1:3:1:1 ratio of a finder, followed or preceded by four
+  // light modules, anywhere in the data. This is the rule that stops a symbol
+  // growing a fourth corner marker by accident.
+  const FINDER_LIKE = [
+    [true, false, true, true, true, false, true, false, false, false, false],
+    [false, false, false, false, true, false, true, true, true, false, true],
+  ];
+  for (let i = 0; i < size; i += 1) {
+    for (let j = 0; j + 11 <= size; j += 1) {
+      for (const pattern of FINDER_LIKE) {
+        let row = true;
+        let col = true;
+        for (let k = 0; k < 11; k += 1) {
+          if (dark[i][j + k] !== pattern[k]) row = false;
+          if (dark[j + k][i] !== pattern[k]) col = false;
+          if (!row && !col) break;
+        }
+        if (row) score += 40;
+        if (col) score += 40;
+      }
+    }
+  }
+
+  // Rule 4 — how far the dark proportion strays from half, in steps of 5%.
+  let darkCount = 0;
+  for (let r = 0; r < size; r += 1) {
+    for (let c = 0; c < size; c += 1) if (dark[r][c]) darkCount += 1;
+  }
+  const percent = (darkCount * 100) / (size * size);
+  score += Math.floor(Math.abs(percent - 50) / 5) * 10;
+
+  return score;
+}
+
+/**
+ * Text in, symbol out.
+ *
+ * UTF-8 encoded without an ECI header, which is what every scanner in practice
+ * assumes for byte mode and what our own payloads — plain ASCII URLs — make moot
+ * either way.
+ */
+export function encodeQr(text: string, ecc: QrEcc = 'Q'): QrSymbol {
+  const bytes = new TextEncoder().encode(text);
+  const version = pickVersion(bytes.length, ecc);
+  const size = version * 4 + 17;
+
+  const codewords = interleave(dataCodewords(bytes, version, ecc), version, ecc);
+
+  // Every mask is a full build, because the penalty is scored on the finished
+  // grid. Eight builds of a 33×33 symbol is microseconds, and the alternative —
+  // guessing a mask — is a label that reads slowly on a phone.
+  let best: Grid | null = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (let mask = 0; mask < MASKS.length; mask += 1) {
+    const grid = blankGrid(size);
+    placeFunctionPatterns(grid, version);
+    placeData(grid, codewords);
+
+    const apply = MASKS[mask];
+    for (let r = 0; r < size; r += 1) {
+      for (let c = 0; c < size; c += 1) {
+        if (!grid.fixed[r][c] && apply(r, c)) grid.dark[r][c] = !grid.dark[r][c];
+      }
+    }
+
+    placeFormat(grid, ecc, mask);
+
+    const score = penalty(grid);
+    if (score < bestScore) {
+      bestScore = score;
+      best = grid;
+    }
+  }
+
+  return { version, size, modules: best!.dark };
+}
+
+/**
+ * The dark modules as one SVG path, in a coordinate system where one module is
+ * one unit and the origin is the symbol's top-left corner.
+ *
+ * Horizontal runs are merged into a single rectangle rather than emitted per
+ * module. A version 5 symbol is 1369 modules and a label sheet holds sixty of
+ * them; one `<path>` of merged runs is a few kilobytes where sixty thousand
+ * `<rect>` elements would be megabytes of markup for the same ink.
+ */
+export function qrPath(symbol: QrSymbol): string {
+  const parts: string[] = [];
+
+  for (let row = 0; row < symbol.size; row += 1) {
+    let start = -1;
+
+    for (let col = 0; col <= symbol.size; col += 1) {
+      const dark = col < symbol.size && symbol.modules[row][col];
+      if (dark && start === -1) start = col;
+      if (!dark && start !== -1) {
+        const width = col - start;
+        parts.push(`M${start} ${row}h${width}v1h-${width}z`);
+        start = -1;
+      }
+    }
+  }
+
+  return parts.join('');
+}

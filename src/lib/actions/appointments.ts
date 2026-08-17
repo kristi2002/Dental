@@ -11,13 +11,34 @@ import { buildSearchKey } from '@/lib/patient-search';
 import { addDays, fromDateKey, today } from '@/lib/dates';
 import { getDaySchedule } from '@/lib/queries';
 import { completeStepForAppointment } from '@/lib/plan-sync';
-import { findConflicts, findNextGaps, nextSlotTime, type DatedGap } from '@/lib/scheduling';
+import {
+  findConflicts,
+  findNextGaps,
+  nextSlotTime,
+  type Conflict,
+  type DatedGap,
+} from '@/lib/scheduling';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
 function revalidateAll() {
   revalidatePath('/', 'layout');
+}
+
+/**
+ * What a clash reads like in the refusal.
+ *
+ * Naming the resource matters once there is more than one: "clashes with Dr B"
+ * and "clashes in chair 2" call for different fixes.
+ */
+function describeConflicts(conflicts: readonly Conflict[]): string {
+  return conflicts
+    .map((c) => {
+      const where = [c.staffName, c.operatoryName].filter(Boolean).join(' · ');
+      return `${c.startTime} ${c.patient.firstName} ${c.patient.lastName}${where ? ` (${where})` : ''}`;
+    })
+    .join(', ');
 }
 
 /**
@@ -145,15 +166,7 @@ export async function saveAppointment(
     });
 
     if (conflicts.length > 0) {
-      // Naming the resource matters once there is more than one: "clashes with
-      // Dr B" and "clashes in chair 2" call for different fixes.
-      const names = conflicts
-        .map((c) => {
-          const where = [c.staffName, c.operatoryName].filter(Boolean).join(' · ');
-          return `${c.startTime} ${c.patient.firstName} ${c.patient.lastName}${where ? ` (${where})` : ''}`;
-        })
-        .join(', ');
-      return actionError(t('overlap', { list: names }), 'overlap');
+      return actionError(t('overlap', { list: describeConflicts(conflicts) }), 'overlap');
     }
   }
 
@@ -479,13 +492,7 @@ export async function rescheduleAppointment(
     });
 
     if (conflicts.length > 0) {
-      const names = conflicts
-        .map((c) => {
-          const where = [c.staffName, c.operatoryName].filter(Boolean).join(' · ');
-          return `${c.startTime} ${c.patient.firstName} ${c.patient.lastName}${where ? ` (${where})` : ''}`;
-        })
-        .join(', ');
-      return actionError(t('overlap', { list: names }), 'overlap');
+      return actionError(t('overlap', { list: describeConflicts(conflicts) }), 'overlap');
     }
   }
 
@@ -545,6 +552,98 @@ export async function rescheduleAppointment(
     entity: 'appointment',
     entityId: movedId,
     summary: `${original.patient.lastName} ${original.patient.firstName} · moved → ${date} ${startTime}${reason ? ` · ${reason}` : ''}`,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/**
+ * Put an appointment down on another slot — the calendar's own gesture.
+ *
+ * Deliberately *not* `rescheduleAppointment`. A move made on the phone is an
+ * event in the patient's history: a slot called off, a replacement booked, a
+ * reason worth reading later. A block dragged half an hour down the grid is the
+ * front desk correcting where the booking sits, and writing a cancellation for
+ * every nudge would bury the real moves under a column of ghosts — the grid
+ * draws cancelled slots, so the third drag would leave two dead blocks behind
+ * the live one. So this rewrites the row, exactly as editing the time field
+ * does, and says so in the audit line. The dialog is still there for a move
+ * that needs explaining.
+ *
+ * Called straight from the client rather than through a form: there is no form
+ * — the arguments are where the mouse let go.
+ */
+export async function moveAppointment({
+  id,
+  date,
+  startTime,
+  force = false,
+}: {
+  id: string;
+  /** `YYYY-MM-DD` */
+  date: string;
+  /** `HH:MM` */
+  startTime: string;
+  /** Drop it on top of an existing booking anyway. */
+  force?: boolean;
+}): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('appointment.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,2}:\d{2}$/.test(startTime)) {
+    return actionError(t('fillRequired'));
+  }
+
+  const original = await prisma.appointment.findUnique({
+    where: { id },
+    select: {
+      date: true,
+      startTime: true,
+      durationMin: true,
+      staffUserId: true,
+      operatoryId: true,
+      patient: { select: { firstName: true, lastName: true } },
+    },
+  });
+  if (!original) return actionError(t('notFound'));
+
+  const when = new Date(`${date}T00:00:00.000Z`);
+
+  // Same warning as every other way of booking a slot, and overridden the same
+  // way: a clash is reported, and the second attempt carries `force`.
+  if (!force) {
+    const conflicts = await findConflicts({
+      date: when,
+      startTime,
+      durationMin: original.durationMin,
+      staffUserId: original.staffUserId,
+      operatoryId: original.operatoryId,
+      excludeId: id,
+    });
+
+    if (conflicts.length > 0) {
+      return actionError(t('overlap', { list: describeConflicts(conflicts) }), 'overlap');
+    }
+  }
+
+  try {
+    await prisma.appointment.update({ where: { id }, data: { date: when, startTime } });
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  // Both ends of the move on one line: a nudge that turns out to have been
+  // wrong is only undoable by somebody who can read where it came from.
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'appointment',
+    entityId: id,
+    summary: `${original.patient.firstName} ${original.patient.lastName} · ${toDateKey(
+      original.date,
+    )} ${original.startTime} → ${date} ${startTime}`,
   });
 
   revalidateAll();

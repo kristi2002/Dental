@@ -1,7 +1,9 @@
 import {
+  AlarmClock,
   BellRing,
   CalendarClock,
   CalendarDays,
+  FlaskConical,
   ListChecks,
   NotebookPen,
   Package,
@@ -13,6 +15,8 @@ import {
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { AppointmentRow } from '@/components/appointments/AppointmentRow';
+import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
+import { FollowUpList } from '@/components/follow-ups/FollowUpList';
 import { FreeTimeCard } from '@/components/appointments/FreeTimeCard';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -28,7 +32,9 @@ import { prisma } from '@/lib/prisma';
 import {
   countOpenPastAppointments,
   getAppointmentsBetween,
+  getAssignableStaff,
   getLowStockItems,
+  getOpenFollowUps,
   getOpenPastAppointments,
   getOpenWaitlist,
   getOperatoryOptions,
@@ -36,7 +42,10 @@ import {
   getServiceOptions,
   getUnrecordedToday,
   getUnremindedTomorrow as getUnreminded,
+  getWorksToChase,
 } from '@/lib/queries';
+import { followUpStatus } from '@/lib/follow-ups';
+import { daysLate, workStatus } from '@/lib/works';
 import { getRecalls } from '@/lib/recalls';
 import { findFreeGaps, nextSlotTime, type FreeGap } from '@/lib/scheduling';
 import { VisitFormDialog } from '@/components/patients/VisitFormDialog';
@@ -58,12 +67,17 @@ export default async function DashboardPage({
   const canSeeRecalls = user.permissions.includes('recall.view');
   const canSeeMedical = user.permissions.includes('patient.medical.view');
   const canSeeWaitlist = user.permissions.includes('waitlist.view');
+  const canSeeFollowUps = user.permissions.includes('followup.view');
+  const canEditFollowUps = user.permissions.includes('followup.edit');
+  const canSeeWorks = user.permissions.includes('work.view');
 
   const t = await getTranslations('dashboard');
   const ta = await getTranslations('appointments');
   const ts = await getTranslations('stock');
   const talerts = await getTranslations('alerts');
   const tw = await getTranslations('waitlist');
+  const twk = await getTranslations('works');
+  const tf = await getTranslations('followUps');
   const tp = await getTranslations('patients');
   const format = await getFormatter();
 
@@ -87,6 +101,9 @@ export default async function DashboardPage({
     expiredCount,
     unrecorded,
     waiting,
+    openFollowUps,
+    followUpStaff,
+    lateWorks,
   ] = await Promise.all([
       getAppointmentsBetween(day, day),
       prisma.appointment.count({
@@ -141,7 +158,22 @@ export default async function DashboardPage({
       // Who would take a slot if one came free — which is what a cancellation
       // just did, and what nothing outside the calendar page ever said.
       canSeeWaitlist ? getOpenWaitlist() : Promise.resolve([]),
+      // The practice's own board. The bell carries it on every screen; here it
+      // is cut to what is actually late or due today, because the dashboard is
+      // read once in the morning rather than worked through.
+      canSeeFollowUps ? getOpenFollowUps() : Promise.resolve([]),
+      canEditFollowUps ? getAssignableStaff() : Promise.resolve([]),
+      // Cases the laboratory has not sent back. Derived rather than typed — a
+      // promised date that has passed is a fact about the register, and nobody
+      // should have to write themselves a note for it.
+      canSeeWorks ? getWorksToChase() : Promise.resolve([]),
     ]);
+
+  // Only what has actually come round. A board that shows next week's lines on
+  // the morning dashboard is a board that gets scrolled past.
+  const dueFollowUps = openFollowUps.filter(
+    (item) => followUpStatus(item, day) !== 'upcoming',
+  );
 
   // Who the rest of today can actually hold. The matching is the useful part: a
   // 60-minute root canal is not a candidate for a 20-minute hole, and offering
@@ -311,6 +343,90 @@ export default async function DashboardPage({
               </div>
             </Card>
           ) : null}
+
+          {/* The practice's own loose ends, in the column loose ends already
+              live in. The bell above carries the same board on every screen;
+              this is the copy somebody reads at nine in the morning without
+              having to open anything. */}
+          {canSeeFollowUps && dueFollowUps.length > 0 ? (
+            <Card className="border-warn">
+              <CardHeader
+                title={tf('title')}
+                subtitle={tf('dueCount', { count: dueFollowUps.length })}
+                icon={<AlarmClock size={22} aria-hidden className="text-warn" />}
+                action={
+                  canEditFollowUps ? (
+                    <FollowUpFormDialog
+                      staff={followUpStaff}
+                      today={dayKey}
+                      triggerClassName="btn btn-secondary btn-sm"
+                    />
+                  ) : null
+                }
+              />
+              <FollowUpList
+                items={dueFollowUps}
+                canEdit={canEditFollowUps}
+                staff={followUpStaff}
+                variant="card"
+                dueOnly
+              />
+            </Card>
+          ) : null}
+
+          {/* What the laboratory owes us. Nobody wrote these down — they fall
+              out of a promised date that has passed, which is the whole reason
+              the register grew a column for one. */}
+          {canSeeWorks && lateWorks.length > 0 ? (
+            <Card className="border-warn">
+              <CardHeader
+                title={twk('chaseTitle')}
+                subtitle={twk('chaseSubtitle', { count: lateWorks.length })}
+                icon={<FlaskConical size={22} aria-hidden className="text-warn" />}
+                action={
+                  <Link href="/works?status=late" className="btn btn-secondary btn-sm">
+                    {twk('title')}
+                  </Link>
+                }
+              />
+              <ul className="divide-y divide-line">
+                {lateWorks.map((work) => {
+                  const state = workStatus(work, day);
+                  return (
+                    <li
+                      key={work.id}
+                      className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-3"
+                    >
+                      <span className="min-w-0">
+                        <span className="text-[1.03rem] font-bold text-ink">
+                          #{work.number}{' '}
+                          {work.patientId ? (
+                            <Link href={`/patients/${work.patientId}`}>{work.patientName}</Link>
+                          ) : (
+                            work.patientName
+                          )}
+                        </span>
+                        <span className="block text-[0.9rem] text-ink-soft tabular-nums">
+                          <a href={`tel:${work.phone.replace(/\s/g, '')}`}>{work.phone}</a>
+                        </span>
+                      </span>
+
+                      <span className="flex items-center gap-2">
+                        {work.urgent ? <Badge tone="alert">{twk('urgent')}</Badge> : null}
+                        <Badge tone={state === 'overdue' ? 'danger' : 'warn'}>
+                          {state === 'overdue'
+                            ? twk('lateByDays', { days: daysLate(work, day) })
+                            : state === 'dueToday'
+                              ? twk('statusDueToday')
+                              : twk('statusDueSoon')}
+                        </Badge>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          ) : null}
         </div>
 
         {/* The side column reads top-down as "what could still be filled, and
@@ -470,7 +586,7 @@ export default async function DashboardPage({
                         {item.name}
                       </span>
                       <span className="block text-[0.9rem] text-ink-soft">
-                        {ts('inStock', { qty: item.quantity, unit: item.unit })} ·{' '}
+                        {ts('inStock', { qty: item.quantity })} ·{' '}
                         {ts('minShort', { min: item.minLimit })}
                       </span>
                     </span>

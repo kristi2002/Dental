@@ -4,10 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { MAX_FILE_BYTES } from '@/lib/file-constants';
+import { deleteStoredFile, storeFile } from '@/lib/files';
 import { suggestMaterials, type MaterialSuggestion } from '@/lib/material-history';
-import { parseMoney } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { recordConsumption, takeFromShelf } from '@/lib/stock-consumption';
+import { isPhotoMimeType, isPhotoOwner } from '@/lib/stock-photos';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
@@ -61,7 +63,7 @@ export async function writeOffBatch(formData: FormData): Promise<void> {
       lotNumber: true,
       quantity: true,
       usedQuantity: true,
-      item: { select: { name: true, unit: true } },
+      item: { select: { name: true } },
     },
   });
   if (!batch) return;
@@ -94,10 +96,37 @@ export async function writeOffBatch(formData: FormData): Promise<void> {
     action: 'update',
     entity: 'stock',
     entityId: batch.itemId,
-    summary: `${batch.item.name} · write-off ${taken} ${batch.item.unit}${batch.lotNumber ? ` · lot ${batch.lotNumber}` : ''}`,
+    summary: `${batch.item.name} · write-off ${taken}${batch.lotNumber ? ` · lot ${batch.lotNumber}` : ''}`,
   });
 
   revalidateAll();
+}
+
+/**
+ * Turn a typed product name into the row it names, making it if it is new.
+ *
+ * Grouping the eight shades of one composite has to cost nothing, or it will not
+ * happen: a select would mean leaving the half-filled material form, naming a
+ * product on a screen of its own, and coming back — which is three steps too
+ * many for something the person is already typing the name of. So the field is a
+ * text box with the existing names offered as autocomplete, exactly like the
+ * shelf categories were before they became rows.
+ *
+ * Matched case-insensitively, because "Filtek Z250" and "filtek z250" are one
+ * product to everybody except a database index — and there is no unique index
+ * here to lean on anyway (see `StockProduct`).
+ */
+async function resolveProduct(name: string | null): Promise<string | null> {
+  if (!name) return null;
+
+  const existing = await prisma.stockProduct.findFirst({
+    where: { name: { equals: name, mode: 'insensitive' } },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const created = await prisma.stockProduct.create({ data: { name }, select: { id: true } });
+  return created.id;
 }
 
 export async function saveStockItem(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -117,13 +146,6 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
   // reorder list falls back to projecting one. Zero would mean "order nothing".
   const rawOrderQty = optionalString(formData.get('orderQty'));
   const orderQty = rawOrderQty === null ? null : Math.max(1, toInt(rawOrderQty, 1));
-
-  // A mistyped price is rejected rather than dropped. Silently storing nothing
-  // would leave the material looking unpriced, and the valuation quietly short
-  // by however much of the cupboard it holds.
-  const rawPrice = optionalString(formData.get('unitPrice'));
-  const unitPrice = parseMoney(rawPrice);
-  if (rawPrice !== null && unitPrice === null) return actionError(t('invalidPrice'));
 
   // An article number is a label the practice reads off a shelf, so two rows
   // wearing the same one is a real mix-up. Checked here rather than by a unique
@@ -147,11 +169,16 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
     quantity,
     supplierId,
     minLimit: Math.max(0, toInt(formData.get('minLimit'), 5)),
-    unit: requiredString(formData.get('unit')) || 'pcs',
-    // A pack of zero or half a glove is not a thing anyone can order.
-    packSize: Math.max(1, toInt(formData.get('packSize'), 1)),
+    // No `unit` and no `packSize`: the shelf is counted in boxes and nothing
+    // else, so neither is asked for any more. See their comments in
+    // `schema.prisma` — the columns survive the deploy, the questions do not.
+    productId: await resolveProduct(optionalString(formData.get('productName'))),
+    variantName: optionalString(formData.get('variantName')),
     orderQty,
-    unitPrice,
+    // No price. Money is off every storage-room screen by the owner's decision,
+    // so the form no longer asks — and `unitPrice` is deliberately left out of
+    // this write rather than set to null, which would erase whatever the
+    // practice recorded before the field went away.
   };
 
   let savedId = id;
@@ -195,13 +222,16 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
 
   revalidateAll();
 
-  // Recording a material is done on a page of its own, so there is nowhere for
-  // the form to return to — the storage room is what the person came here to
-  // add to, and it is where the new row now is. An edit is submitted from a
-  // dialog on the list itself, so it stays put.
-  if (!id) {
-    redirect({ href: '/stock', locale: await getLocale() });
-  }
+  // Both ends of this are pages of their own now — recording a material and
+  // correcting one — so neither has anywhere to stay once it is saved. The list
+  // is what the person came from and where the row now is.
+  //
+  // Where back *is* comes from a hidden word, not a hidden path: an edit opened
+  // off the catalogue returns to the catalogue, and everything else returns to
+  // the storage room. A redirect target read straight out of a form is one a
+  // crafted link gets to choose.
+  const back = optionalString(formData.get('from')) === 'catalog' ? '/stock/catalog' : '/stock';
+  redirect({ href: back, locale: await getLocale() });
 
   return actionOk();
 }
@@ -261,9 +291,20 @@ export async function takeStock(formData: FormData): Promise<void> {
  * Anything taken out goes through the same lot allocation a visit does, so a
  * material used by hand draws down its oldest lot rather than leaving every lot
  * looking untouched.
+ *
+ * Returns whether it actually moved, which is false in exactly one case: the
+ * shelf did not hold enough. The ±1 buttons ignore that and the label screen
+ * reports it, because one is a tap that can simply be repeated and the other is
+ * somebody standing at a cupboard being told a number they can check.
  */
-async function applyStockChange(id: string, delta: number, staffUserId: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+async function applyStockChange(
+  id: string,
+  delta: number,
+  staffUserId: string,
+  /** What the ledger should call it. The default is the wording the ±1 taps use. */
+  reason = delta < 0 ? 'used' : 'restock',
+): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
     // Postgres does the arithmetic. The `gte` guard is the floor at zero: when
     // it matches nothing the shelf did not hold enough, and nothing is written
     // at all — no half-applied decrement, no movement to explain it.
@@ -271,22 +312,84 @@ async function applyStockChange(id: string, delta: number, staffUserId: string):
       where: delta < 0 ? { id, quantity: { gte: -delta } } : { id },
       data: { quantity: { increment: delta } },
     });
-    if (applied.count === 0) return;
+    if (applied.count === 0) return false;
 
     if (delta < 0) {
       await recordConsumption(tx, {
         itemId: id,
         quantity: -delta,
-        reason: 'used',
+        reason,
         staffUserId,
       });
-      return;
+      return true;
     }
 
     await tx.stockMovement.create({
-      data: { itemId: id, delta, reason: 'restock', staffUserId },
+      data: { itemId: id, delta, reason, staffUserId },
     });
+    return true;
   });
+}
+
+/**
+ * The move a printed shelf label makes: this material, this many boxes, in or
+ * out.
+ *
+ * Its own action rather than a second caller of `adjustStock`, for one reason —
+ * it answers. The ±1 buttons sit next to the number they change, so a tap that
+ * did nothing is self-evident; this is submitted by somebody holding a phone at
+ * a cupboard, who needs to be told that the shelf only had two.
+ *
+ * The direction is not stored on the form. It arrives as the name of the button
+ * that was pressed, so "add" and "take out" are two verbs rather than one verb
+ * and a toggle that can be left the wrong way round — which is the mistake this
+ * screen is most exposed to, and the one that silently corrupts a count.
+ *
+ * No lot is created or named. A label carries no lot number and no expiry —
+ * that is what the supplier's own symbol is for (see `commitScan`, which writes
+ * a `StockBatch` only when the symbol actually said something about one), and
+ * inventing a lot here would fill the expiry screen with rows that can never go
+ * off. Taking out still draws down the oldest lot, because `recordConsumption`
+ * does that for every consumption in the app.
+ */
+export async function moveStock(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getTranslations('errors');
+  const ts = await getTranslations('stock');
+
+  const user = await authorize('stock.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const id = requiredString(formData.get('id'));
+  const out = requiredString(formData.get('direction')) === 'out';
+  const quantity = toInt(formData.get('quantity'), 0);
+  if (!id || quantity <= 0) return actionError(t('fillRequired'));
+
+  const item = await prisma.stockItem.findUnique({
+    where: { id },
+    select: { name: true, quantity: true },
+  });
+  if (!item) return actionError(t('notFound'));
+
+  let applied: boolean;
+  try {
+    applied = await applyStockChange(
+      id,
+      out ? -quantity : quantity,
+      user.id,
+      out ? 'scan out' : 'scan in',
+    );
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  // Only reachable on a take-out that would overdraw. The count quoted back is
+  // the one read a moment ago rather than the one inside the transaction — it
+  // is a sentence for a person to check against a shelf, not a decision, and
+  // the guard that actually refused the write was the atomic one above.
+  if (!applied) return actionError(ts('moveShort', { have: item.quantity }));
+
+  revalidateAll();
+  return actionOk();
 }
 
 /**
@@ -624,10 +727,6 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
   // is a delivery that happened, and the common case should not need a keystroke.
   const purchasedAt = parseDay(optionalString(formData.get('purchasedAt'))) ?? new Date();
 
-  const rawPrice = optionalString(formData.get('unitPrice'));
-  const unitPrice = parseMoney(rawPrice);
-  if (rawPrice !== null && unitPrice === null) return actionError(t('invalidPrice'));
-
   try {
     await prisma.$transaction([
       prisma.stockBatch.create({
@@ -637,7 +736,6 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
           expiryDate,
           manufacturedAt,
           purchasedAt,
-          unitPrice,
           quantity,
           notes: optionalString(formData.get('notes')),
         },
@@ -650,10 +748,6 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
           quantity: { increment: quantity },
           orderedAt: null,
           expectedAt: null,
-          // What the delivery cost becomes what the material costs. Leaving the
-          // item's price at whatever was typed months ago would value the
-          // cupboard at last year's invoices while the lots hold this year's.
-          ...(unitPrice === null ? {} : { unitPrice }),
         },
       }),
       prisma.stockMovement.create({
@@ -782,6 +876,151 @@ export async function markSupplierOrdered(formData: FormData): Promise<void> {
     summary: `${marked.count} ${supplierName ? `· ${supplierName} ` : ''}→ ordered`,
   });
   revalidateAll();
+}
+
+/**
+ * Put a photograph on a material, or on the product all its variants share.
+ *
+ * The whole point of the catalogue: a storage room is recognised by sight, and a
+ * list of names is a list somebody has to decode before they can act on it. One
+ * picture per row turns "Kompozit Filtek Z250 A2" into the box they are already
+ * holding.
+ *
+ * Replaces rather than appends — a material has one photograph, and
+ * photographing the same box twice must leave one picture, not two. The old
+ * bytes go only once the new ones are safely stored, for the reason
+ * `saveIdDocument` does it in that order: a photo deleted before its successor
+ * exists is a photo the practice no longer has.
+ */
+export async function saveStockPhoto(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('errors');
+  const ts = await getTranslations('stock');
+
+  const user = await authorize('stock.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const kind = requiredString(formData.get('kind'));
+  const id = requiredString(formData.get('id'));
+  const file = formData.get('file');
+  if (!isPhotoOwner(kind) || !id) return actionError(t('generic'));
+  if (!(file instanceof File) || file.size === 0) return actionError(ts('photoNone'));
+
+  if (file.size > MAX_FILE_BYTES) {
+    return actionError(ts('photoTooLarge', { max: Math.floor(MAX_FILE_BYTES / (1024 * 1024)) }));
+  }
+  if (!isPhotoMimeType(file.type)) return actionError(ts('photoType'));
+
+  const previous =
+    kind === 'item'
+      ? await prisma.stockItem.findUnique({ where: { id }, select: { photoKey: true, name: true } })
+      : await prisma.stockProduct.findUnique({
+          where: { id },
+          select: { photoKey: true, name: true },
+        });
+  if (!previous) return actionError(t('notFound'));
+
+  let storageKey: string;
+  try {
+    storageKey = await storeFile(new Uint8Array(await file.arrayBuffer()), file.type);
+  } catch (error) {
+    console.error('[stock] could not store photo', error);
+    return actionError(t('generic'));
+  }
+
+  try {
+    const data = { photoKey: storageKey, photoMime: file.type };
+    if (kind === 'item') {
+      await prisma.stockItem.update({ where: { id }, data });
+    } else {
+      await prisma.stockProduct.update({ where: { id }, data });
+    }
+  } catch (error) {
+    // Never leave bytes on disk that no row points at.
+    await deleteStoredFile(storageKey);
+    console.error('[stock] could not record photo', error);
+    return actionError(t('generic'));
+  }
+
+  if (previous.photoKey) await deleteStoredFile(previous.photoKey);
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'stock',
+    entityId: id,
+    summary: `${previous.name} · photo`,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/** Take the photograph off again — a picture of the wrong box is worse than none. */
+export async function removeStockPhoto(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  const kind = requiredString(formData.get('kind'));
+  const id = requiredString(formData.get('id'));
+  if (!isPhotoOwner(kind) || !id) return;
+
+  // Read the key first: an update returns the row as it now is, which is
+  // precisely the row with the key erased. The bytes are unlinked after the
+  // column is cleared, so a failure between the two leaves an unreferenced file
+  // rather than a row pointing at nothing.
+  const existing =
+    kind === 'item'
+      ? await prisma.stockItem.findUnique({ where: { id }, select: { photoKey: true } })
+      : await prisma.stockProduct.findUnique({ where: { id }, select: { photoKey: true } });
+  if (!existing?.photoKey) return;
+
+  const data = { photoKey: null, photoMime: null };
+  if (kind === 'item') {
+    await prisma.stockItem.update({ where: { id }, data });
+  } else {
+    await prisma.stockProduct.update({ where: { id }, data });
+  }
+
+  await deleteStoredFile(existing.photoKey);
+
+  revalidateAll();
+}
+
+/**
+ * Rename a product, or say who makes it.
+ *
+ * The product row is created by typing its name on the material form, which
+ * means a typo becomes a group of one that nothing else will ever join. This is
+ * the correction, and it reaches every variant at once — the same reason a shelf
+ * category is a row rather than a word repeated per material.
+ */
+export async function saveStockProduct(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('stock.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const id = requiredString(formData.get('id'));
+  const name = requiredString(formData.get('name'));
+  if (!id || !name) return actionError(t('fillRequired'));
+
+  try {
+    await prisma.stockProduct.update({
+      where: { id },
+      data: { name, brand: optionalString(formData.get('brand')) },
+    });
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, { action: 'update', entity: 'stock', entityId: id, summary: name });
+  revalidateAll();
+  return actionOk();
 }
 
 /** Undo an "ordered" flag set by mistake. Delivery clears it on its own. */

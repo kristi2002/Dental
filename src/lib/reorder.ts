@@ -23,16 +23,14 @@ const URGENT_DAYS = 14;
 export type ReorderLine = {
   id: string;
   name: string;
-  unit: string;
+  /** Boxes on the shelf, with anything expired already taken off. */
   quantity: number;
   minLimit: number;
-  /** Pieces per unit. 1 for anything counted singly. */
-  packSize: number;
-  /** Units consumed per 30 days over the window. */
+  /** Boxes consumed per 30 days over the window. */
   monthlyUse: number;
   /** `null` when nothing is being used — stock that never moves never runs out. */
   daysLeft: number | null;
-  /** How many units to buy: the owner's stated quantity, else the projection. */
+  /** How many boxes to buy: the owner's stated quantity, else the projection. */
   suggested: number;
   /** True when the quantity was stated rather than projected. */
   stated: boolean;
@@ -107,10 +105,8 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
     lines.push({
       id: item.id,
       name: item.name,
-      unit: item.unit,
       quantity: onHand,
       minLimit: item.minLimit,
-      packSize: item.packSize,
       monthlyUse: Math.round(monthlyUse * 10) / 10,
       daysLeft,
       // The owner's own figure wins. Falling back to `minLimit` when there is
@@ -145,25 +141,34 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
 }
 
 /**
- * How much to ask the supplier for.
+ * How much to ask the supplier for — boxes, which is how it is ordered and how
+ * it arrives.
  *
- * The shelf is counted in boxes but the supplier sells pieces, so a box-counted
- * line is printed as both — pieces first, because that is the number said out
- * loud when the order is placed. "500 (5 boxes)", not "5 box".
+ * This used to multiply by a pack size and print "500 (5 boxes)", on the theory
+ * that the supplier sells pieces. They do not sell pieces to a dental practice:
+ * the order says five boxes, the delivery note says five boxes, and the pack
+ * size behind that multiplication was a number nobody could keep true.
+ *
+ * The word is passed in rather than looked up here, because this text goes out
+ * in the practice's own language and a lib has no translator.
  */
-export function orderAmount(line: Pick<ReorderLine, 'suggested' | 'unit' | 'packSize'>): string {
-  if (line.packSize > 1) {
-    return `${line.suggested * line.packSize} (${line.suggested} ${line.unit})`;
-  }
-  return `${line.suggested} ${line.unit}`;
+export function orderAmount(
+  line: Pick<ReorderLine, 'suggested'>,
+  boxes: (count: number) => string,
+): string {
+  return `${line.suggested} ${boxes(line.suggested)}`;
 }
 
 /** The order list as plain text, for pasting into a WhatsApp message to a supplier. */
-export function reorderAsText(lines: ReorderLine[], heading: string): string {
+export function reorderAsText(
+  lines: ReorderLine[],
+  heading: string,
+  boxes: (count: number) => string,
+): string {
   // What is already coming does not belong on an order form.
   const body = lines
     .filter((line) => line.suggested > 0 && line.orderedAt === null)
-    .map((line) => `• ${line.name}: ${orderAmount(line)}`)
+    .map((line) => `• ${line.name}: ${orderAmount(line, boxes)}`)
     .join('\n');
 
   return `${heading}\n${body}`;

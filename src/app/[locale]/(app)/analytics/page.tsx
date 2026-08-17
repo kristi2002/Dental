@@ -31,10 +31,9 @@ import {
   toMonthKey,
   today,
 } from '@/lib/dates';
-import { moneyFormat, stockValue } from '@/lib/money';
 import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
-import { ACTIVE_STOCK, getClinicProfile, getProviderOptions } from '@/lib/queries';
+import { getProviderOptions } from '@/lib/queries';
 import { getProviderNoShows, getUtilisation, overallUtilisation } from '@/lib/utilisation';
 
 export const dynamic = 'force-dynamic';
@@ -156,19 +155,13 @@ export default async function AnalyticsPage({
   // hours, closures, a duration on every booking, a dentist on every slot — and
   // nothing put them together.
   const providerName = new Map(providers.map((person) => [person.id, person.name]));
-  const profile = await getClinicProfile();
-  const [utilisation, providerNoShows, stockItems] = await Promise.all([
+  // What the storage room is worth used to be a tile here. It is gone with every
+  // other price on every stock screen — the owner's decision, and the reason
+  // nothing in this app values the cupboard any more.
+  const [utilisation, providerNoShows] = await Promise.all([
     getUtilisation({ from: windowStart, to: windowEnd }),
     getProviderNoShows({ from: windowStart, to: windowEnd, names: providerName }),
-    // What the storage room is worth today. A "now" figure among windowed ones,
-    // and labelled as such — it is an asset, not a rate.
-    prisma.stockItem.findMany({
-      where: ACTIVE_STOCK,
-      select: { quantity: true, unitPrice: true },
-    }),
   ]);
-
-  const cupboard = stockValue(stockItems);
 
   // Percentages against the same month labels the other charts use, so the
   // reader can lay one over another without checking the axis twice.
@@ -266,13 +259,6 @@ export default async function AnalyticsPage({
           value={`${overallUtilisation(utilisation)}%`}
           Icon={Clock}
         />
-        {cupboard.total > 0 ? (
-          <StatCard
-            label={t('stockValue')}
-            value={format.number(cupboard.total, moneyFormat(profile.currency, cupboard.total))}
-            Icon={Package}
-          />
-        ) : null}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">

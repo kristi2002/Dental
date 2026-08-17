@@ -38,6 +38,11 @@ export const PERMISSIONS = [
   'document.delete',
   'prescription.view',
   'prescription.edit',
+  // The practice's own board of things to come back to. Viewing is not gated by
+  // role at all in practice — every signed-in person gets it — but it is named
+  // here anyway so the matrix below stays the one place the answer lives.
+  'followup.view',
+  'followup.edit',
   'settings.view',
   'settings.edit',
   'staff.manage',
@@ -85,6 +90,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'document.view',
     'document.edit',
     'prescription.view',
+    'followup.view',
+    'followup.edit',
     'settings.view',
   ],
 
@@ -104,6 +111,10 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     // "is my crown back yet", so the list has to be open to them; the diagnosis
     // column on it is chart material, which is the line this role does not cross.
     'work.view',
+    // The front desk is who the lab and the patient both ring, so it is who
+    // writes most of these — chasing a case is the errand this board exists for.
+    'followup.view',
+    'followup.edit',
     'settings.view',
   ],
 
@@ -121,6 +132,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'work.view',
     'document.view',
     'prescription.view',
+    'followup.view',
     'settings.view',
   ],
 };

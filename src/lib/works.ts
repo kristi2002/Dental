@@ -7,7 +7,9 @@
  * everything exported from one of those has to be an async action.
  */
 
-import { startOfMonth, toMonthKey } from './dates';
+import { addDays, startOfMonth, toDay, today, toMonthKey } from './dates';
+import { formatToothSpan, parseToothSpan, spanCodes, spanElements } from './tooth-span';
+import { matches } from './utils';
 
 /** A case is a handful of items, never an import. Past this, something is wrong. */
 export const MAX_WORK_LINES = 40;
@@ -22,7 +24,7 @@ const FIELD_LIMIT = 200;
  */
 export const MAX_ELEMENTS = 99;
 
-export type DraftLine = { elements: number; procedure: string; lab: string };
+export type DraftLine = { elements: number; procedure: string; lab: string; teeth: string };
 
 /** A count of elements, clamped to something a docket could actually say. */
 export function toElementCount(value: unknown, fallback = 1): number {
@@ -53,12 +55,22 @@ export function parseDraftLines(raw: string): DraftLine[] {
   const lines: DraftLine[] = [];
   for (const entry of parsed) {
     if (typeof entry !== 'object' || entry === null) continue;
-    const { elements, procedure, lab } = entry as Record<string, unknown>;
+    const { elements, procedure, lab, teeth } = entry as Record<string, unknown>;
+
+    // Re-read rather than trusted: what arrives is whatever the chart last put
+    // in a hidden field, and it comes back canonical — chart order, one entry
+    // per position, nothing in it that is not a tooth.
+    const span = typeof teeth === 'string' ? formatToothSpan(parseToothSpan(teeth)) : '';
 
     const line = {
-      elements: toElementCount(elements),
+      // A span of five positions is five elements and cannot be anything else,
+      // so it settles the count. The number box is only asked when no teeth were
+      // named — a denture, a repair — which is the one case it can still be
+      // right about. See `spanElements`.
+      elements: span ? spanElements(span) : toElementCount(elements),
       procedure: typeof procedure === 'string' ? procedure.trim().slice(0, FIELD_LIMIT) : '',
       lab: typeof lab === 'string' ? lab.trim().slice(0, FIELD_LIMIT) : '',
+      teeth: span,
     };
     // A row with nothing on it is not a piece of work — it is a blank somebody
     // tabbed past. The procedure is what makes it one.
@@ -79,7 +91,15 @@ export type ExportableWork = {
   diagnosis: string | null;
   notes: string | null;
   sentAt: Date;
-  lines: ReadonlyArray<{ elements: number; procedure: string; lab: string | null }>;
+  dueAt: Date | null;
+  receivedAt: Date | null;
+  urgent: boolean;
+  lines: ReadonlyArray<{
+    elements: number;
+    procedure: string;
+    lab: string | null;
+    teeth: string | null;
+  }>;
 };
 
 /**
@@ -121,8 +141,193 @@ export function inMonth(work: { sentAt: Date }, monthKey: string | null): boolea
   return !monthKey || toMonthKey(work.sentAt) === monthKey;
 }
 
+/**
+ * How near a case is to the day it was promised back.
+ *
+ * `open` covers both ends of the harmless middle: a case with no promised date
+ * at all, and one whose date is far enough off to be nobody's problem today.
+ * That is deliberate — the register should only colour a row when the colour
+ * means "do something", and a bridge due in three weeks does not.
+ */
+export type WorkStatus = 'received' | 'overdue' | 'dueToday' | 'dueSoon' | 'open';
+
+/** How far ahead counts as "coming up". Two working days plus the weekend. */
+export const DUE_SOON_DAYS = 3;
+
+export type DatedWork = { dueAt: Date | null; receivedAt: Date | null };
+
+export function workStatus(work: DatedWork, on: Date = today()): WorkStatus {
+  // Back is back. A case that came in late is not still late — it is finished,
+  // and leaving it red would mean the register never goes quiet.
+  if (work.receivedAt) return 'received';
+  if (!work.dueAt) return 'open';
+
+  const day = toDay(on);
+  const due = toDay(work.dueAt).getTime();
+
+  if (due < day.getTime()) return 'overdue';
+  if (due === day.getTime()) return 'dueToday';
+  return due <= addDays(day, DUE_SOON_DAYS).getTime() ? 'dueSoon' : 'open';
+}
+
+/** Still out at the laboratory, whatever its promised date says. */
+export function isOutstanding(work: Pick<DatedWork, 'receivedAt'>): boolean {
+  return work.receivedAt === null;
+}
+
+/**
+ * Whole days past the promise, or 0 for anything not overdue.
+ *
+ * What the register prints next to a late case — "4 days" is a sentence a
+ * practice can ring a laboratory with, and a bare date is not.
+ */
+export function daysLate(work: DatedWork, on: Date = today()): number {
+  if (work.receivedAt || !work.dueAt) return 0;
+  const diff = toDay(on).getTime() - toDay(work.dueAt).getTime();
+  return diff > 0 ? Math.round(diff / 86_400_000) : 0;
+}
+
+/**
+ * The chase list: everything still out, most pressing first.
+ *
+ * Urgent beats the date rather than the other way round — the flag exists to
+ * jump a case that would otherwise sort into next week, and a chase list that
+ * sorted purely by date could not express it. Within one level of urgency the
+ * oldest promise leads, and a case with no promised date sorts last, because
+ * nothing about it says it is late.
+ */
+/** Sentinel for "no laboratory written on this line" — never a real lab name. */
+export const NO_LAB = '__none__';
+
+/**
+ * Which cases the register is showing: any, still out, late, or back.
+ *
+ * `''` is "don't ask", not a fourth state — it is what the filter posts when
+ * nobody has touched it.
+ */
+export type WorkFilterStatus = '' | 'out' | 'late' | 'back';
+
+export function toWorkFilterStatus(value: string | null | undefined): WorkFilterStatus {
+  return value === 'out' || value === 'late' || value === 'back' ? value : '';
+}
+
+export type FilterableWork = DatedWork & {
+  labSerial: string | null;
+  patientName: string;
+  phone: string;
+  diagnosis: string | null;
+  notes: string | null;
+  sentAt: Date;
+  lines: ReadonlyArray<{ procedure: string; lab: string | null; teeth: string | null }>;
+};
+
+export type WorkFilters = {
+  query: string;
+  lab: string;
+  /** `YYYY-MM`, or null for the whole run. */
+  month: string | null;
+  status: WorkFilterStatus;
+};
+
+/**
+ * The register, narrowed — the one copy of these rules.
+ *
+ * The screen and the CSV both used to carry their own version of this, which is
+ * a promise ("the file is what was on screen") kept by two pieces of code that
+ * had to be edited together and were not checked against each other. Adding the
+ * status filter would have made it three.
+ *
+ * Filtering happens in memory rather than in the query because `matches()` folds
+ * accents and `ILIKE` does not — typing *puron* has to find *Purón*.
+ */
+export function filterWorks<T extends FilterableWork>(
+  works: ReadonlyArray<T>,
+  filters: WorkFilters,
+  on: Date = today(),
+): T[] {
+  return works.filter((work) => {
+    if (filters.month && toMonthKey(work.sentAt) !== filters.month) return false;
+
+    if (filters.status === 'out' && work.receivedAt) return false;
+    if (filters.status === 'back' && !work.receivedAt) return false;
+    if (filters.status === 'late' && workStatus(work, on) !== 'overdue') return false;
+
+    if (filters.lab === NO_LAB) {
+      if (work.lines.some((line) => line.lab?.trim())) return false;
+    } else if (
+      filters.lab &&
+      !work.lines.some((line) => line.lab?.trim() === filters.lab)
+    ) {
+      return false;
+    }
+
+    if (!filters.query) return true;
+
+    // Everything printed on the row is searchable, including the work itself —
+    // "who did we send a zirconia bridge for" is the question this answers.
+    //
+    // The practice's own case number is deliberately not in here any more: it
+    // came off the register when the column did, and a register that answers to
+    // a number nobody can see is a register with a secret.
+    const haystack = [
+      work.labSerial ?? '',
+      work.patientName,
+      work.phone,
+      // The span, both ways it can be written: the codes each line now carries,
+      // and the free text cases were written with before the chart existed. So
+      // "16" finds the bridge that crosses it.
+      ...work.lines.map((line) => spanCodes(line.teeth)),
+      work.diagnosis ?? '',
+      work.notes ?? '',
+      ...work.lines.map((line) => line.procedure),
+      ...work.lines.map((line) => line.lab ?? ''),
+    ];
+    return haystack.some((field) => field && matches(field, filters.query));
+  });
+}
+
+/**
+ * Which month the register opens on.
+ *
+ * The default is the newest month with anything in it, because the month is the
+ * unit this register is billed in. The exception is the whole reason the status
+ * filter exists: a case that went out in March is exactly the one still missing
+ * in August, so asking what is late has to widen the view to every month —
+ * otherwise the filter would answer "nothing" while the practice waits on four
+ * cases. Naming a month explicitly still wins over both.
+ */
+export function resolveWorkMonth(
+  months: ReadonlyArray<string>,
+  requested: string | null | undefined,
+  status: WorkFilterStatus = '',
+): string | null {
+  if (requested === 'all') return null;
+  if (requested && fromMonthKey(requested)) return requested;
+  if (status) return null;
+  return months[0] ?? null;
+}
+
+export type ChaseableWork = DatedWork & { urgent: boolean; sentAt: Date };
+
+export function chaseOrder<T extends ChaseableWork>(works: ReadonlyArray<T>): T[] {
+  return works
+    .filter(isOutstanding)
+    .slice()
+    .sort((a, b) => {
+      if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+      // A case with no promised date sorts behind every case that has one:
+      // nothing about it says it is late.
+      if (!a.dueAt !== !b.dueAt) return a.dueAt ? -1 : 1;
+      if (a.dueAt && b.dueAt && a.dueAt.getTime() !== b.dueAt.getTime()) {
+        return a.dueAt.getTime() - b.dueAt.getTime();
+      }
+      // Same promise, or none on either: the one that went out first has been
+      // waiting longest.
+      return a.sentAt.getTime() - b.sentAt.getTime();
+    });
+}
+
 export type WorkHeaders = {
-  number: string;
   labSerial: string;
   patientName: string;
   phone: string;
@@ -132,6 +337,11 @@ export type WorkHeaders = {
   lab: string;
   notes: string;
   sentAt: string;
+  dueAt: string;
+  receivedAt: string;
+  urgent: string;
+  /** Printed in the urgent column when the flag is set; the cell is blank when it is not. */
+  yes: string;
   total: string;
 };
 
@@ -156,42 +366,67 @@ export function worksToRows(
   headers: WorkHeaders,
   formatDate: (value: Date) => string,
 ): string[][] {
-  const rows: string[][] = [
-    [
-      headers.sentAt,
-      headers.number,
-      headers.labSerial,
-      headers.patientName,
-      headers.phone,
-      headers.diagnosis,
-      headers.elements,
-      headers.procedure,
-      headers.lab,
-      headers.notes,
-    ],
+  const columns = [
+    headers.sentAt,
+    headers.dueAt,
+    headers.receivedAt,
+    headers.labSerial,
+    headers.patientName,
+    headers.phone,
+    headers.urgent,
+    // Beside the work rather than beside the patient, because that is where it
+    // belongs now: a case with a bridge and a crown on it has two spans, and
+    // one column against the patient could only ever hold one of them.
+    headers.diagnosis,
+    headers.elements,
+    headers.procedure,
+    headers.lab,
+    headers.notes,
   ];
+  const rows: string[][] = [columns];
+
+  /** Where the element count sits, so the total row lands under it whatever moves. */
+  const elementsAt = columns.indexOf(headers.elements);
 
   for (const work of works) {
     const head = [
       formatDate(work.sentAt),
-      String(work.number),
+      work.dueAt ? formatDate(work.dueAt) : '',
+      work.receivedAt ? formatDate(work.receivedAt) : '',
       work.labSerial ?? '',
       work.patientName,
       work.phone,
-      work.diagnosis ?? '',
+      // Blank rather than a localised "no": a column of Yes/No is harder to
+      // filter in a spreadsheet than a column that is either marked or empty.
+      work.urgent ? headers.yes : '',
     ];
     const notes = [work.notes ?? ''];
 
     if (work.lines.length === 0) {
-      rows.push([...head, '', '', '', ...notes]);
+      rows.push([...head, work.diagnosis ?? '', '', '', '', ...notes]);
       continue;
     }
     for (const line of work.lines) {
-      rows.push([...head, String(line.elements), line.procedure, line.lab ?? '', ...notes]);
+      rows.push([
+        ...head,
+        // FDI codes rather than the drawn notation: a bracket does not survive a
+        // spreadsheet cell, and `15` says which corner of the mouth it means on
+        // its own where a bare `5` does not. A case written before the chart
+        // existed falls back to the free text it was written with, so no span
+        // ever drops out of the file.
+        spanCodes(line.teeth) || work.diagnosis || '',
+        String(line.elements),
+        line.procedure,
+        line.lab ?? '',
+        ...notes,
+      ]);
     }
   }
 
-  rows.push(['', '', '', '', '', headers.total, String(totalElements(works)), '', '', '']);
+  const total = Array<string>(columns.length).fill('');
+  total[elementsAt - 1] = headers.total;
+  total[elementsAt] = String(totalElements(works));
+  rows.push(total);
 
   return rows;
 }

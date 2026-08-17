@@ -1,29 +1,78 @@
-import { Download, FlaskConical, Plus, Trash2 } from 'lucide-react';
+import { Check, Download, FlaskConical, Plus, Trash2, Undo2 } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
+import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
+import { ToothSpan } from '@/components/works/ToothSpan';
 import { WorkFormDialog } from '@/components/works/WorkFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
+import { ActionMenu } from '@/components/ui/ActionMenu';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
-import { deleteWork } from '@/lib/actions/works';
+import { deleteWork, markWorkReceived } from '@/lib/actions/works';
 import { requirePermission } from '@/lib/auth/guard';
-import { toDateKey, toMonthKey } from '@/lib/dates';
+import { toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
-import { cn, matches } from '@/lib/utils';
-import { elementsOf, fromMonthKey, monthsPresent, totalElements } from '@/lib/works';
+import { getAssignableStaff } from '@/lib/queries';
+import { cn } from '@/lib/utils';
+import { getProcedureOptions } from '@/lib/work-procedures';
+import {
+  daysLate,
+  elementsOf,
+  filterWorks,
+  monthsPresent,
+  NO_LAB,
+  resolveWorkMonth,
+  totalElements,
+  toWorkFilterStatus,
+  workStatus,
+  type WorkStatus,
+} from '@/lib/works';
 
 export const dynamic = 'force-dynamic';
 
-/** Sentinel for "no laboratory written on this line" — never a real lab name. */
-const NO_LAB = '__none__';
+/** How each state of a case reads in the register's own column. */
+const STATUS_TONES: Record<WorkStatus, BadgeTone> = {
+  overdue: 'danger',
+  dueToday: 'warn',
+  dueSoon: 'warn',
+  received: 'ok',
+  open: 'neutral',
+};
+
+/** Padding and alignment shared by every cell in the register. */
+const CELL = 'px-3 py-3 align-top';
 
 /**
- * The three sub-columns inside the works cell, so the heading and every line
- * underneath it stand in the same places. One template, quoted twice.
+ * The rule that opens a case. Every cell on a case's first row carries it, so
+ * collapsing draws one line across the table rather than nine stubs.
  */
-const LINE_GRID = 'grid grid-cols-[3rem_minmax(0,1fr)_minmax(4.5rem,auto)] gap-x-3';
+const CASE_TOP = 'border-t-2 border-line';
+
+/** The hairline between two pieces of work inside one case. */
+const LINE_TOP = 'border-t border-line';
+
+const HEAD_BASE =
+  'bg-surface px-3 py-3 text-left align-bottom text-[0.82rem] font-bold tracking-wide text-ink-faint uppercase';
+
+/**
+ * The headings stay put while the month scrolls under them. `inset` shadow
+ * rather than a border, because a collapsed border does not travel with a
+ * sticky cell — it is painted by the table, which is what scrolls away.
+ */
+const HEAD = cn(
+  HEAD_BASE,
+  'md:sticky md:top-0 md:z-10 md:shadow-[inset_0_-2px_0_var(--color-line-strong)]',
+);
+
+/** Pinned in both directions: it is the last column and it is the first row. */
+const HEAD_ACTIONS = cn(
+  HEAD_BASE,
+  'md:sticky md:top-0 md:right-0 md:z-20',
+  'md:shadow-[inset_0_-2px_0_var(--color-line-strong),inset_1px_0_0_var(--color-line)]',
+);
 
 export async function generateMetadata({
   params,
@@ -38,16 +87,22 @@ export async function generateMetadata({
 /**
  * The works register.
  *
- * One wide table, the way the practice already keeps it on paper: a row per case
- * with the lab's serial, our number, who it is for, a number to ring, the span —
- * and the work itself as rows stacked inside its own column, because a case is
- * hardly ever one thing.
+ * One wide table, the way the practice already keeps it on paper: a case per
+ * row-group with the lab's serial, who it is for, a number to ring, and the
+ * work itself — one row per piece, because a case is hardly ever one thing.
  *
- * What the register is *for* is the last column and the line under the table.
- * A laboratory bills by the element and sometimes bills for more than it was
- * sent; this is the practice's own count, and the monthly total at the foot is
- * the figure the invoice gets held against. That is also why the default view is
- * this month rather than everything: the month is the unit the bill arrives in.
+ * The pieces are real table rows rather than a grid inside a cell, and the case
+ * columns `rowSpan` across them. That is the whole difference: a grid quoted
+ * twice, once in the heading and once in the body, is two grids that size their
+ * own columns to their own contents and drift apart on the first long procedure
+ * name. Letting the table lay out the table costs nothing and cannot drift.
+ *
+ * What the register is *for* is the element column and the line under the
+ * table. A laboratory bills by the element and sometimes bills for more than it
+ * was sent; this is the practice's own count, and the monthly total at the foot
+ * is the figure the invoice gets held against. That is also why the default view
+ * is this month rather than everything: the month is the unit the bill arrives
+ * in.
  *
  * Filtering happens in memory rather than in the query for the reason the
  * catalogue does the same — `matches()` folds accents and `ILIKE` does not, so
@@ -58,7 +113,12 @@ export default async function WorksPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ q?: string; lab?: string; month?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    lab?: string;
+    month?: string;
+    status?: string;
+  }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -66,28 +126,43 @@ export default async function WorksPage({
   const user = await requirePermission('work.view');
   const canEdit = user.permissions.includes('work.edit');
   const canDelete = user.permissions.includes('work.delete');
+  // A separate question from `work.edit`: the front desk chases cases it may not
+  // rewrite, and chasing is exactly what the board is for.
+  const canFollowUp = user.permissions.includes('followup.edit');
+  const showActions = canEdit || canDelete || canFollowUp;
 
   const t = await getTranslations('works');
   const tc = await getTranslations('common');
+  // The four corners of the mouth in words, for the readers who cannot see the
+  // bracket the span is drawn in.
+  const tt = await getTranslations('teeth');
   const format = await getFormatter();
 
-  const allWorks = await prisma.work.findMany({
-    // Newest first: the row somebody is looking for is nearly always the one
-    // written this week. `number` breaks the tie so two cases sent on one day
-    // keep the order they were written in.
-    orderBy: [{ sentAt: 'desc' }, { number: 'desc' }],
-    include: { lines: { orderBy: { position: 'asc' } } },
-  });
+  const [allWorks, staff, procedures] = await Promise.all([
+    prisma.work.findMany({
+      // Newest first: the row somebody is looking for is nearly always the one
+      // written this week. `number` breaks the tie so two cases sent on one day
+      // keep the order they were written in — it is still the register's own
+      // sequence, it just no longer has a column of its own.
+      orderBy: [{ sentAt: 'desc' }, { number: 'desc' }],
+      include: { lines: { orderBy: { position: 'asc' } } },
+    }),
+    canFollowUp ? getAssignableStaff() : Promise.resolve([]),
+    // What the edit dialog's `punimi` field offers. Only fetched for somebody
+    // who can open that dialog.
+    canEdit ? getProcedureOptions() : Promise.resolve([]),
+  ]);
 
-  const { q, lab, month } = await searchParams;
+  const { q, lab, month, status } = await searchParams;
   const query = (q ?? '').trim();
   const labFilter = lab ?? '';
+  const statusFilter = toWorkFilterStatus(status);
+
+  const day = today();
+  const dayKey = toDateKey(day);
 
   const months = monthsPresent(allWorks);
-  // `all` is a deliberate choice, `''` is nobody having chosen yet — and the
-  // month a practice wants on arriving is the one it is billed for.
-  const monthFilter =
-    month === 'all' ? null : ((month && fromMonthKey(month) ? month : months[0]) ?? null);
+  const monthFilter = resolveWorkMonth(months, month, statusFilter);
 
   // Every laboratory the register has ever named, for the filter.
   const labs = [
@@ -96,37 +171,55 @@ export default async function WorksPage({
     ),
   ].sort((a, b) => a!.localeCompare(b!)) as string[];
 
-  const works = allWorks.filter((work) => {
-    if (monthFilter && toMonthKey(work.sentAt) !== monthFilter) return false;
+  const works = filterWorks(
+    allWorks,
+    { query, lab: labFilter, month: monthFilter, status: statusFilter },
+    day,
+  );
 
-    if (labFilter === NO_LAB) {
-      if (work.lines.some((line) => line.lab?.trim())) return false;
-    } else if (labFilter && !work.lines.some((line) => line.lab?.trim() === labFilter)) {
-      return false;
-    }
-
-    if (!query) return true;
-
-    // Everything printed on the row is searchable, including the work itself —
-    // "who did we send a zirconia bridge for" is the question this answers.
-    const haystack = [
-      String(work.number),
-      work.labSerial ?? '',
-      work.patientName,
-      work.phone,
-      work.diagnosis ?? '',
-      work.notes ?? '',
-      ...work.lines.map((line) => line.procedure),
-      ...work.lines.map((line) => line.lab ?? ''),
-    ];
-    return haystack.some((field) => field && matches(field, query));
-  });
-
-  const isFiltered = Boolean(query || labFilter || (monthFilter && monthFilter !== months[0]));
+  // Whether anything is actually narrowed. The month is always set and so is
+  // never evidence on its own — the register opening where it always opens is
+  // not a filter, and a Clear button that clears nothing is worse than none.
+  // Widening to every month *is* a choice, hence the comparison rather than a
+  // truth test.
+  const isFiltered = Boolean(
+    query || labFilter || statusFilter || monthFilter !== (months[0] ?? null),
+  );
   const elementTotal = totalElements(works);
 
+  // What the practice is still waiting on, across the whole register rather than
+  // the month on screen — the count is the reason to press the filter, so it
+  // must not be scoped by a filter that has not been pressed yet.
+  const lateCount = allWorks.filter((work) => workStatus(work, day) === 'overdue').length;
+
   const monthLabel = (key: string) =>
-    format.dateTime(new Date(`${key}-01T00:00:00.000Z`), { month: 'long', year: 'numeric' });
+    format.dateTime(new Date(`${key}-01T00:00:00.000Z`), {
+      month: 'long',
+      year: 'numeric',
+    });
+
+  // The year is only worth its width when the view can hold more than one. On a
+  // month it is the same four digits down the whole column; across every month
+  // it is the difference between last August and this one.
+  const dateStyle = monthFilter
+    ? ({ day: '2-digit', month: '2-digit' } as const)
+    : ({ day: '2-digit', month: '2-digit', year: '2-digit' } as const);
+
+  // Padded here rather than left to the pattern, because asking for two digits
+  // is only a request. Albanian's own pattern for a day and a month is `d.M`,
+  // and ICU hands that back as written — so the fourth of August arrived as
+  // `4.8` and the fourteenth as `14.8`, a column of dates in a numeric face that
+  // did not line up and read like a version number. Only the width is taken
+  // over: the order of the parts and the mark between them stay the locale's
+  // business, which is why this counts parts rather than writing a format of its
+  // own. UTC to match `format.dateTime`, which every other date on this page
+  // goes through — the register stores its days at UTC midnight.
+  const dateFormat = new Intl.DateTimeFormat(locale, { ...dateStyle, timeZone: 'UTC' });
+  const shortDate = (value: Date) =>
+    dateFormat
+      .formatToParts(value)
+      .map((part) => (part.type === 'literal' ? part.value : part.value.padStart(2, '0')))
+      .join('');
 
   // The export carries whatever the screen is showing — a filtered register is a
   // deliberate selection, and exporting the whole thing instead would silently
@@ -134,6 +227,7 @@ export default async function WorksPage({
   const exportQuery = new URLSearchParams();
   if (query) exportQuery.set('q', query);
   if (labFilter) exportQuery.set('lab', labFilter);
+  if (statusFilter) exportQuery.set('status', statusFilter);
   exportQuery.set('month', monthFilter ?? 'all');
   // The route sits outside the `[locale]` segment and so has no language of its
   // own — without this the column headings would always come out in Albanian.
@@ -147,7 +241,7 @@ export default async function WorksPage({
     </Link>
   ) : null;
 
-  const columnCount = 6 + (canEdit || canDelete ? 1 : 0);
+  const columnCount = 8 + (showActions ? 1 : 0);
 
   return (
     <>
@@ -174,21 +268,48 @@ export default async function WorksPage({
         <FilterBar
           basePath="/works"
           label={tc('filters')}
-          values={{ q: query, lab: labFilter, month: monthFilter ?? 'all' }}
-          search={{ name: 'q', label: tc('search'), placeholder: t('searchPlaceholder') }}
+          filtered={isFiltered}
+          values={{
+            q: query,
+            lab: labFilter,
+            month: monthFilter ?? 'all',
+            status: statusFilter,
+          }}
+          search={{
+            name: 'q',
+            label: tc('search'),
+            placeholder: t('searchPlaceholder'),
+          }}
           selects={[
+            {
+              name: 'status',
+              label: t('status'),
+              anyLabel: t('anyStatus'),
+              options: [
+                // Late leads, and says how many: it is the only one of these
+                // that is a problem rather than a view.
+                {
+                  value: 'late',
+                  label: t('statusLateCount', { count: lateCount }),
+                },
+                { value: 'out', label: t('statusOut') },
+                { value: 'back', label: t('statusBack') },
+              ],
+            },
             {
               name: 'month',
               label: t('month'),
-              // Not "any month" first: the register is kept and billed a month
-              // at a time, so the whole run is the exception here.
-              anyLabel: monthFilter ? monthLabel(monthFilter) : t('allMonths'),
-              options: [
-                ...months
-                  .filter((key) => key !== monthFilter)
-                  .map((key) => ({ value: key, label: monthLabel(key) })),
-                ...(monthFilter ? [{ value: 'all', label: t('allMonths') }] : []),
-              ],
+              // Every month the register has is a real option, including the one
+              // on screen. Leaving the current month out and titling the empty
+              // option after it looked the same and was not: the empty option
+              // posts "no month", which resolves to the newest one — so pressing
+              // Filter from a June search quietly moved the register to August.
+              anyValue: 'all',
+              anyLabel: t('allMonths'),
+              options: months.map((key) => ({
+                value: key,
+                label: monthLabel(key),
+              })),
             },
             ...(labs.length > 0
               ? [
@@ -206,7 +327,10 @@ export default async function WorksPage({
           ]}
           submitLabel={tc('filter')}
           clearLabel={tc('clearFilters')}
-          summary={t('showing', { count: works.length, total: allWorks.length })}
+          summary={t('showing', {
+            count: works.length,
+            total: allWorks.length,
+          })}
         />
       ) : null}
 
@@ -219,186 +343,409 @@ export default async function WorksPage({
           />
         </div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full min-w-[64rem] border-collapse text-left">
+        // The scroll lives in a box of its own rather than in the page, so the
+        // sideways bar is at the bottom of the *view* and not under the last row
+        // of a forty-case month, where nobody would ever find it. It is also
+        // what gives the headings and the total something to stick to.
+        <div className="register-scroll card md:max-h-[calc(100vh-15rem)] md:overflow-auto">
+          <table className="register w-full border-collapse text-left md:min-w-[52rem]">
             <caption className="sr-only">
               {monthFilter ? `${t('title')} — ${monthLabel(monthFilter)}` : t('title')}
             </caption>
+
+            {/* Widths as hints, not law: the dates, the count and the buttons
+                know how wide they need to be, and everything left over goes to
+                the two columns that hold words. */}
+            <colgroup>
+              <col className="w-[4.5rem]" />
+              <col className="w-[8rem]" />
+              <col className="w-[5rem]" />
+              <col className="w-[14rem]" />
+              <col className="w-[7rem]" />
+              <col className="w-[3.5rem]" />
+              <col />
+              <col className="w-[7rem]" />
+              {showActions ? <col className="w-[7.5rem]" /> : null}
+            </colgroup>
+
             <thead>
-              <tr className="border-b-2 border-line">
-                {[t('sentAt'), t('labSerial'), t('number'), t('patientName'), t('phone')].map(
-                  (heading) => (
-                    <th
-                      key={heading}
-                      scope="col"
-                      className="px-3 py-3 align-bottom text-[0.82rem] font-bold tracking-wide text-ink-faint uppercase first:pl-5"
-                    >
-                      {heading}
-                    </th>
-                  ),
-                )}
-
-                {/* One column holding three. The sub-headings sit on the same
-                    grid as the lines below them, so the cell reads as the small
-                    table it is rather than as three words above a paragraph. */}
-                <th scope="col" className="px-3 py-3 align-bottom">
-                  <span className="block text-[0.82rem] font-bold tracking-wide text-ink uppercase">
-                    {t('lines')}
-                  </span>
-                  <span
-                    className={cn(
-                      LINE_GRID,
-                      'mt-1 text-[0.72rem] font-semibold tracking-wide text-ink-faint uppercase',
-                    )}
-                  >
-                    <span className="text-right">{t('elements')}</span>
-                    <span>{t('procedure')}</span>
-                    <span>{t('lab')}</span>
-                  </span>
+              <tr>
+                <th scope="col" data-cell="sent" className={cn(HEAD, 'md:pl-5')}>
+                  {t('sentAt')}
                 </th>
-
-                {canEdit || canDelete ? (
-                  <th scope="col" className="px-3 py-3 pr-5 align-bottom" data-print-hide>
+                <th scope="col" data-cell="due" className={HEAD}>
+                  {t('dueAt')}
+                </th>
+                <th scope="col" data-cell="serial" className={HEAD}>
+                  {t('labSerial')}
+                </th>
+                <th scope="col" data-cell="patient" className={HEAD}>
+                  {t('patientName')}
+                </th>
+                <th scope="col" data-cell="teeth" className={HEAD}>
+                  {t('teeth')}
+                </th>
+                {/* The docket's own abbreviation. The column is three characters
+                    wide and the word is nine; the full one is still read out. */}
+                <th scope="col" data-cell="elements" className={cn(HEAD, 'text-right')}>
+                  <span aria-hidden>{t('elementsShort')}</span>
+                  <span className="sr-only">{t('elements')}</span>
+                </th>
+                <th scope="col" data-cell="procedure" className={HEAD}>
+                  {t('procedure')}
+                </th>
+                <th scope="col" data-cell="lab" className={HEAD}>
+                  {t('lab')}
+                </th>
+                {showActions ? (
+                  <th scope="col" data-cell="actions" className={HEAD_ACTIONS} data-print-hide>
                     <span className="sr-only">{tc('actions')}</span>
                   </th>
                 ) : null}
               </tr>
             </thead>
 
-            <tbody>
-              {works.map((work) => (
-                <tr key={work.id} className="border-b border-line align-top last:border-b-0">
-                  <td className="px-3 py-3 pl-5 text-[0.95rem] text-ink-soft tabular-nums">
-                    {format.dateTime(work.sentAt, { day: '2-digit', month: '2-digit' })}
-                  </td>
+            {/* A row group per case, which is what a case is. It is also what
+                lets the phone turn one into a card — see `.register` in
+                globals.css. */}
+            {works.map((work) => {
+              const state = workStatus(work, day);
+              const hasTotal = work.lines.length > 1;
+              const rowSpan = Math.max(1, work.lines.length) + (hasTotal ? 1 : 0);
+              const overdue = state === 'overdue';
 
-                  <td className="px-3 py-3 text-[1rem] font-semibold text-ink tabular-nums">
-                    {work.labSerial || <span className="text-ink-faint">—</span>}
-                  </td>
+              // The pinned column has to paint its own background, or the row
+              // would scroll out from underneath it.
+              const pinned = cn(
+                'md:sticky md:right-0 md:shadow-[inset_1px_0_0_var(--color-line)]',
+                overdue ? 'bg-danger-soft' : 'bg-surface',
+              );
 
-                  <td className="px-3 py-3 text-[1rem] font-bold text-ink tabular-nums">
-                    {work.number}
-                  </td>
+              // The span belongs to the line now. `diagnosis` is what a case
+              // written before the chart existed has instead, so it only speaks
+              // when the lines have nothing to say — printing both prints the
+              // same bridge twice, in two notations that need not agree.
+              const legacySpan = work.lines.some((line) => line.teeth) ? null : work.diagnosis;
+              const phone = work.phone.trim();
 
-                  <td className="px-3 py-3 text-[1rem] text-ink">
-                    {/* The link is there when the case was written against a
-                        record; the text is the register's own copy either way. */}
-                    {work.patientId ? (
-                      <Link href={`/patients/${work.patientId}`} className="font-semibold">
-                        {work.patientName}
-                      </Link>
+              const lineCells = (line: (typeof work.lines)[number], edge: string) => (
+                <>
+                  <td data-cell="teeth" data-label={t('teeth')} className={cn(CELL, edge)}>
+                    {line.teeth ? (
+                      <ToothSpan
+                        value={line.teeth}
+                        quadrantLabel={(quadrant) => tt(`quadrant_${quadrant}`)}
+                        className="text-[0.95rem]"
+                      />
                     ) : (
-                      <span className="font-semibold">{work.patientName}</span>
-                    )}
-                    {/* The span, under the name: it is a property of the case,
-                        and giving it a column of its own on a table this wide
-                        costs more than it is worth. */}
-                    {work.diagnosis ? (
-                      <span className="mt-0.5 block text-[0.92rem] text-ink-soft tabular-nums">
-                        {work.diagnosis}
-                      </span>
-                    ) : null}
-                  </td>
-
-                  <td className="px-3 py-3 text-[1rem] text-ink-soft tabular-nums">
-                    <a href={`tel:${work.phone.replace(/\s/g, '')}`}>{work.phone}</a>
-                    {work.notes ? (
-                      <span className="mt-0.5 block text-[0.88rem] text-ink-faint italic">
-                        {work.notes}
-                      </span>
-                    ) : null}
-                  </td>
-
-                  <td className="px-3 py-3">
-                    {work.lines.length === 0 ? (
-                      <span className="text-[0.95rem] text-ink-faint">—</span>
-                    ) : (
-                      <>
-                        <ul className="divide-y divide-line">
-                          {work.lines.map((line) => (
-                            <li key={line.id} className={cn(LINE_GRID, 'py-1 first:pt-0')}>
-                              <span className="text-right text-[1rem] font-bold text-ink tabular-nums">
-                                {line.elements}
-                              </span>
-                              <span className="text-[0.98rem] font-semibold text-ink">
-                                {line.procedure}
-                              </span>
-                              <span className="text-[0.95rem] text-ink-soft">
-                                {line.lab || '—'}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-
-                        {/* Only once there is something to add up. On a
-                            single-line case the line is already the total. */}
-                        {work.lines.length > 1 ? (
-                          <p
-                            className={cn(LINE_GRID, 'border-t-2 border-line pt-1')}
-                          >
-                            <span className="text-right text-[1rem] font-bold text-ink tabular-nums">
-                              {elementsOf(work)}
-                            </span>
-                            <span className="text-[0.82rem] font-semibold tracking-wide text-ink-faint uppercase">
-                              {t('elementsTotal')}
-                            </span>
-                          </p>
-                        ) : null}
-                      </>
+                      <span className="text-ink-faint">—</span>
                     )}
                   </td>
+                  <td
+                    data-cell="elements"
+                    data-label={t('elements')}
+                    className={cn(
+                      CELL,
+                      edge,
+                      'text-right text-[1rem] font-bold text-ink tabular-nums',
+                    )}
+                  >
+                    {line.elements}
+                  </td>
+                  <td
+                    data-cell="procedure"
+                    className={cn(CELL, edge, 'text-[0.98rem] font-semibold break-words text-ink')}
+                  >
+                    {line.procedure}
+                  </td>
+                  <td
+                    data-cell="lab"
+                    data-label={t('lab')}
+                    className={cn(CELL, edge, 'text-[0.95rem] break-words text-ink-soft')}
+                  >
+                    {line.lab || '—'}
+                  </td>
+                </>
+              );
 
-                  {canEdit || canDelete ? (
-                    <td className="px-3 py-3 pr-5" data-print-hide>
-                      <div className="flex items-center justify-end gap-2">
-                        {canEdit ? (
-                          <WorkFormDialog
-                            work={{
-                              id: work.id,
-                              labSerial: work.labSerial ?? '',
-                              patientId: work.patientId ?? '',
-                              patientName: work.patientName,
-                              phone: work.phone,
-                              diagnosis: work.diagnosis ?? '',
-                              notes: work.notes ?? '',
-                              sentAt: toDateKey(work.sentAt),
-                              lines: work.lines.map((line) => ({
-                                elements: line.elements,
-                                procedure: line.procedure,
-                                lab: line.lab ?? '',
-                              })),
-                            }}
-                          />
-                        ) : null}
-                        {canDelete ? (
-                          <ActionForm
-                            action={deleteWork}
-                            values={{ id: work.id }}
-                            confirmMessage={tc('confirmDelete')}
-                          >
-                            <button
-                              type="submit"
-                              className="btn btn-danger btn-sm"
-                              title={tc('delete')}
-                            >
-                              <Trash2 size={17} aria-hidden />
-                              <span className="sr-only">{tc('delete')}</span>
-                            </button>
-                          </ActionForm>
-                        ) : null}
-                      </div>
+              return (
+                // A late case is tinted rather than badged alone: on a table
+                // this wide the status column is a long way from the name, and
+                // the row is what the eye actually scans.
+                <tbody key={work.id} className={cn(overdue && 'bg-danger-soft')}>
+                  <tr>
+                    <td
+                      rowSpan={rowSpan}
+                      data-cell="sent"
+                      data-label={t('sentAt')}
+                      className={cn(
+                        CELL,
+                        CASE_TOP,
+                        'text-[0.95rem] text-ink-soft tabular-nums md:pl-5',
+                      )}
+                    >
+                      {shortDate(work.sentAt)}
                     </td>
+
+                    {/* When it is due back, and what that means today. The one
+                        column the paper register never had, and the one the
+                        practice is actually rung about. */}
+                    <td
+                      rowSpan={rowSpan}
+                      data-cell="due"
+                      data-label={t('dueAt')}
+                      className={cn(CELL, CASE_TOP, 'text-[0.95rem] tabular-nums')}
+                    >
+                      {work.receivedAt ? (
+                        <>
+                          <span className="block text-ink-soft">{shortDate(work.receivedAt)}</span>
+                          <Badge tone={STATUS_TONES.received}>{t('statusBack')}</Badge>
+                        </>
+                      ) : work.dueAt ? (
+                        <>
+                          <span className="block text-ink-soft">{shortDate(work.dueAt)}</span>
+                          {/* Only when there is something to say. A case due in
+                              three weeks gets its date and no colour — a
+                              register where every open row wears a badge has no
+                              badges. */}
+                          {state === 'overdue' ? (
+                            <Badge tone={STATUS_TONES.overdue}>
+                              {t('lateByDays', { days: daysLate(work, day) })}
+                            </Badge>
+                          ) : state === 'dueToday' ? (
+                            <Badge tone={STATUS_TONES.dueToday}>{t('statusDueToday')}</Badge>
+                          ) : state === 'dueSoon' ? (
+                            <Badge tone={STATUS_TONES.dueSoon}>{t('statusDueSoon')}</Badge>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span className="text-ink-faint">—</span>
+                      )}
+                    </td>
+
+                    <td
+                      rowSpan={rowSpan}
+                      data-cell="serial"
+                      data-label={t('labSerial')}
+                      className={cn(
+                        CELL,
+                        CASE_TOP,
+                        'text-[1rem] font-semibold text-ink tabular-nums',
+                      )}
+                    >
+                      {work.labSerial || <span className="text-ink-faint">—</span>}
+                    </td>
+
+                    <td
+                      rowSpan={rowSpan}
+                      data-cell="patient"
+                      className={cn(CELL, CASE_TOP, 'text-[1rem] text-ink')}
+                    >
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        {/* The link is there when the case was written against a
+                            record; the text is the register's own copy either
+                            way. */}
+                        {work.patientId ? (
+                          <Link href={`/patients/${work.patientId}`} className="font-semibold">
+                            {work.patientName}
+                          </Link>
+                        ) : (
+                          <span className="font-semibold">{work.patientName}</span>
+                        )}
+                        {/* Beside the name, not beside the date: urgent is a
+                            property of the case, and against the due column it
+                            read as a badge on a promise that may not exist. */}
+                        {work.urgent ? <Badge tone="alert">{t('urgent')}</Badge> : null}
+                      </span>
+
+                      {phone ? (
+                        <a
+                          href={`tel:${phone.replace(/\s/g, '')}`}
+                          className="mt-0.5 block text-[0.95rem] text-ink-soft tabular-nums"
+                        >
+                          {work.phone}
+                        </a>
+                      ) : null}
+
+                      {legacySpan ? (
+                        <span className="mt-0.5 block text-[0.92rem] text-ink-soft tabular-nums">
+                          {legacySpan}
+                        </span>
+                      ) : null}
+
+                      {work.notes ? (
+                        <span className="mt-0.5 block text-[0.88rem] text-ink-faint italic">
+                          {work.notes}
+                        </span>
+                      ) : null}
+                    </td>
+
+                    {work.lines.length > 0 ? (
+                      lineCells(work.lines[0], CASE_TOP)
+                    ) : (
+                      <td
+                        colSpan={4}
+                        data-cell="no-lines"
+                        className={cn(CELL, CASE_TOP, 'text-[0.95rem] text-ink-faint')}
+                      >
+                        —
+                      </td>
+                    )}
+
+                    {showActions ? (
+                      <td
+                        rowSpan={rowSpan}
+                        data-cell="actions"
+                        className={cn(CELL, CASE_TOP, pinned)}
+                        data-print-hide
+                      >
+                        <div className="flex items-center justify-end gap-2">
+                          {/* The one whole verb of the four, and the only one
+                              left out on the row: a box arrives from the
+                              laboratory and somebody marks it. The chase list is
+                              worth exactly as much as this button is easy to
+                              press — behind a menu it would be two clicks a
+                              case, all day. The rest are weekly at most, and
+                              four buttons in a column this narrow wrapped onto
+                              two lines and read as four equal demands. */}
+                          {canEdit ? (
+                            <ActionForm action={markWorkReceived} values={{ id: work.id }}>
+                              <button
+                                type="submit"
+                                className={cn(
+                                  'btn btn-sm',
+                                  work.receivedAt ? 'btn-ghost' : 'btn-secondary',
+                                )}
+                                title={work.receivedAt ? t('markOut') : t('markBack')}
+                              >
+                                {work.receivedAt ? (
+                                  <Undo2 size={17} aria-hidden />
+                                ) : (
+                                  <Check size={17} aria-hidden />
+                                )}
+                                <span className="sr-only">
+                                  {work.receivedAt ? t('markOut') : t('markBack')}
+                                </span>
+                              </button>
+                            </ActionForm>
+                          ) : null}
+
+                          <ActionMenu label={tc('moreActions')} floating>
+                            {/* Only the case, never the patient behind it: a
+                                line about a crown should open the register at
+                                that crown, and `followUpLink` reads the patient
+                                first. */}
+                            {canFollowUp ? (
+                              <FollowUpFormDialog
+                                staff={staff}
+                                today={dayKey}
+                                link={{ workId: work.id }}
+                                triggerClassName="menu-item"
+                              />
+                            ) : null}
+
+                            {canEdit ? (
+                              <div className={canFollowUp ? 'border-t border-line' : undefined}>
+                                <WorkFormDialog
+                                  labs={labs}
+                                  procedures={procedures}
+                                  triggerClassName="menu-item"
+                                  work={{
+                                    id: work.id,
+                                    labSerial: work.labSerial ?? '',
+                                    patientId: work.patientId ?? '',
+                                    patientName: work.patientName,
+                                    phone: work.phone,
+                                    diagnosis: work.diagnosis ?? '',
+                                    notes: work.notes ?? '',
+                                    sentAt: toDateKey(work.sentAt),
+                                    dueAt: work.dueAt ? toDateKey(work.dueAt) : '',
+                                    receivedAt: work.receivedAt ? toDateKey(work.receivedAt) : '',
+                                    urgent: work.urgent,
+                                    lines: work.lines.map((line) => ({
+                                      elements: line.elements,
+                                      procedure: line.procedure,
+                                      lab: line.lab ?? '',
+                                      teeth: line.teeth ?? '',
+                                    })),
+                                  }}
+                                />
+                              </div>
+                            ) : null}
+
+                            {canDelete ? (
+                              <ActionForm
+                                action={deleteWork}
+                                values={{ id: work.id }}
+                                confirmMessage={tc('confirmDelete')}
+                                className={
+                                  canEdit || canFollowUp ? 'block border-t border-line' : 'block'
+                                }
+                              >
+                                <button
+                                  type="submit"
+                                  role="menuitem"
+                                  className="menu-item menu-item-danger"
+                                >
+                                  <Trash2 size={19} aria-hidden className="shrink-0" />
+                                  {tc('delete')}
+                                </button>
+                              </ActionForm>
+                            ) : null}
+                          </ActionMenu>
+                        </div>
+                      </td>
+                    ) : null}
+                  </tr>
+
+                  {work.lines.slice(1).map((line) => (
+                    <tr key={line.id}>{lineCells(line, LINE_TOP)}</tr>
+                  ))}
+
+                  {/* Only once there is something to add up. On a single-line
+                      case the line is already the total. */}
+                  {hasTotal ? (
+                    <tr>
+                      <td
+                        data-cell="total-label"
+                        className={cn(
+                          CELL,
+                          LINE_TOP,
+                          'text-right text-[0.82rem] font-semibold tracking-wide text-ink-faint uppercase',
+                        )}
+                      >
+                        {t('elementsTotal')}
+                      </td>
+                      <td
+                        data-cell="total"
+                        className={cn(
+                          CELL,
+                          LINE_TOP,
+                          'text-right text-[1rem] font-bold text-ink tabular-nums',
+                        )}
+                      >
+                        {elementsOf(work)}
+                      </td>
+                      <td colSpan={2} data-cell="filler" className={cn(CELL, LINE_TOP)} />
+                    </tr>
                   ) : null}
-                </tr>
-              ))}
-            </tbody>
+                </tbody>
+              );
+            })}
 
             {/* The month's bill, in one number. This is the line the invoice is
-                held against, so it stays under the table rather than being left
-                for whoever opens the export to select a column and add up. */}
+                held against, so it stays under the table — and stays on screen,
+                because a total you have to scroll to the end of August to read
+                is a total nobody checks. */}
             <tfoot>
-              <tr className="border-t-2 border-line-strong bg-surface-soft">
-                <td colSpan={columnCount} className="px-5 py-3">
+              <tr>
+                <td
+                  colSpan={columnCount}
+                  className={cn(
+                    'border-t-2 border-line-strong bg-surface-soft px-5 py-3',
+                    'md:sticky md:bottom-0 md:z-10 md:shadow-[inset_0_2px_0_var(--color-line-strong)]',
+                  )}
+                >
                   <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
                     <span className="text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
                       {monthFilter ? monthLabel(monthFilter) : t('allMonths')} ·{' '}

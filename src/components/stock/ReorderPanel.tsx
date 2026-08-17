@@ -30,6 +30,10 @@ export async function ReorderPanel({
   canEdit: boolean;
 }) {
   const t = await getTranslations('reorder');
+  // The order is written in boxes, so the word for one comes from the storage
+  // room's strings and is handed to `reorderAsText`, which cannot look it up.
+  const ts = await getTranslations('stock');
+  const boxes = (count: number) => ts('boxes', { count });
 
   if (lines.length === 0) return null;
 
@@ -45,7 +49,7 @@ export async function ReorderPanel({
 
       <div className="divide-y divide-line">
         {groups.map((group) => {
-          const text = reorderAsText(group.lines, t('messageHeading'));
+          const text = reorderAsText(group.lines, t('messageHeading'), boxes);
           // Their own number, not a share sheet — `wa.me/` with no number opens
           // a contact picker, which is one more decision at the wrong moment.
           const whatsapp = group.supplierPhone
@@ -131,7 +135,6 @@ export async function ReorderPanel({
                           <span>
                             {t('onShelf', {
                               qty: line.quantity,
-                              unit: line.unit,
                               min: line.minLimit,
                             })}
                           </span>
@@ -139,7 +142,7 @@ export async function ReorderPanel({
                           <>
                             <span className="flex items-center gap-1.5">
                               <TrendingDown size={15} aria-hidden />
-                              {t('monthlyUse', { qty: line.monthlyUse, unit: line.unit })}
+                              {t('monthlyUse', { qty: line.monthlyUse })}
                             </span>
                             <span
                               className={cn(
@@ -159,7 +162,7 @@ export async function ReorderPanel({
 
                     <p className="shrink-0 text-right">
                       <span className="block text-[1.15rem] font-bold text-brand-deep tabular-nums">
-                        +{orderAmount(line)}
+                        +{orderAmount(line, boxes)}
                       </span>
                       <span className="block text-[0.85rem] text-ink-faint">{t('suggested')}</span>
                     </p>

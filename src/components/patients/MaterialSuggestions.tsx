@@ -134,7 +134,7 @@ export function MaterialSuggestions({
                     className="field-input w-20 tabular-nums"
                   />
                   <span className="text-[0.9rem] text-ink-soft">
-                    {item.unit} · {t('inStock', { qty: item.onHand, unit: item.unit })}
+                    {t('boxes', { count: quantity })} · {t('inStock', { qty: item.onHand })}
                   </span>
                   {short ? (
                     <span className="flex items-center gap-1 text-[0.88rem] font-semibold text-warn">

@@ -5,13 +5,16 @@ import { routing } from '@/i18n/routing';
 import { recordAudit } from '@/lib/auth/guard';
 import { getCurrentUser } from '@/lib/auth/session';
 import { csvResponse } from '@/lib/csv';
-import { toDateKey, toMonthKey } from '@/lib/dates';
+import { toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
-import { matches } from '@/lib/utils';
-import { fromMonthKey, monthsPresent, totalElements, worksToRows } from '@/lib/works';
-
-/** Same sentinel the register's own lab filter uses. */
-const NO_LAB = '__none__';
+import {
+  filterWorks,
+  monthsPresent,
+  resolveWorkMonth,
+  totalElements,
+  toWorkFilterStatus,
+  worksToRows,
+} from '@/lib/works';
 
 /**
  * The works register as a spreadsheet.
@@ -52,43 +55,24 @@ export async function GET(request: Request) {
   // Same rule as the page: a month unless the caller asked for the whole run,
   // defaulting to the newest month the register has anything in. The invoice
   // arrives monthly, so that is the file somebody means by "export".
-  const requestedMonth = url.searchParams.get('month');
-  const monthFilter =
-    requestedMonth === 'all'
-      ? null
-      : ((requestedMonth && fromMonthKey(requestedMonth) ? requestedMonth : monthsPresent(works)[0]) ??
-        null);
+  const statusFilter = toWorkFilterStatus(url.searchParams.get('status'));
+  const monthFilter = resolveWorkMonth(
+    monthsPresent(works),
+    url.searchParams.get('month'),
+    statusFilter,
+  );
 
-  // The same three filters the page applies, with the same accent-folding
-  // comparison, so the file and the screen can never disagree.
-  const filtered = works.filter((work) => {
-    if (monthFilter && toMonthKey(work.sentAt) !== monthFilter) return false;
-
-    if (labFilter === NO_LAB) {
-      if (work.lines.some((line) => line.lab?.trim())) return false;
-    } else if (labFilter && !work.lines.some((line) => line.lab?.trim() === labFilter)) {
-      return false;
-    }
-
-    if (!query) return true;
-
-    const haystack = [
-      String(work.number),
-      work.labSerial ?? '',
-      work.patientName,
-      work.phone,
-      work.diagnosis ?? '',
-      work.notes ?? '',
-      ...work.lines.map((line) => line.procedure),
-      ...work.lines.map((line) => line.lab ?? ''),
-    ];
-    return haystack.some((field) => field && matches(field, query));
-  });
+  // The page's own filter, called rather than copied — the promise that the file
+  // is what was on screen is only kept if there is one implementation of it.
+  const filtered = filterWorks(
+    works,
+    { query, lab: labFilter, month: monthFilter, status: statusFilter },
+    today(),
+  );
 
   const rows = worksToRows(
     filtered,
     {
-      number: t('number'),
       labSerial: t('labSerial'),
       patientName: t('patientName'),
       phone: t('phone'),
@@ -98,6 +82,10 @@ export async function GET(request: Request) {
       lab: t('lab'),
       notes: t('exportNotes'),
       sentAt: t('sentAt'),
+      dueAt: t('dueAt'),
+      receivedAt: t('receivedAt'),
+      urgent: t('urgent'),
+      yes: t('exportYes'),
       total: t('elementsTotal'),
     },
     toDateKey,

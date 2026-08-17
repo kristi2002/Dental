@@ -167,6 +167,65 @@
     @apply min-h-16 px-5 text-[1.1rem];
   }
 
+  /* --- A row in a menu -------------------------------------------------
+   *
+   * What a button turns into once it moves inside a dropdown. Full width and
+   * left aligned, with no border of its own: in a menu the panel is the box,
+   * and five bordered pills stacked would be five boxes inside one.
+   *
+   * A component class rather than a Tailwind string because the dialogs take
+   * their trigger's styling as a prop — a row has to look the same whether it
+   * is a link, a submit button or the button that opens a dialog. */
+  .menu-item {
+    @apply flex min-h-11 w-full items-center gap-2.5 px-4 py-2.5 text-left
+      text-[1rem] font-semibold text-ink no-underline transition-colors
+      hover:bg-brand-soft;
+  }
+
+  .menu-item-danger {
+    @apply text-danger hover:bg-danger-soft;
+  }
+
+  /* Nothing behind it — no number on the record, no address. Shown rather than
+   * dropped, because "there is no phone number" is the answer to "why can I not
+   * message them", and a missing row does not answer anything. */
+  .menu-item-muted {
+    @apply cursor-not-allowed text-ink-faint hover:bg-transparent;
+  }
+
+  /* --- One of many ----------------------------------------------------
+   *
+   * View switchers, filter chips, tab bars: a hairline box holding segments,
+   * exactly one of them chosen.
+   *
+   * The box is the whole point. These used to be loose rows of `btn btn-sm`,
+   * the chosen one turned `btn-primary` — which put a solid teal button on the
+   * page in the same weight and colour as the one real call to action beside
+   * it, and left the eye to work out which of the two actually did something.
+   * Enclosed, the same fill stops reading as "press me" and starts reading as
+   * "you are here"; the teal is spent once per screen again.
+   *
+   * The chosen segment is styled off `aria-current` / `aria-pressed` rather
+   * than off a class of its own, so what a screen reader announces and what
+   * the eye sees cannot drift apart — there is only ever one thing to set. */
+  .segmented {
+    @apply inline-flex flex-wrap items-center gap-1 rounded-lg border border-line-strong
+      bg-surface p-1;
+  }
+
+  .segment {
+    @apply inline-flex min-h-11 items-center justify-center rounded-md px-3 py-1.5
+      text-center text-[0.95rem] font-bold whitespace-nowrap text-ink-soft no-underline
+      transition-colors hover:bg-paper hover:text-ink;
+  }
+
+  /* `:not(false)` because `aria-current="false"` is a real way of writing
+   * "not this one", and it must not light up. */
+  .segment[aria-current]:not([aria-current='false']),
+  .segment[aria-pressed='true'] {
+    @apply bg-brand-dark text-white hover:bg-brand-dark hover:text-white;
+  }
+
   /* --- App chrome ---------------------------------------------------- */
 
   /* The masthead: teal deepening to the left, so the wordmark sits on the
@@ -206,6 +265,202 @@
    * rather than in a line colour that would vanish. */
   .on-brand-control {
     @apply border border-white/35 text-white transition-colors hover:bg-white/15;
+  }
+
+  /* --- Shelf labels ----------------------------------------------------
+   *
+   * A sheet of QR stickers, sized in millimetres rather than in pixels: the
+   * only dimension that matters here is how wide the sticker is when it comes
+   * out of the printer, and `--label-size` is set per request from the size the
+   * filter bar committed. `auto-fill` then serves a phone screen and a sheet of
+   * A4 from one grid without a breakpoint. */
+  .label-sheet {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--label-size, 45mm), 1fr));
+    gap: 4mm;
+  }
+
+  .label-card {
+    /* Always on white, never on the theme's paper: the symbol has to keep its
+     * contrast in the dark theme, and the sticker is going onto a white label
+     * anyway. The border is the line somebody cuts along. */
+    background: #fff;
+    color: #000;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 0.4rem;
+    padding: 2.5mm;
+    text-align: center;
+    /* A sticker cut in half by a page break is a wasted sticker. */
+    break-inside: avoid;
+  }
+
+  .label-qr {
+    display: block;
+    width: 100%;
+    /* The symbol is square and must never be stretched — a decoder reads the
+     * module grid, and a millimetre of aspect drift is a symbol that reads on
+     * the screen and not off the paper. */
+    aspect-ratio: 1;
+    height: auto;
+  }
+
+  .label-title {
+    margin-top: 1.5mm;
+    font-size: 2.6mm;
+    font-weight: 700;
+    line-height: 1.15;
+    /* Names run long — "Kompozit Filtek Z250 Universal Restorative" — and a
+     * sticker cannot scroll. Two lines, then it stops. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .label-subtitle {
+    font-size: 2.4mm;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .label-footnote {
+    font-size: 2.1mm;
+    line-height: 1.2;
+    color: #555;
+  }
+}
+
+/* --- The works register ------------------------------------------------
+ *
+ * One table on a desktop and a stack of cards on a phone, out of one DOM.
+ *
+ * The register is nine columns wide because a laboratory case genuinely has
+ * nine things on it, and no arrangement of nine fits across a phone. The usual
+ * answer is to render every row twice and hide one — which on this page would
+ * mean two edit dialogs and two follow-up dialogs mounted per case, for every
+ * case in the month, so that a phone can see one of each.
+ *
+ * So the markup stays a table and the narrow screen re-reads it. Each case is
+ * its own `<tbody>`, which is what makes that possible: the row group becomes
+ * the card, `display: contents` dissolves the rows inside it, and every cell of
+ * the case lands in one grid where `order` can put the patient at the top and
+ * the buttons at the foot. The headings are gone at this width, so each cell
+ * that needs one carries its own.
+ *
+ * Deliberately outside `@layer components`: these rules exist to overrule the
+ * table's own utility classes, and a layered rule cannot overrule a utility.
+ * The breakpoint is Tailwind's `md`, from the other side. */
+@media (max-width: 47.9375rem) {
+  .register,
+  .register tbody,
+  .register tfoot,
+  .register tfoot tr,
+  .register td {
+    display: block;
+  }
+
+  .register thead,
+  .register colgroup,
+  .register [data-cell='filler'] {
+    display: none;
+  }
+
+  .register tbody {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.15rem 0.75rem;
+    border-bottom: 1px solid var(--color-line);
+    padding: 0.9rem 1rem;
+  }
+
+  .register tbody:last-of-type {
+    border-bottom: 0;
+  }
+
+  .register tr {
+    display: contents;
+  }
+
+  .register tbody td {
+    padding: 0;
+    border: 0;
+  }
+
+  .register td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  /* Who it is for, then when it is due: the two questions a phone is holding
+   * the register up to answer. */
+  .register [data-cell='patient'],
+  .register [data-cell='due'] {
+    grid-column: 1 / -1;
+  }
+
+  .register [data-cell='patient'] {
+    order: 1;
+  }
+
+  .register [data-cell='due'] {
+    order: 2;
+  }
+
+  .register [data-cell='sent'] {
+    order: 3;
+  }
+
+  .register [data-cell='serial'] {
+    order: 4;
+    text-align: right;
+  }
+
+  /* The work itself, two cells to a row: what and how many, then what is being
+   * made and by whom. */
+  .register [data-cell='teeth'],
+  .register [data-cell='procedure'] {
+    order: 5;
+  }
+
+  .register [data-cell='elements'],
+  .register [data-cell='lab'] {
+    order: 5;
+    text-align: right;
+  }
+
+  .register [data-cell='no-lines'] {
+    order: 5;
+    grid-column: 1 / -1;
+  }
+
+  .register [data-cell='total-label'] {
+    order: 6;
+  }
+
+  .register [data-cell='total'] {
+    order: 6;
+    text-align: right;
+  }
+
+  .register [data-cell='actions'] {
+    order: 7;
+    grid-column: 1 / -1;
+    margin-top: 0.6rem;
+  }
+
+  /* Where the card stops being about the patient and starts being about the
+   * work — once per piece, drawn across both columns it occupies. */
+  .register [data-cell='teeth'],
+  .register [data-cell='elements'],
+  .register [data-cell='no-lines'] {
+    margin-top: 0.45rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid var(--color-line);
   }
 }
 
@@ -248,11 +503,36 @@
     break-inside: avoid;
   }
 
+  /* On screen the register is a wide table in a box that scrolls; on paper
+     there is no scrolling and the page is narrower than the box. Both have to
+     let go, or the month prints cut off down the right-hand side. */
+  .register {
+    min-width: 0 !important;
+  }
+
+  .register-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   /* A monochrome printer renders the danger colour as mid-grey, which is how a
      penicillin allergy stops standing out. Bold and black is louder on paper. */
   .text-danger {
     color: #000 !important;
     font-weight: 700 !important;
+  }
+
+  /* Labels are cut out and stuck on boxes, so the sheet is packed tight and
+     every sticker keeps a cutting line. The card border is deliberately *not*
+     forced to black like `.card` above — a hairline grey is easier to cut along
+     and does not compete with the symbol for the scanner's attention. */
+  .label-sheet {
+    gap: 2mm;
+  }
+
+  .label-card {
+    border-color: #999 !important;
+    box-shadow: none !important;
   }
 
   @page {

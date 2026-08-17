@@ -4,7 +4,6 @@ import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { deleteBatch } from '@/lib/actions/stock';
 import { expiryLevel } from '@/lib/expiry';
-import { moneyFormat } from '@/lib/money';
 import { cn } from '@/lib/utils';
 
 export type BatchView = {
@@ -16,8 +15,7 @@ export type BatchView = {
   purchasedAt: string;
   /** ISO string, or empty when the box does not print one. */
   manufacturedAt: string;
-  /** What one unit of this lot cost, or null when the delivery was not priced. */
-  unitPrice: number | null;
+  /** How many boxes arrived in this lot. */
   quantity: number;
   notes: string;
 };
@@ -27,14 +25,9 @@ const LEVEL_TONE = { EXPIRED: 'danger', SOON: 'warn', OK: 'neutral' } as const;
 /** The lots behind one item's counter, oldest date first. */
 export async function BatchList({
   batches,
-  unit,
-  currency,
   canEdit,
 }: {
   batches: BatchView[];
-  unit: string;
-  /** ISO 4217 code the lot prices are written in. */
-  currency: string;
   canEdit: boolean;
 }) {
   const t = await getTranslations('stock');
@@ -54,7 +47,7 @@ export async function BatchList({
         // is checked against — but it is not what anyone reads the chip for.
         const purchased = batch.purchasedAt ? new Date(batch.purchasedAt) : null;
         const manufactured = batch.manufacturedAt ? new Date(batch.manufacturedAt) : null;
-        const hasProvenance = purchased !== null || manufactured !== null || batch.unitPrice !== null;
+        const hasProvenance = purchased !== null || manufactured !== null;
 
         return (
           <li
@@ -74,7 +67,7 @@ export async function BatchList({
                 sent, and hydration fails on the whole page. */}
             <div className="flex items-center gap-2">
               <span className="font-bold tabular-nums">
-                {batch.quantity} {unit}
+                {batch.quantity} {t('boxes', { count: batch.quantity })}
               </span>
               {batch.lotNumber ? (
                 <span className="tabular-nums">{t('lotShort', { lot: batch.lotNumber })}</span>
@@ -121,13 +114,6 @@ export async function BatchList({
                   <span className="tabular-nums">
                     {t('batchMadeOn', {
                       date: format.dateTime(manufactured, { month: 'short', year: 'numeric' }),
-                    })}
-                  </span>
-                ) : null}
-                {batch.unitPrice !== null ? (
-                  <span className="tabular-nums">
-                    {t('batchEach', {
-                      price: format.number(batch.unitPrice, moneyFormat(currency, batch.unitPrice)),
                     })}
                   </span>
                 ) : null}

@@ -1,5 +1,11 @@
 'use client';
 
+/* The palette's backdrop click is a click handler on a `<dialog>`, which these
+   two read as a handler on a non-interactive element with no keyboard partner.
+   `<dialog>` closes on Escape natively — that *is* the keyboard half — and the
+   linter has no way to see it, so they are off for this file alone. */
+/* eslint-disable jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */
+
 import { ArrowRight, Loader2, Search, User } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, useTransition } from 'react';

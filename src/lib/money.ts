@@ -88,32 +88,8 @@ export function moneyFormat(currency: string, value: number) {
   };
 }
 
-export type ValuedLine = { quantity: number; unitPrice: Money | null };
-
-/**
- * What the shelf is worth.
- *
- * An unpriced material contributes nothing and is *not* counted as free — the
- * caller is told how many were skipped so the total can say it is partial
- * rather than quietly understating what the room holds.
- */
-export function stockValue(lines: readonly ValuedLine[]): {
-  total: number;
-  /** Materials on the shelf that nobody has priced. */
-  unpriced: number;
-} {
-  let total = new Prisma.Decimal(0);
-  let unpriced = 0;
-
-  for (const line of lines) {
-    if (line.unitPrice === null) {
-      // Only worth mentioning for something actually in the room. An unpriced
-      // material at zero stock is not a hole in the valuation.
-      if (line.quantity > 0) unpriced += 1;
-      continue;
-    }
-    total = total.add(line.unitPrice.mul(line.quantity));
-  }
-
-  return { total: total.toNumber(), unpriced };
-}
+/* What the shelf was worth used to be computed here. Nothing asks any more:
+ * money is off every storage-room screen by the owner's decision, so the
+ * valuation, the price per box and the price per delivery all went with it. The
+ * `unitPrice` columns keep whatever was recorded before — see `saveStockItem`,
+ * which no longer writes them. */

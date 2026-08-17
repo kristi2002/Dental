@@ -102,6 +102,9 @@ export function ScanConsole({
 }) {
   const t = useTranslations('scan');
   const tc = useTranslations('common');
+  // The shelf is counted in boxes, and the word for one lives with the storage
+  // room's own strings rather than being repeated in the scanner's.
+  const tstock = useTranslations('stock');
 
   const [direction, setDirection] = useState<ScanDirection>('in');
   const [basket, setBasket] = useState<BasketLine[]>([]);
@@ -444,7 +447,9 @@ export function ScanConsole({
                         onChange={(event) => setQuantity(line.key, Number(event.target.value))}
                         className="field-input w-20 py-1.5 text-center tabular-nums"
                       />
-                      <span className="w-12 shrink-0 text-[0.9rem] text-ink-soft">{item.unit}</span>
+                      <span className="w-16 shrink-0 text-[0.9rem] text-ink-soft">
+                        {tstock('boxes', { count: line.quantity })}
+                      </span>
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"

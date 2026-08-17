@@ -35,6 +35,14 @@ type Props = {
    * the save.
    */
   onSuccess?: () => void;
+  /**
+   * Open the moment it mounts, and leave the trigger button out.
+   *
+   * For a dialog summoned by a gesture rather than a press — double-clicking an
+   * empty slot on the calendar, say. The owner mounts it with a fresh `key` and
+   * unmounts it on `onClose`, so the gesture is the button.
+   */
+  openOnMount?: boolean;
   wide?: boolean;
 };
 
@@ -52,6 +60,7 @@ export function FormDialog({
   resetOnSuccess = true,
   onClose,
   onSuccess,
+  openOnMount = false,
   wide = false,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -73,16 +82,24 @@ export function FormDialog({
     onSuccess?.();
   }, [state, resetOnSuccess, formRef, onSuccess]);
 
+  // Mount-time only, by design: re-opening is a remount with a new `key`, which
+  // is also how the fields get the new slot's defaults.
+  useEffect(() => {
+    if (openOnMount) dialogRef.current?.showModal();
+  }, [openOnMount]);
+
   return (
     <>
-      <button
-        type="button"
-        title={triggerTitle}
-        className={triggerClassName}
-        onClick={() => dialogRef.current?.showModal()}
-      >
-        {trigger}
-      </button>
+      {openOnMount ? null : (
+        <button
+          type="button"
+          title={triggerTitle}
+          className={triggerClassName}
+          onClick={() => dialogRef.current?.showModal()}
+        >
+          {trigger}
+        </button>
+      )}
 
       <dialog
         ref={dialogRef}

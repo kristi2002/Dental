@@ -61,6 +61,8 @@ export function AppointmentFormDialog({
   triggerClassName,
   triggerLabel,
   compact = false,
+  openOnMount = false,
+  onClosed,
 }: {
   /**
    * Who this booking is for, when the screen already knows. Left out, the
@@ -93,6 +95,13 @@ export function AppointmentFormDialog({
   /** Overrides the trigger's text, for rows where "New appointment" is too long. */
   triggerLabel?: string;
   compact?: boolean;
+  /**
+   * Open straight away and draw no trigger — for the calendar, where the
+   * gesture on an empty slot *is* the button. See `FormDialog`.
+   */
+  openOnMount?: boolean;
+  /** Told when the dialog goes away, so a summoned one can be unmounted. */
+  onClosed?: () => void;
 }) {
   const t = useTranslations('appointments');
   const tp = useTranslations('patients');
@@ -165,6 +174,7 @@ export function AppointmentFormDialog({
       key={appointment?.id ?? 'new'}
       action={saveAppointment}
       resetOnSuccess={!editing}
+      openOnMount={openOnMount}
       onClose={() => {
         setDuration(initialDuration);
         setDate(initialDate);
@@ -174,6 +184,7 @@ export function AppointmentFormDialog({
         setForce(false);
         setAddingPatient(false);
         setRepeat(0);
+        onClosed?.();
       }}
       title={editing ? t('edit') : t('new')}
       submitLabel={tc('save')}

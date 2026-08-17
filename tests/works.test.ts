@@ -2,21 +2,29 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CSV_DELIMITER, csvCell, toCsv } from '../src/lib/csv';
 import {
+  DUE_SOON_DAYS,
   MAX_ELEMENTS,
   MAX_WORK_LINES,
+  NO_LAB,
+  chaseOrder,
+  daysLate,
   elementsOf,
+  filterWorks,
   fromMonthKey,
   inMonth,
+  isOutstanding,
   monthsPresent,
   parseDraftLines,
+  resolveWorkMonth,
   toElementCount,
   totalElements,
+  toWorkFilterStatus,
+  workStatus,
   worksToRows,
   type ExportableWork,
 } from '../src/lib/works';
 
 const HEADERS = {
-  number: 'Nr',
   labSerial: 'Serial',
   patientName: 'Pacienti',
   phone: 'Telefoni',
@@ -26,14 +34,41 @@ const HEADERS = {
   lab: 'Laboratori',
   notes: 'Shënime',
   sentAt: 'Dërguar',
+  dueAt: 'Kthimi',
+  receivedAt: 'U kthye',
+  urgent: 'Urgjent',
+  yes: 'Po',
   total: 'Totali',
 };
+
+/** The columns `worksToRows` writes, so the assertions below can name them. */
+const COL = {
+  sentAt: 0,
+  dueAt: 1,
+  receivedAt: 2,
+  labSerial: 3,
+  patientName: 4,
+  phone: 5,
+  urgent: 6,
+  /** The span — beside the work now, because a case can have more than one. */
+  diagnosis: 7,
+  elements: 8,
+  procedure: 9,
+  lab: 10,
+  notes: 11,
+} as const;
 
 const stamp = (date: Date) => date.toISOString().slice(0, 10);
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
+/** The day every date-sensitive test below is asked "as of". */
+const TODAY = day('2026-08-15');
+
 function work(over: Partial<ExportableWork> = {}): ExportableWork {
   return {
+    // Still the register's own sequence, and still how these cases tell
+    // themselves apart below — it just no longer has a column on screen or a
+    // column in the file.
     number: 1,
     labSerial: 'L-100',
     patientName: 'Arta Krasniqi',
@@ -41,15 +76,24 @@ function work(over: Partial<ExportableWork> = {}): ExportableWork {
     diagnosis: null,
     notes: null,
     sentAt: day('2026-08-14'),
+    dueAt: null,
+    receivedAt: null,
+    urgent: false,
     lines: [],
     ...over,
   };
 }
 
-const line = (elements: number, procedure = 'Kurorë', lab: string | null = null) => ({
+const line = (
+  elements: number,
+  procedure = 'Kurorë',
+  lab: string | null = null,
+  teeth: string | null = null,
+) => ({
   elements,
   procedure,
   lab,
+  teeth,
 });
 
 describe('toElementCount — the number the laboratory bills on', () => {
@@ -81,8 +125,8 @@ describe('parseDraftLines — the case as the builder posts it', () => {
     ]);
 
     assert.deepEqual(parseDraftLines(raw), [
-      { elements: 3, procedure: 'Urë zirkoni', lab: 'Dental Art' },
-      { elements: 1, procedure: 'Kurorë', lab: '' },
+      { elements: 3, procedure: 'Urë zirkoni', lab: 'Dental Art', teeth: '' },
+      { elements: 1, procedure: 'Kurorë', lab: '', teeth: '' },
     ]);
   });
 
@@ -92,7 +136,36 @@ describe('parseDraftLines — the case as the builder posts it', () => {
       { elements: 2, procedure: 'Protezë', lab: '' },
     ]);
 
-    assert.deepEqual(parseDraftLines(raw), [{ elements: 2, procedure: 'Protezë', lab: '' }]);
+    assert.deepEqual(parseDraftLines(raw), [
+      { elements: 2, procedure: 'Protezë', lab: '', teeth: '' },
+    ]);
+  });
+
+  it('takes the count from the span, which is the one thing that cannot be wrong', () => {
+    const raw = JSON.stringify([
+      // A bridge: two teeth and the gap between them. The count posted with it
+      // is what a stale form field would have said.
+      { elements: 99, procedure: 'Urë', lab: '', teeth: '15,16x,17' },
+    ]);
+
+    const [row] = parseDraftLines(raw);
+    assert.equal(row.elements, 3, 'three positions, three elements');
+    assert.equal(row.teeth, '17,16x,15', 'stored in chart order');
+  });
+
+  it('keeps the typed count for work that names no teeth', () => {
+    const raw = JSON.stringify([{ elements: 14, procedure: 'Protezë e plotë', lab: '' }]);
+    assert.equal(parseDraftLines(raw)[0].elements, 14);
+  });
+
+  it('drops a span that is not teeth rather than believing it', () => {
+    const raw = JSON.stringify([
+      { elements: 2, procedure: 'Kurorë', lab: '', teeth: '19,99,abc' },
+    ]);
+
+    const [row] = parseDraftLines(raw);
+    assert.equal(row.teeth, '');
+    assert.equal(row.elements, 2, 'and the typed count stands, because no span survived');
   });
 
   it('defaults a missing count to one — a row is at least one element', () => {
@@ -171,9 +244,10 @@ describe('worksToRows — the register flattened for a spreadsheet', () => {
     const rows = worksToRows(
       [
         work({
-          number: 7,
-          diagnosis: '3 x 4 x 7',
-          lines: [line(3, 'Urë zirkoni', 'Dental Art'), line(1, 'Kurorë', null)],
+          lines: [
+            line(3, 'Urë zirkoni', 'Dental Art', '17,16x,15'),
+            line(1, 'Kurorë', null, '24'),
+          ],
         }),
       ],
       HEADERS,
@@ -183,10 +257,12 @@ describe('worksToRows — the register flattened for a spreadsheet', () => {
     assert.equal(rows.length, 4, 'a heading, one row per piece of work, and the total');
     assert.deepEqual(rows[0], [
       'Dërguar',
-      'Nr',
+      'Kthimi',
+      'U kthye',
       'Serial',
       'Pacienti',
       'Telefoni',
+      'Urgjent',
       'Ura',
       'Elementet',
       'Punimi',
@@ -195,27 +271,68 @@ describe('worksToRows — the register flattened for a spreadsheet', () => {
     ]);
     assert.deepEqual(rows[1], [
       '2026-08-14',
-      '7',
+      '',
+      '',
       'L-100',
       'Arta Krasniqi',
       '069 123 4567',
-      '3 x 4 x 7',
+      '',
+      // FDI codes rather than the drawn bracket: a spreadsheet cell cannot hold
+      // the corner of the mouth, and `15` says it on its own.
+      '17, 16x, 15',
       '3',
       'Urë zirkoni',
       'Dental Art',
       '',
     ]);
-    assert.deepEqual(rows[2].slice(0, 6), rows[1].slice(0, 6), 'the case repeats');
-    assert.deepEqual(rows[2].slice(6, 9), ['1', 'Kurorë', '']);
-    assert.deepEqual(rows[3], ['', '', '', '', '', 'Totali', '4', '', '', '']);
+    assert.deepEqual(
+      rows[2].slice(0, COL.diagnosis),
+      rows[1].slice(0, COL.diagnosis),
+      'the case repeats',
+    );
+    assert.deepEqual(
+      rows[2].slice(COL.diagnosis, COL.notes),
+      ['24', '1', 'Kurorë', ''],
+      'each piece of work carries its own span',
+    );
+
+    const total = rows[3];
+    assert.equal(total.length, rows[0].length, 'the total row is as wide as the file');
+    assert.equal(total[COL.diagnosis], 'Totali', 'labelled in the column before the count');
+    assert.equal(total[COL.elements], '4');
+  });
+
+  it('writes the promised and actual return dates, and marks only the urgent cases', () => {
+    const rows = worksToRows(
+      [
+        work({
+          number: 9,
+          dueAt: day('2026-08-20'),
+          receivedAt: day('2026-08-22'),
+          urgent: true,
+          lines: [line(1)],
+        }),
+      ],
+      HEADERS,
+      stamp,
+    );
+
+    assert.equal(rows[1][COL.dueAt], '2026-08-20');
+    assert.equal(rows[1][COL.receivedAt], '2026-08-22');
+    assert.equal(rows[1][COL.urgent], 'Po');
+  });
+
+  it('leaves the urgent cell blank rather than writing a localised "no"', () => {
+    const rows = worksToRows([work({ lines: [line(1)] })], HEADERS, stamp);
+    assert.equal(rows[1][COL.urgent], '', 'a marked column filters; a Yes/No column does not');
   });
 
   it('still exports a case that has no work on it yet', () => {
-    const rows = worksToRows([work({ number: 3, labSerial: null })], HEADERS, stamp);
+    const rows = worksToRows([work({ labSerial: null })], HEADERS, stamp);
     assert.equal(rows.length, 3, 'the case must not vanish from the file');
-    assert.deepEqual(rows[1].slice(6, 9), ['', '', '']);
-    assert.equal(rows[1][2], '', 'a serial that has not arrived is blank, not "null"');
-    assert.equal(rows[2][6], '0');
+    assert.deepEqual(rows[1].slice(COL.diagnosis, COL.notes), ['', '', '', '']);
+    assert.equal(rows[1][COL.labSerial], '', 'a serial that has not arrived is blank, not "null"');
+    assert.equal(rows[2][COL.elements], '0');
   });
 
   it('totals the whole file, not just the last case', () => {
@@ -227,7 +344,170 @@ describe('worksToRows — the register flattened for a spreadsheet', () => {
       HEADERS,
       stamp,
     );
-    assert.equal(rows.at(-1)![6], '9');
+    assert.equal(rows.at(-1)![COL.elements], '9');
+  });
+});
+
+describe('workStatus — how near a case is to the day it was promised', () => {
+  it('calls a case with no promised date open, whatever its age', () => {
+    assert.equal(workStatus(work({ sentAt: day('2020-01-01') }), TODAY), 'open');
+  });
+
+  it('reads the days around the promise', () => {
+    assert.equal(workStatus(work({ dueAt: day('2026-08-14') }), TODAY), 'overdue');
+    assert.equal(workStatus(work({ dueAt: day('2026-08-15') }), TODAY), 'dueToday');
+    assert.equal(workStatus(work({ dueAt: day('2026-08-18') }), TODAY), 'dueSoon');
+    assert.equal(
+      workStatus(work({ dueAt: day('2026-08-19') }), TODAY),
+      'open',
+      `past ${DUE_SOON_DAYS} days it is nobody's problem today`,
+    );
+  });
+
+  it('stops chasing a case that is back, even one that came back late', () => {
+    const late = work({ dueAt: day('2026-07-01'), receivedAt: day('2026-08-10') });
+    assert.equal(
+      workStatus(late, TODAY),
+      'received',
+      'a register that never goes quiet stops being read',
+    );
+    assert.equal(daysLate(late, TODAY), 0);
+    assert.equal(isOutstanding(late), false);
+  });
+
+  it('counts the days a case is late by, for the phone call', () => {
+    assert.equal(daysLate(work({ dueAt: day('2026-08-10') }), TODAY), 5);
+    assert.equal(daysLate(work({ dueAt: day('2026-08-15') }), TODAY), 0, 'today is not late');
+    assert.equal(daysLate(work({ dueAt: day('2026-09-01') }), TODAY), 0);
+    assert.equal(daysLate(work(), TODAY), 0, 'no promise, no lateness');
+  });
+});
+
+describe('chaseOrder — what to ring the laboratory about first', () => {
+  it('drops everything already back', () => {
+    const list = chaseOrder([
+      work({ number: 1, receivedAt: day('2026-08-12') }),
+      work({ number: 2, dueAt: day('2026-08-10') }),
+    ]);
+    assert.deepEqual(
+      list.map((entry) => entry.number),
+      [2],
+    );
+  });
+
+  it('puts an urgent case above an older promise', () => {
+    const list = chaseOrder([
+      work({ number: 1, dueAt: day('2026-08-01') }),
+      work({ number: 2, dueAt: day('2026-08-30'), urgent: true }),
+    ]);
+    assert.deepEqual(
+      list.map((entry) => entry.number),
+      [2, 1],
+      'the flag exists precisely to jump the queue',
+    );
+  });
+
+  it('sorts an undated case behind every dated one, then by how long it has waited', () => {
+    const list = chaseOrder([
+      work({ number: 1, sentAt: day('2026-08-02') }),
+      work({ number: 2, dueAt: day('2026-08-20') }),
+      work({ number: 3, sentAt: day('2026-08-01') }),
+      work({ number: 4, dueAt: day('2026-08-10') }),
+    ]);
+    assert.deepEqual(
+      list.map((entry) => entry.number),
+      [4, 2, 3, 1],
+    );
+  });
+});
+
+describe('filterWorks — the one copy of the register’s filter', () => {
+  const register = [
+    work({ number: 1, patientName: 'Arta Krasniqi', sentAt: day('2026-08-14') }),
+    work({
+      number: 2,
+      patientName: 'Blerim Purón',
+      sentAt: day('2026-07-02'),
+      dueAt: day('2026-08-01'),
+      lines: [line(1, 'Kurorë', 'Dental Art')],
+    }),
+    work({
+      number: 3,
+      patientName: 'Dritan Hoxha',
+      sentAt: day('2026-08-05'),
+      dueAt: day('2026-08-12'),
+      receivedAt: day('2026-08-13'),
+      lines: [line(2, 'Protezë', 'Smile Lab')],
+    }),
+  ];
+
+  const run = (over: Partial<Parameters<typeof filterWorks>[1]> = {}) =>
+    filterWorks(register, { query: '', lab: '', month: null, status: '', ...over }, TODAY).map(
+      (entry) => entry.number,
+    );
+
+  it('folds accents, so typing puron finds Purón', () => {
+    assert.deepEqual(run({ query: 'puron' }), [2]);
+  });
+
+  it('searches the work itself, not only the patient', () => {
+    assert.deepEqual(run({ query: 'protezë' }), [3]);
+    assert.deepEqual(run({ query: 'Dental Art' }), [2]);
+  });
+
+  it('narrows to a month by the day the case went out', () => {
+    assert.deepEqual(run({ month: '2026-08' }), [1, 3]);
+  });
+
+  it('separates what is still out from what is late from what is back', () => {
+    assert.deepEqual(run({ status: 'out' }), [1, 2]);
+    assert.deepEqual(run({ status: 'late' }), [2], 'only a promise that has passed');
+    assert.deepEqual(run({ status: 'back' }), [3]);
+  });
+
+  it('finds the cases with no laboratory named', () => {
+    assert.deepEqual(run({ lab: NO_LAB }), [1]);
+    assert.deepEqual(run({ lab: 'Smile Lab' }), [3]);
+  });
+});
+
+describe('resolveWorkMonth — which month the register opens on', () => {
+  const months = ['2026-08', '2026-07'];
+
+  it('opens on the newest month, because the invoice arrives monthly', () => {
+    assert.equal(resolveWorkMonth(months, undefined), '2026-08');
+    assert.equal(resolveWorkMonth(months, ''), '2026-08');
+    assert.equal(resolveWorkMonth([], undefined), null, 'an empty register has no month');
+  });
+
+  it('honours a month that was named', () => {
+    assert.equal(resolveWorkMonth(months, '2026-07'), '2026-07');
+    assert.equal(resolveWorkMonth(months, 'all'), null);
+    assert.equal(resolveWorkMonth(months, '2026-13'), '2026-08', 'nonsense falls back');
+  });
+
+  it('widens to every month when a state is being asked about', () => {
+    assert.equal(
+      resolveWorkMonth(months, undefined, 'late'),
+      null,
+      'a case sent in March is exactly the one still missing in August',
+    );
+    assert.equal(
+      resolveWorkMonth(months, '2026-07', 'late'),
+      '2026-07',
+      'naming a month still wins',
+    );
+  });
+});
+
+describe('toWorkFilterStatus — what arrives in the query string', () => {
+  it('takes the three it knows and refuses the rest', () => {
+    assert.equal(toWorkFilterStatus('late'), 'late');
+    assert.equal(toWorkFilterStatus('out'), 'out');
+    assert.equal(toWorkFilterStatus('back'), 'back');
+    assert.equal(toWorkFilterStatus('urgent'), '');
+    assert.equal(toWorkFilterStatus(null), '');
+    assert.equal(toWorkFilterStatus(undefined), '');
   });
 });
 

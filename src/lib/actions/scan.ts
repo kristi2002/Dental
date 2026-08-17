@@ -6,6 +6,7 @@ import { parseScan, type ScanFormat } from '@/lib/barcode';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { parseMoney } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
+import { parseStockLabel, stockLabelPath } from '@/lib/stock-labels';
 import { takeFromShelf } from '@/lib/stock-consumption';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -34,13 +35,12 @@ export type ScanResolution = {
   serial: string | null;
   expiryDate: string | null;
   manufacturedAt: string | null;
-  /** How many units one scan of this symbol is worth. 1 until a link says otherwise. */
+  /** How many boxes one scan of this symbol is worth. 1 until a link says otherwise. */
   packQty: number;
   item: {
     id: string;
     name: string;
-    unit: string;
-    /** What the shelf says right now — so taking out can refuse to overdraw. */
+    /** What the shelf says right now, in boxes — so taking out can refuse to overdraw. */
     quantity: number;
     minLimit: number;
     code: string | null;
@@ -50,6 +50,69 @@ export type ScanResolution = {
   /** The scanned lot is past its date. A fact to show, not a reason to refuse. */
   expired: boolean;
 };
+
+/**
+ * A label this practice printed itself, as a resolved scan — or null for
+ * anything that is not one.
+ *
+ * Null is the ordinary answer here: every supplier carton in the storage room
+ * passes through this first and falls straight out of it.
+ *
+ * A **product** label names a family rather than a box, and this console has
+ * nowhere to ask which shade was meant — a basket line has to be one material.
+ * So it resolves only when the product turns out to have a single variant, which
+ * is most of them, and otherwise returns null: a refusing beep and nothing
+ * added, rather than a guess at which of eight shades is in somebody's hand. The
+ * screen the label actually opens on a phone (`/stock/q/p/…`) asks properly.
+ *
+ * Returning null rather than an unresolved scan matters: an unresolved one goes
+ * to the "unknown code" queue, which offers to link it to a material forever,
+ * and our own label URL is the last thing that should become a `ProductBarcode`.
+ */
+async function resolveOwnLabel(raw: string): Promise<ScanResolution | null> {
+  const label = parseStockLabel(raw);
+  if (!label) return null;
+
+  const item =
+    label.kind === 'item'
+      ? await prisma.stockItem.findUnique({
+          where: { id: label.id },
+          select: { id: true, name: true, quantity: true, minLimit: true, code: true },
+        })
+      : await singleVariantOf(label.id);
+  if (!item) return null;
+
+  return {
+    raw: raw.trim(),
+    // Not a GS1 symbol and not pretending to be one. The console only shows the
+    // format on codes that need a decision, and this one never does.
+    format: 'plain',
+    // The path rather than the whole URL, so the same sticker read on the clinic
+    // LAN and through the practice's domain name is one basket line.
+    key: stockLabelPath(label.kind, label.id),
+    // A label carries none of this. Everything a lot number would have told us
+    // is on the supplier's own symbol, and inventing it here would put lots on
+    // the expiry screen that no delivery note ever mentioned.
+    lotNumber: null,
+    serial: null,
+    expiryDate: null,
+    manufacturedAt: null,
+    packQty: 1,
+    item,
+    batch: null,
+    expired: false,
+  };
+}
+
+/** A product's only variant, when it has exactly one. Null when the answer is ambiguous. */
+async function singleVariantOf(productId: string) {
+  const variants = await prisma.stockItem.findMany({
+    where: { productId },
+    select: { id: true, name: true, quantity: true, minLimit: true, code: true },
+    take: 2,
+  });
+  return variants.length === 1 ? variants[0] : null;
+}
 
 /**
  * Turn whatever the scanner emitted into the material it names.
@@ -68,6 +131,12 @@ export async function lookupScan(raw: string): Promise<ScanResolution | null> {
   const user = await authorize('stock.edit');
   if (!user) return null;
 
+  // Our own shelf label, before anything tries to read it as a supplier's
+  // symbol. It resolves without a `ProductBarcode` row because it already names
+  // the material outright — that is the whole point of printing one.
+  const label = await resolveOwnLabel(raw);
+  if (label) return label;
+
   const scan = parseScan(raw);
   if (!scan.key) return null;
 
@@ -79,7 +148,6 @@ export async function lookupScan(raw: string): Promise<ScanResolution | null> {
         select: {
           id: true,
           name: true,
-          unit: true,
           quantity: true,
           minLimit: true,
           code: true,
@@ -129,7 +197,6 @@ export async function lookupScan(raw: string): Promise<ScanResolution | null> {
       ? {
           id: item.id,
           name: item.name,
-          unit: item.unit,
           quantity: item.quantity,
           minLimit: item.minLimit,
           code: item.code,
@@ -355,7 +422,6 @@ export async function linkBarcode(_prev: ActionState, formData: FormData): Promi
         const created = await tx.stockItem.create({
           data: {
             name: newName!,
-            unit: requiredString(formData.get('unit')) || 'pcs',
             categoryId: optionalString(formData.get('categoryId')),
           },
           select: { id: true },

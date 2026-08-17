@@ -10,25 +10,26 @@ export type StockDefaults = {
   code: string;
   /** The shelf's id, or empty for a material nobody has filed. */
   categoryId: string;
+  /** How many **boxes** are on the shelf. Nothing here is counted in pieces. */
   quantity: number;
   minLimit: number;
-  unit: string;
-  packSize: number;
+  /** The product this is a variant of, by name. Empty for a material that stands alone. */
+  productName: string;
+  /** Which variant — "A2", "Size M". Empty when the product has only this one. */
+  variantName: string;
   /** Empty string when nothing has been stated — the list projects one instead. */
   orderQty: string;
-  /** `"2214.28"`, or empty when nobody has priced it. Decimals do not cross to
-   *  the client, so this travels as the string the input wants anyway. */
-  unitPrice: string;
   supplierId: string;
 };
 
 /**
  * One material, four groups of fields — and no opinion about what surrounds them.
  *
- * The same questions are asked on the "new material" page and in the edit dialog,
- * but the two frame them differently: the page gives each group a card with room
- * to explain itself, the dialog stacks them to stay inside a modal. Only the
- * chrome differs, so only the chrome is written twice.
+ * The same questions are asked when a material is recorded and when one is
+ * corrected, on two pages that differ only in what they already know: `item` is
+ * absent on the first and fills the defaults on the second. Only the chrome
+ * around them is written twice, and it is deliberately near-identical — see
+ * `NewStockForm` and `EditStockForm`.
  */
 type Group = {
   /** Prefix for field ids, so two of these on one screen never collide. */
@@ -41,9 +42,12 @@ export function IdentityFields({
   uid,
   item,
   categories,
+  products = [],
 }: Group & {
   /** The shelves the practice has named. Empty until it names one. */
   categories: Array<{ id: string; name: string }>;
+  /** Products already recorded, offered as autocomplete. See `resolveProduct`. */
+  products?: string[];
 }) {
   const t = useTranslations('stock');
   const tc = useTranslations('common');
@@ -94,47 +98,37 @@ export function IdentityFields({
           ))}
         </SelectField>
       </div>
-    </>
-  );
-}
 
-/** What is on the shelf, in what, and when it counts as running out. */
-export function CountFields({ uid, item, units }: Group & { units: string[] }) {
-  const t = useTranslations('stock');
-
-  return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* One product, several boxes: eight shades of a composite, four sizes of
+          a glove. Each is its own row on the shelf — separately bought, counted
+          and run out of — so the grouping is a name typed here rather than a
+          different kind of record. Existing products autocomplete, which is what
+          keeps "Filtek Z250" from becoming three products; a name nobody has
+          used yet simply becomes one. */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <TextField
-          id={`${uid}-quantity`}
-          name="quantity"
-          type="number"
-          min={0}
-          label={t('quantity')}
-          required
-          defaultValue={item?.quantity ?? 0}
+          id={`${uid}-productName`}
+          name="productName"
+          label={t('product')}
+          hint={t('productHint')}
+          optional={tc('optional')}
+          autoComplete="off"
+          list={`${uid}-products`}
+          defaultValue={item?.productName}
         />
         <TextField
-          id={`${uid}-minLimit`}
-          name="minLimit"
-          type="number"
-          min={0}
-          label={t('minLimit')}
-          required
-          defaultValue={item?.minLimit ?? 5}
-        />
-        <TextField
-          id={`${uid}-unit`}
-          name="unit"
-          label={t('unit')}
-          required
-          list={`${uid}-units`}
-          defaultValue={item?.unit ?? 'pcs'}
+          id={`${uid}-variantName`}
+          name="variantName"
+          label={t('variant')}
+          hint={t('variantHint')}
+          optional={tc('optional')}
+          autoComplete="off"
+          defaultValue={item?.variantName}
         />
       </div>
-      <datalist id={`${uid}-units`}>
-        {units.map((unit) => (
-          <option key={unit} value={unit} />
+      <datalist id={`${uid}-products`}>
+        {products.map((product) => (
+          <option key={product} value={product} />
         ))}
       </datalist>
     </>
@@ -142,48 +136,75 @@ export function CountFields({ uid, item, units }: Group & { units: string[] }) {
 }
 
 /**
- * Bulk stock is counted in boxes and ordered in pieces. These two fields are the
- * whole bridge: nothing else in the app converts between them.
+ * How many boxes are there, and when it counts as running out.
+ *
+ * Both fields are boxes, and there is no third field asking which kind of box or
+ * how many gloves are inside one. A shelf is worked a package at a time — a box
+ * arrives, a box is opened — and that is the only figure anybody can state
+ * without inventing it.
  */
-export function OrderFields({ uid, item }: Group) {
+export function CountFields({ uid, item }: Group) {
   const t = useTranslations('stock');
-  const tc = useTranslations('common');
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <TextField
-        id={`${uid}-packSize`}
-        name="packSize"
+        id={`${uid}-quantity`}
+        name="quantity"
         type="number"
-        min={1}
-        label={t('packSize')}
-        hint={t('packSizeHint')}
+        min={0}
+        label={t('quantityBoxes')}
+        hint={t('quantityBoxesHint')}
         required
-        defaultValue={item?.packSize ?? 1}
+        defaultValue={item?.quantity ?? 0}
       />
       <TextField
-        id={`${uid}-orderQty`}
-        name="orderQty"
+        id={`${uid}-minLimit`}
+        name="minLimit"
         type="number"
-        min={1}
-        label={t('orderQty')}
-        hint={t('orderQtyHint')}
-        optional={tc('optional')}
-        defaultValue={item?.orderQty ?? ''}
+        min={0}
+        label={t('minLimitBoxes')}
+        hint={t('minLimitBoxesHint')}
+        required
+        defaultValue={item?.minLimit ?? 5}
       />
     </div>
   );
 }
 
-/** What one costs, and who it is bought from. */
-export function PricingFields({
+/** How many boxes to buy when it runs low. */
+export function OrderFields({ uid, item }: Group) {
+  const t = useTranslations('stock');
+  const tc = useTranslations('common');
+
+  return (
+    <TextField
+      id={`${uid}-orderQty`}
+      name="orderQty"
+      type="number"
+      min={1}
+      label={t('orderQty')}
+      hint={t('orderQtyHint')}
+      optional={tc('optional')}
+      defaultValue={item?.orderQty ?? ''}
+    />
+  );
+}
+
+/**
+ * Who it is bought from.
+ *
+ * This asked what one box cost as well, and no longer does. Money is off every
+ * storage-room screen by the owner's decision: the cupboard is read by whoever
+ * is standing at it, and what the practice pays for a box is not their business.
+ * `StockItem.unitPrice` keeps whatever was already recorded — nothing writes it
+ * and nothing shows it.
+ */
+export function SupplyFields({
   uid,
   item,
-  currency,
   suppliers = [],
 }: Group & {
-  /** ISO 4217 code, so the price field says which money it means. */
-  currency: string;
   /** Who this is bought from. Empty until the practice records any. */
   suppliers?: Array<{ id: string; name: string }>;
 }) {
@@ -192,24 +213,6 @@ export function PricingFields({
 
   return (
     <>
-      {/* What one unit costs. Recording a delivery with a price overwrites this,
-          so it ages with the invoices rather than with whoever last edited.
-
-          Deliberately not `type="number"`: that input *discards* a value its own
-          locale cannot parse, so `2214,28` typed on an English-locale browser
-          arrives at the server as an empty field — the price silently gone, with
-          nothing said. Text keeps what was typed; `parseMoney` is the gate, and
-          it answers a bad one out loud. */}
-      <TextField
-        id={`${uid}-unitPrice`}
-        name="unitPrice"
-        inputMode="decimal"
-        label={t('unitPrice', { currency })}
-        hint={t('unitPriceHint')}
-        optional={tc('optional')}
-        defaultValue={item?.unitPrice ?? ''}
-      />
-
       {/* Only worth asking once somebody has been recorded — otherwise it is an
           empty select on every form. */}
       {suppliers.length > 0 ? (

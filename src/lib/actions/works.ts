@@ -5,7 +5,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
-import { fromDateKey } from '@/lib/dates';
+import { fromDateKey, today } from '@/lib/dates';
 import { optionalString, requiredString } from '@/lib/utils';
 import { parseDraftLines } from '@/lib/works';
 import { actionError, actionOk, type ActionState } from './types';
@@ -39,16 +39,34 @@ export async function saveWork(_prev: ActionState, formData: FormData): Promise<
     ? await prisma.patient.findUnique({ where: { id: patientId }, select: { id: true } })
     : null;
 
+  // `fromDateKey` falls back to today, which is right for the day a docket goes
+  // out and wrong for both of these: a case with no promise from the lab must
+  // stay without one, and an empty "back on" box means it is still out there.
+  const optionalDay = (field: string) => {
+    const key = optionalString(formData.get(field));
+    return key ? fromDateKey(key) : null;
+  };
+
   const data = {
     labSerial: optionalString(formData.get('labSerial')),
     patientId: patient?.id ?? null,
     patientName,
     phone,
-    diagnosis: optionalString(formData.get('diagnosis')),
+    // Only when the form actually carries the field. Which teeth a case covers
+    // is picked off the chart now and lives on the lines, so neither form posts
+    // this any more — and writing `null` over a case recorded before the chart
+    // existed would delete the only copy of its span. See `Work.diagnosis`.
+    ...(formData.has('diagnosis')
+      ? { diagnosis: optionalString(formData.get('diagnosis')) }
+      : {}),
     notes: optionalString(formData.get('notes')),
     // Which month this case counts towards. `fromDateKey` falls back to today,
     // which is the right answer for a docket being written as it goes out.
     sentAt: fromDateKey(optionalString(formData.get('sentAt'))),
+    dueAt: optionalDay('dueAt'),
+    receivedAt: optionalDay('receivedAt'),
+    // An unticked checkbox posts nothing at all, so absence is `false`.
+    urgent: formData.get('urgent') !== null,
   };
 
   const lines = parseDraftLines(requiredString(formData.get('lines')));
@@ -73,6 +91,7 @@ export async function saveWork(_prev: ActionState, formData: FormData): Promise<
             elements: line.elements,
             procedure: line.procedure,
             lab: line.lab || null,
+            teeth: line.teeth || null,
           })),
         });
       }
@@ -98,6 +117,42 @@ export async function saveWork(_prev: ActionState, formData: FormData): Promise<
   }
 
   return actionOk();
+}
+
+/**
+ * Tick a case back in, or put it back out if that was a mis-tap.
+ *
+ * Its own one-button verb rather than a trip through the edit dialog, because it
+ * is the single commonest thing that happens to a row on this register — a box
+ * arrives from the laboratory and somebody marks it — and the whole value of the
+ * chase list depends on it being effortless. A list nobody ticks off fills with
+ * red and stops being read.
+ */
+export async function markWorkReceived(formData: FormData): Promise<void> {
+  const user = await authorize('work.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const work = await prisma.work.findUnique({
+    where: { id },
+    select: { number: true, patientName: true, receivedAt: true },
+  });
+  if (!work) return;
+
+  // Read from the row rather than from a hidden field: two people ticking the
+  // same case at once should land on "it is back", not toggle each other.
+  const receivedAt = work.receivedAt ? null : today();
+
+  await prisma.work.update({ where: { id }, data: { receivedAt } });
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'work',
+    entityId: id,
+    summary: `#${work.number} ${work.patientName} — ${receivedAt ? 'received' : 'reopened'}`,
+  });
+  revalidateAll();
 }
 
 export async function deleteWork(formData: FormData): Promise<void> {

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
-import { WorkLinesField, WorkLinesHeader, type LineDraft } from '@/components/works/WorkLinesField';
+import { WorkLinesField, type LineDraft } from '@/components/works/WorkLinesField';
 import { saveWork } from '@/lib/actions/works';
 
 export type WorkDefaults = {
@@ -18,7 +18,17 @@ export type WorkDefaults = {
   notes: string;
   /** `YYYY-MM-DD`, for the date input. */
   sentAt: string;
-  lines: Array<{ elements: number; procedure: string; lab: string }>;
+  /** `YYYY-MM-DD`, or empty for a case with no promise attached. */
+  dueAt: string;
+  /** `YYYY-MM-DD`, or empty while the case is still out. */
+  receivedAt: string;
+  urgent: boolean;
+  lines: Array<{
+    elements: number;
+    procedure: string;
+    lab: string;
+    teeth: string;
+  }>;
 };
 
 /**
@@ -34,7 +44,20 @@ export type WorkDefaults = {
  * name and number on this row are the row's own copy and are edited here as
  * text. Re-pointing a case at a different patient is a new case.
  */
-export function WorkFormDialog({ work }: { work: WorkDefaults }) {
+export function WorkFormDialog({
+  work,
+  labs = [],
+  procedures = [],
+  triggerClassName = 'btn btn-secondary btn-sm',
+  compact = false,
+}: {
+  work: WorkDefaults;
+  labs?: string[];
+  procedures?: string[];
+  triggerClassName?: string;
+  /** Icon-only trigger, for a row that has no width to spare for the word. */
+  compact?: boolean;
+}) {
   const t = useTranslations('works');
   const tc = useTranslations('common');
   const uid = useId();
@@ -55,11 +78,11 @@ export function WorkFormDialog({ work }: { work: WorkDefaults }) {
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
       triggerTitle={tc('edit')}
-      triggerClassName="btn btn-secondary btn-sm"
+      triggerClassName={triggerClassName}
       trigger={
         <>
-          <Pencil size={17} aria-hidden />
-          <span className="sr-only">{tc('edit')}</span>
+          <Pencil size={17} aria-hidden className="shrink-0" />
+          <span className={compact ? 'sr-only' : undefined}>{tc('edit')}</span>
         </>
       }
     >
@@ -84,7 +107,7 @@ export function WorkFormDialog({ work }: { work: WorkDefaults }) {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           id={`${uid}-labSerial`}
           name="labSerial"
@@ -100,20 +123,61 @@ export function WorkFormDialog({ work }: { work: WorkDefaults }) {
           required
           defaultValue={work.sentAt}
         />
+      </div>
+
+      {/* Only on a case written before the chart existed. Shown rather than
+          edited, and deliberately not posted back: the span is picked per row
+          now, and this is the one copy of what the old text box was told. It
+          stays on the row until somebody presses the teeth for these lines. */}
+      {work.diagnosis ? (
+        <div>
+          <p className="field-label">{t('teethLegacy')}</p>
+          <p className="rounded-lg border border-line bg-paper px-3.5 py-2 text-[1rem] text-ink tabular-nums">
+            {work.diagnosis}
+          </p>
+        </div>
+      ) : null}
+
+      {/* The two dates the register is chased on. Both optional and both
+          meaningful when empty: no promise from the laboratory, and not back
+          yet. The row's own tick button is the usual way the second one gets
+          filled — this is here for the case that came back last Tuesday and
+          nobody marked. */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <TextField
-          id={`${uid}-diagnosis`}
-          name="diagnosis"
-          label={t('diagnosis')}
-          placeholder={t('diagnosisPlaceholder')}
+          id={`${uid}-dueAt`}
+          name="dueAt"
+          type="date"
+          label={t('dueAt')}
+          hint={t('dueAtHint')}
           optional={tc('optional')}
-          defaultValue={work.diagnosis}
+          defaultValue={work.dueAt}
+        />
+        <TextField
+          id={`${uid}-receivedAt`}
+          name="receivedAt"
+          type="date"
+          label={t('receivedAt')}
+          hint={t('receivedAtHint')}
+          optional={tc('optional')}
+          defaultValue={work.receivedAt}
         />
       </div>
 
+      <label className="flex items-center gap-2.5 font-semibold text-ink">
+        <input
+          type="checkbox"
+          name="urgent"
+          defaultChecked={work.urgent}
+          className="size-5 accent-[var(--color-danger)]"
+        />
+        {t('urgent')}
+        <span className="font-normal text-ink-soft">— {t('urgentHint')}</span>
+      </label>
+
       <fieldset>
         <legend className="field-label">{t('lines')}</legend>
-        <WorkLinesHeader />
-        <WorkLinesField value={lines} onChange={setLines} />
+        <WorkLinesField value={lines} onChange={setLines} labs={labs} procedures={procedures} />
       </fieldset>
 
       <TextAreaField

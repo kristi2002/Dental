@@ -1,21 +1,21 @@
 import {
-  CalendarClock,
   ClipboardCheck,
+  Images,
   Minus,
   Package,
+  Pencil,
   Plus,
   ScanBarcode,
   Truck,
   Trash2,
-  TriangleAlert,
   Undo2,
-  Wallet,
 } from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { BatchFormDialog } from '@/components/stock/BatchFormDialog';
 import { BatchList } from '@/components/stock/BatchList';
+import { PhotoTile } from '@/components/stock/PhotoTile';
 import { ReorderPanel } from '@/components/stock/ReorderPanel';
-import { StockFormDialog } from '@/components/stock/StockFormDialog';
+import { StockAlerts } from '@/components/stock/StockAlerts';
 import { TakeOutForm } from '@/components/stock/TakeOutForm';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
@@ -32,9 +32,9 @@ import {
 import { requirePermission } from '@/lib/auth/guard';
 import { Link } from '@/i18n/navigation';
 import { toDateKey, today } from '@/lib/dates';
-import { moneyFormat, moneyToInput, moneyToNumber, stockValue } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
-import { ACTIVE_STOCK, getClinicProfile, getStockCategories } from '@/lib/queries';
+import { ACTIVE_STOCK, getStockCategories } from '@/lib/queries';
+import { photoUrl } from '@/lib/stock-photos';
 import { summariseBatches } from '@/lib/expiry';
 import { getReorderSuggestions } from '@/lib/reorder';
 import { cn, matches } from '@/lib/utils';
@@ -69,23 +69,25 @@ export default async function StockPage({
   // first render of the storage room files every last box under "Uncategorized".
   const categories = await getStockCategories();
 
-  const [allItems, reorderLines, suppliers, archived, usedRows, profile] = await Promise.all([
+  const [allItems, reorderLines, archived, usedRows] = await Promise.all([
     prisma.stockItem.findMany({
       where: ACTIVE_STOCK,
       orderBy: [{ name: 'asc' }],
       include: {
         supplier: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
+        // `id` and `photoKey` as well as the name: a variant with no picture of
+        // its own shows the product's, exactly as it does on the catalogue.
+        product: { select: { id: true, name: true, photoKey: true } },
         batches: { orderBy: { expiryDate: 'asc' } },
       },
     }),
     getReorderSuggestions(),
-    // Only to fill the material form's "bought from" select — the suppliers
-    // themselves are kept on their own screen.
-    prisma.supplier.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true },
-    }),
+    // No suppliers and no product names here any more: they were read to fill
+    // the edit dialog's selects, and editing is its own page now — which reads
+    // them for the one material being corrected instead of for all seventy on
+    // every load of this list.
+    //
     // Retired materials keep their ledger, so the usage chart and the burn rate
     // still read correctly. They are listed only so one archived by mistake is
     // recoverable without a database client.
@@ -93,7 +95,7 @@ export default async function StockPage({
       ? prisma.stockItem.findMany({
           where: { archivedAt: { not: null } },
           orderBy: { name: 'asc' },
-          select: { id: true, name: true, unit: true, quantity: true, archivedAt: true },
+          select: { id: true, name: true, quantity: true, archivedAt: true },
         })
       : Promise.resolve([]),
     // Everything ever taken off the shelf, per material. All time, deliberately:
@@ -104,17 +106,10 @@ export default async function StockPage({
       where: { delta: { lt: 0 } },
       _sum: { delta: true },
     }),
-    getClinicProfile(),
   ]);
   const lowCount = allItems.filter((item) => item.quantity <= item.minLimit).length;
 
-  const currency = profile.currency;
   const used = new Map(usedRows.map((row) => [row.itemId, Math.abs(row._sum.delta ?? 0)]));
-
-  // What the room is worth, and how much of it nobody has priced — a total that
-  // silently skips half the shelf is worse than no total at all.
-  const value = stockValue(allItems);
-  const anyPriced = allItems.some((item) => item.unitPrice !== null);
 
   // Expiry is a second, independent way for the cupboard to be wrong: an
   // expired box counts as stock in every other check on this page.
@@ -122,8 +117,6 @@ export default async function StockPage({
   const expiredCount = [...expiry.values()].filter((s) => s.level === 'EXPIRED').length;
   const expiringCount = [...expiry.values()].filter((s) => s.level === 'SOON').length;
   const todayKey = toDateKey(today());
-
-  const units = [...new Set(allItems.map((i) => i.unit))];
 
   const { filter, q, category } = await searchParams;
   // `filter=low` is also the dashboard's stock-alert link — keep the value stable.
@@ -162,6 +155,13 @@ export default async function StockPage({
         actions={
           canEdit ? (
             <>
+              {/* The same storage room with the pictures on. Offered here rather
+                  than only in the rail, because "which one is it?" is asked
+                  while standing on this list. */}
+              <Link href="/stock/catalog" className="btn btn-secondary">
+                <Images size={18} aria-hidden />
+                {t('catalog')}
+              </Link>
               {/* Reading the box is now how stock moves in both directions, so
                   it leads — the manual controls further down the page are the
                   fallback for a symbol too damaged to read, not the main road. */}
@@ -186,43 +186,18 @@ export default async function StockPage({
         trail={[{ label: t('title') }]}
       />
 
-      {lowCount > 0 ? (
-        <p className="mb-4 flex items-center gap-2 font-bold text-warn">
-          <TriangleAlert size={19} aria-hidden />
-          {t('lowAlert', { count: lowCount })}
-        </p>
-      ) : null}
-
-      {/* What the cupboard is worth. Says out loud how much of the shelf it
-          could not price, because a valuation that quietly omits a third of the
-          room reads as a full answer. */}
-      {anyPriced ? (
-        <p className="mb-4 flex flex-wrap items-center gap-2 text-ink-soft">
-          <Wallet size={19} aria-hidden />
-          <span className="font-bold text-ink">
-            {t('stockValue', { value: format.number(value.total, moneyFormat(currency, value.total)) })}
-          </span>
-          {value.unpriced > 0 ? <span>{t('unpricedNote', { count: value.unpriced })}</span> : null}
-        </p>
-      ) : null}
-
-      {expiredCount > 0 || expiringCount > 0 ? (
-        <p className="mb-4 flex flex-wrap items-center gap-2 font-bold text-danger">
-          <CalendarClock size={19} aria-hidden />
-          {expiredCount > 0 ? t('expiredAlert', { count: expiredCount }) : null}
-          {expiredCount > 0 && expiringCount > 0 ? ' · ' : null}
-          {expiringCount > 0 ? (
-            <span className="text-warn">{t('expiringAlert', { count: expiringCount })}</span>
-          ) : null}
-          {/* The line said which shelves were wrong and stopped there — finding
-              the actual box meant opening each material in turn. This is the
-              lot-by-lot list, with the one action that answers it. */}
-          {canEdit ? (
-            <Link href="/stock/expiry" className="btn btn-secondary btn-sm">
-              {t('expiryTitle')}
-            </Link>
-          ) : null}
-        </p>
+      {/* Low stock, expired lots and the ninety-day horizon are three ways for
+          the same cupboard to be wrong, so they are read in one place — and each
+          one is the card you press to see which materials it means. Skipped
+          entirely on an empty storeroom, where "everything in stock" would be a
+          lie of omission. */}
+      {allItems.length > 0 ? (
+        <StockAlerts
+          lowCount={lowCount}
+          expiredCount={expiredCount}
+          expiringCount={expiringCount}
+          canEdit={canEdit}
+        />
       ) : null}
 
       {/* Nothing to narrow down until the shelf exists. */}
@@ -285,7 +260,7 @@ export default async function StockPage({
                 <div className="min-w-0">
                   <p className="text-[1.05rem] font-bold text-ink">{item.name}</p>
                   <p className="text-[0.92rem] text-ink-soft">
-                    {t('inStock', { qty: item.quantity, unit: item.unit })}
+                    {t('inStock', { qty: item.quantity })}
                     {item.archivedAt
                       ? ` · ${t('archivedOn', {
                           date: format.dateTime(item.archivedAt, {
@@ -328,15 +303,44 @@ export default async function StockPage({
       ) : (
         <ul className="card divide-y-2 divide-line">
           {items.map((item) => {
+            // The picture, on the working list and not only in the catalogue.
+            // Small here — this row also carries eight controls — but it is the
+            // thing that says which box is meant, and reading a shelf by name
+            // alone is what the photographs exist to stop.
+            const photo = item.photoKey
+              ? photoUrl('item', item.id, item.photoKey)
+              : item.product?.photoKey
+                ? photoUrl('product', item.product.id, item.product.photoKey)
+                : null;
+
             const isOut = item.quantity === 0;
             const isLow = item.quantity <= item.minLimit;
-            const itemPrice = moneyToNumber(item.unitPrice);
 
             return (
               <li key={item.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
+                <PhotoTile
+                  kind="item"
+                  id={item.id}
+                  name={item.name}
+                  src={photo}
+                  inherited={!item.photoKey && photo !== null}
+                  canEdit={canEdit}
+                  size="sm"
+                  allowRemove={false}
+                  // Beside the name, not floating in the middle of a row that
+                  // has grown tall on lot chips and an order badge.
+                  className="self-start"
+                />
+
                 <div className="min-w-52 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[1.12rem] font-bold text-ink">{item.name}</p>
+                    {/* Which one of the eight it is — the shade, the size, the
+                        gauge. Beside the name rather than folded into it, so a
+                        list of siblings reads down the variant column. */}
+                    {item.variantName ? (
+                      <span className="font-semibold text-ink-soft">{item.variantName}</span>
+                    ) : null}
                     {/* The number on the shelf label, beside the name it labels. */}
                     {item.code ? (
                       <span className="font-semibold tabular-nums text-ink-faint">
@@ -355,21 +359,10 @@ export default async function StockPage({
                     {item.supplier ? `${item.supplier.name} · ` : ''}
                     {item.category?.name || t('uncategorized')} ·{' '}
                     {t('minShort', { min: item.minLimit })} ·{' '}
-                    {/* What the box holds, so the count on the right is read as
-                        boxes rather than pieces without anyone having to ask. */}
-                    {item.packSize > 1
-                      ? `${t('packOf', { count: item.packSize, unit: item.unit })} · `
-                      : ''}
-                    {/* What one costs, and how much of what was bought has gone —
-                        the spreadsheet's two remaining columns. Both are quiet
-                        until there is something to say. */}
-                    {itemPrice !== null
-                      ? `${t('eachCosts', {
-                          price: format.number(itemPrice, moneyFormat(currency, itemPrice)),
-                        })} · `
-                      : ''}
+                    {/* How much of what was bought has gone. Quiet until there
+                        is something to say. */}
                     {(used.get(item.id) ?? 0) > 0
-                      ? `${t('usedTotal', { qty: used.get(item.id) ?? 0, unit: item.unit })} · `
+                      ? `${t('usedTotal', { qty: used.get(item.id) ?? 0 })} · `
                       : ''}
                     {t('lastUpdated', {
                       date: format.dateTime(item.updatedAt, {
@@ -423,14 +416,9 @@ export default async function StockPage({
                       manufacturedAt: batch.manufacturedAt
                         ? batch.manufacturedAt.toISOString()
                         : '',
-                      // A Decimal cannot cross to a client component, and the
-                      // far side of that boundary only ever formats it.
-                      unitPrice: moneyToNumber(batch.unitPrice),
                       quantity: batch.quantity,
                       notes: batch.notes ?? '',
                     }))}
-                    unit={item.unit}
-                    currency={currency}
                     canEdit={canEdit}
                   />
                 </div>
@@ -456,7 +444,10 @@ export default async function StockPage({
                       isLow ? 'text-warn' : 'text-ink',
                     )}
                   >
-                    {item.quantity} <span className="text-[0.9rem] font-semibold">{item.unit}</span>
+                    {item.quantity}{' '}
+                    <span className="text-[0.9rem] font-semibold">
+                      {t('boxes', { count: item.quantity })}
+                    </span>
                   </span>
 
                   {canEdit ? (
@@ -475,7 +466,7 @@ export default async function StockPage({
                   {/* Six of something is one entry, not six presses. Hidden at
                       zero, where there is nothing to take. */}
                   {canEdit && !isOut ? (
-                    <TakeOutForm itemId={item.id} unit={item.unit} max={item.quantity} />
+                    <TakeOutForm itemId={item.id} max={item.quantity} />
                   ) : null}
                 </div>
 
@@ -483,13 +474,7 @@ export default async function StockPage({
                   {/* A delivery is one press: the count goes up, the lot and its
                       expiry are recorded, and the order flag clears. */}
                   {canEdit ? (
-                    <BatchFormDialog
-                      itemId={item.id}
-                      itemName={item.name}
-                      unit={item.unit}
-                      currency={currency}
-                      today={todayKey}
-                    />
+                    <BatchFormDialog itemId={item.id} itemName={item.name} today={todayKey} />
                   ) : null}
 
                   {canEdit && !item.orderedAt && item.quantity <= item.minLimit ? (
@@ -501,27 +486,17 @@ export default async function StockPage({
                     </ActionForm>
                   ) : null}
 
+                  {/* A link, not a dialog: correcting a material is the same ten
+                      questions as recording one, and they are asked on a page. */}
                   {canEdit ? (
-                    <StockFormDialog
-                      suppliers={suppliers}
-                      item={{
-                        id: item.id,
-                        name: item.name,
-                        code: item.code ?? '',
-                        categoryId: item.categoryId ?? '',
-                        quantity: item.quantity,
-                        minLimit: item.minLimit,
-                        unit: item.unit,
-                        packSize: item.packSize,
-                        orderQty: item.orderQty === null ? '' : String(item.orderQty),
-                        unitPrice: moneyToInput(item.unitPrice),
-                        supplierId: item.supplierId ?? '',
-                      }}
-                      categories={categories}
-                      units={units}
-                      currency={currency}
-                      compact
-                    />
+                    <Link
+                      href={`/stock/${item.id}/edit`}
+                      className="btn btn-secondary btn-sm"
+                      title={t('edit')}
+                    >
+                      <Pencil size={18} aria-hidden />
+                      <span className="sr-only">{t('edit')}</span>
+                    </Link>
                   ) : null}
                   {canDelete ? (
                     <ActionForm

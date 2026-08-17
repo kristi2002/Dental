@@ -12,9 +12,11 @@ import { SubmitButton } from './SubmitButton';
  * one the practice sets up rather than one it fills in daily — the catalogue,
  * the shelves, the rooms, the people, a course of treatment. A page has room to
  * say what a field is *for*, can be left and come back to, survives a stray
- * press of Escape, and can be linked to from anywhere. Editing stays a dialog:
- * that is a correction to a row you are already looking at, not a form you work
- * through.
+ * press of Escape, and can be linked to from anywhere.
+ *
+ * Editing such a record is the same form with the answers already in it, so it
+ * is built from the same pieces rather than crammed back into a modal — a dialog
+ * is right for a single question asked in passing, not for ten asked at once.
  *
  * These four pieces are what keep those screens looking like one another rather
  * than like eight separate attempts.

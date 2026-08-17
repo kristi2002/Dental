@@ -18,15 +18,10 @@ import { saveBatch } from '@/lib/actions/stock';
 export function BatchFormDialog({
   itemId,
   itemName,
-  unit,
-  currency,
   today,
 }: {
   itemId: string;
   itemName: string;
-  unit: string;
-  /** ISO 4217 code, so the price field says which money it means. */
-  currency: string;
   /** `YYYY-MM-DD`, used to bound the date pickers and to default the purchase. */
   today: string;
 }) {
@@ -60,7 +55,7 @@ export function BatchFormDialog({
           type="number"
           min={1}
           step={1}
-          label={`${t('batchQuantity')} (${unit})`}
+          label={t('batchQuantity')}
           required
           defaultValue={1}
         />
@@ -97,22 +92,6 @@ export function BatchFormDialog({
           max={today}
         />
       </div>
-
-      {/* What this delivery actually cost per unit. Also becomes the material's
-          price, so the valuation follows the invoices.
-
-          Text rather than `type="number"` for the reason spelled out in
-          `StockFormDialog`: a number input throws away `2214,28` instead of
-          sending it, and a price that disappears without a word is worse than
-          one the server refuses by name. */}
-      <TextField
-        id={`${uid}-price`}
-        name="unitPrice"
-        inputMode="decimal"
-        label={t('batchPrice', { currency, unit })}
-        hint={t('batchPriceHint')}
-        optional={tc('optional')}
-      />
 
       {/* The number a recall notice asks for. Nothing else can answer it. */}
       <TextField

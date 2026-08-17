@@ -7,6 +7,7 @@ import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
+import { getProcedureOptions } from '@/lib/work-procedures';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,12 +41,17 @@ export default async function NewWorkPage({ params }: { params: Promise<{ locale
   // same one is not entered under three spellings. Distinct at the database
   // rather than pulled back and deduplicated here — the register grows forever
   // and the list of labs does not.
-  const named = await prisma.workLine.findMany({
-    where: { lab: { not: null } },
-    distinct: ['lab'],
-    orderBy: { lab: 'asc' },
-    select: { lab: true },
-  });
+  const [named, procedures] = await Promise.all([
+    prisma.workLine.findMany({
+      where: { lab: { not: null } },
+      distinct: ['lab'],
+      orderBy: { lab: 'asc' },
+      select: { lab: true },
+    }),
+    // The kinds of work, which are picked rather than typed — see
+    // `getProcedureOptions` for what happens before any have been named.
+    getProcedureOptions(),
+  ]);
   const labs = named.map((row) => row.lab!).filter(Boolean);
 
   return (
@@ -64,7 +70,7 @@ export default async function NewWorkPage({ params }: { params: Promise<{ locale
 
       {/* The clinic's today, not the browser's — a laptop left on overnight, or
           one set to another zone, would otherwise file the case a day out. */}
-      <NewWorkForm labs={labs} today={toDateKey(today())} />
+      <NewWorkForm labs={labs} procedures={procedures} today={toDateKey(today())} />
     </>
   );
 }

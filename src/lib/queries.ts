@@ -22,6 +22,7 @@ import { departmentOf } from '@/lib/catalog';
 import { usableQuantity } from '@/lib/expiry';
 import { prisma } from '@/lib/prisma';
 import { addDays, toDateKey, timeToMinutes, today } from '@/lib/dates';
+import { DUE_SOON_DAYS } from '@/lib/works';
 
 /**
  * The seven weekday rows, with any the database has not been given yet filled
@@ -357,33 +358,6 @@ export async function getAppointmentsBetween(
 }
 
 /**
- * How many appointments sit on each day of `[from, to]`, keyed by `YYYY-MM-DD`.
- *
- * The month calendar in the sidebar needs a whole month of days at once but
- * none of their detail, so it asks for counts rather than pulling six weeks of
- * appointments through `getAppointmentsBetween` to throw all but the length
- * away. Days with nothing booked are simply absent from the map.
- */
-export async function getAppointmentCountsByDay(
-  from: Date,
-  to: Date,
-  staffUserId?: string | null,
-  statuses?: readonly AppointmentStatus[],
-): Promise<Record<string, number>> {
-  const rows = await prisma.appointment.groupBy({
-    by: ['date'],
-    where: {
-      date: { gte: from, lte: to },
-      ...(staffUserId ? { staffUserId } : {}),
-      ...(statuses && statuses.length > 0 ? { status: { in: [...statuses] } } : {}),
-    },
-    _count: { _all: true },
-  });
-
-  return Object.fromEntries(rows.map((row) => [toDateKey(row.date), row._count._all]));
-}
-
-/**
  * Appointments whose day has passed and which nobody ever closed out.
  *
  * An unclosed slot is the one failure in this app that costs nothing today and
@@ -620,3 +594,77 @@ export async function getUnremindedTomorrow(): Promise<AppointmentView[]> {
     .map(toAppointmentView)
     .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 }
+
+/**
+ * Every follow-up still open, soonest first.
+ *
+ * Uncapped on purpose. The bell draws a count on every page in the app, and a
+ * count taken from a truncated list is a count that is quietly wrong — which is
+ * worse than no badge at all, because the whole point of the thing is that it
+ * can be trusted without opening it. A four-person practice's board is tens of
+ * rows; `sortFollowUps` then puts them in reading order, which the database
+ * cannot do because the buckets depend on what today is.
+ *
+ * The three links are joined here rather than looked up per row: a line in the
+ * bell has to say whose crown it is about, and one query beats twenty.
+ */
+export async function getOpenFollowUps() {
+  return prisma.followUp.findMany({
+    where: { doneAt: null },
+    orderBy: [{ dueAt: 'asc' }, { createdAt: 'asc' }],
+    include: {
+      patient: { select: { id: true, firstName: true, lastName: true } },
+      work: { select: { number: true, patientName: true } },
+      stockItem: { select: { name: true } },
+      assignedTo: { select: { firstName: true, lastName: true } },
+    },
+  });
+}
+
+export type OpenFollowUp = Awaited<ReturnType<typeof getOpenFollowUps>>[number];
+
+/**
+ * Cases still out at the laboratory that are late or nearly so.
+ *
+ * Bounded by date rather than by row count: what makes this list useful is that
+ * it is short because the practice is on top of things, not because the query
+ * stopped early.
+ */
+export async function getWorksToChase() {
+  return prisma.work.findMany({
+    where: { receivedAt: null, dueAt: { not: null, lte: addDays(today(), DUE_SOON_DAYS) } },
+    orderBy: [{ urgent: 'desc' }, { dueAt: 'asc' }],
+    select: {
+      id: true,
+      number: true,
+      patientName: true,
+      phone: true,
+      patientId: true,
+      dueAt: true,
+      receivedAt: true,
+      urgent: true,
+      sentAt: true,
+    },
+  });
+}
+
+/**
+ * Everyone a follow-up can be handed to.
+ *
+ * Wider than `getProviderOptions`, which is deliberately clinicians only: the
+ * front desk is who rings the laboratory and who orders the gloves, so a list
+ * that could not name them would be missing the person most of these lines are
+ * actually for.
+ */
+export const getAssignableStaff = cache(async (): Promise<StaffOption[]> => {
+  const staff = await prisma.staffUser.findMany({
+    where: { active: true },
+    orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    select: { id: true, firstName: true, lastName: true },
+  });
+
+  return staff.map((person) => ({
+    id: person.id,
+    name: `${person.firstName} ${person.lastName}`,
+  }));
+});

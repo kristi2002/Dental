@@ -1,7 +1,12 @@
 import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
+import { FollowUpList } from '@/components/follow-ups/FollowUpList';
 import type { SessionUser } from '@/lib/auth/session';
+import { toDateKey, today } from '@/lib/dates';
+import { bellCounts } from '@/lib/follow-ups';
+import { getAssignableStaff, getOpenFollowUps } from '@/lib/queries';
 import { CommandPalette } from './CommandPalette';
 import { NAV_DESTINATIONS } from './nav-destinations';
 import { Sidebar } from './Sidebar';
@@ -79,11 +84,47 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     ? stored.value.split('.').filter(Boolean)
     : items.filter(({ children }) => children && children.length > 0).map(({ key }) => key);
 
+  // The board behind the bell. Read here rather than on each page because the
+  // bell is drawn on every one of them — and rendered here, on the server, so
+  // the rail is handed finished markup instead of a list of rows plus the job of
+  // formatting dates in three languages on the client.
+  const canSeeFollowUps = user.permissions.includes('followup.view');
+  const canEditFollowUps = user.permissions.includes('followup.edit');
+
+  const [openFollowUps, followUpStaff] = canSeeFollowUps
+    ? await Promise.all([getOpenFollowUps(), getAssignableStaff()])
+    : [[], []];
+
+  const followUps = canSeeFollowUps
+    ? {
+        counts: bellCounts(openFollowUps),
+        list: (
+          <FollowUpList
+            items={openFollowUps}
+            canEdit={canEditFollowUps}
+            staff={followUpStaff}
+            variant="popover"
+          />
+        ),
+        // A reader gets the board without the pen. `followup.edit` is what the
+        // action checks anyway; this is only so the button is not advertised.
+        newButton: canEditFollowUps ? (
+          <FollowUpFormDialog
+            staff={followUpStaff}
+            today={toDateKey(today())}
+            triggerClassName="btn btn-primary btn-sm shrink-0"
+            compact
+          />
+        ) : null,
+      }
+    : null;
+
   return (
     // Column on a phone — top bar above the page. Row on a desktop — rail beside it.
     <div className="flex min-h-screen flex-col lg:flex-row">
       <Sidebar
         items={items}
+        followUps={followUps}
         defaultCollapsed={railCollapsed}
         defaultClosedSections={closedSections}
         user={{

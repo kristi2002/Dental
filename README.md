@@ -197,6 +197,7 @@ node /app/docker/create-owner.mjs "Ilir" "Berisha"
 | `npm run build` | Production build (runs `prisma generate` first) |
 | `npm start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | [oxlint](https://oxc.rs/docs/guide/usage/linter), configured in `.oxlintrc.json`. Not ESLint: typescript-eslint refuses to run against TypeScript 7 |
 | `npm run db:migrate` | Create and apply a named migration (development) |
 | `npm run db:deploy` | Apply pending migrations (release step — needs no shadow database) |
 | `npm run db:push` | Sync the schema without a migration file. Prefer `db:migrate` |

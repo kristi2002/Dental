@@ -2,6 +2,7 @@ import { CalendarSync, CircleCheck, Clock, DoorOpen, Hourglass, Trash2, UserX } 
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Badge } from '@/components/ui/Badge';
 import { ActionForm } from '@/components/ui/ActionForm';
+import { ActionMenu } from '@/components/ui/ActionMenu';
 import { Link } from '@/i18n/navigation';
 import { deleteAppointment, setAppointmentStatus } from '@/lib/actions/appointments';
 import { can } from '@/lib/auth/session';
@@ -77,8 +78,14 @@ export async function AppointmentRow({
        A bordered card rather than a hairline-separated row: an appointment is
        one object you act on, and the box says where it starts and stops. The
        whole box opens the patient — `relative` here is what the patient link's
-       overlay stretches against. */
-    <div className="@container relative rounded-[var(--radius-card)] border border-line bg-surface transition-colors hover:border-line-strong hover:shadow-card">
+       overlay stretches against.
+
+       `@container` also puts each card in a stacking context of its own, which
+       would leave the actions menu painted underneath the next card down. So
+       while the menu is open its card is lifted over its neighbours — keyed off
+       the trigger's own `aria-expanded`, so there is only one thing on the page
+       saying whether the menu is open. */
+    <div className="@container relative rounded-[var(--radius-card)] border border-line bg-surface transition-colors hover:border-line-strong hover:shadow-card has-[[aria-expanded=true]]:z-20">
       <article className="grid items-baseline gap-x-4 gap-y-3 px-4 py-3.5 @[30rem]:grid-cols-[10.5rem_minmax(0,1fr)] @[75rem]:grid-cols-[10.5rem_minmax(0,1fr)_max-content]">
         <div className="flex items-baseline gap-2 @[30rem]:flex-col @[30rem]:gap-0.5">
           <span className="text-2xl font-bold tabular-nums text-ink">{appointment.startTime}</span>
@@ -144,25 +151,19 @@ export async function AppointmentRow({
           ) : null}
         </div>
 
-        {/* Reminders and the status/edit/delete controls are one strip: they are
-            all "things you do to this appointment", and splitting them across two
-            lines made the row look twice as busy as it is. Sits under the details
-            until the row is wide enough for a third column, so the details never
-            get squeezed into a sliver — five buttons need noticeably more room
-            than three, hence the later breakpoint.
+        {/* One strip of "things you do to this appointment" — splitting them
+            across two lines made the row look twice as busy as it is. Sits under
+            the details until the row is wide enough for a third column, so the
+            details never get squeezed into a sliver.
+
+            What is out here is what the front desk presses through the day; the
+            rest is behind the menu at the end. Offering all of it at once gave
+            the buttons pressed every hour exactly the weight of the ones pressed
+            once a week, and left the eye to read the whole line to find either.
 
             `relative` lifts the strip back above the card-wide patient link, so
             marking someone arrived does not navigate away instead. */}
         <div className="relative flex flex-wrap items-center gap-2 @[30rem]:col-start-2 @[30rem]:justify-end @[75rem]:col-start-3 @[75rem]:row-start-1 @[75rem]:self-start">
-          <ReminderLinks
-            patientId={appointment.patient.id}
-            appointmentId={appointment.id}
-            whatsapp={reminder.whatsapp}
-            mail={reminder.mail}
-            body={reminder.body}
-            consent={appointment.patient.contactConsent}
-          />
-
           {/* The front desk’s most-pressed button. Without it the day list is a
               plan; with it, it is a queue the dentist can work down. */}
           {canEdit && appointment.status === 'SCHEDULED' ? (
@@ -218,43 +219,60 @@ export async function AppointmentRow({
             />
           ) : null}
 
-          {canEdit ? (
-            <AppointmentFormDialog
-              // The row already knows whose appointment this is; nothing needs
-              // the rest of the drawer to edit one booking.
-              defaultPatient={{ id: appointment.patient.id, name: patientName }}
-              services={services}
-              staff={staff}
-              operatories={operatories}
-              appointment={{
-                id: appointment.id,
-                patientId: appointment.patient.id,
-                date: appointment.date,
-                startTime: appointment.startTime,
-                durationMin: appointment.durationMin,
-                status: appointment.status,
-                serviceName: appointment.serviceName,
-                notes: appointment.notes,
-                staffUserId: appointment.staffUserId,
-                operatoryId: appointment.operatoryId,
-              }}
-              triggerClassName="btn btn-secondary btn-sm"
-              compact
+          {/* Messaging the patient, editing the booking and deleting it: three
+              things that happen to an appointment now and then, and none of
+              them the reason anyone opened this screen. */}
+          <ActionMenu label={tc('moreActions')}>
+            <ReminderLinks
+              patientId={appointment.patient.id}
+              appointmentId={appointment.id}
+              whatsapp={reminder.whatsapp}
+              mail={reminder.mail}
+              body={reminder.body}
+              consent={appointment.patient.contactConsent}
+              variant="menu"
             />
-          ) : null}
 
-          {canDelete ? (
-            <ActionForm
-              action={deleteAppointment}
-              values={{ id: appointment.id }}
-              confirmMessage={tc('confirmDelete')}
-            >
-              <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
-                <Trash2 size={18} aria-hidden />
-                <span className="sr-only">{tc('delete')}</span>
-              </button>
-            </ActionForm>
-          ) : null}
+            {canEdit ? (
+              <div className="border-t border-line">
+                <AppointmentFormDialog
+                  // The row already knows whose appointment this is; nothing
+                  // needs the rest of the drawer to edit one booking.
+                  defaultPatient={{ id: appointment.patient.id, name: patientName }}
+                  services={services}
+                  staff={staff}
+                  operatories={operatories}
+                  appointment={{
+                    id: appointment.id,
+                    patientId: appointment.patient.id,
+                    date: appointment.date,
+                    startTime: appointment.startTime,
+                    durationMin: appointment.durationMin,
+                    status: appointment.status,
+                    serviceName: appointment.serviceName,
+                    notes: appointment.notes,
+                    staffUserId: appointment.staffUserId,
+                    operatoryId: appointment.operatoryId,
+                  }}
+                  triggerClassName="menu-item"
+                />
+              </div>
+            ) : null}
+
+            {canDelete ? (
+              <ActionForm
+                action={deleteAppointment}
+                values={{ id: appointment.id }}
+                confirmMessage={tc('confirmDelete')}
+                className={canEdit ? 'block' : 'block border-t border-line'}
+              >
+                <button type="submit" role="menuitem" className="menu-item menu-item-danger">
+                  <Trash2 size={19} aria-hidden className="shrink-0" />
+                  {tc('delete')}
+                </button>
+              </ActionForm>
+            ) : null}
+          </ActionMenu>
         </div>
       </article>
     </div>

@@ -80,17 +80,29 @@ const SERVICES = [
   { name: 'Kontroll ortodontik', category: 'Ortodonci', subcategory: '', durationMin: 30 },
 ];
 
+/**
+ * The storage room. Every count is **boxes** — see `StockItem.quantity`.
+ *
+ * `product` groups the rows that are variants of one thing, which is what the
+ * photo catalogue is built around: the gloves are one product in three sizes and
+ * the composite is one product in two shades, so both the grouped case and the
+ * standalone case have something true to show. `carton` is the pack-level
+ * barcode — how many boxes one scan of the outer carton is worth.
+ */
 const STOCK = [
-  { name: 'Anestezi Lidokainë 2%', category: 'Farmaceutike', quantity: 42, minLimit: 15, unit: 'fiola' },
-  { name: 'Dorashka nitrili (M)', category: 'Higjienë', quantity: 8, minLimit: 20, unit: 'kuti' },
-  { name: 'Maska kirurgjikale', category: 'Higjienë', quantity: 26, minLimit: 10, unit: 'kuti' },
-  { name: 'Kompozit A2', category: 'Materiale', quantity: 4, minLimit: 6, unit: 'shiringa' },
-  { name: 'Freza diamanti', category: 'Instrumente', quantity: 31, minLimit: 12, unit: 'copë' },
-  { name: 'Gjilpëra anestezie', category: 'Instrumente', quantity: 0, minLimit: 10, unit: 'kuti' },
-  { name: 'Cimento qelqjonomer', category: 'Materiale', quantity: 9, minLimit: 4, unit: 'kuti' },
-  { name: 'Fije suture 4-0', category: 'Kirurgji', quantity: 14, minLimit: 5, unit: 'copë' },
-  { name: 'Rula pambuku', category: 'Konsumueshme', quantity: 55, minLimit: 20, unit: 'paketa' },
-  { name: 'Solucion dezinfektues', category: 'Higjienë', quantity: 6, minLimit: 8, unit: 'litra' },
+  { name: 'Anestezi Lidokainë 2%', category: 'Farmaceutike', quantity: 42, minLimit: 15 },
+  { name: 'Dorashka nitrili', product: 'Dorashka nitrili', variantName: 'Masa S', category: 'Higjienë', quantity: 12, minLimit: 20, carton: 10 },
+  { name: 'Dorashka nitrili', product: 'Dorashka nitrili', variantName: 'Masa M', category: 'Higjienë', quantity: 8, minLimit: 20, carton: 10 },
+  { name: 'Dorashka nitrili', product: 'Dorashka nitrili', variantName: 'Masa L', category: 'Higjienë', quantity: 3, minLimit: 20, carton: 10 },
+  { name: 'Maska kirurgjikale', category: 'Higjienë', quantity: 26, minLimit: 10, carton: 20 },
+  { name: 'Kompozit A2', product: 'Kompozit Filtek Z250', variantName: 'A2', category: 'Materiale', quantity: 4, minLimit: 6 },
+  { name: 'Kompozit A3', product: 'Kompozit Filtek Z250', variantName: 'A3', category: 'Materiale', quantity: 7, minLimit: 6 },
+  { name: 'Freza diamanti', category: 'Instrumente', quantity: 31, minLimit: 12 },
+  { name: 'Gjilpëra anestezie', category: 'Instrumente', quantity: 0, minLimit: 10 },
+  { name: 'Cimento qelqjonomer', category: 'Materiale', quantity: 9, minLimit: 4 },
+  { name: 'Fije suture 4-0', category: 'Kirurgji', quantity: 14, minLimit: 5 },
+  { name: 'Rula pambuku', category: 'Konsumueshme', quantity: 55, minLimit: 20 },
+  { name: 'Solucion dezinfektues', category: 'Higjienë', quantity: 6, minLimit: 8 },
 ];
 
 const PATIENTS = [
@@ -311,11 +323,19 @@ async function main() {
   }
 
   const stockItems = [];
-  for (const [index, { category, ...item }] of STOCK.entries()) {
+  // One row per product name, made before the materials that point at it.
+  const products = new Map<string, string>();
+  for (const name of new Set(STOCK.map((item) => item.product).filter(Boolean))) {
+    const created = await prisma.stockProduct.create({ data: { name: name! } });
+    products.set(name!, created.id);
+  }
+
+  for (const [index, { category, product, carton, ...item }] of STOCK.entries()) {
     const created = await prisma.stockItem.create({
       data: {
         ...item,
         categoryId: categories.get(category),
+        productId: product ? products.get(product) : null,
         supplierId: suppliers[index % suppliers.length].id,
         // One item already on order, so the reorder list has something in the
         // "decision already taken" state to demonstrate.
@@ -358,20 +378,21 @@ async function main() {
 
   console.log('Seeding product barcodes…');
   for (const [index, item] of stockItems.entries()) {
-    // The each-level code every material gets, plus a carton code on the two
-    // that are genuinely bought by the box — which is the case that proves
+    // The box-level code every material gets, plus an outer-carton code on the
+    // few that are delivered by the carton — which is the case that proves
     // `packQty` is doing something.
     await prisma.productBarcode.create({
       data: { code: demoGtin(index + 1), itemId: item.id, packQty: 1 },
     });
 
-    if (item.packSize > 1) {
+    const carton = STOCK[index]?.carton;
+    if (carton) {
       await prisma.productBarcode.create({
         data: {
           code: demoGtin(500 + index),
           itemId: item.id,
-          packQty: item.packSize,
-          label: `Carton of ${item.packSize}`,
+          packQty: carton,
+          label: `Carton of ${carton}`,
         },
       });
     }

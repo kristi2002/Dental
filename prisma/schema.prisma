@@ -44,6 +44,13 @@ model StaffUser {
   contacts       Contact[]
   alertsCreated  PatientAlert[]
 
+  /// Three roles on one board: who wrote the line, whose job it is, who ticked
+  /// it off. Named relations because Prisma cannot tell three links to the same
+  /// table apart on its own.
+  followUpsCreated  FollowUp[] @relation("FollowUpAuthor")
+  followUpsAssigned FollowUp[] @relation("FollowUpAssignee")
+  followUpsClosed   FollowUp[] @relation("FollowUpCompleter")
+
   @@index([active])
 }
 
@@ -118,6 +125,7 @@ model Patient {
   contacts      Contact[]
   alerts        PatientAlert[]
   works         Work[]
+  followUps     FollowUp[]
 
   /// Whether they have agreed to be messaged. Deliberately tri-state: `null`
   /// means nobody has asked yet, which is a different thing from "no" and is
@@ -525,12 +533,65 @@ enum ToothNumbering {
 }
 
 model StockItem {
-  id        String   @id @default(uuid())
-  name      String
-  quantity  Int      @default(0)
-  minLimit  Int      @default(5)
-  unit      String   @default("pcs")
+  id       String @id @default(uuid())
+  name     String
+  /// **Boxes.** Not pieces, not millilitres — boxes, as they stand on the shelf.
+  ///
+  /// The storage room is worked one package at a time: a box arrives and is put
+  /// on a shelf, and later somebody opens it and it is gone. That is the whole
+  /// of it, and it is the only count anybody in the practice can state without
+  /// guessing. A half-used box is still a box on the shelf until it is thrown
+  /// out, and asking how many gloves are left in it gets an invented number.
+  quantity Int    @default(0)
+  minLimit Int    @default(5)
+
+  /// What the shelf used to be counted in, back when every material named its
+  /// own unit — "fiola", "copë", "litra", "pcs".
+  ///
+  /// Dead. Nothing reads it and no form asks for it: the app counts boxes and
+  /// says so, in one word, in one place (`BOX_UNIT` in `src/lib/units.ts`). Ten
+  /// units meant ten different words on ten rows of one list, and a reader
+  /// holding a carton had to translate each one back into "how many of these are
+  /// on the shelf" — which was always the actual question.
+  ///
+  /// Kept only because the deploy cannot drop it: `db push` runs without
+  /// `--accept-data-loss` (see `docker/entrypoint.sh`), so removing the column
+  /// would halt the release rather than migrate it. New rows are written "box"
+  /// for the day somebody wants the old wording back and finds it never left.
+  unit String @default("box")
+
   updatedAt DateTime @updatedAt
+
+  /// The product this is one variant of — the same box in a different shade,
+  /// size or flavour. Null for a material that has no siblings, which is most of
+  /// them.
+  ///
+  /// See `StockProduct`. A variant is a `StockItem` in its own right and not a
+  /// column on the product, because each shade is bought, counted, scanned and
+  /// run out of separately: A2 being empty says nothing about A3.
+  productId String?
+  product   StockProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  /// Which variant this is, in the manufacturer's own wording — "A2", "Size M",
+  /// "22G". Only the part that differs from its siblings: the shared half is the
+  /// product's name, and repeating it here is what produced eight rows all
+  /// starting with the same four words.
+  variantName String?
+
+  /// A photograph of this exact box, and what kind of image it is.
+  ///
+  /// The one field on this row that needs no reading. Materials are recognised
+  /// off the shelf by the look of the packaging — a colour, a shape, a logo —
+  /// and never by an article number, so a list of names is a list somebody has
+  /// to decode before they can act on it. A variant without its own picture
+  /// falls back to the product's, because three shades of one composite come in
+  /// three identical boxes.
+  ///
+  /// The key is a filename under the private storage directory, exactly like a
+  /// patient document — see `src/lib/files.ts`. The bytes are handed out only by
+  /// `/api/stock/photo/[id]`, which checks the session first.
+  photoKey  String?
+  photoMime String?
 
   /// Which shelf this lives on. Null is a real answer — see `StockCategory`.
   categoryId String?
@@ -569,16 +630,18 @@ model StockItem {
   /// an unpriced material is left out of the valuation instead of counted as 0.
   unitPrice Decimal? @db.Decimal(12, 2)
 
-  /// How many pieces are in one `unit` — 100 gloves in a box.
+  /// How many pieces were in one box — 100 gloves.
   ///
-  /// Used only to print the order form in the count the supplier sells by. The
-  /// shelf is counted, and the ledger written, in whole `unit`s: a part-used box
-  /// is not tracked, because nobody in a practice writes one down. Storing the
-  /// piece count instead would mean rendering "5.4 boxes", which is not a number
-  /// anyone can act on.
+  /// Dead, like `unit`, and for a blunter reason: nobody could keep it true. It
+  /// asked the practice to state a number the supplier changes without telling
+  /// anyone, in return for printing the order form in pieces — an order nobody
+  /// places in pieces. The shelf is boxes, the order is boxes, the ledger is
+  /// boxes, and every screen now says so in the same word.
+  ///
+  /// Kept for the reason `unit` is: `db push` will not drop a column.
   packSize Int @default(1)
 
-  /// How many `unit`s to buy once the minimum is reached.
+  /// How many boxes to buy once the minimum is reached.
   ///
   /// Bulk stock is bought the same amount every time, and an item nobody logs
   /// per-use has no consumption history to project from — asking the owner once
@@ -608,6 +671,7 @@ model StockItem {
   usedBy     ServiceMaterial[]
   batches    StockBatch[]
   barcodes   ProductBarcode[]
+  followUps  FollowUp[]
 
   /// Both the duplicate check on save and searching the shelf by label.
   @@index([code])
@@ -647,12 +711,13 @@ model ProductBarcode {
   itemId String
   item   StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
-  /// How many `StockItem.unit`s one scan of this symbol is worth.
+  /// How many **boxes** one scan of this symbol is worth.
   ///
-  /// A carton of 100 gloves and a single box of 100 gloves carry *different*
-  /// GTINs, and scanning the carton has to add what the carton holds. Without
-  /// this the only honest options were to refuse pack-level codes or to count a
-  /// pallet as one glove.
+  /// A carton of ten boxes and a single box carry *different* GTINs, and
+  /// scanning the carton has to add what the carton holds. Without this the only
+  /// honest options were to refuse pack-level codes or to count a carton as one
+  /// box. Left at 1 — the overwhelming case — one beep is one box, which is what
+  /// makes the scanner usable without reading anything on screen.
   packQty Int @default(1)
 
   /// What this symbol is on, in the words the storage room uses — "carton of 10
@@ -668,6 +733,44 @@ model ProductBarcode {
   createdAt DateTime @default(now())
 
   @@index([itemId])
+}
+
+/// One product the practice buys, which the shelf may hold in several variants.
+///
+/// A composite comes in eight shades, a glove in four sizes, a suture in three
+/// gauges. Each is its own `StockItem` — separately bought, counted, scanned and
+/// run out of — but they are one product to everybody who handles them: one
+/// picture on the box, one supplier, one decision to reorder. Without a row to
+/// say so, the storage room is eight rows beginning "Kompozit Filtek Z250 —",
+/// the catalogue is unreadable, and the same photograph is uploaded eight times.
+///
+/// Optional, and created by typing: `saveStockItem` matches the product name
+/// case-insensitively and makes the row if it is new, so nobody has to visit a
+/// second screen before they can record a material. A material with no product
+/// is a product of one and is listed exactly like any other.
+///
+/// `name` is deliberately **not** `@unique`, for the reason `StockCategory.name`
+/// is not: the deploy runs `prisma db push`, which refuses to add a unique
+/// constraint to a populated table and takes the release down with it.
+model StockProduct {
+  id   String @id @default(uuid())
+  name String
+
+  /// Who makes it — "3M", "Dentsply". Kept apart from the name so "Filtek Z250"
+  /// stays the thing staff say out loud, and the brand is what tells two
+  /// near-identical products apart on the catalogue.
+  brand String?
+
+  /// The picture every variant falls back to. See `StockItem.photoKey`: three
+  /// shades of one composite arrive in three identical boxes, so the photograph
+  /// belongs to the product and a variant overrides it only when it genuinely
+  /// looks different.
+  photoKey  String?
+  photoMime String?
+
+  createdAt DateTime @default(now())
+
+  items StockItem[]
 }
 
 /// A shelf in the storage room, named once and then picked from.
@@ -1148,16 +1251,45 @@ model Work {
   /// simply lands on the day of the deploy.
   sentAt DateTime @default(now())
 
+  /// The day the laboratory promised it back, at UTC midnight.
+  ///
+  /// The one date the paper register never had a column for, and the one the
+  /// practice is actually asked about: "is my crown back yet" is a question
+  /// about this, not about `sentAt`. Optional, because plenty of cases go out
+  /// without a promise attached and inventing one would make every such row
+  /// look late.
+  dueAt DateTime?
+
+  /// The day it came back. Null while the case is still out.
+  ///
+  /// What closes a row. Without it every case that ever passed its `dueAt`
+  /// stays overdue for ever, so the register would fill with red and stop
+  /// meaning anything — which is the failure mode of every to-do list that
+  /// cannot be ticked off.
+  receivedAt DateTime?
+
+  /// Chase this one first.
+  ///
+  /// Deliberately a flag rather than a scale: a three-level priority invites an
+  /// argument about whether something is high or medium, and a register where
+  /// everything is high is a register with no priority at all. Same shape, and
+  /// the same reasoning, as `WaitlistEntry.urgent`.
+  urgent Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lines WorkLine[]
+  lines     WorkLine[]
+  followUps FollowUp[]
 
   /// The register is read a month at a time, newest first, and searched by the
   /// laboratory's serial.
   @@index([sentAt])
   @@index([patientId])
   @@index([labSerial])
+  /// "What is late" reads the open cases by promised date, so both columns are
+  /// in the index the question is asked of.
+  @@index([receivedAt, dueAt])
 }
 
 /// One piece of work inside a case: which teeth, what is being made, and by whom.
@@ -1184,7 +1316,27 @@ model WorkLine {
   /// the export — sums this column.
   elements Int @default(1)
 
+  /// Which teeth this piece of work covers, FDI, in the order the chart reads:
+  /// `17,16x,15`. An `x` is a position the laboratory makes an element for and
+  /// the mouth has no tooth in — the gap under a bridge.
+  ///
+  /// This is the `Diagnoza` column of the paper register, which the app used to
+  /// keep as free text on `Work` (see `Work.diagnosis`) — one span for a case
+  /// that routinely has three pieces of work in it, believed exactly as typed,
+  /// readable by nobody. Here it belongs to the line, the way it does on the
+  /// docket, and `elements` above falls out of it rather than being typed twice.
+  ///
+  /// Optional, because plenty of work names no teeth at all: a full denture, a
+  /// repair, a bite splint.
+  teeth String?
+
   /// What is being made — a crown, a bridge, a denture, a repair.
+  ///
+  /// The *name*, not a link to `WorkProcedure`, for the reason `patientName` is
+  /// a copy and not a lookup: this row is a record of a docket that has already
+  /// left the building, and renaming an entry in the catalogue two years later
+  /// must not rewrite what was sent in March. The catalogue is where the form
+  /// gets its options; this is what was chosen.
   procedure String
 
   /// Which laboratory. Free text rather than a row of its own: this is a
@@ -1193,4 +1345,104 @@ model WorkLine {
   lab String?
 
   @@index([workId])
+}
+
+/// The kinds of work this practice sends out, named once.
+///
+/// `WorkLine.procedure` was a text box, and a text box asked the same question
+/// on every line of every case: a *zirconia crown* was going out as "Kurorë
+/// zirkoni", "kurore zirkon" and "Zirkon" in the same week. Nothing could be
+/// counted, and the register's whole job is counting.
+///
+/// So the same shape as `StockCategory` and `ServiceCategory`: a short list the
+/// practice keeps, and a form that offers that list and nothing else. Flat, with
+/// no parent — a laboratory bills for a crown or a denture, and there is nothing
+/// underneath either of them worth filing.
+model WorkProcedure {
+  id   String @id @default(uuid())
+  name String
+
+  createdAt DateTime @default(now())
+}
+
+/// How loudly a follow-up asks. Two values on purpose, like `Work.urgent`: a
+/// five-level scale is an invitation to file everything at the top, and a board
+/// where every line is urgent is a board with no priority on it at all.
+enum FollowUpPriority {
+  NORMAL
+  URGENT
+}
+
+/// Something the practice has to come back to, with a day attached.
+///
+/// The gap this fills is narrow and real. Everything else in the app is a record
+/// of what *happened* — a slot, a visit, a case, a box off the shelf — and the
+/// only things that ever chased anybody were derived: a recall falls out of the
+/// last visit date, a low-stock warning out of a count. None of that can hold
+/// "ring the lab about Berisha's bridge on Thursday", so it lived on a sticky
+/// note on the monitor, which is the system this replaces.
+///
+/// Deliberately *not* called a reminder. That word is taken twice over — a
+/// `Contact` of purpose `REMINDER` is the message a patient gets before their
+/// appointment, and `/recalls` is the list of people due back. Both are about
+/// contacting a patient; this is the practice talking to itself, and giving all
+/// three the same name on screen would make the bell unreadable.
+///
+/// The link is three optional foreign keys rather than the `entity`/`entityId`
+/// pair `AuditLog` uses, because these are live rows rather than a historical
+/// record: a follow-up wants to *open* the thing it is about, and it should stop
+/// existing when that thing does. Cascade gives both; a loose string gives a
+/// button that leads to a 404.
+model FollowUp {
+  id String @id @default(uuid())
+
+  /// What to do, in one line — the words that appear in the bell.
+  title String
+  notes String?
+
+  /// The day it comes up, at UTC midnight.
+  ///
+  /// Required, and the whole point. A follow-up with no date is a note, and the
+  /// app already has somewhere to write notes on every record worth writing them
+  /// on; what nothing could do was make one surface again on a chosen morning.
+  dueAt DateTime
+
+  priority FollowUpPriority @default(NORMAL)
+
+  /// Ticked off, and by whom. Kept rather than deleted so the board can be
+  /// looked back over, and so a line closed by mistake can be reopened.
+  doneAt   DateTime?
+  doneById String?
+  doneBy   StaffUser? @relation("FollowUpCompleter", fields: [doneById], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   StaffUser? @relation("FollowUpAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  /// Whose job it is. Null means the practice's rather than a person's, which is
+  /// the honest default in a clinic of four people who all answer the phone.
+  assignedToId String?
+  assignedTo   StaffUser? @relation("FollowUpAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  /// What it is about. At most one of these is ever set — the form offers the
+  /// record it was opened from — and all three may be null, because "order more
+  /// gloves" is a real follow-up that is about nothing in particular.
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  workId String?
+  work   Work?   @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  stockItemId String?
+  stockItem   StockItem? @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The bell's own query: what is still open, soonest first. `doneAt` leads
+  /// because filtering the closed lines away is the first thing every read does.
+  @@index([doneAt, dueAt])
+  @@index([assignedToId])
+  @@index([patientId])
+  @@index([workId])
+  @@index([stockItemId])
 }

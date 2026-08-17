@@ -26,10 +26,9 @@ import { prisma } from '@/lib/prisma';
 export type MaterialSuggestion = {
   itemId: string;
   name: string;
-  unit: string;
-  /** What is on the shelf right now, so the form can say when it is short. */
+  /** Boxes on the shelf right now, so the form can say when it is short. */
   onHand: number;
-  /** Typical units per visit, rounded — the figure the field starts at. */
+  /** Typical boxes per visit, rounded — the figure the field starts at. */
   typicalQuantity: number;
   /** How many past visits this is drawn from. Below a handful it is a guess. */
   visits: number;
@@ -61,7 +60,7 @@ export async function suggestMaterials(serviceIds: string[]): Promise<MaterialSu
       itemId: true,
       delta: true,
       visitRecordId: true,
-      item: { select: { name: true, unit: true, quantity: true } },
+      item: { select: { name: true, quantity: true } },
     },
   });
 
@@ -72,13 +71,12 @@ export async function suggestMaterials(serviceIds: string[]): Promise<MaterialSu
   // typical amount and suggest one carpule where two are always used.
   const tally = new Map<
     string,
-    { name: string; unit: string; onHand: number; units: number; visits: Set<string> }
+    { name: string; onHand: number; units: number; visits: Set<string> }
   >();
 
   for (const movement of movements) {
     const row = tally.get(movement.itemId) ?? {
       name: movement.item.name,
-      unit: movement.item.unit,
       onHand: movement.item.quantity,
       units: 0,
       visits: new Set<string>(),
@@ -92,7 +90,6 @@ export async function suggestMaterials(serviceIds: string[]): Promise<MaterialSu
     .map(([itemId, row]) => ({
       itemId,
       name: row.name,
-      unit: row.unit,
       onHand: row.onHand,
       // At least one: a material that appears at all is used at least once, and
       // rounding a genuinely small average down to zero would offer a chip that

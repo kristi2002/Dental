@@ -163,7 +163,7 @@ export default async function PatientDetailPage({
             select: { toothNum: true, status: true, surfaces: true, notes: true },
           },
           stockMovements: {
-            select: { delta: true, item: { select: { name: true, unit: true } } },
+            select: { delta: true, item: { select: { name: true } } },
           },
         },
       },
@@ -503,16 +503,15 @@ export default async function PatientDetailPage({
         </div>
       </header>
 
-      <nav className="mb-4 flex gap-1 overflow-x-auto rounded-lg border border-line-strong p-1">
+      {/* `flex-nowrap` and a scroller rather than the shared wrap: eight tabs
+          folding onto three lines would push the record itself off the screen. */}
+      <nav className="segmented mb-4 flex w-full flex-nowrap overflow-x-auto">
         {tabs.map((option) => (
           <Link
             key={option}
             href={`/patients/${patient.id}?tab=${option}`}
             aria-current={option === tab ? 'page' : undefined}
-            className={cn(
-              'min-h-11 rounded-md px-4 py-2 font-bold whitespace-nowrap no-underline transition-colors',
-              option === tab ? 'bg-brand-dark text-white' : 'text-ink-soft hover:bg-paper hover:text-ink',
-            )}
+            className="segment"
           >
             {t(TAB_LABEL[option])}
           </Link>
@@ -833,10 +832,10 @@ export default async function PatientDetailPage({
               // "composite ×2", not "composite ×1, composite ×1".
               materials: Object.values(
                 visit.stockMovements.reduce<
-                  Record<string, { name: string; quantity: number; unit: string }>
+                  Record<string, { name: string; quantity: number }>
                 >((totals, movement) => {
                   const key = movement.item.name;
-                  totals[key] ??= { name: key, quantity: 0, unit: movement.item.unit };
+                  totals[key] ??= { name: key, quantity: 0 };
                   totals[key].quantity += Math.abs(movement.delta);
                   return totals;
                 }, {}),

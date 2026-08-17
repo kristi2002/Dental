@@ -21,7 +21,7 @@ import { hasAllergyNote } from '@/lib/medical';
 import { ACTIVE_PATIENTS, fold, patientSearchClauses } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 import { getReliabilityMap } from '@/lib/reliability';
-import { cn, initials } from '@/lib/utils';
+import { initials } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,25 +117,27 @@ export default async function PatientsPage({
       />
 
       {archivedCount > 0 ? (
-        <nav aria-label={t('archivedTitle')} className="mb-4 flex flex-wrap gap-2">
-          <Link
-            href={query ? `/patients?q=${encodeURIComponent(query)}` : '/patients'}
-            aria-current={archived ? undefined : 'true'}
-            className={cn('btn btn-sm', archived ? 'btn-secondary' : 'btn-primary')}
-          >
-            {t('title')}
-          </Link>
-          <Link
-            href={
-              query
-                ? `/patients?show=archived&q=${encodeURIComponent(query)}`
-                : '/patients?show=archived'
-            }
-            aria-current={archived ? 'true' : undefined}
-            className={cn('btn btn-sm', archived ? 'btn-primary' : 'btn-secondary')}
-          >
-            {t('archivedTitle')} ({archivedCount})
-          </Link>
+        <nav aria-label={t('archivedTitle')} className="mb-4">
+          <div className="segmented">
+            <Link
+              href={query ? `/patients?q=${encodeURIComponent(query)}` : '/patients'}
+              aria-current={archived ? undefined : 'true'}
+              className="segment"
+            >
+              {t('title')}
+            </Link>
+            <Link
+              href={
+                query
+                  ? `/patients?show=archived&q=${encodeURIComponent(query)}`
+                  : '/patients?show=archived'
+              }
+              aria-current={archived ? 'true' : undefined}
+              className="segment"
+            >
+              {t('archivedTitle')} ({archivedCount})
+            </Link>
+          </div>
         </nav>
       ) : null}
 

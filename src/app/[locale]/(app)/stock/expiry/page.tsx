@@ -59,7 +59,7 @@ export default async function ExpiryPage({
       expiryDate: true,
       quantity: true,
       usedQuantity: true,
-      item: { select: { id: true, name: true, unit: true } },
+      item: { select: { id: true, name: true } },
     },
   });
 
@@ -106,7 +106,7 @@ export default async function ExpiryPage({
                   {batch.item.name}
                 </Link>
                 <span className="block text-[0.92rem] text-ink-soft tabular-nums">
-                  {t('inStock', { qty: batch.remaining, unit: batch.item.unit })}
+                  {t('inStock', { qty: batch.remaining })}
                   {batch.lotNumber ? ` · ${t('lotShort', { lot: batch.lotNumber })}` : ''}
                 </span>
               </span>
@@ -124,7 +124,6 @@ export default async function ExpiryPage({
                 <WriteOffForm
                   batchId={batch.id}
                   remaining={batch.remaining}
-                  unit={batch.item.unit}
                   itemName={batch.item.name}
                 />
               </span>

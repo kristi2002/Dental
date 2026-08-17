@@ -47,7 +47,7 @@ export type VisitView = {
   /** Teeth charted during this visit. */
   teeth: VisitToothView[];
   /** What the visit consumed, already aggregated per material. */
-  materials: Array<{ name: string; quantity: number; unit: string }>;
+  materials: Array<{ name: string; quantity: number }>;
   /** Prescriptions written the same day. */
   prescriptions: Array<{ id: string; body: string }>;
   /** Who wrote it. Empty for visits recorded before staff accounts existed. */
@@ -77,6 +77,8 @@ export function VisitTimeline({
   const tc = useTranslations('common');
   const tt = useTranslations('teeth');
   const tp = useTranslations('prescriptions');
+  // The shelf is counted in boxes; the word lives with the storage room's strings.
+  const tstock = useTranslations('stock');
   const format = useFormatter();
   const reference = new Date(now);
 
@@ -227,7 +229,8 @@ export function VisitTimeline({
                         <Package size={15} aria-hidden className="text-ink-faint" />
                         {visit.materials.map((material) => (
                           <span key={material.name} className="font-semibold">
-                            {material.name} ×{material.quantity} {material.unit}
+                            {material.name} ×{material.quantity}{' '}
+                            {tstock('boxes', { count: material.quantity })}
                           </span>
                         ))}
                       </p>

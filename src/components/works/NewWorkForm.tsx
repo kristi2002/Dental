@@ -6,7 +6,8 @@ import { useId, useState } from 'react';
 import { PatientPicker } from '@/components/patients/PatientPicker';
 import { TextAreaField, TextField } from '@/components/ui/Field';
 import { FormActions, FormLayout, FormPreview, FormSection } from '@/components/ui/FormPage';
-import { WorkLinesField, WorkLinesHeader, type LineDraft } from '@/components/works/WorkLinesField';
+import { ToothSpan } from '@/components/works/ToothSpan';
+import { WorkLinesField, type LineDraft } from '@/components/works/WorkLinesField';
 import { saveWork } from '@/lib/actions/works';
 import { useRecoveredForm } from '@/lib/form-recovery';
 import { elementsOf } from '@/lib/works';
@@ -23,9 +24,18 @@ import { elementsOf } from '@/lib/works';
  * the register keeps its own copy of both, because the docket that went to the
  * lab has them printed on it. See `Work.patientName`.
  */
-export function NewWorkForm({ labs = [], today }: { labs?: string[]; today: string }) {
+export function NewWorkForm({
+  labs = [],
+  procedures = [],
+  today,
+}: {
+  labs?: string[];
+  procedures?: string[];
+  today: string;
+}) {
   const t = useTranslations('works');
   const tc = useTranslations('common');
+  const tt = useTranslations('teeth');
   const uid = useId();
 
   const { state, formAction, formRef } = useRecoveredForm(saveWork);
@@ -33,7 +43,7 @@ export function NewWorkForm({ labs = [], today }: { labs?: string[]; today: stri
   const [lines, setLines] = useState<LineDraft[]>([
     // One row to start: the case is the reason this screen was opened, and making
     // the first act "press Add" is a step that teaches nothing.
-    { key: 'line-1', elements: 1, procedure: '', lab: '' },
+    { key: 'line-1', elements: 1, procedure: '', lab: '', teeth: '' },
   ]);
   const [preview, setPreview] = useState({ patientName: '', phone: '', labSerial: '' });
 
@@ -67,12 +77,22 @@ export function NewWorkForm({ labs = [], today }: { labs?: string[]; today: stri
               {t('lineCount', { count: lines.filter((line) => line.procedure.trim()).length })}
             </p>
 
-            <ul className="mt-2 space-y-1">
+            <ul className="mt-2 space-y-1.5">
               {lines
                 .filter((line) => line.procedure.trim())
                 .map((line) => (
-                  <li key={line.key} className="truncate text-[0.95rem] text-ink-soft">
-                    {[`${line.elements}×`, line.procedure, line.lab].filter(Boolean).join(' · ')}
+                  <li key={line.key} className="text-[0.95rem] text-ink-soft">
+                    <span className="block truncate">
+                      {[`${line.elements}×`, line.procedure, line.lab].filter(Boolean).join(' · ')}
+                    </span>
+                    {/* The span as it will be printed on the register — the one
+                        part of a row that is worth checking against the docket
+                        before the case is saved. */}
+                    <ToothSpan
+                      value={line.teeth}
+                      quadrantLabel={(quadrant) => tt(`quadrant_${quadrant}`)}
+                      className="mt-0.5 text-[0.92rem]"
+                    />
                   </li>
                 ))}
             </ul>
@@ -130,16 +150,6 @@ export function NewWorkForm({ labs = [], today }: { labs?: string[]; today: stri
             />
           </div>
 
-          <TextField
-            id={`${uid}-diagnosis`}
-            name="diagnosis"
-            label={t('diagnosis')}
-            hint={t('diagnosisHint')}
-            placeholder={t('diagnosisPlaceholder')}
-            optional={tc('optional')}
-            autoComplete="off"
-            className="sm:max-w-64"
-          />
         </FormSection>
 
         <FormSection
@@ -174,10 +184,38 @@ export function NewWorkForm({ labs = [], today }: { labs?: string[]; today: stri
             />
           </div>
 
+          {/* When the laboratory said it would be back. Left empty deliberately
+              rather than guessed at: a date the app invented would put the case
+              on the chase list on a day nobody promised anything, and a chase
+              list that cries wolf is one the practice stops opening. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              id={`${uid}-dueAt`}
+              name="dueAt"
+              type="date"
+              label={t('dueAt')}
+              hint={t('dueAtHint')}
+              optional={tc('optional')}
+            />
+
+            <label className="flex items-center gap-2.5 self-end pb-2 font-semibold text-ink">
+              <input
+                type="checkbox"
+                name="urgent"
+                className="size-5 accent-[var(--color-danger)]"
+              />
+              {t('urgent')}
+            </label>
+          </div>
+
           <div>
             <p className="field-label">{t('lines')}</p>
-            <WorkLinesHeader />
-            <WorkLinesField value={lines} onChange={setLines} labs={labs} />
+            <WorkLinesField
+              value={lines}
+              onChange={setLines}
+              labs={labs}
+              procedures={procedures}
+            />
           </div>
         </FormSection>
 

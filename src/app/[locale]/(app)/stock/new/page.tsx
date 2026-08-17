@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
-import { ACTIVE_STOCK, getClinicProfile, getStockCategories } from '@/lib/queries';
+import { getStockCategories } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,17 +35,12 @@ export default async function NewStockItemPage({
   // list that is still empty.
   const categories = await getStockCategories();
 
-  const [unitRows, suppliers, profile] = await Promise.all([
-    // The units already in use, offered as autocomplete — it is what keeps
-    // "box", "Box" and "bx" from becoming three units of the same thing.
-    prisma.stockItem.findMany({
-      where: ACTIVE_STOCK,
-      distinct: ['unit'],
-      orderBy: { unit: 'asc' },
-      select: { unit: true },
-    }),
+  const [products, suppliers] = await Promise.all([
+    // The products already recorded, offered as autocomplete — it is what keeps
+    // "Filtek Z250", "filtek z250" and "Filtek  Z250" from becoming three
+    // products holding one shade each.
+    prisma.stockProduct.findMany({ orderBy: { name: 'asc' }, select: { name: true } }),
     prisma.supplier.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-    getClinicProfile(),
   ]);
 
   return (
@@ -64,9 +59,8 @@ export default async function NewStockItemPage({
 
       <NewStockForm
         categories={categories}
-        units={unitRows.map((row) => row.unit)}
+        products={products.map((row) => row.name)}
         suppliers={suppliers}
-        currency={profile.currency}
       />
     </>
   );

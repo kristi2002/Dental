@@ -13,9 +13,8 @@ export type StocktakeItem = {
   /** The article number, when the practice numbers its shelves. */
   code: string;
   category: string;
-  unit: string;
+  /** Boxes on record — what the count is compared against. */
   quantity: number;
-  packSize: number;
 };
 
 /**
@@ -93,10 +92,7 @@ export function StocktakeForm({ items }: { items: StocktakeItem[] }) {
                         ) : null}
                       </label>
                       <p className="text-[0.9rem] text-ink-soft">
-                        {t('stocktakeOnRecord', { qty: item.quantity, unit: item.unit })}
-                        {item.packSize > 1
-                          ? ` · ${t('packOf', { unit: item.unit, count: item.packSize })}`
-                          : ''}
+                        {t('stocktakeOnRecord', { qty: item.quantity })}
                       </p>
                     </div>
 
@@ -131,7 +127,9 @@ export function StocktakeForm({ items }: { items: StocktakeItem[] }) {
                       aria-label={t('stocktakeCountOf', { name: item.name })}
                       className="field-input w-24 py-1.5 text-center tabular-nums"
                     />
-                    <span className="w-16 shrink-0 text-[0.9rem] text-ink-soft">{item.unit}</span>
+                    <span className="w-16 shrink-0 text-[0.9rem] text-ink-soft">
+                      {t('boxes', { count: Number(shown(item)) || 0 })}
+                    </span>
 
                     {difference !== null && difference !== 0 ? (
                       <input type="hidden" name="count" value={`${item.id}:${shown(item)}`} />

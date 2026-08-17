@@ -47,9 +47,7 @@ export default async function StocktakePage({
       name: true,
       code: true,
       category: { select: { name: true } },
-      unit: true,
       quantity: true,
-      packSize: true,
     },
   });
 

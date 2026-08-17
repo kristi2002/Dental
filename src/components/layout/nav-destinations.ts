@@ -32,7 +32,17 @@ export const NAV_DESTINATIONS: ReadonlyArray<
   // Beside the plans rather than under the catalogue: a case sent to a lab is
   // work in progress on a patient, and it is chased daily — which is the test
   // for the top level of this rail.
-  { href: '/works', key: 'works', permission: 'work.view' },
+  {
+    href: '/works',
+    key: 'works',
+    permission: 'work.view',
+    children: [
+      // The list the register's rows are written from, filed under it for the
+      // same reason the shelves are filed under stock: it is named once and then
+      // picked from, which is not a place anybody starts their day.
+      { href: '/works/procedures', key: 'workProcedures', permission: 'work.edit' },
+    ],
+  },
   { href: '/recalls', key: 'recalls', permission: 'recall.view' },
   {
     href: '/services',
@@ -51,6 +61,15 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     key: 'stock',
     permission: 'stock.view',
     children: [
+      // The one sub-screen here that is not a lookup table: the storage room as
+      // photographs. Filed under stock all the same — it answers "what do we
+      // keep and what does it look like", which is a question asked when
+      // something is being found or ordered, not every morning.
+      { href: '/stock/catalog', key: 'stockCatalog', permission: 'stock.view' },
+      // The sheet of QR stickers. Filed here rather than beside the scanner: it
+      // is printed once per shelf and then not again for a year, which is the
+      // opposite of a place anybody starts their day.
+      { href: '/stock/labels', key: 'stockLabels', permission: 'stock.view' },
       { href: '/stock/categories', key: 'stockCategories', permission: 'stock.edit' },
       { href: '/stock/suppliers', key: 'suppliers', permission: 'stock.edit' },
     ],

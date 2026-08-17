@@ -1,6 +1,5 @@
 import { SlidersHorizontal, X } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { cn } from '@/lib/utils';
 
 export type FilterOption = { value: string; label: string };
 
@@ -17,6 +16,17 @@ export type FilterSelectGroup = {
   label: string;
   /** The first option, the one that clears this key — "All categories". */
   anyLabel: string;
+  /**
+   * What that first option posts. Empty by default, which is what "no filter"
+   * means for most keys.
+   *
+   * A page whose default is *not* "everything" needs a word for everything —
+   * the works register opens on the current month, so its widest view is a
+   * choice (`all`) rather than the absence of one. Giving it a value keeps
+   * every state of the dropdown a real option, which is what lets the browser
+   * select the committed one instead of falling back to the first.
+   */
+  anyValue?: string;
   options: FilterOption[];
 };
 
@@ -48,6 +58,7 @@ export function FilterBar({
   submitLabel,
   clearLabel,
   summary,
+  filtered,
 }: {
   /** Locale-less path of the page being filtered, e.g. `/services`. */
   basePath: string;
@@ -61,8 +72,18 @@ export function FilterBar({
   clearLabel: string;
   /** Result count — only worth showing once something is actually filtered. */
   summary?: string;
+  /**
+   * Whether anything is actually narrowed, when the page knows better than the
+   * query string does.
+   *
+   * A committed value is normally the same thing as a filter, and the default
+   * below says so. It stops being true on a page with a default view of its
+   * own: the works register always carries a month, so by that reading it is
+   * permanently filtered and would wear a Clear button that clears nothing.
+   */
+  filtered?: boolean;
 }) {
-  const isFiltered = Object.values(values).some(Boolean);
+  const isFiltered = filtered ?? Object.values(values).some(Boolean);
 
   const hrefWith = (overrides: Record<string, string>) => {
     const query = new URLSearchParams();
@@ -79,21 +100,23 @@ export function FilterBar({
   return (
     <section aria-label={label} className="card mb-6 p-4" data-print-hide>
       {chips ? (
-        <nav aria-label={chips.label} className="mb-4 flex flex-wrap gap-2">
-          {chips.options.map((option) => {
-            const selected = (values[chips.name] ?? '') === option.value;
+        <nav aria-label={chips.label} className="mb-4">
+          <div className="segmented">
+            {chips.options.map((option) => {
+              const selected = (values[chips.name] ?? '') === option.value;
 
-            return (
-              <Link
-                key={option.value || 'all'}
-                href={hrefWith({ [chips.name]: option.value })}
-                aria-current={selected ? 'true' : undefined}
-                className={cn('btn btn-sm', selected ? 'btn-primary' : 'btn-secondary')}
-              >
-                {option.label}
-              </Link>
-            );
-          })}
+              return (
+                <Link
+                  key={option.value || 'all'}
+                  href={hrefWith({ [chips.name]: option.value })}
+                  aria-current={selected ? 'true' : undefined}
+                  className="segment"
+                >
+                  {option.label}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
       ) : null}
 
@@ -129,7 +152,7 @@ export function FilterBar({
               defaultValue={values[select.name] ?? ''}
               className="field-input"
             >
-              <option value="">{select.anyLabel}</option>
+              <option value={select.anyValue ?? ''}>{select.anyLabel}</option>
               {select.options.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}

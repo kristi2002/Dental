@@ -1,7 +1,17 @@
+'use client';
+
 import { useFormatter, useTranslations } from 'next-intl';
+import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { isSameDay, isSameMonth, monthGrid, toDateKey, today, weekDays } from '@/lib/dates';
 import { cn } from '@/lib/utils';
+import { AppointmentDetailsDialog } from './AppointmentDetailsDialog';
+import {
+  AppointmentFormDialog,
+  type OperatoryOption,
+  type ServiceOption,
+  type StaffOption,
+} from './AppointmentFormDialog';
 import { blockStyle } from './status-styles';
 import type { AppointmentView } from './types';
 
@@ -25,7 +35,12 @@ export function MonthView({
   anchor,
   appointments,
   closedDays,
-  dayHref,
+  dayHrefs,
+  services = [],
+  staff = [],
+  operatories = [],
+  canEdit = false,
+  canDelete = false,
 }: {
   /** Any date inside the month to draw. */
   anchor: Date;
@@ -33,13 +48,33 @@ export function MonthView({
   appointments: AppointmentView[];
   /** `YYYY-MM-DD` of every day the practice is shut, for the shading. */
   closedDays: ReadonlySet<string>;
-  /** Link to a single day, with the page's own filters kept. */
-  dayHref: (dateKey: string) => string;
+  /**
+   * `YYYY-MM-DD` → link to that single day, with the page's own filters kept.
+   *
+   * A map rather than the function this used to take: the grid is a client
+   * component now — it has to be, to open a booking without leaving the month —
+   * and functions do not cross that line. Forty-two days is the whole domain.
+   */
+  dayHrefs: Record<string, string>;
+  /** Everything the dialogs a click summons need. */
+  services?: ServiceOption[];
+  staff?: StaffOption[];
+  operatories?: OperatoryOption[];
+  canEdit?: boolean;
+  canDelete?: boolean;
 }) {
   const t = useTranslations('appointments');
   const format = useFormatter();
   const now = today();
   const days = monthGrid(anchor);
+
+  // Same contract as the week grid: the open booking is held by id, so a dialog
+  // still open after a save reads the row the server sent rather than the copy
+  // it was handed on click.
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const opened = appointments.find((appointment) => appointment.id === openId) ?? null;
+  const editing = appointments.find((appointment) => appointment.id === editingId) ?? null;
 
   // One pass over the range rather than a filter per cell — a busy month is a
   // few hundred rows, and 42 filters over it is 42 full scans.
@@ -93,7 +128,7 @@ export function MonthView({
               >
                 <div className="mb-1 flex items-center justify-between gap-1">
                   <Link
-                    href={dayHref(key)}
+                    href={dayHrefs[key] ?? '#'}
                     aria-current={isToday ? 'date' : undefined}
                     className={cn(
                       'flex h-8 min-w-8 items-center justify-center rounded-full px-1.5 text-[0.98rem] font-bold tabular-nums no-underline transition-colors',
@@ -123,13 +158,18 @@ export function MonthView({
                 <ul className="space-y-1">
                   {shown.map((appointment) => (
                     <li key={appointment.id}>
-                      <Link
-                        href={dayHref(appointment.date)}
+                      {/* The booking, not the day it is on — the month is where
+                          you spot a name, and spotting it should not cost you
+                          the month. "+n more" still opens the day, because that
+                          one really is a question about the day. */}
+                      <button
+                        type="button"
+                        onClick={() => setOpenId(appointment.id)}
                         title={`${appointment.startTime} · ${appointment.patient.firstName} ${appointment.patient.lastName}${
                           appointment.serviceName ? ` · ${appointment.serviceName}` : ''
                         }`}
                         className={cn(
-                          'flex items-baseline gap-1.5 overflow-hidden rounded border-l-4 px-1.5 py-0.5 text-[0.8rem] leading-snug no-underline',
+                          'flex w-full cursor-pointer items-baseline gap-1.5 overflow-hidden rounded border-l-4 px-1.5 py-0.5 text-left text-[0.8rem] leading-snug transition-shadow hover:shadow-card',
                           blockStyle(appointment.status),
                         )}
                       >
@@ -139,14 +179,14 @@ export function MonthView({
                         <span className="truncate font-semibold">
                           {appointment.patient.lastName}
                         </span>
-                      </Link>
+                      </button>
                     </li>
                   ))}
 
                   {hidden > 0 ? (
                     <li>
                       <Link
-                        href={dayHref(key)}
+                        href={dayHrefs[key] ?? '#'}
                         className="block px-1.5 text-[0.78rem] font-semibold text-brand-deep"
                       >
                         {t('moreCount', { count: hidden })}
@@ -159,6 +199,43 @@ export function MonthView({
           })}
         </div>
       </div>
+
+      {opened ? (
+        <AppointmentDetailsDialog
+          key={opened.id}
+          appointment={opened}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onClose={() => setOpenId(null)}
+          onEdit={() => {
+            setOpenId(null);
+            setEditingId(opened.id);
+          }}
+        />
+      ) : null}
+
+      {editing ? (
+        <AppointmentFormDialog
+          key={`edit-${editing.id}`}
+          openOnMount
+          onClosed={() => setEditingId(null)}
+          services={services}
+          staff={staff}
+          operatories={operatories}
+          appointment={{
+            id: editing.id,
+            patientId: editing.patient.id,
+            date: editing.date,
+            startTime: editing.startTime,
+            durationMin: editing.durationMin,
+            status: editing.status,
+            serviceName: editing.serviceName,
+            notes: editing.notes,
+            staffUserId: editing.staffUserId,
+            operatoryId: editing.operatoryId,
+          }}
+        />
+      ) : null}
     </div>
   );
 }

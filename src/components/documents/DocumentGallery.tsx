@@ -77,8 +77,9 @@ export function DocumentGallery({
                 className="grid h-40 place-items-center overflow-hidden bg-paper no-underline"
               >
                 {isImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- authenticated
-                  // route, not a static asset: the optimiser cannot fetch it.
+                  // An authenticated route, not a static asset: the optimiser
+                  // cannot fetch it, so `next/image` has nothing to work with.
+                  // eslint-disable-next-line next/no-img-element, @next/next/no-img-element
                   <img
                     src={href}
                     alt={document.notes || document.fileName}

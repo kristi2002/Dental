@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ClipboardList,
   FlaskConical,
+  Images,
   LayoutDashboard,
   Menu,
   Package,
@@ -21,9 +22,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { type MouseEvent, useEffect, useRef, useState } from 'react';
+import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { FollowUpBell } from '@/components/follow-ups/FollowUpBell';
 import type { Role } from '@/generated/prisma/enums';
 import { Link, usePathname } from '@/i18n/navigation';
+import type { BellCounts } from '@/lib/follow-ups';
 import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ToothMark } from './ToothMark';
@@ -42,6 +45,7 @@ const ICONS: Record<string, LucideIcon> = {
   serviceCategories: Tags,
   prescriptions: Pill,
   stock: Package,
+  stockCatalog: Images,
   stockCategories: Tags,
   suppliers: Truck,
   analytics: ChartColumn,
@@ -65,12 +69,11 @@ function remember(name: string, value: string) {
  * treatment — because it is the same kind of thing: somewhere to go. Only the
  * weight says which of the two you are looking at.
  *
- * A row that heads a section carries the fold as well as the trip, over its whole
- * width: something with more behind it opens by being clicked, and a 36px chevron
- * is not where anyone aims. Going to Stock and looking at what is filed under
- * Stock are still two intentions, so the chevron stays its own target beside the
- * link (see `FoldButton`) — that one is the fold without the trip, which is what
- * lets a section be tidied away from anywhere in the app.
+ * A row that heads a section is one control, not two: the whole row is the trip
+ * *and* the fold, and the chevron at its end is a state mark rather than a second
+ * target. A section is somewhere you are going, so going there and seeing what is
+ * filed under it are the same click — and one row-wide target beats a 36px one
+ * next to it, on a thumb and on a pointer alike.
  */
 function RailLink({
   href,
@@ -81,7 +84,6 @@ function RailLink({
   nested = false,
   expanded,
   onClick,
-  className,
 }: {
   href: string;
   label: string;
@@ -92,7 +94,6 @@ function RailLink({
   /** Set only on a row that heads a section: whether its list is showing. */
   expanded?: boolean;
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
-  className?: string;
 }) {
   return (
     <Link
@@ -114,7 +115,6 @@ function RailLink({
         // findable without relying on colour alone, and white is what ties the
         // rail to the page beside it.
         active ? 'bg-surface text-brand-deep' : 'text-white/85 hover:bg-white/15 hover:text-white',
-        className,
       )}
     >
       <Icon
@@ -122,53 +122,22 @@ function RailLink({
         aria-hidden
         className={cn('shrink-0', !active && 'text-white')}
       />
-      <span className={cn('min-w-0 truncate', collapsed && 'lg:sr-only')}>{label}</span>
-    </Link>
-  );
-}
-
-/**
- * The fold on a section, without the trip: a chevron beside the section's link,
- * turned down when the sub-destinations are showing and a quarter turn back when
- * they are not. The link itself folds too — this is the way to fold a section you
- * are not going to.
- *
- * Thumb-sized on a phone, where the drawer is what gets tapped, and trimmer on a
- * desktop, where the pointer is exact. A pinched rail has room for neither the
- * chevron nor a second target, so it goes with it: the fold is on the icon there,
- * and the stacked sub-icons are what says open.
- */
-function FoldButton({
-  label,
-  expanded,
-  collapsed,
-  onToggle,
-}: {
-  label: string;
-  expanded: boolean;
-  collapsed: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={expanded}
-      aria-label={label}
-      className={cn(
-        'flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg',
-        'text-white/85 transition-colors hover:bg-white/15 hover:text-white',
-        'focus-visible:outline-white focus-visible:outline-offset-[-1px]',
-        'lg:min-h-9 lg:min-w-9',
-        collapsed && 'lg:hidden',
+      <span className={cn('min-w-0 flex-1 truncate', collapsed && 'lg:sr-only')}>{label}</span>
+      {/* Turned down while the list is showing, a quarter turn back when it is
+          not. Part of the row, not a target of its own — a pinched rail has room
+          for neither, so there the stacked sub-icons are what says open. */}
+      {expanded === undefined ? null : (
+        <ChevronDown
+          size={16}
+          aria-hidden
+          className={cn(
+            'shrink-0 transition-transform',
+            !expanded && '-rotate-90',
+            collapsed && 'lg:hidden',
+          )}
+        />
       )}
-    >
-      <ChevronDown
-        size={16}
-        aria-hidden
-        className={cn('transition-transform', !expanded && '-rotate-90')}
-      />
-    </button>
+    </Link>
   );
 }
 
@@ -187,11 +156,10 @@ function FoldButton({
  * A destination may carry sub-destinations, indented under it — the lists a
  * section is kept by rather than the work done in it. They are the one thing
  * the sideways bar could never have held. Such a section starts shut and opens
- * by being clicked, anywhere along its row — or on the chevron beside its name,
- * which is the same fold from wherever you happen to be standing, without a trip
- * to the section first. Either way it stays however it was left, in a cookie. The
- * rail therefore reads as the short list of sections it is, and a receptionist
- * who never touches the stock shelves never reads past them.
+ * by being clicked, anywhere along its row — one target, chevron included — and
+ * stays however it was left, in a cookie. The rail therefore reads as the short
+ * list of sections it is, and a receptionist who never touches the stock shelves
+ * never reads past them.
  *
  * Three shapes, one component:
  *   phone   a slim teal top bar plus an off-canvas drawer
@@ -201,10 +169,20 @@ function FoldButton({
 export function Sidebar({
   items,
   user,
+  followUps,
   defaultCollapsed,
   defaultClosedSections,
 }: {
   items: Item[];
+  /**
+   * The board and its counts, already rendered on the server. Null for anyone
+   * without `followup.view`, which takes the bell off the chrome entirely.
+   */
+  followUps: {
+    counts: BellCounts;
+    list: ReactNode;
+    newButton: ReactNode;
+  } | null;
   user: {
     firstName: string;
     lastName: string;
@@ -256,6 +234,10 @@ export function Sidebar({
       const next = new Set([...was].filter((key) => !holdsCurrent(key)));
       return next.size === was.size ? was : next;
     });
+    // `holdsCurrent` is rebuilt every render and reads only `pathname` and
+    // `items`; landing somewhere new is the whole trigger, so `pathname` is the
+    // dependency this effect actually has.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   // The cookie mirrors the fold, so the rail comes back the way it was left —
@@ -322,13 +304,16 @@ export function Sidebar({
     }
 
     const scrollWas = document.body.style.overflow;
+    // Caught now rather than read on the way out: the button to hand focus back
+    // to is the one that opened the drawer.
+    const openedBy = opener.current;
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onKeyDown);
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = scrollWas;
-      opener.current?.focus();
+      openedBy?.focus();
     };
   }, [open]);
 
@@ -337,6 +322,28 @@ export function Sidebar({
     setCollapsed(next);
     remember('rail', next ? 'collapsed' : 'expanded');
   }
+
+  /**
+   * The same bell twice, exactly as the account button already is: once in the
+   * phone bar and once at the foot of the desktop rail, with only one of them
+   * on screen at a time.
+   *
+   * `placement` is which way the popover opens; `compact` is whether the button
+   * carries its label. The phone bar is always compact — between the menu
+   * button, the wordmark and the account there is no room for a fourth word —
+   * and the rail foot follows whatever shape the rail is in.
+   */
+  const bell = (placement: 'top' | 'bottom') =>
+    followUps ? (
+      <FollowUpBell
+        counts={followUps.counts}
+        placement={placement}
+        compact={placement === 'bottom' || collapsed}
+        newButton={followUps.newButton}
+      >
+        {followUps.list}
+      </FollowUpBell>
+    ) : null;
 
   const account = (placement: 'top' | 'bottom') => (
     <UserMenu
@@ -382,6 +389,7 @@ export function Sidebar({
           </span>
         </Link>
 
+        {bell('bottom')}
         {account('bottom')}
       </header>
 
@@ -474,45 +482,33 @@ export function Sidebar({
 
               return (
                 <li key={href}>
-                  <div className="flex items-center gap-0.5">
-                    <RailLink
-                      href={href}
-                      label={t(key)}
-                      icon={ICONS[key] ?? LayoutDashboard}
-                      active={isCurrent(href) && !onChild}
-                      collapsed={collapsed}
-                      className="min-w-0 flex-1"
-                      expanded={kids.length > 0 ? unfolded : undefined}
-                      onClick={
-                        kids.length > 0
-                          ? (event) => {
-                              // A modified click opens the section in a new tab
-                              // and leaves this one where it was, so the rail
-                              // must not move under the hand either.
-                              if (
-                                event.metaKey ||
-                                event.ctrlKey ||
-                                event.shiftKey ||
-                                event.altKey ||
-                                event.button !== 0
-                              ) {
-                                return;
-                              }
-                              toggleSection(key);
+                  <RailLink
+                    href={href}
+                    label={t(key)}
+                    icon={ICONS[key] ?? LayoutDashboard}
+                    active={isCurrent(href) && !onChild}
+                    collapsed={collapsed}
+                    expanded={kids.length > 0 ? unfolded : undefined}
+                    onClick={
+                      kids.length > 0
+                        ? (event) => {
+                            // A modified click opens the section in a new tab
+                            // and leaves this one where it was, so the rail
+                            // must not move under the hand either.
+                            if (
+                              event.metaKey ||
+                              event.ctrlKey ||
+                              event.shiftKey ||
+                              event.altKey ||
+                              event.button !== 0
+                            ) {
+                              return;
                             }
-                          : undefined
-                      }
-                    />
-
-                    {kids.length > 0 ? (
-                      <FoldButton
-                        label={t(unfolded ? 'foldSection' : 'unfoldSection', { section: t(key) })}
-                        expanded={unfolded}
-                        collapsed={collapsed}
-                        onToggle={() => toggleSection(key)}
-                      />
-                    ) : null}
-                  </div>
+                            toggleSection(key);
+                          }
+                        : undefined
+                    }
+                  />
 
                   {kids.length > 0 && unfolded ? (
                     // Indented off a hairline, which is what says "inside this"
@@ -550,9 +546,12 @@ export function Sidebar({
             collapsed && 'lg:items-center lg:px-1',
           )}
         >
+          {/* Only on desktop, for the reason the account button below is: on a
+              phone both live in the top bar, where they are reachable without
+              opening the drawer first — and a reminder behind a drawer is a
+              reminder nobody sees. */}
+          <div className="hidden lg:block">{bell('top')}</div>
           <LanguageSwitcher compact stacked={collapsed} />
-          {/* Only on desktop: on a phone the account button lives in the top bar,
-              where it is reachable without opening the drawer first. */}
           <div className="hidden lg:block">{account('top')}</div>
         </div>
       </aside>

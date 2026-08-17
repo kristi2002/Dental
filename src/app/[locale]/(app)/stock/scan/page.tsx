@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, QrCode } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ScanConsole } from '@/components/stock/ScanConsole';
@@ -48,7 +48,7 @@ export default async function ScanPage({ params }: { params: Promise<{ locale: s
   const items = await prisma.stockItem.findMany({
     where: ACTIVE_STOCK,
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, unit: true },
+    select: { id: true, name: true },
   });
 
   return (
@@ -58,10 +58,19 @@ export default async function ScanPage({ params }: { params: Promise<{ locale: s
         subtitle={t('subtitle')}
         trail={[{ href: '/stock', label: ts('title') }, { label: t('title') }]}
         actions={
-          <Link href="/stock" className="btn btn-secondary">
-            <ArrowLeft size={18} aria-hidden />
-            {tc('back')}
-          </Link>
+          <>
+            {/* The answer to the commonest thing that happens on this screen: a
+                box whose symbol will not read, or that never carried one. Print
+                it a label and it is scannable from then on. */}
+            <Link href="/stock/labels" className="btn btn-secondary">
+              <QrCode size={18} aria-hidden />
+              {ts('labels')}
+            </Link>
+            <Link href="/stock" className="btn btn-secondary">
+              <ArrowLeft size={18} aria-hidden />
+              {tc('back')}
+            </Link>
+          </>
         }
       />
 

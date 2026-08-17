@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { allocateOldestFirst } from '../src/lib/batch-allocation';
 import { byExpiry, expiryLevel, summariseBatches, usableQuantity } from '../src/lib/expiry';
-import { isPrice, moneyFormat, moneyToInput, parseMoney, stockValue } from '../src/lib/money';
+import { isPrice, moneyFormat, moneyToInput, parseMoney } from '../src/lib/money';
 import { bySupplier, orderAmount, reorderAsText, type ReorderLine } from '../src/lib/reorder';
 import { parseMaterialList } from '../src/lib/material-history';
 import { asHours, overallUtilisation } from '../src/lib/utilisation';
@@ -93,10 +93,8 @@ describe('byExpiry — oldest first', () => {
 const line = (over: Partial<ReorderLine> = {}): ReorderLine => ({
   id: 'x',
   name: 'Doreza',
-  unit: 'kuti',
   quantity: 2,
   minLimit: 5,
-  packSize: 1,
   monthlyUse: 3,
   daysLeft: 10,
   suggested: 6,
@@ -111,14 +109,16 @@ const line = (over: Partial<ReorderLine> = {}): ReorderLine => ({
   ...over,
 });
 
+/** The word the app would supply — the shelf speaks Albanian in these tests. */
+const boxes = (count: number) => (count === 1 ? 'kuti' : 'kuti');
+
 describe('orderAmount — what to say out loud to the supplier', () => {
-  it('prints pieces first for a box-counted line', () => {
-    // The shelf is counted in boxes, the supplier sells pieces.
-    assert.equal(orderAmount({ suggested: 5, unit: 'kuti', packSize: 100 }), '500 (5 kuti)');
+  it('asks for boxes, which is how the order is placed', () => {
+    assert.equal(orderAmount({ suggested: 5 }, boxes), '5 kuti');
   });
 
-  it('prints plain units for anything counted singly', () => {
-    assert.equal(orderAmount({ suggested: 5, unit: 'copë', packSize: 1 }), '5 copë');
+  it('takes the word from the caller, so the order goes out in one language', () => {
+    assert.equal(orderAmount({ suggested: 1 }, (count) => (count === 1 ? 'box' : 'boxes')), '1 box');
   });
 });
 
@@ -127,13 +127,14 @@ describe('reorderAsText — the message pasted to a supplier', () => {
     const text = reorderAsText(
       [line({ name: 'Doreza' }), line({ name: 'Maska', orderedAt: '2026-08-01' })],
       'Porosi',
+      boxes,
     );
     assert.ok(text.includes('Doreza'));
     assert.ok(!text.includes('Maska'), 'what is already coming is not on the order form');
   });
 
   it('leaves out lines with nothing to order', () => {
-    const text = reorderAsText([line({ name: 'Doreza', suggested: 0 })], 'Porosi');
+    const text = reorderAsText([line({ name: 'Doreza', suggested: 0 })], 'Porosi', boxes);
     assert.equal(text.trim(), 'Porosi');
   });
 });
@@ -288,34 +289,6 @@ describe('parseMoney — reading a price off a form', () => {
   });
 });
 
-describe('stockValue — what the cupboard is worth', () => {
-  const priced = (quantity: number, price: string | null) => ({
-    quantity,
-    unitPrice: parseMoney(price),
-  });
-
-  it('multiplies each line and adds them up', () => {
-    const result = stockValue([priced(28, '2214.28'), priced(6, '198')]);
-    assert.equal(result.total, 63187.84);
-    assert.equal(result.unpriced, 0);
-  });
-
-  it('adds decimals exactly, which a float does not', () => {
-    // 0.1 + 0.2 in binary floating point is 0.30000000000000004. A cupboard
-    // valued by adding a few hundred of these drifts by real money.
-    assert.equal(stockValue([priced(1, '0.10'), priced(1, '0.20')]).total, 0.3);
-  });
-
-  it('counts an unpriced material as unknown rather than as free', () => {
-    const result = stockValue([priced(28, '2214.28'), priced(6, null)]);
-    assert.equal(result.total, 61999.84);
-    assert.equal(result.unpriced, 1);
-  });
-
-  it('does not call an unpriced empty shelf a hole in the valuation', () => {
-    assert.equal(stockValue([priced(0, null)]).unpriced, 0);
-  });
-});
 
 describe('moneyFormat — writing a price down', () => {
   // Intl separates a currency *code* from the number with a non-breaking space.

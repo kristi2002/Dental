@@ -19,12 +19,10 @@ import { takeStock } from '@/lib/actions/stock';
  */
 export function TakeOutForm({
   itemId,
-  unit,
   max,
 }: {
   itemId: string;
-  unit: string;
-  /** What is on the shelf. The action refuses more than this; so does the input. */
+  /** How many boxes are on the shelf. The action refuses more; so does the input. */
   max: number;
 }) {
   const t = useTranslations('stock');
@@ -50,7 +48,7 @@ export function TakeOutForm({
         step={1}
         className="field-input w-16 px-2 text-center tabular-nums"
         placeholder={t('takeOutPlaceholder')}
-        aria-label={t('takeOutLabel', { unit })}
+        aria-label={t('takeOutLabel')}
       />
       <TakeOutButton label={t('takeOut')} />
     </form>

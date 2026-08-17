@@ -1,13 +1,13 @@
 'use client';
 
-import { Package, ShoppingCart, Tags, Wallet } from 'lucide-react';
+import { Package, ShoppingCart, Tags, Truck } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import {
   CountFields,
   IdentityFields,
   OrderFields,
-  PricingFields,
+  SupplyFields,
 } from '@/components/stock/StockFields';
 import { Badge } from '@/components/ui/Badge';
 import { FormActions, FormLayout, FormPreview, FormSection } from '@/components/ui/FormPage';
@@ -24,20 +24,18 @@ import { useRecoveredForm } from '@/lib/form-recovery';
  * window inside the page, and loses everything typed if it is dismissed by
  * accident. A page can be left and come back to, and linked to from anywhere.
  *
- * Editing stays a dialog — that is a change to one field on a row you are already
- * looking at, not a form you work through.
+ * Correcting a material is the same form with the answers already in it, and is
+ * a page for the same reasons — see `EditStockForm`.
  */
 export function NewStockForm({
   categories,
-  units,
+  products,
   suppliers,
-  currency,
 }: {
   categories: Array<{ id: string; name: string }>;
-  units: string[];
+  /** Product names already in use, offered as autocomplete on the group field. */
+  products: string[];
   suppliers: Array<{ id: string; name: string }>;
-  /** ISO 4217 code, so the price field says which money it means. */
-  currency: string;
 }) {
   const t = useTranslations('stock');
   const tc = useTranslations('common');
@@ -52,9 +50,9 @@ export function NewStockForm({
     name: '',
     code: '',
     categoryId: '',
+    variantName: '',
     quantity: '0',
     minLimit: '5',
-    unit: 'pcs',
   });
 
   const quantity = Math.max(0, Number(preview.quantity) || 0);
@@ -84,6 +82,11 @@ export function NewStockForm({
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[1.12rem] font-bold text-ink">
                 {preview.name.trim() || <span className="text-ink-faint">{t('new')}</span>}
+                {preview.variantName.trim() ? (
+                  <span className="ml-1.5 font-semibold text-ink-soft">
+                    {preview.variantName.trim()}
+                  </span>
+                ) : null}
               </p>
               {preview.code.trim() ? (
                 <span className="font-semibold tabular-nums text-ink-faint">
@@ -104,8 +107,7 @@ export function NewStockForm({
             </p>
 
             <p className="mt-3 text-[1.15rem] font-bold tabular-nums text-ink">
-              {quantity}{' '}
-              <span className="text-[0.9rem] font-semibold">{preview.unit.trim() || 'pcs'}</span>
+              {quantity} <span className="text-[0.9rem] font-semibold">{t('boxes', { count: quantity })}</span>
             </p>
           </FormPreview>
         }
@@ -115,7 +117,7 @@ export function NewStockForm({
           subtitle={t('sectionIdentityHint')}
           icon={<Tags size={22} aria-hidden />}
         >
-          <IdentityFields uid={uid} categories={categories} />
+          <IdentityFields uid={uid} categories={categories} products={products} />
         </FormSection>
 
         <FormSection
@@ -123,7 +125,7 @@ export function NewStockForm({
           subtitle={t('sectionCountsHint')}
           icon={<Package size={22} aria-hidden />}
         >
-          <CountFields uid={uid} units={units} />
+          <CountFields uid={uid} />
         </FormSection>
 
         <FormSection
@@ -135,11 +137,11 @@ export function NewStockForm({
         </FormSection>
 
         <FormSection
-          title={t('sectionPricing')}
-          subtitle={t('sectionPricingHint')}
-          icon={<Wallet size={22} aria-hidden />}
+          title={t('sectionSupplier')}
+          subtitle={t('sectionSupplierHint')}
+          icon={<Truck size={22} aria-hidden />}
         >
-          <PricingFields uid={uid} currency={currency} suppliers={suppliers} />
+          <SupplyFields uid={uid} suppliers={suppliers} />
         </FormSection>
       </FormLayout>
 
