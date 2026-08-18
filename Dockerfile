@@ -19,9 +19,22 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 COPY package.json package-lock.json ./
-# `postinstall` runs `prisma generate`, which needs both of these in place.
+# Everything `postinstall` reaches for, and nothing else — this stage exists to
+# survive source-only changes, so anything copied here costs a full `npm ci`
+# whenever it moves.
+#
+# `prisma generate` needs the config and the schema. `copy-zxing-wasm.mjs` needs
+# only to *exist*: it is written never to fail a build, catching every error and
+# warning instead — but that defence cannot run when node cannot find the file,
+# and a `postinstall` that exits non-zero takes `npm ci` down with it.
+#
+# Which is exactly what happened. The scanner's WebAssembly staging step joined
+# `postinstall` without joining this stage, and every deploy from that commit on
+# died here on line 35 with an unexplained `npm ci` exit 1 — while the previous
+# image kept serving, so the site simply stopped changing.
 COPY prisma.config.ts ./
 COPY prisma ./prisma
+COPY scripts ./scripts
 
 # `prisma.config.ts` resolves env('DATABASE_URL') eagerly and throws when it is
 # unset, and `npm ci` triggers `postinstall` → `prisma generate`. So generating
