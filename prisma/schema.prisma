@@ -102,6 +102,10 @@ model AuditLog {
   @@index([createdAt])
   @@index([entity])
   @@index([actorId])
+  /// Serves the view de-duplication, which asks what one person looked at in the
+  /// last half hour — `actorId` on its own answers that by reading everything
+  /// they have ever done.
+  @@index([actorId, createdAt])
 }
 
 model Patient {

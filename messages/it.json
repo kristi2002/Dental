@@ -479,7 +479,10 @@
     "moveShort": "Sullo scaffale {have, plural, one {c’è solo # scatola} other {ci sono solo # scatole}}.",
     "moveWhichVariant": "Quale?",
     "moveNoVariants": "Questo prodotto non ha ancora materiali sullo scaffale.",
-    "moveScanAnother": "Scansiona un altro"
+    "moveScanAnother": "Scansiona un altro",
+    "labelPrintThis": "Stampa questa etichetta",
+    "labelPrintThisFor": "Stampa l’etichetta di {name}",
+    "labelPrintOneHint": "Verrà stampata solo questa."
   },
   "analytics": {
     "title": "Statistiche",
@@ -688,7 +691,13 @@
     "manageStaff": "Personale e ruoli",
     "activity": "Registro attività",
     "signOut": "Esci",
-    "settings": "Orari di apertura"
+    "settings": "Orari di apertura",
+    "lockedTitle": "Schermo bloccato",
+    "lockedBody": "Lo schermo si è bloccato perché non era in uso.",
+    "unlock": "Sblocca",
+    "unlocking": "Sblocco…",
+    "lockedSignOut": "Esci e cambia utente",
+    "idleWarning": "Blocco tra {seconds}s"
   },
   "staff": {
     "title": "Personale e ruoli",
@@ -757,7 +766,18 @@
     "entity_plan": "Piano di cura",
     "entity_document": "File",
     "entity_prescription": "Ricetta",
-    "entity_backup": "Backup"
+    "entity_backup": "Backup",
+    "action_view": "Aperto",
+    "action_export": "Esportato",
+    "entity_work": "Lavorazione",
+    "entity_followup": "Da fare",
+    "entity_supplier": "Fornitore",
+    "entity_contact": "Contatto",
+    "entity_alert": "Allerta medica",
+    "entity_settings": "Impostazioni",
+    "entity_stockCategory": "Categoria magazzino",
+    "entity_serviceCategory": "Categoria servizi",
+    "entity_workProcedure": "Tipo di lavorazione"
   },
   "recalls": {
     "title": "Richiami",

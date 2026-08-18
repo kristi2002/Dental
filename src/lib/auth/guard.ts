@@ -64,6 +64,51 @@ export async function recordAudit(user: SessionUser, entry: AuditEntry): Promise
 }
 
 /**
+ * How long one look at a record counts as the same look.
+ *
+ * Reading is not like changing: a chart is opened, tabbed through and come back
+ * to twenty times in an afternoon, and a line per open would bury the writes
+ * that the trail exists to show. Collapsing to one line per person per record
+ * per half hour keeps "who saw this" answerable and the page readable.
+ */
+const VIEW_WINDOW_MINUTES = 30;
+
+/**
+ * Record that somebody *read* a record — as against changing one.
+ *
+ * The trail was complete on writes and silent on reads, which is the wrong way
+ * round for the question a practice actually gets asked. Nobody disputes who
+ * edited a chart; what has to be answerable is who looked at one, and until now
+ * opening a patient, an X-ray or a prescription left no trace at all.
+ *
+ * Never allowed to break the page it describes, for the same reason as
+ * `recordAudit` — including the de-duplication query, which is why a failed
+ * lookup falls through to writing the line rather than skipping it.
+ */
+export async function recordView(
+  user: SessionUser,
+  entry: { entity: string; entityId: string; summary: string },
+): Promise<void> {
+  try {
+    const recent = await prisma.auditLog.findFirst({
+      where: {
+        actorId: user.id,
+        action: 'view',
+        entity: entry.entity,
+        entityId: entry.entityId,
+        createdAt: { gte: new Date(Date.now() - VIEW_WINDOW_MINUTES * 60_000) },
+      },
+      select: { id: true },
+    });
+    if (recent) return;
+  } catch (error) {
+    console.error('[audit] failed to check recent views', entry, error);
+  }
+
+  await recordAudit(user, { action: 'view', ...entry });
+}
+
+/**
  * The check every server action starts with.
  *
  * Returns the signed-in user when they hold the permission, otherwise `null` —

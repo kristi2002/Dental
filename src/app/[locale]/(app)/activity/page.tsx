@@ -37,6 +37,10 @@ const ACTION_TONES: Record<string, BadgeTone> = {
   create: 'ok',
   update: 'brand',
   delete: 'danger',
+  // Reads are the quiet majority of the trail once views are recorded, so they
+  // stay grey — the eye should still land on what was changed or taken out.
+  view: 'neutral',
+  export: 'warn',
   login: 'neutral',
   logout: 'neutral',
   denied: 'warn',

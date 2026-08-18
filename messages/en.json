@@ -479,7 +479,10 @@
     "moveShort": "Only {have, plural, one {# box} other {# boxes}} on the shelf.",
     "moveWhichVariant": "Which one?",
     "moveNoVariants": "This product has no materials on the shelf yet.",
-    "moveScanAnother": "Scan another"
+    "moveScanAnother": "Scan another",
+    "labelPrintThis": "Print this label",
+    "labelPrintThisFor": "Print the label for {name}",
+    "labelPrintOneHint": "Only this one will be printed."
   },
   "analytics": {
     "title": "Statistics",
@@ -688,7 +691,13 @@
     "manageStaff": "Staff and roles",
     "activity": "Activity log",
     "signOut": "Sign out",
-    "settings": "Opening hours"
+    "settings": "Opening hours",
+    "lockedTitle": "Screen locked",
+    "lockedBody": "This screen locked itself because nobody was using it.",
+    "unlock": "Unlock",
+    "unlocking": "Unlocking…",
+    "lockedSignOut": "Sign out and switch user",
+    "idleWarning": "Locking in {seconds}s"
   },
   "staff": {
     "title": "Staff and roles",
@@ -757,7 +766,18 @@
     "entity_plan": "Treatment plan",
     "entity_document": "File",
     "entity_prescription": "Prescription",
-    "entity_backup": "Backup"
+    "entity_backup": "Backup",
+    "action_view": "Opened",
+    "action_export": "Exported",
+    "entity_work": "Lab work",
+    "entity_followup": "Follow-up",
+    "entity_supplier": "Supplier",
+    "entity_contact": "Contact",
+    "entity_alert": "Medical alert",
+    "entity_settings": "Settings",
+    "entity_stockCategory": "Stock category",
+    "entity_serviceCategory": "Service category",
+    "entity_workProcedure": "Kind of work"
   },
   "recalls": {
     "title": "Recalls",

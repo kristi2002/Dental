@@ -479,7 +479,10 @@
     "moveShort": "Në raft ka vetëm {have, plural, one {# kuti} other {# kuti}}.",
     "moveWhichVariant": "Cila?",
     "moveNoVariants": "Ky produkt nuk ka ende materiale në raft.",
-    "moveScanAnother": "Skano një tjetër"
+    "moveScanAnother": "Skano një tjetër",
+    "labelPrintThis": "Printo këtë etiketë",
+    "labelPrintThisFor": "Printo etiketën e {name}",
+    "labelPrintOneHint": "Do të printohet vetëm kjo."
   },
   "analytics": {
     "title": "Statistikat",
@@ -688,7 +691,13 @@
     "manageStaff": "Stafi dhe rolet",
     "activity": "Regjistri i aktivitetit",
     "signOut": "Dil",
-    "settings": "Orari i punës"
+    "settings": "Orari i punës",
+    "lockedTitle": "Ekrani u bllokua",
+    "lockedBody": "Ky ekran u bllokua sepse nuk po përdorej.",
+    "unlock": "Zhblloko",
+    "unlocking": "Duke zhbllokuar…",
+    "lockedSignOut": "Dil dhe ndërro përdorues",
+    "idleWarning": "Bllokohet për {seconds}s"
   },
   "staff": {
     "title": "Stafi dhe rolet",
@@ -757,7 +766,18 @@
     "entity_plan": "Plan trajtimi",
     "entity_document": "Skedar",
     "entity_prescription": "Recetë",
-    "entity_backup": "Kopje rezervë"
+    "entity_backup": "Kopje rezervë",
+    "action_view": "Hapur",
+    "action_export": "Eksportuar",
+    "entity_work": "Punim",
+    "entity_followup": "Detyrë",
+    "entity_supplier": "Furnitor",
+    "entity_contact": "Kontakt",
+    "entity_alert": "Alertë mjekësore",
+    "entity_settings": "Cilësimet",
+    "entity_stockCategory": "Kategori inventari",
+    "entity_serviceCategory": "Kategori shërbimi",
+    "entity_workProcedure": "Lloj punimi"
   },
   "recalls": {
     "title": "Rikthimet",

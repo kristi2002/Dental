@@ -43,10 +43,9 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     ({ href, key, children }) => ({
       href,
       key,
-      children: children?.filter(({ permission }) => allowed(permission)).map(({ href, key }) => ({
-        href,
-        key,
-      })),
+      children: children
+        ?.filter(({ permission }) => allowed(permission))
+        .map(({ href, key, exact }) => ({ href, key, exact })),
     }),
   );
 
@@ -57,10 +56,15 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   const destinations = [
     ...items.flatMap(({ href, key, children }) => [
       { href, label: tn(key) },
-      ...(children ?? []).map((child) => ({
-        href: child.href,
-        label: `${tn(key)} · ${tn(child.key)}`,
-      })),
+      // The screen a section opens on is listed once, under the section's own
+      // name — it is the first row of the list in the rail, but here that same
+      // href is already the section's entry above.
+      ...(children ?? [])
+        .filter((child) => child.href !== href)
+        .map((child) => ({
+          href: child.href,
+          label: `${tn(key)} · ${tn(child.key)}`,
+        })),
     ]),
     ...(user.permissions.includes('staff.manage')
       ? [{ href: '/staff', label: ta('manageStaff') }]
@@ -143,7 +147,12 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
             fixed across the top is exactly what this layout removed. It scrolls
             away with the page, because the keyboard shortcut is how it is
             actually opened after the first day. */}
-        <div className="px-4 pt-4 sm:px-8">
+        {/* Never on paper. It is navigation, like the rail and the masthead
+            beside it, and it was reaching the printer only because it sits
+            outside all three of them — so a prescription, a day sheet and a
+            sheet of shelf labels each came out with an empty search box across
+            the top. */}
+        <div className="px-4 pt-4 sm:px-8" data-print-hide>
           <div className="mx-auto w-full max-w-6xl">
             <CommandPalette
               destinations={destinations}

@@ -44,7 +44,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Link } from '@/i18n/navigation';
 import { archivePatient, deletePatient } from '@/lib/actions/patients';
 import { MergeDialog } from '@/components/patients/MergeDialog';
-import { requirePermission } from '@/lib/auth/guard';
+import { recordView, requirePermission } from '@/lib/auth/guard';
 import type { Permission } from '@/lib/auth/permissions';
 import { DocumentKind } from '@/generated/prisma/enums';
 import { addDays, addMonths, age, toDateKey, today } from '@/lib/dates';
@@ -190,6 +190,13 @@ export default async function PatientDetailPage({
   });
 
   if (!patient) notFound();
+
+  // The chart is on the screen from here down, so this is the line that says so.
+  await recordView(user, {
+    entity: 'patient',
+    entityId: patient.id,
+    summary: `Opened the record of ${patient.firstName} ${patient.lastName}`,
+  });
 
   const [reliability, templates, clinicProfile, referralRows, planTitleRows] = await Promise.all([
     getReliability(id),

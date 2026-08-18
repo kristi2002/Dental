@@ -16,10 +16,39 @@ export type SessionPayload = {
   exp: number;
 };
 
-/** A shift, not a month: the tablet at reception is shared. */
+/**
+ * The outer bound on a session, refreshed by nothing. A shift, not a month: the
+ * tablet at reception is shared, and a token that outlives the day is a token
+ * somebody else uses.
+ */
 export const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
 
+/**
+ * How long a session survives without the person doing anything.
+ *
+ * This is the number that actually protects the record. The absolute bound above
+ * only helps at the end of the day; the realistic exposure is the receptionist
+ * who walks to the door with a chart open on a screen the waiting room can see.
+ * The cookie is written with this as its `maxAge` and re-issued on every
+ * navigation, so the browser drops it on its own once nobody is there — which
+ * makes the timeout enforced by expiry rather than by anything the page does.
+ */
+export const SESSION_IDLE_SECONDS = Number(process.env.SESSION_IDLE_MINUTES ?? 15) * 60;
+
 export const SESSION_COOKIE = 'dent_session';
+
+/**
+ * One definition of the cookie, used by every place that writes it: sign-in,
+ * the idle refresh in the proxy, and the heartbeat route. `maxAge` is the idle
+ * window, which is what makes walking away expire the session.
+ */
+export const SESSION_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
+  maxAge: SESSION_IDLE_SECONDS,
+} as const;
 
 function getSecret(): string {
   const secret = process.env.AUTH_SECRET;
@@ -57,18 +86,29 @@ async function importKey(): Promise<CryptoKey> {
   );
 }
 
-export async function signSession(userId: string): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const payload: SessionPayload = {
-    sub: userId,
-    iat: now,
-    exp: now + SESSION_MAX_AGE_SECONDS,
-  };
-
+async function sign(payload: SessionPayload): Promise<string> {
   const body = base64UrlEncode(encoder.encode(JSON.stringify(payload)));
   const signature = await crypto.subtle.sign('HMAC', await importKey(), encoder.encode(body));
 
   return `${body}.${base64UrlEncode(new Uint8Array(signature))}`;
+}
+
+export async function signSession(userId: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  return sign({ sub: userId, iat: now, exp: now + SESSION_MAX_AGE_SECONDS });
+}
+
+/**
+ * Re-sign an existing session without moving its expiry.
+ *
+ * The idle window lives in the cookie's `maxAge`, so keeping someone signed in
+ * means handing the browser the same token again with a fresh `maxAge`. The
+ * payload is copied verbatim on purpose: `exp` is the absolute bound, and a
+ * refresh that extended it would turn a 12-hour cap into an unbounded one for
+ * anyone who keeps clicking.
+ */
+export async function refreshSession(payload: SessionPayload): Promise<string> {
+  return sign({ sub: payload.sub, iat: payload.iat, exp: payload.exp });
 }
 
 /** Returns the payload only when the signature checks out and it has not expired. */

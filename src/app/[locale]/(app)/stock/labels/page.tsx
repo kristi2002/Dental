@@ -2,6 +2,7 @@ import { ArrowLeft, QrCode as QrCodeIcon } from 'lucide-react';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { LabelCard } from '@/components/stock/LabelCard';
 import { PrintLabelsButton } from '@/components/stock/PrintLabelsButton';
 import { QrCode } from '@/components/stock/QrCode';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -185,22 +186,29 @@ export default async function StockLabelsPage({
 
   return (
     <>
-      <PageHeader
-        title={t('labelsTitle')}
-        subtitle={t('labelsSubtitle')}
-        trail={[{ href: '/stock', label: t('title') }, { label: t('labels') }]}
-        actions={
-          <>
-            <Link href="/stock" className="btn btn-secondary">
-              <ArrowLeft size={18} aria-hidden />
-              {t('title')}
-            </Link>
-            {labels.length > 0 ? (
-              <PrintLabelsButton label={t('labelsPrint', { count: labels.length })} />
-            ) : null}
-          </>
-        }
-      />
+      {/* Marked rather than found by its position in the layout: printing one
+          sticker has to drop this heading, and a selector that walked up to
+          `main` would have been a rule about `AppShell`'s nesting — silently
+          wrong the day that changes, and wrong only on paper, where nobody
+          would think to look. */}
+      <div data-sheet-chrome>
+        <PageHeader
+          title={t('labelsTitle')}
+          subtitle={t('labelsSubtitle')}
+          trail={[{ href: '/stock', label: t('title') }, { label: t('labels') }]}
+          actions={
+            <>
+              <Link href="/stock" className="btn btn-secondary">
+                <ArrowLeft size={18} aria-hidden />
+                {t('title')}
+              </Link>
+              {labels.length > 0 ? (
+                <PrintLabelsButton label={t('labelsPrint', { count: labels.length })} />
+              ) : null}
+            </>
+          }
+        />
+      </div>
 
       <div data-print-hide>
         <p className="mb-4 text-ink-soft">{t('labelsHint')}</p>
@@ -263,13 +271,17 @@ export default async function StockLabelsPage({
           style={{ '--label-size': SIZES[size] } as React.CSSProperties}
         >
           {labels.map((label) => (
-            <li key={label.key} className="label-card">
+            <LabelCard
+              key={label.key}
+              title={label.title}
+              subtitle={label.subtitle}
+              footnote={label.footnote}
+            >
+              {/* Drawn on the server and handed to the card as a child, so the
+                  encoder never reaches the browser and the symbol travels once
+                  however many places the card renders it. */}
               <QrCode value={label.url} className="label-qr" title={label.title} />
-
-              <p className="label-title">{label.title}</p>
-              {label.subtitle ? <p className="label-subtitle">{label.subtitle}</p> : null}
-              {label.footnote ? <p className="label-footnote">{label.footnote}</p> : null}
-            </li>
+            </LabelCard>
           ))}
         </ul>
       )}

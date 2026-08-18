@@ -2,7 +2,7 @@ import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/serve
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PrintButton } from '@/components/prescriptions/PrintButton';
-import { requirePermission } from '@/lib/auth/guard';
+import { recordView, requirePermission } from '@/lib/auth/guard';
 import { age } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 
@@ -23,7 +23,7 @@ export default async function PrescriptionSheet({
   const { locale, id } = await params;
   setRequestLocale(locale);
 
-  await requirePermission('prescription.view');
+  const user = await requirePermission('prescription.view');
 
   const t = await getTranslations('prescriptions');
   const tp = await getTranslations('patients');
@@ -37,6 +37,12 @@ export default async function PrescriptionSheet({
     },
   });
   if (!prescription) notFound();
+
+  await recordView(user, {
+    entity: 'prescription',
+    entityId: prescription.id,
+    summary: `Opened a prescription for ${prescription.patient.firstName} ${prescription.patient.lastName}`,
+  });
 
   const clinicName = process.env.NEXT_PUBLIC_CLINIC_NAME ?? 'DentOrganizer';
 

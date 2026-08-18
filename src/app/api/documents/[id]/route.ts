@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { can } from '@/lib/auth/session';
+import { recordView } from '@/lib/auth/guard';
+import { getCurrentUser } from '@/lib/auth/session';
 import { readStoredFile } from '@/lib/files';
 import { prisma } from '@/lib/prisma';
 
@@ -15,7 +16,8 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!(await can('document.view'))) {
+  const user = await getCurrentUser();
+  if (!user?.permissions.includes('document.view')) {
     // 404 rather than 403: whether a given document exists is itself private.
     return new NextResponse(null, { status: 404 });
   }
@@ -26,6 +28,15 @@ export async function GET(
     select: { fileName: true, mimeType: true, storageKey: true },
   });
   if (!document) return new NextResponse(null, { status: 404 });
+
+  // Logged before the bytes go out rather than after: if this is ever read to
+  // answer "what left the building", the answer should not depend on the
+  // response having been written successfully.
+  await recordView(user, {
+    entity: 'document',
+    entityId: id,
+    summary: `Opened the file ${document.fileName}`,
+  });
 
   let bytes: Buffer;
   try {

@@ -22,7 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { FollowUpBell } from '@/components/follow-ups/FollowUpBell';
 import type { Role } from '@/generated/prisma/enums';
 import { Link, usePathname } from '@/i18n/navigation';
@@ -54,7 +54,13 @@ const ICONS: Record<string, LucideIcon> = {
 /** Tailwind's `lg`, in the same rem the breakpoint is written in. */
 const WIDE = '(min-width: 64rem)';
 
-type Item = { href: string; key: string; children?: ReadonlyArray<Item> };
+type Item = {
+  href: string;
+  key: string;
+  /** Current on this path alone — see `NAV_DESTINATIONS`. */
+  exact?: boolean;
+  children?: ReadonlyArray<Item>;
+};
 
 /** A year, like the rail's own shape: how someone keeps their menu is a
  *  preference, not a session. */
@@ -63,19 +69,21 @@ function remember(name: string, value: string) {
 }
 
 /**
- * One row of the rail, at either level.
+ * One row of the rail, at either level: a link where `href` is given, and the
+ * heading of a section where it is not.
  *
  * A sub-destination is the same link a size down — same shapes, same active
  * treatment — because it is the same kind of thing: somewhere to go. Only the
  * weight says which of the two you are looking at.
  *
- * A row that heads a section is one control, not two: the whole row is the trip
- * *and* the fold, and the chevron at its end is a state mark rather than a second
- * target. A section is somewhere you are going, so going there and seeing what is
- * filed under it are the same click — and one row-wide target beats a 36px one
- * next to it, on a thumb and on a pointer alike.
+ * A row that heads a section goes nowhere. It is a name over a list, and its one
+ * job is opening and shutting that list — the whole row is the target, chevron
+ * included, which beats a 36px hit area next to a link on a thumb and on a
+ * pointer alike. The screen the section used to lead to is the first entry in
+ * the list, under the section's own name, so it is still one click away and the
+ * click no longer has to mean two things at once.
  */
-function RailLink({
+function RailRow({
   href,
   label,
   icon: Icon,
@@ -83,46 +91,45 @@ function RailLink({
   collapsed,
   nested = false,
   expanded,
-  onClick,
+  controls,
+  onToggle,
 }: {
-  href: string;
+  /** Omitted on a section heading, which is a button rather than a link. */
+  href?: string;
   label: string;
   icon: LucideIcon;
   active: boolean;
   collapsed: boolean;
   nested?: boolean;
-  /** Set only on a row that heads a section: whether its list is showing. */
+  /** Set only on a section heading: whether its list is showing. */
   expanded?: boolean;
-  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  controls?: string;
+  onToggle?: () => void;
 }) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      aria-current={active ? 'page' : undefined}
-      aria-expanded={expanded}
-      // The only label a pinched rail has room for.
-      title={collapsed ? label : undefined}
-      className={cn(
-        'flex items-center gap-3 rounded-lg px-3 font-semibold no-underline transition-colors',
-        // The ring is white here: brand-dark on teal is invisible.
-        'focus-visible:outline-white focus-visible:outline-offset-[-1px]',
-        // Still a thumb-sized target one level down — a phone drawer is where
-        // these get tapped, and 40px is not enough to tap reliably.
-        nested ? 'min-h-11 text-[0.9rem]' : 'min-h-12 text-[0.95rem]',
-        collapsed && 'lg:justify-center lg:px-0',
-        // A solid white tab, not tinted text — the current screen has to be
-        // findable without relying on colour alone, and white is what ties the
-        // rail to the page beside it.
-        active ? 'bg-surface text-brand-deep' : 'text-white/85 hover:bg-white/15 hover:text-white',
-      )}
-    >
+  const className = cn(
+    'flex w-full items-center gap-3 rounded-lg px-3 font-semibold no-underline transition-colors',
+    // The ring is white here: brand-dark on teal is invisible.
+    'focus-visible:outline-white focus-visible:outline-offset-[-1px]',
+    // Still a thumb-sized target one level down — a phone drawer is where
+    // these get tapped, and 40px is not enough to tap reliably.
+    nested ? 'min-h-11 text-[0.9rem]' : 'min-h-12 text-[0.95rem]',
+    collapsed && 'lg:justify-center lg:px-0',
+    // A solid white tab, not tinted text — the current screen has to be
+    // findable without relying on colour alone, and white is what ties the
+    // rail to the page beside it.
+    active ? 'bg-surface text-brand-deep' : 'text-white/85 hover:bg-white/15 hover:text-white',
+  );
+
+  const content = (
+    <>
       <Icon
         size={nested ? 18 : 20}
         aria-hidden
         className={cn('shrink-0', !active && 'text-white')}
       />
-      <span className={cn('min-w-0 flex-1 truncate', collapsed && 'lg:sr-only')}>{label}</span>
+      <span className={cn('min-w-0 flex-1 truncate text-left', collapsed && 'lg:sr-only')}>
+        {label}
+      </span>
       {/* Turned down while the list is showing, a quarter turn back when it is
           not. Part of the row, not a target of its own — a pinched rail has room
           for neither, so there the stacked sub-icons are what says open. */}
@@ -137,6 +144,33 @@ function RailLink({
           )}
         />
       )}
+    </>
+  );
+
+  if (href === undefined) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls={controls}
+        // The only label a pinched rail has room for.
+        title={collapsed ? label : undefined}
+        className={className}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      title={collapsed ? label : undefined}
+      className={className}
+    >
+      {content}
     </Link>
   );
 }
@@ -153,12 +187,13 @@ function RailLink({
  * take between them. On the calendar that is half an hour of extra schedule on
  * screen at every hour of the day, which is the whole reason for the move.
  *
- * A destination may carry sub-destinations, indented under it — the lists a
- * section is kept by rather than the work done in it. They are the one thing
- * the sideways bar could never have held. Such a section starts shut and opens
- * by being clicked, anywhere along its row — one target, chevron included — and
- * stays however it was left, in a cookie. The rail therefore reads as the short
- * list of sections it is, and a receptionist who never touches the stock shelves
+ * A destination may carry sub-destinations, indented under it — the screen the
+ * section opens on, and then the lists it is kept by rather than the work done
+ * in it. They are the one thing the sideways bar could never have held. Such a
+ * section is a heading rather than a link: it starts shut and opens by being
+ * clicked, anywhere along its row — one target, chevron included — and stays
+ * however it was left, in a cookie. The rail therefore reads as the short list
+ * of sections it is, and a receptionist who never touches the stock shelves
  * never reads past them.
  *
  * Three shapes, one component:
@@ -207,13 +242,22 @@ export function Sidebar({
 
   // Whole segments, not a prefix: `/stock` must not light up on `/stocktake`,
   // and it has to keep lighting up on `/stock/categories`.
-  const isCurrent = (href: string) =>
-    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+  //
+  // `exact` turns the prefix half off for the one row it would misread: the
+  // screen a section opens on sits beside siblings whose paths it is the prefix
+  // of, so on `/stock/labels` it would otherwise light up next to the shelf
+  // actually being looked at.
+  const isCurrent = (href: string, exact = false) =>
+    exact || href === '/'
+      ? pathname === href
+      : pathname === href || pathname.startsWith(`${href}/`);
 
   // A section that holds the screen you are standing on is never left folded:
   // hiding the page you are on is the one thing this fold must not do.
   const holdsCurrent = (key: string) =>
-    (items.find((item) => item.key === key)?.children ?? []).some((child) => isCurrent(child.href));
+    (items.find((item) => item.key === key)?.children ?? []).some((child) =>
+      isCurrent(child.href, child.exact),
+    );
 
   const [closed, setClosed] = useState<ReadonlySet<string>>(
     () => new Set(defaultClosedSections.filter((key) => !holdsCurrent(key))),
@@ -473,48 +517,37 @@ export function Sidebar({
           <ul className="flex flex-col gap-0.5">
             {items.map(({ href, key, children }) => {
               const kids = children ?? [];
-              // A section reads as current only while you are on the section
-              // itself: standing on one of its sub-screens, that one is the tab.
-              // Folded shut, the section takes the tab back — the sub-screen has
-              // nowhere to show it.
+              const section = kids.length > 0;
+              // A heading shows no tab of its own while its list is open: one of
+              // the rows under it is holding the tab, starting with the screen
+              // the section opens on. Folded shut — or standing somewhere inside
+              // the section that has no row of its own, like one item's own page
+              // — the heading takes the tab back, because otherwise nothing in
+              // the rail says where you are.
               const unfolded = !closed.has(key);
-              const onChild = kids.some((child) => isCurrent(child.href)) && unfolded;
+              const onChild =
+                kids.some((child) => isCurrent(child.href, child.exact)) && unfolded;
 
               return (
                 <li key={href}>
-                  <RailLink
-                    href={href}
+                  <RailRow
+                    // A section heading is a name over a list, not a trip.
+                    href={section ? undefined : href}
                     label={t(key)}
                     icon={ICONS[key] ?? LayoutDashboard}
                     active={isCurrent(href) && !onChild}
                     collapsed={collapsed}
-                    expanded={kids.length > 0 ? unfolded : undefined}
-                    onClick={
-                      kids.length > 0
-                        ? (event) => {
-                            // A modified click opens the section in a new tab
-                            // and leaves this one where it was, so the rail
-                            // must not move under the hand either.
-                            if (
-                              event.metaKey ||
-                              event.ctrlKey ||
-                              event.shiftKey ||
-                              event.altKey ||
-                              event.button !== 0
-                            ) {
-                              return;
-                            }
-                            toggleSection(key);
-                          }
-                        : undefined
-                    }
+                    expanded={section ? unfolded : undefined}
+                    controls={section ? `rail-section-${key}` : undefined}
+                    onToggle={section ? () => toggleSection(key) : undefined}
                   />
 
-                  {kids.length > 0 && unfolded ? (
+                  {section && unfolded ? (
                     // Indented off a hairline, which is what says "inside this"
                     // without a second word of chrome. The pinched rail has no
                     // room for the indent, so the icons simply stack.
                     <ul
+                      id={`rail-section-${key}`}
                       className={cn(
                         'mt-0.5 ml-5 flex flex-col gap-0.5 border-l border-white/20 pl-2',
                         collapsed && 'lg:ml-0 lg:border-l-0 lg:pl-0',
@@ -522,11 +555,11 @@ export function Sidebar({
                     >
                       {kids.map((child) => (
                         <li key={child.href}>
-                          <RailLink
+                          <RailRow
                             href={child.href}
                             label={t(child.key)}
                             icon={ICONS[child.key] ?? LayoutDashboard}
-                            active={isCurrent(child.href)}
+                            active={isCurrent(child.href, child.exact)}
                             collapsed={collapsed}
                             nested
                           />

@@ -5,6 +5,12 @@ type Destination = {
   key: string;
   /** `null` means every signed-in person. */
   permission: Permission | null;
+  /**
+   * Light up on this exact path only, rather than on everything filed beneath
+   * it. Set on the screen a section opens on, whose href is the prefix of every
+   * one of its siblings — without this it would read as current on all of them.
+   */
+  exact?: boolean;
 };
 
 /**
@@ -21,6 +27,11 @@ type Destination = {
  * section rather than promoted beside it, because none is a place anyone starts
  * their day, and a rail whose top level grows every time a lookup table gets a
  * screen stops being a short list.
+ *
+ * A section that has children is a heading, not a destination: its own row only
+ * opens and shuts the list. The screen it used to lead to is the first entry in
+ * that list, under the section's own name — one row, one job, and the fold no
+ * longer moves the page out from under a click meant to open it.
  */
 export const NAV_DESTINATIONS: ReadonlyArray<
   Destination & { children?: ReadonlyArray<Destination> }
@@ -37,6 +48,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     key: 'works',
     permission: 'work.view',
     children: [
+      { href: '/works', key: 'works', permission: 'work.view', exact: true },
       // The list the register's rows are written from, filed under it for the
       // same reason the shelves are filed under stock: it is named once and then
       // picked from, which is not a place anybody starts their day.
@@ -49,6 +61,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     key: 'services',
     permission: 'service.view',
     children: [
+      { href: '/services', key: 'services', permission: 'service.view', exact: true },
       { href: '/services/categories', key: 'serviceCategories', permission: 'service.edit' },
     ],
   },
@@ -61,6 +74,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     key: 'stock',
     permission: 'stock.view',
     children: [
+      { href: '/stock', key: 'stock', permission: 'stock.view', exact: true },
       // The one sub-screen here that is not a lookup table: the storage room as
       // photographs. Filed under stock all the same — it answers "what do we
       // keep and what does it look like", which is a question asked when

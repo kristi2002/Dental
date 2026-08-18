@@ -224,7 +224,13 @@ export default async function StockCatalogPage({
           />
         </div>
       ) : (
-        <ul className="space-y-4">
+        // Wider apart than the padding inside a row, and deliberately so. At the
+        // same 1rem on both, the gap between two cards and the gap above a row's
+        // own name measure identically, and a shelf of single-variant materials
+        // — which is most of them — stops reading as cards at all and becomes
+        // one long stripe. The space between things has to beat the space
+        // within them or it is not a boundary.
+        <ul className="space-y-6">
           {ordered.map((group) => {
             const product = group.product;
             // A product band only earns its place once there is more than one
@@ -235,7 +241,16 @@ export default async function StockCatalogPage({
               product?.photoKey ? photoUrl('product', product.id, product.photoKey) : null;
 
             return (
-              <li key={product?.id ?? group.rows[0].id} className="card overflow-hidden">
+              // A firmer edge than the default card, because white-on-near-white
+              // is not one: the standard hairline differs from the paper behind
+              // it by about a percent of luminance, which is invisible at the
+              // arm's length this screen is read at. Still a hairline, only one
+              // you can see — and lifted a step so the card floats rather than
+              // being drawn.
+              <li
+                key={product?.id ?? group.rows[0].id}
+                className="card overflow-hidden border-line-strong shadow-lift"
+              >
                 {banded && product ? (
                   <header className="flex flex-wrap items-center gap-4 border-b-2 border-line bg-surface-soft px-4 py-4">
                     <PhotoTile

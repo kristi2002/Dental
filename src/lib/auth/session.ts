@@ -3,7 +3,12 @@ import { cache } from 'react';
 import type { Role } from '@/generated/prisma/enums';
 import { prisma } from '@/lib/prisma';
 import { type Permission, ROLE_PERMISSIONS, roleHas } from './permissions';
-import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS, signSession, verifySession } from './token';
+import {
+  SESSION_COOKIE,
+  SESSION_COOKIE_OPTIONS,
+  signSession,
+  verifySession,
+} from './token';
 
 export type SessionUser = {
   id: string;
@@ -53,13 +58,7 @@ export async function can(permission: Permission): Promise<boolean> {
 
 export async function createSession(userId: string): Promise<void> {
   const store = await cookies();
-  store.set(SESSION_COOKIE, await signSession(userId), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: SESSION_MAX_AGE_SECONDS,
-  });
+  store.set(SESSION_COOKIE, await signSession(userId), SESSION_COOKIE_OPTIONS);
 }
 
 export async function destroySession(): Promise<void> {

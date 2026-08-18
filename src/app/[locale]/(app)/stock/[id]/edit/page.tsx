@@ -78,7 +78,10 @@ export default async function EditStockItemPage({
         title={t('edit')}
         subtitle={t('editSubtitle', { name: item.name })}
         trail={[
-          { href: backHref, label: from === 'catalog' ? t('catalogTitle') : t('title') },
+          { href: '/stock', label: t('title') },
+          // The catalogue is a screen under the storage room, so a correction
+          // opened from it is three deep rather than two.
+          ...(from === 'catalog' ? [{ href: '/stock/catalog', label: t('catalog') }] : []),
           { label: item.name },
         ]}
         actions={
