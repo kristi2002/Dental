@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { allocateOldestFirst } from '../src/lib/batch-allocation';
-import { byExpiry, expiryLevel, summariseBatches, usableQuantity } from '../src/lib/expiry';
+import { byExpiry, expiryLevel, remainingOf, summariseBatches, usableQuantity } from '../src/lib/expiry';
 import { isPrice, moneyFormat, moneyToInput, parseMoney } from '../src/lib/money';
 import { bySupplier, orderAmount, reorderAsText, type ReorderLine } from '../src/lib/reorder';
 import { parseMaterialList } from '../src/lib/material-history';
@@ -9,6 +9,20 @@ import { asHours, overallUtilisation } from '../src/lib/utilisation';
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 const NOW = utc('2026-08-12');
+
+/**
+ * A lot as the expiry helpers see one.
+ *
+ * `used` defaults to nothing drawn down, which is what every case here silently
+ * assumed back when lots were never drawn down at all. It is a parameter now
+ * because that assumption is exactly what went wrong in the app: the helpers
+ * counted what *arrived* for the rest of a lot's life.
+ */
+const lot = (expiryDate: Date | null, quantity: number, used = 0) => ({
+  expiryDate,
+  quantity,
+  usedQuantity: used,
+});
 
 describe('expiryLevel', () => {
   it('treats a blank date as fine rather than as a warning', () => {
@@ -41,8 +55,8 @@ describe('summariseBatches — the worst news across an item', () => {
   it('lets one expired lot outrank several healthy ones', () => {
     const summary = summariseBatches(
       [
-        { expiryDate: utc('2026-08-01'), quantity: 2 },
-        { expiryDate: utc('2027-01-01'), quantity: 40 },
+        lot(utc('2026-08-01'), 2),
+        lot(utc('2027-01-01'), 40),
       ],
       NOW,
     );
@@ -55,8 +69,8 @@ describe('summariseBatches — the worst news across an item', () => {
     // one still worth acting on.
     const summary = summariseBatches(
       [
-        { expiryDate: utc('2026-08-01'), quantity: 1 },
-        { expiryDate: utc('2026-09-01'), quantity: 5 },
+        lot(utc('2026-08-01'), 1),
+        lot(utc('2026-09-01'), 5),
       ],
       NOW,
     );
@@ -66,22 +80,55 @@ describe('summariseBatches — the worst news across an item', () => {
   it('sums units per level rather than counting lots', () => {
     const summary = summariseBatches(
       [
-        { expiryDate: utc('2026-09-01'), quantity: 5 },
-        { expiryDate: utc('2026-10-01'), quantity: 7 },
+        lot(utc('2026-09-01'), 5),
+        lot(utc('2026-10-01'), 7),
       ],
       NOW,
     );
     assert.equal(summary.soonUnits, 12);
     assert.equal(summary.level, 'SOON');
   });
+
+  it('ignores a lot that has already been used up', () => {
+    // Those units left the shelf when they were used. A date passing on an
+    // empty box is not a quantity to warn anybody about, and counting it was
+    // how a fast-moving material ended up permanently flagged as expired.
+    const summary = summariseBatches([lot(utc('2026-08-01'), 10, 10)], NOW);
+    assert.equal(summary.expiredUnits, 0);
+    assert.equal(summary.level, 'OK');
+  });
+
+  it('counts only what is left of a part-used lot', () => {
+    const summary = summariseBatches([lot(utc('2026-08-01'), 10, 7)], NOW);
+    assert.equal(summary.expiredUnits, 3);
+    assert.equal(summary.level, 'EXPIRED');
+  });
+
+  it('does not offer an emptied lot as the next deadline', () => {
+    const summary = summariseBatches([lot(utc('2026-09-01'), 5, 5), lot(utc('2026-10-01'), 4)], NOW);
+    assert.equal(summary.nextExpiry?.toISOString().slice(0, 10), '2026-10-01');
+    assert.equal(summary.soonUnits, 4);
+  });
+});
+
+describe('remainingOf — what is still in the lot', () => {
+  it('is what arrived less what went', () => {
+    assert.equal(remainingOf(lot(null, 10, 4)), 6);
+  });
+
+  it('floors at zero rather than handing back a negative', () => {
+    // Drift, not arithmetic: a lot can be over-drawn when a count was corrected
+    // behind it, and a negative here would *add* phantom stock to the shelf.
+    assert.equal(remainingOf(lot(null, 10, 14)), 0);
+  });
 });
 
 describe('byExpiry — oldest first', () => {
   it('sorts the soonest date to the front and undated lots to the back', () => {
     const sorted = byExpiry([
-      { expiryDate: null, quantity: 1 },
-      { expiryDate: utc('2027-01-01'), quantity: 1 },
-      { expiryDate: utc('2026-09-01'), quantity: 1 },
+      lot(null, 1),
+      lot(utc('2027-01-01'), 1),
+      lot(utc('2026-09-01'), 1),
     ]);
     assert.deepEqual(
       sorted.map((b) => b.expiryDate?.toISOString().slice(0, 10) ?? 'none'),
@@ -152,19 +199,41 @@ describe('usableQuantity — an expired box is not stock', () => {
   });
 
   it('leaves an item whose lots are all good alone', () => {
-    assert.equal(usableQuantity(12, [{ expiryDate: utc('2027-01-01'), quantity: 12 }], NOW), 12);
+    assert.equal(usableQuantity(12, [lot(utc('2027-01-01'), 12)], NOW), 12);
   });
 
   it('subtracts what has expired', () => {
     const batches = [
-      { expiryDate: utc('2026-08-01'), quantity: 5 },
-      { expiryDate: utc('2027-01-01'), quantity: 7 },
+      lot(utc('2026-08-01'), 5),
+      lot(utc('2027-01-01'), 7),
     ];
     assert.equal(usableQuantity(12, batches, NOW), 7);
   });
 
   it('never goes below zero when the lots claim more than the shelf holds', () => {
-    assert.equal(usableQuantity(3, [{ expiryDate: utc('2026-08-01'), quantity: 9 }], NOW), 0);
+    assert.equal(usableQuantity(3, [lot(utc('2026-08-01'), 9)], NOW), 0);
+  });
+
+  it('leaves the shelf alone when the expired lot had already been used up', () => {
+    assert.equal(usableQuantity(12, [lot(utc('2026-08-01'), 10, 10)], NOW), 12);
+  });
+
+  it('subtracts only what is left of a part-used expired lot', () => {
+    assert.equal(usableQuantity(12, [lot(utc('2026-08-01'), 10, 6)], NOW), 8);
+  });
+
+  it('does not accumulate across a history of emptied lots', () => {
+    // The failure this guards, in the shape it actually took: every lot a
+    // material ever had goes on subtracting its delivered amount once its date
+    // passes, so the shelf reads zero for ever and the item is permanently low,
+    // permanently urgent and permanently expired. It gets worse every delivery.
+    const history = [
+      lot(utc('2025-01-01'), 10, 10),
+      lot(utc('2025-06-01'), 10, 10),
+      lot(utc('2026-01-01'), 10, 10),
+      lot(utc('2027-01-01'), 20),
+    ];
+    assert.equal(usableQuantity(20, history, NOW), 20);
   });
 });
 

@@ -8,7 +8,7 @@ import { MAX_FILE_BYTES } from '@/lib/file-constants';
 import { deleteStoredFile, storeFile } from '@/lib/files';
 import { suggestMaterials, type MaterialSuggestion } from '@/lib/material-history';
 import { prisma } from '@/lib/prisma';
-import { recordConsumption, takeFromShelf } from '@/lib/stock-consumption';
+import { decrementShelf, recordConsumption, takeFromShelf } from '@/lib/stock-consumption';
 import { isPhotoMimeType, isPhotoOwner } from '@/lib/stock-photos';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -266,17 +266,43 @@ export async function adjustStock(formData: FormData): Promise<void> {
  * Refuses to take more than is there rather than clamping: the shelf disagreeing
  * with the screen is worth a second look, and silently deducting 8 when 10 were
  * typed writes a number nobody chose.
+ *
+ * And it now *says* which of the two happened. It refused in silence before —
+ * the return value was dropped on the floor — so typing 10 against a shelf of 8
+ * cleared the field and looked exactly like success, leaving somebody believing
+ * ten boxes had been booked out. A refusal nobody is told about is worse than a
+ * clamp: at least a clamp moves the count.
  */
-export async function takeStock(formData: FormData): Promise<void> {
+export async function takeStock(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getTranslations('errors');
+  const ts = await getTranslations('stock');
+
   const user = await authorize('stock.edit');
-  if (!user) return;
+  if (!user) return actionError(t('forbidden'));
 
   const id = requiredString(formData.get('id'));
   const quantity = toInt(formData.get('quantity'), 0);
-  if (!id || quantity <= 0) return;
+  if (!id || quantity <= 0) return actionError(t('fillRequired'));
 
-  await applyStockChange(id, -quantity, user.id);
+  const item = await prisma.stockItem.findUnique({ where: { id }, select: { quantity: true } });
+  if (!item) return actionError(t('notFound'));
+
+  let applied: boolean;
+  try {
+    applied = await applyStockChange(id, -quantity, user.id);
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  // The count quoted back is the one read a moment ago rather than the one
+  // inside the transaction — it is a sentence for a person to check against a
+  // shelf, not a decision, and the guard that actually refused the write was the
+  // atomic one in `applyStockChange`. Same wording as the shelf-label screen,
+  // which refuses the same move for the same reason.
+  if (!applied) return actionError(ts('moveShort', { have: item.quantity }));
+
   revalidateAll();
+  return actionOk();
 }
 
 /**
@@ -770,9 +796,20 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
 }
 
 /**
- * Remove a lot that was entered wrongly. The quantity comes back off, because
- * adding the lot is what put it on — otherwise the counter drifts from the
- * ledger, which is the disagreement the whole stock feature exists to avoid.
+ * Remove a lot that was entered wrongly. What is still *in* it comes back off
+ * the shelf, because adding the lot is what put it there — otherwise the counter
+ * drifts from the ledger, which is the disagreement the whole stock feature
+ * exists to avoid.
+ *
+ * Only what remains, and that is the whole correction here. This used to reverse
+ * `quantity` — what the delivery note said — on a lot that may since have been
+ * half used: those units came off the shelf when they were used, and taking them
+ * off a second time drove the count below what was physically there, with
+ * nothing to say so. A lot of ten with six used is four boxes to give back.
+ *
+ * Guarded like every other take, so a lot whose shelf has already drifted short
+ * cannot push the counter negative — this was the one write in this file
+ * decrementing without a floor.
  */
 export async function deleteBatch(formData: FormData): Promise<void> {
   const user = await authorize('stock.edit');
@@ -781,30 +818,45 @@ export async function deleteBatch(formData: FormData): Promise<void> {
   const id = requiredString(formData.get('id'));
   if (!id) return;
 
-  const batch = await prisma.stockBatch.findUnique({ where: { id } });
-  if (!batch) return;
+  const removed = await prisma.$transaction(async (tx) => {
+    // Read inside the transaction: a lot being consumed as it is deleted must
+    // not leave a `usedQuantity` behind that was true a moment ago.
+    const batch = await tx.stockBatch.findUnique({
+      where: { id },
+      select: { itemId: true, lotNumber: true, quantity: true, usedQuantity: true },
+    });
+    if (!batch) return null;
 
-  await prisma.$transaction([
-    prisma.stockBatch.delete({ where: { id } }),
-    prisma.stockItem.update({
-      where: { id: batch.itemId },
-      data: { quantity: { decrement: batch.quantity } },
-    }),
-    prisma.stockMovement.create({
-      data: {
-        itemId: batch.itemId,
-        delta: -batch.quantity,
-        reason: 'delivery reversed',
-        staffUserId: user.id,
-      },
-    }),
-  ]);
+    const remaining = Math.max(0, batch.quantity - batch.usedQuantity);
+    await tx.stockBatch.delete({ where: { id } });
+
+    // `decrementShelf`, not `takeFromShelf`: the units are being un-delivered,
+    // not used. Routing them through a consumption would allocate them against
+    // *other* lots and feed a reversal into the 90-day burn rate as demand.
+    const applied = await decrementShelf(tx, batch.itemId, remaining);
+
+    // No movement for a lot that was already empty — there is nothing to
+    // explain, and a zero-delta row would only bury the ledger.
+    if (applied > 0) {
+      await tx.stockMovement.create({
+        data: {
+          itemId: batch.itemId,
+          delta: -applied,
+          reason: 'delivery reversed',
+          staffUserId: user.id,
+        },
+      });
+    }
+
+    return { itemId: batch.itemId, lotNumber: batch.lotNumber, applied };
+  });
+  if (!removed) return;
 
   await recordAudit(user, {
     action: 'delete',
     entity: 'stock',
-    entityId: batch.itemId,
-    summary: `Lot ${batch.lotNumber ?? '—'} −${batch.quantity}`,
+    entityId: removed.itemId,
+    summary: `Lot ${removed.lotNumber ?? '—'} −${removed.applied}`,
   });
   revalidateAll();
 }

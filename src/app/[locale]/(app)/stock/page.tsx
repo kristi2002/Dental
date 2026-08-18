@@ -35,7 +35,7 @@ import { toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { ACTIVE_STOCK, getStockCategories } from '@/lib/queries';
 import { photoUrl } from '@/lib/stock-photos';
-import { summariseBatches } from '@/lib/expiry';
+import { summariseBatches, usableQuantity } from '@/lib/expiry';
 import { getReorderSuggestions } from '@/lib/reorder';
 import { cn, matches } from '@/lib/utils';
 
@@ -107,7 +107,17 @@ export default async function StockPage({
       _sum: { delta: true },
     }),
   ]);
-  const lowCount = allItems.filter((item) => item.quantity <= item.minLimit).length;
+  // What is actually *usable*, which is the figure the dashboard's low-stock
+  // list has always read. This page counted raw boxes instead, so the two
+  // disagreed whenever anything had expired — the dashboard could say four
+  // materials were low and the filtered list it linked straight to could show
+  // two, with nothing on either screen to explain the difference.
+  const usable = new Map(
+    allItems.map((item) => [item.id, usableQuantity(item.quantity, item.batches)]),
+  );
+  const usableOf = (item: { id: string; quantity: number }) => usable.get(item.id) ?? item.quantity;
+
+  const lowCount = allItems.filter((item) => usableOf(item) <= item.minLimit).length;
 
   const used = new Map(usedRows.map((row) => [row.itemId, Math.abs(row._sum.delta ?? 0)]));
 
@@ -125,8 +135,8 @@ export default async function StockPage({
   const categoryFilter = category ?? '';
 
   const items = allItems.filter((item) => {
-    if (level === 'low' && item.quantity > item.minLimit) return false;
-    if (level === 'out' && item.quantity > 0) return false;
+    if (level === 'low' && usableOf(item) > item.minLimit) return false;
+    if (level === 'out' && usableOf(item) > 0) return false;
     // The article number is what staff read off a shelf label and off an order
     // form, so it has to be a thing you can type into the search box.
     if (
@@ -313,8 +323,15 @@ export default async function StockPage({
                 ? photoUrl('product', item.product.id, item.product.photoKey)
                 : null;
 
-            const isOut = item.quantity === 0;
-            const isLow = item.quantity <= item.minLimit;
+            // Two different questions, and they were one variable. What the
+            // badges report is what can still be *used*; what the buttons may
+            // move is what is physically on the shelf. An item whose every box
+            // has expired reads "out" and must still be takeable — taking it out
+            // is how it gets binned.
+            const usableNow = usableOf(item);
+            const isEmpty = item.quantity === 0;
+            const isOut = usableNow === 0;
+            const isLow = usableNow <= item.minLimit;
 
             return (
               <li key={item.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
@@ -430,7 +447,7 @@ export default async function StockPage({
                         type="submit"
                         className="btn btn-secondary btn-sm"
                         title={t('use')}
-                        disabled={isOut}
+                        disabled={isEmpty}
                       >
                         <Minus size={18} aria-hidden />
                         <span className="sr-only">{t('use')}</span>
@@ -465,7 +482,7 @@ export default async function StockPage({
 
                   {/* Six of something is one entry, not six presses. Hidden at
                       zero, where there is nothing to take. */}
-                  {canEdit && !isOut ? (
+                  {canEdit && !isEmpty ? (
                     <TakeOutForm itemId={item.id} max={item.quantity} />
                   ) : null}
                 </div>
@@ -477,7 +494,7 @@ export default async function StockPage({
                     <BatchFormDialog itemId={item.id} itemName={item.name} today={todayKey} />
                   ) : null}
 
-                  {canEdit && !item.orderedAt && item.quantity <= item.minLimit ? (
+                  {canEdit && !item.orderedAt && isLow ? (
                     <ActionForm action={markOrdered} values={{ id: item.id }}>
                       <button type="submit" className="btn btn-secondary btn-sm" title={t('markOrdered')}>
                         <Truck size={18} aria-hidden />

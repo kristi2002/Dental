@@ -100,12 +100,51 @@ export async function recordConsumption(
 }
 
 /**
- * Take a stated number off the shelf, and write the ledger that explains it.
+ * Take units off the counter, never below zero. Returns how many actually moved.
  *
- * The floor at zero is enforced **inside the write**, not by a figure read
- * beforehand. Clamping against a stale count lets two people scanning the same
- * cupboard at the same moment both pass the check for the last two syringes and
- * both decrement, landing at −2 — the exact state the guard is there to prevent.
+ * The floor is enforced **inside the write**, not by a figure read beforehand.
+ * Clamping against a stale count lets two people scanning the same cupboard at
+ * the same moment both pass the check for the last two syringes and both
+ * decrement, landing at -2 — the exact state the guard is there to prevent.
+ *
+ * Split out from `takeFromShelf` because reversing a delivery needs this exact
+ * guarantee and none of the ledger that goes with a consumption: a lot removed
+ * because it was typed in wrongly was never used, and writing it up as usage
+ * would feed waste into the burn rate.
+ */
+export async function decrementShelf(
+  tx: Prisma.TransactionClient,
+  itemId: string,
+  quantity: number,
+): Promise<number> {
+  if (quantity <= 0) return 0;
+
+  // One statement, so no other transaction can slip between the check and the
+  // decrement.
+  const taken = await tx.stockItem.updateMany({
+    where: { id: itemId, quantity: { gte: quantity } },
+    data: { quantity: { decrement: quantity } },
+  });
+  if (taken.count > 0) return quantity;
+
+  // Not enough on hand. Read inside the transaction, and still write it as a
+  // guarded decrement so a concurrent scan cannot push it under zero.
+  const current = await tx.stockItem.findUnique({
+    where: { id: itemId },
+    select: { quantity: true },
+  });
+  const applied = Math.min(quantity, current?.quantity ?? 0);
+  if (applied <= 0) return 0;
+
+  const clamped = await tx.stockItem.updateMany({
+    where: { id: itemId, quantity: { gte: applied } },
+    data: { quantity: { decrement: applied } },
+  });
+  return clamped.count > 0 ? applied : 0;
+}
+
+/**
+ * Take a stated number off the shelf, and write the ledger that explains it.
  *
  * Short stock is taken as far as it goes rather than refused. A material that
  * has physically been used has been used, and refusing to record it because the
@@ -130,32 +169,8 @@ export async function takeFromShelf(
     preferBatchId?: string | null;
   },
 ): Promise<number> {
-  if (quantity <= 0) return 0;
-
-  // One statement, so no other transaction can slip between the check and the
-  // decrement.
-  let applied = quantity;
-  let taken = await tx.stockItem.updateMany({
-    where: { id: itemId, quantity: { gte: quantity } },
-    data: { quantity: { decrement: quantity } },
-  });
-
-  if (taken.count === 0) {
-    // Not enough on hand. Read inside the transaction, and still write it as a
-    // guarded decrement so a concurrent scan cannot push it under zero.
-    const current = await tx.stockItem.findUnique({
-      where: { id: itemId },
-      select: { quantity: true },
-    });
-    applied = Math.min(quantity, current?.quantity ?? 0);
-    if (applied <= 0) return 0;
-
-    taken = await tx.stockItem.updateMany({
-      where: { id: itemId, quantity: { gte: applied } },
-      data: { quantity: { decrement: applied } },
-    });
-    if (taken.count === 0) return 0;
-  }
+  const applied = await decrementShelf(tx, itemId, quantity);
+  if (applied <= 0) return 0;
 
   await recordConsumption(tx, {
     itemId,

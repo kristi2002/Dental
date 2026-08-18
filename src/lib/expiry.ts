@@ -18,9 +18,28 @@ export const EXPIRY_SOON_DAYS = 90;
 
 export type ExpiryLevel = 'EXPIRED' | 'SOON' | 'OK';
 
-export type BatchLike = {
+/** All `byExpiry` asks of a lot: a date to sort it by. */
+export type DatedBatch = {
   expiryDate: Date | null;
+};
+
+export type BatchLike = DatedBatch & {
+  /** What arrived. `StockBatch.quantity` is documented never to change. */
   quantity: number;
+  /**
+   * What has since been used.
+   *
+   * Required rather than optional, and deliberately so. Everything below was
+   * written before lots were drawn down at all, so it counted `quantity` — and a
+   * lot that was bought, used up, and only *then* passed its date went on
+   * subtracting its whole delivered amount from the shelf for the rest of time.
+   * A fast-moving material with a couple of years of lots behind it read as
+   * permanently empty, permanently urgent, and permanently expired.
+   *
+   * Mandatory is what stops the next query selecting its way back into that: the
+   * two that fed this file did not ask for the column at all, and nothing said so.
+   */
+  usedQuantity: number;
 };
 
 /**
@@ -35,6 +54,17 @@ export function expiryLevel(expiryDate: Date | null, now: Date = new Date()): Ex
   const today = toDay(now);
   if (day < today) return 'EXPIRED';
   return day <= addDays(today, EXPIRY_SOON_DAYS) ? 'SOON' : 'OK';
+}
+
+/**
+ * What is still in the lot — the only quantity expiry has an opinion about.
+ *
+ * A lot drawn down to nothing is history. Its units left the shelf when they
+ * were used, and subtracting them again because the date on the empty box has
+ * since passed takes the same boxes off twice.
+ */
+export function remainingOf(batch: BatchLike): number {
+  return Math.max(0, batch.quantity - batch.usedQuantity);
 }
 
 export type ExpirySummary = {
@@ -57,9 +87,16 @@ export function summariseBatches(
   let nextExpiry: Date | null = null;
 
   for (const batch of batches) {
+    // An emptied lot is news of no kind: not a quantity to warn about, and not a
+    // deadline to count down to. The lot-by-lot screen has always skipped these
+    // for the same reason — telling somebody to throw away a box that is not
+    // there is worse than saying nothing.
+    const remaining = remainingOf(batch);
+    if (remaining === 0) continue;
+
     const level = expiryLevel(batch.expiryDate, now);
-    if (level === 'EXPIRED') expiredUnits += batch.quantity;
-    if (level === 'SOON') soonUnits += batch.quantity;
+    if (level === 'EXPIRED') expiredUnits += remaining;
+    if (level === 'SOON') soonUnits += remaining;
 
     // Soonest date that has not already passed — an expired lot is a fact, not
     // a deadline, and putting it here would bury the one still worth acting on.
@@ -84,6 +121,8 @@ export function summariseBatches(
  * all believed in stock that must not go near a patient. This is the number
  * those three should be reading.
  *
+ * Only what is still *in* an expired lot is deducted — see `remainingOf`.
+ *
  * Returns the counter untouched when nothing has expired, which is the common
  * case and also the honest answer for an item that carries no lots at all.
  */
@@ -93,14 +132,15 @@ export function usableQuantity(
   now: Date = new Date(),
 ): number {
   const expired = batches.reduce(
-    (total, batch) => (expiryLevel(batch.expiryDate, now) === 'EXPIRED' ? total + batch.quantity : total),
+    (total, batch) =>
+      expiryLevel(batch.expiryDate, now) === 'EXPIRED' ? total + remainingOf(batch) : total,
     0,
   );
   return Math.max(0, quantity - expired);
 }
 
 /** Oldest date first — what to reach for, and what to use up before it turns. */
-export function byExpiry<T extends BatchLike>(batches: readonly T[]): T[] {
+export function byExpiry<T extends DatedBatch>(batches: readonly T[]): T[] {
   return [...batches].sort((a, b) => {
     if (!a.expiryDate) return b.expiryDate ? 1 : 0;
     if (!b.expiryDate) return -1;

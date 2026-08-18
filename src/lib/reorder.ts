@@ -56,7 +56,9 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
       orderBy: { name: 'asc' },
       include: {
         supplier: { select: { name: true, phone: true, email: true } },
-        batches: { select: { expiryDate: true, quantity: true } },
+        // `usedQuantity` too — an emptied lot that has since passed its date is
+        // not stock going to waste, and must not be deducted twice. See `remainingOf`.
+        batches: { select: { expiryDate: true, quantity: true, usedQuantity: true } },
       },
     }),
     prisma.stockMovement.groupBy({

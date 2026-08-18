@@ -549,7 +549,9 @@ export async function getLowStockItems() {
   const items = await prisma.stockItem.findMany({
     where: ACTIVE_STOCK,
     orderBy: { name: 'asc' },
-    include: { batches: { select: { expiryDate: true, quantity: true } } },
+    // `usedQuantity` as well as `quantity`: an expired lot only counts against
+    // the shelf for what is still in it. See `remainingOf`.
+    include: { batches: { select: { expiryDate: true, quantity: true, usedQuantity: true } } },
   });
 
   // Against what is *usable*, not what is on the shelf. An expired box counted
