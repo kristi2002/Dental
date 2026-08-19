@@ -188,7 +188,8 @@
     "mergeConfirm": "Bashko",
     "mergeWarning": "Gjithçka nga kartela që zgjedh kalon te {name}. Kjo nuk kthehet mbrapsht.",
     "mergeWhich": "Cila kartelë është dublikata",
-    "mergeExplain": "Takimet, vizitat, dokumentet dhe shënimet kalojnë nga {from} te {to}. Pastaj {from} arkivohet."
+    "mergeExplain": "Takimet, vizitat, dokumentet dhe shënimet kalojnë nga {from} te {to}. Pastaj {from} arkivohet.",
+    "history": "Historiku i aktivitetit"
   },
   "appointments": {
     "title": "Kalendari",
@@ -742,6 +743,8 @@
     "title": "Regjistri i aktivitetit",
     "subtitle": "Çdo ndryshim dhe kush e bëri",
     "filterLabel": "Filtro sipas llojit",
+    "subjectPatient": "Gjithçka e regjistruar për {name}",
+    "openRecord": "Hap kartelën",
     "rangeLabel": "Intervali i datave",
     "from": "Nga",
     "to": "Deri",

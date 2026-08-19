@@ -477,6 +477,44 @@ export async function findPhoneDuplicates(
   return existing.map((patient) => `${patient.lastName} ${patient.firstName}`);
 }
 
+/**
+ * Every record id the activity log might have filed something about this person
+ * under — the answer to "what has ever happened to this patient".
+ *
+ * `AuditLog.entityId` is one column holding whichever record the line was about,
+ * and for a patient that is not one id but a family of them. Their own row, the
+ * chart, a recall and a contact are all filed under the *patient's* id; every
+ * appointment, visit, document, prescription and plan is filed under its own.
+ * Matching the patient id alone therefore answers a narrower question than the
+ * one being asked, and silently — which is the failure mode worth avoiding on a
+ * screen somebody consults when a record is disputed.
+ *
+ * The `in` list is a few hundred ids for a long-standing patient, which Postgres
+ * takes without complaint, and it is bounded by how much treatment one person
+ * has had rather than by how big the practice is.
+ *
+ * Appointments cannot be reached through their own audit rows any other way:
+ * there is no page per appointment, so nothing else would ever surface them.
+ */
+export async function patientAuditIds(patientId: string): Promise<string[]> {
+  const [appointments, visits, documents, prescriptions, plans] = await Promise.all([
+    prisma.appointment.findMany({ where: { patientId }, select: { id: true } }),
+    prisma.visitRecord.findMany({ where: { patientId }, select: { id: true } }),
+    prisma.patientDocument.findMany({ where: { patientId }, select: { id: true } }),
+    prisma.prescription.findMany({ where: { patientId }, select: { id: true } }),
+    prisma.treatmentPlan.findMany({ where: { patientId }, select: { id: true } }),
+  ]);
+
+  return [
+    patientId,
+    ...appointments.map((row) => row.id),
+    ...visits.map((row) => row.id),
+    ...documents.map((row) => row.id),
+    ...prescriptions.map((row) => row.id),
+    ...plans.map((row) => row.id),
+  ];
+}
+
 export async function getPatientAppointments(patientId: string): Promise<AppointmentView[]> {
   const rows = await prisma.appointment.findMany({
     where: { patientId },

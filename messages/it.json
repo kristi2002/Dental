@@ -188,7 +188,8 @@
     "mergeConfirm": "Unisci",
     "mergeWarning": "Tutto ciò che appartiene alla scheda scelta passa a {name}. Non si può annullare.",
     "mergeWhich": "Quale scheda è il doppione",
-    "mergeExplain": "Appuntamenti, visite, documenti e note passano da {from} a {to}. {from} viene poi archiviata."
+    "mergeExplain": "Appuntamenti, visite, documenti e note passano da {from} a {to}. {from} viene poi archiviata.",
+    "history": "Cronologia attività"
   },
   "appointments": {
     "title": "Calendario",
@@ -742,6 +743,8 @@
     "title": "Registro attività",
     "subtitle": "Ogni modifica e chi l’ha fatta",
     "filterLabel": "Filtra per tipo",
+    "subjectPatient": "Tutto ciò che è registrato su {name}",
+    "openRecord": "Apri scheda",
     "rangeLabel": "Intervallo di date",
     "from": "Dal",
     "to": "Al",

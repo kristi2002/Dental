@@ -8,8 +8,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
+import { auditDestination } from '@/lib/audit-links';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
+import { patientAuditIds } from '@/lib/queries';
 import { initials } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -81,6 +83,10 @@ export default async function ActivityPage({
     from?: string;
     to?: string;
     actor?: string;
+    /** One exact record, by the id the trail filed the line under. */
+    id?: string;
+    /** One person, widened to every record of theirs. See `patientAuditIds`. */
+    patient?: string;
     page?: string;
   }>;
 }) {
@@ -89,8 +95,24 @@ export default async function ActivityPage({
 
   await requirePermission('audit.view');
 
-  const { entity, from, to, actor, page: rawPage } = await searchParams;
+  const { entity, from, to, actor, id, patient, page: rawPage } = await searchParams;
   const filter = ENTITIES.includes(entity as (typeof ENTITIES)[number]) ? entity : undefined;
+
+  // Two ways of naming a subject, kept apart rather than folded into one clever
+  // parameter. `id` is "this exact record", which works for anything the trail
+  // files a line against. `patient` is "everything that ever happened to this
+  // person", which is a wider question — their appointments and visits are filed
+  // under their own ids, so it has to be expanded before it can be asked (see
+  // `patientAuditIds`). One parameter doing both would mean the page guessing
+  // which was meant from the shape of a uuid.
+  const subject = patient
+    ? await prisma.patient.findUnique({
+        where: { id: patient },
+        select: { id: true, firstName: true, lastName: true },
+      })
+    : null;
+
+  const subjectIds = subject ? await patientAuditIds(subject.id) : null;
 
   const t = await getTranslations('activity');
   const tc = await getTranslations('common');
@@ -112,6 +134,10 @@ export default async function ActivityPage({
   const where = {
     ...(filter ? { entity: filter } : {}),
     ...(actorId ? { actorId } : {}),
+    // The wider view wins when both are given: asking for one person's whole
+    // history and one exact record at once is a contradiction, and the subject
+    // is the one the reader arrived here for.
+    ...(subjectIds ? { entityId: { in: subjectIds } } : id ? { entityId: id } : {}),
     // `to` is inclusive, so the bound is the start of the following day — a
     // range of 3 March to 3 March has to mean that whole day, which is what
     // somebody typing the same date twice is asking for.
@@ -139,12 +165,32 @@ export default async function ActivityPage({
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Where each line points, for the lines that point anywhere — and only after
+  // checking the record is still there. The trail outlives what it describes, so
+  // a decade-old line about a deleted patient would otherwise be a link to a
+  // 404. One query per kind for the whole page, not one per row.
+  const destinations = entries.map((entry) => auditDestination(entry.entity, entry.entityId));
+  const wanted = (kind: 'patient' | 'stock') => [
+    ...new Set(destinations.filter((d) => d?.kind === kind).map((d) => d!.id)),
+  ];
+
+  const [livePatients, liveStock] = await Promise.all([
+    prisma.patient.findMany({ where: { id: { in: wanted('patient') } }, select: { id: true } }),
+    prisma.stockItem.findMany({ where: { id: { in: wanted('stock') } }, select: { id: true } }),
+  ]);
+  const alive = new Set([
+    ...livePatients.map((row) => `patient:${row.id}`),
+    ...liveStock.map((row) => `stock:${row.id}`),
+  ]);
+
   const hrefFor = (nextPage: number) => {
     const search = new URLSearchParams();
     if (filter) search.set('entity', filter);
     if (from) search.set('from', from);
     if (to) search.set('to', to);
     if (actorId) search.set('actor', actorId);
+    if (subject) search.set('patient', subject.id);
+    else if (id) search.set('id', id);
     if (nextPage > 1) search.set('page', String(nextPage));
     const suffix = search.toString();
     return suffix ? `/activity?${suffix}` : '/activity';
@@ -154,13 +200,40 @@ export default async function ActivityPage({
     <>
       <PageHeader title={t('title')} subtitle={t('subtitle')} trail={[{ label: t('title') }]} />
 
+      {/* Said plainly, because every other control on this page narrows and this
+          one *replaces* the subject — a reader who does not notice would take a
+          list of one person's history for the whole practice's. */}
+      {subject ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand/30 bg-brand-soft px-4 py-3">
+          <p className="font-semibold text-brand-deep">
+            {t('subjectPatient', { name: `${subject.lastName} ${subject.firstName}` })}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/patients/${subject.id}`} className="btn btn-secondary btn-sm">
+              {t('openRecord')}
+            </Link>
+            <Link href="/activity" className="btn btn-ghost btn-sm">
+              {tc('clearFilters')}
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <FilterBar
         basePath="/activity"
         label={t('filterLabel')}
         // `page` is deliberately absent: it is a position in a result set, not a
         // filter on one, and carrying it across a change of filter lands the
         // reader on page nine of a list that now has two.
-        values={{ entity: filter ?? '', from: from ?? '', to: to ?? '', actor: actorId ?? '' }}
+        values={{
+          entity: filter ?? '',
+          from: from ?? '',
+          to: to ?? '',
+          actor: actorId ?? '',
+          // Carried, not rendered: the subject is chosen by arriving here from a
+          // record, and submitting the filter form must not drop it.
+          ...(subject ? { patient: subject.id } : id ? { id } : {}),
+        }}
         chips={{
           name: 'entity',
           label: t('filterLabel'),
@@ -209,8 +282,17 @@ export default async function ActivityPage({
           <EmptyState icon={<ScrollText size={40} aria-hidden />} title={t('empty')} />
         ) : (
           <ul className="divide-y border-line">
-            {entries.map((entry) => {
+            {entries.map((entry, index) => {
               const [firstName = '', lastName = ''] = entry.actorName.split(' ');
+
+              // Only when the line names a record unambiguously *and* that
+              // record is still there — see `auditDestination` for the three
+              // entity names that carry two kinds of id and so never link.
+              const destination = destinations[index];
+              const linked =
+                destination && alive.has(`${destination.kind}:${destination.id}`)
+                  ? destination
+                  : null;
 
               return (
                 <li
@@ -233,9 +315,18 @@ export default async function ActivityPage({
                         <span className="text-[1rem] font-semibold text-ink">
                           {t(`entity_${entry.entity}`)}
                         </span>
-                        <span className="min-w-0 truncate text-[1rem] text-ink-soft">
-                          {entry.summary}
-                        </span>
+                        {linked ? (
+                          <Link
+                            href={linked.href}
+                            className="min-w-0 truncate text-[1rem] font-semibold text-brand underline-offset-2 hover:underline"
+                          >
+                            {entry.summary}
+                          </Link>
+                        ) : (
+                          <span className="min-w-0 truncate text-[1rem] text-ink-soft">
+                            {entry.summary}
+                          </span>
+                        )}
                       </p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[0.9rem] text-ink-soft">
                         {entry.actorName}

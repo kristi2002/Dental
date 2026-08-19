@@ -1436,11 +1436,19 @@ receptionist repeatedly trying to open the chart is worth seeing.
   narrow rows over seven years is nothing to Postgres, and the indexes on
   `AuditLog` are chosen for the page's own query — verified at 300 000 rows as
   an index scan with no sort.
-- ⚠️ **G-53 — no per-entity drill-through.** The activity page filters by entity
-  *type*, not by entity *id*. Clicking a row does not take you to the record.
-  It now pages, and filters by date and by person, so the trail can at least be
-  read across the years it is kept for — but "everything that happened to *this*
-  patient" is still a filter it cannot express.
+- ✅ **G-53 — per-entity drill-through.** Two filters rather than one, because
+  they are two questions: `?id=` is a single record, and `?patient=` is a
+  person, widened by `patientAuditIds` to every appointment, visit, document,
+  prescription and plan of theirs — those are filed under their own ids, so
+  matching the patient id alone answered a narrower question silently. The
+  patient record links straight to it.
+
+  Rows link to what they name, but only where the row can say so unambiguously:
+  `prescription`, `plan` and `document` each carry two different kinds of id
+  depending on which action wrote the line, so they deliberately do not link —
+  a dead link in an audit trail reads as a deleted record. Destinations are also
+  existence-checked per page, because the trail outlives what it describes. See
+  `src/lib/audit-links.ts`.
 
 ---
 
@@ -1866,7 +1874,7 @@ Ranked by what it actually costs. 🔴 correctness · 🟠 a loop that cannot cl
 | **G-50** | ⚪ | The backup truncates the audit log silently | Staff | Trivial | ✅ |
 | **G-51** | ⚪ | Nothing verifies `storage/` is being copied | Staff | Copy |  |
 | **G-52** | ⚪ | The audit log grows without bound | Activity | Decision + job | ✅ |
-| **G-53** | ⚪ | No per-entity drill-through in the activity log | Activity | Small |  |
+| **G-53** | ✅ | Per-entity drill-through in the activity log | Activity | Small | `?id=` and `?patient=`, rows link where unambiguous |
 
 ---
 

@@ -12,6 +12,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  ScrollText,
   ShieldAlert,
   Sparkles,
   Trash2,
@@ -120,6 +121,7 @@ export default async function PatientDetailPage({
   const canEdit = can('patient.edit');
   const canDelete = can('patient.delete');
   const canBook = can('appointment.edit');
+  const canSeeAudit = can('audit.view');
 
   const t = await getTranslations('patients');
   const tc = await getTranslations('common');
@@ -465,6 +467,21 @@ export default async function PatientDetailPage({
               }}
             />
           ) : null}
+          {/* Everything the trail has ever recorded about this person, which
+              until now could only be reached by filtering the whole practice's
+              log by entity *type* and reading for a name. Owner-only, because
+              `audit.view` is. */}
+          {canSeeAudit ? (
+            <Link
+              href={`/activity?patient=${patient.id}`}
+              className="btn btn-secondary"
+              title={t('history')}
+            >
+              <ScrollText size={19} aria-hidden />
+              <span className="sr-only">{t('history')}</span>
+            </Link>
+          ) : null}
+
           {/* Folding a duplicate in. Owner-only, beside the delete it exists to
               make unnecessary — the front desk's two bad options were leaving
               both records or erasing one. */}

@@ -127,6 +127,16 @@ model AuditLog {
   /// and this one is never trimmed (see `src/lib/audit-retention.ts`), so the
   /// sort is what would have decayed as the practice used the app.
   @@index([entity, createdAt])
+  /// "Everything that ever happened to *this* record", which is the question a
+  /// disputed chart actually asks. The column has been written since the trail
+  /// existed and nothing could filter on it, so the page could only offer
+  /// "every patient" where somebody needed one.
+  ///
+  /// `entityId` leads rather than `entity`, because the patient view matches a
+  /// list of ids across several kinds at once — an appointment, a visit and the
+  /// chart all belong to one person — and a composite led by `entity` could not
+  /// serve that with one scan.
+  @@index([entityId, createdAt])
 }
 
 model Patient {

@@ -188,7 +188,8 @@
     "mergeConfirm": "Merge",
     "mergeWarning": "Everything from the record you choose moves into {name}. This cannot be undone.",
     "mergeWhich": "Which record is the duplicate",
-    "mergeExplain": "All appointments, visits, documents and notes move from {from} to {to}. {from} is then archived."
+    "mergeExplain": "All appointments, visits, documents and notes move from {from} to {to}. {from} is then archived.",
+    "history": "Activity history"
   },
   "appointments": {
     "title": "Calendar",
@@ -742,6 +743,8 @@
     "title": "Activity log",
     "subtitle": "Every change, and who made it",
     "filterLabel": "Filter by type",
+    "subjectPatient": "Everything recorded about {name}",
+    "openRecord": "Open record",
     "rangeLabel": "Date range",
     "from": "From",
     "to": "To",
