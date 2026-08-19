@@ -1,4 +1,4 @@
-import { addDays, toDay } from '@/lib/dates';
+import { addDays, toDay, today } from '@/lib/dates';
 
 /**
  * Expiry, for materials that have one.
@@ -46,14 +46,25 @@ export type BatchLike = DatedBatch & {
  * A lot with no expiry date is `OK`, not "unknown" — plenty of materials never
  * carry one, and treating a blank field as a warning would make the whole
  * signal noise.
+ *
+ * `now` is a *day* rather than an instant, and defaults to the clinic's calendar
+ * day. It used to default to `new Date()`, off which `toDay` took the server's
+ * UTC day — so whether a box may go near a patient was answered, for an hour or
+ * two either side of midnight, by a clock in the wrong place. In a zone ahead of
+ * UTC that failed in the direction that matters: a lot which expired yesterday
+ * still read as usable. Passing an instant is still fine, because `toDay`
+ * normalises whatever it is given.
  */
-export function expiryLevel(expiryDate: Date | null, now: Date = new Date()): ExpiryLevel {
+export function expiryLevel(expiryDate: Date | null, now: Date = today()): ExpiryLevel {
   if (!expiryDate) return 'OK';
 
   const day = toDay(expiryDate);
-  const today = toDay(now);
-  if (day < today) return 'EXPIRED';
-  return day <= addDays(today, EXPIRY_SOON_DAYS) ? 'SOON' : 'OK';
+  // Not named `today`: that is the imported function this file now depends on,
+  // and shadowing it here would leave the default above resolving through a
+  // parameter-scope technicality rather than because it plainly reads right.
+  const currentDay = toDay(now);
+  if (day < currentDay) return 'EXPIRED';
+  return day <= addDays(currentDay, EXPIRY_SOON_DAYS) ? 'SOON' : 'OK';
 }
 
 /**
@@ -80,7 +91,7 @@ export type ExpirySummary = {
 /** The worst news across an item's lots, which is what a shelf label would say. */
 export function summariseBatches(
   batches: readonly BatchLike[],
-  now: Date = new Date(),
+  now: Date = today(),
 ): ExpirySummary {
   let expiredUnits = 0;
   let soonUnits = 0;
@@ -129,7 +140,7 @@ export function summariseBatches(
 export function usableQuantity(
   quantity: number,
   batches: readonly BatchLike[],
-  now: Date = new Date(),
+  now: Date = today(),
 ): number {
   const expired = batches.reduce(
     (total, batch) =>

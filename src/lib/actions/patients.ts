@@ -18,7 +18,7 @@ import { parseMaterialList } from '@/lib/material-history';
 import { completeStepForAppointment } from '@/lib/plan-sync';
 import { prisma } from '@/lib/prisma';
 import { findPhoneDuplicates } from '@/lib/queries';
-import { takeFromShelf } from '@/lib/stock-consumption';
+import { reverseVisitConsumption, takeFromShelf } from '@/lib/stock-consumption';
 import { timeToMinutes, today } from '@/lib/dates';
 import { DEFAULT_TOOTH_STATUS, formatSurfaces, isToothStatus, isValidTooth } from '@/lib/teeth';
 import { optionalString, parseServiceList, requiredString, toInt } from '@/lib/utils';
@@ -636,13 +636,32 @@ export async function deleteVisit(formData: FormData): Promise<void> {
     where: { id },
     select: { patient: { select: { firstName: true, lastName: true } } },
   });
+  // The summary below already allowed for this being null, and the delete a line
+  // later did not — a second press of the button, or a page left open while
+  // somebody else removed the same write-up, threw P2025 out of a server action
+  // and put an error screen in front of the dentist. Nothing to delete is not a
+  // failure; it is the state the press was asking for.
+  if (!visit) return;
 
-  await prisma.visitRecord.delete({ where: { id } });
+  // What the visit took off the shelf goes back on it, in the same transaction
+  // that removes the visit — see `reverseVisitConsumption`. Deleting the record
+  // of a treatment and leaving its materials deducted left the cupboard short by
+  // boxes with nothing left in the ledger to explain them.
+  const returned = await prisma.$transaction(async (tx) => {
+    const boxes = await reverseVisitConsumption(tx, id, user.id);
+    await tx.visitRecord.delete({ where: { id } });
+    return boxes;
+  });
+
+  const patientName = `${visit.patient.firstName} ${visit.patient.lastName}`;
+
   await recordAudit(user, {
     action: 'delete',
     entity: 'visit',
     entityId: id,
-    summary: visit ? `${visit.patient.firstName} ${visit.patient.lastName}` : id,
+    // The returned boxes are named here because the compensating movements
+    // cannot name the visit — it no longer exists to be pointed at.
+    summary: returned > 0 ? `${patientName} · returned ${returned} to stock` : patientName,
   });
   revalidateAll();
 }

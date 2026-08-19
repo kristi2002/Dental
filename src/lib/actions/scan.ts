@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import { parseScan, type ScanFormat } from '@/lib/barcode';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { today } from '@/lib/dates';
 import { parseMoney } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { parseStockLabel, stockLabelPath } from '@/lib/stock-labels';
@@ -191,8 +192,12 @@ export async function lookupScan(raw: string): Promise<ScanResolution | null> {
         })
       : null;
 
-  const todayUtc = new Date();
-  todayUtc.setUTCHours(0, 0, 0, 0);
+  // The clinic's day, not the container's. This was `new Date()` rounded down to
+  // UTC midnight, which meant the "this box is out of date" warning shown to
+  // somebody holding the box was answered by the wrong clock for an hour or two
+  // around midnight — and in a zone ahead of UTC it failed silent, marking a lot
+  // that expired yesterday as fine.
+  const currentDay = today();
 
   return {
     raw: scan.raw,
@@ -222,7 +227,7 @@ export async function lookupScan(raw: string): Promise<ScanResolution | null> {
           remaining: batch.quantity - batch.usedQuantity,
         }
       : null,
-    expired: scan.expiryDate ? scan.expiryDate < todayUtc : false,
+    expired: scan.expiryDate ? scan.expiryDate < currentDay : false,
   };
 }
 

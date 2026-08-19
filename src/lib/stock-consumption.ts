@@ -183,3 +183,83 @@ export async function takeFromShelf(
 
   return applied;
 }
+
+/**
+ * Put back what a visit took off the shelf, because the visit is being deleted.
+ *
+ * `StockMovement.visitRecordId` is documented as existing so that "a
+ * mis-recorded visit's deductions" are possible to find *and to reverse*. Only
+ * the first half was ever built: deleting a visit set the link to null, which
+ * left the deduction standing and untraceable at the same time — the shelf short
+ * by boxes nobody could account for, and the ledger holding the explanation with
+ * the explanation's subject removed.
+ *
+ * Same shape and the same reasoning as `deleteBatch`: the correction is a *new*
+ * movement rather than an edit or a deletion of the old one. The ledger is
+ * append-only, so what it says happened in March still says it in June, and the
+ * reversal reads as its own event on the day it was made.
+ *
+ * The lot is followed back too. A consumption that drew four boxes out of lot A
+ * returns four boxes to lot A, so the expiry screen and the recall trace agree
+ * with the counter again — and `usedQuantity` is eased with a floor at zero, the
+ * same guard `decrementShelf` puts under the shelf itself.
+ *
+ * Only negative movements. A visit never adds stock, but reversing a positive
+ * row would take boxes off a shelf they are physically on.
+ *
+ * Returns how many boxes went back, so the caller can say so in the audit line.
+ */
+export async function reverseVisitConsumption(
+  tx: Prisma.TransactionClient,
+  visitRecordId: string,
+  staffUserId: string,
+): Promise<number> {
+  const movements = await tx.stockMovement.findMany({
+    where: { visitRecordId, delta: { lt: 0 } },
+    select: { itemId: true, delta: true, batchId: true },
+  });
+
+  let returned = 0;
+
+  for (const movement of movements) {
+    const quantity = -movement.delta;
+
+    await tx.stockItem.update({
+      where: { id: movement.itemId },
+      data: { quantity: { increment: quantity } },
+    });
+
+    if (movement.batchId) {
+      // Guarded, then clamped — a lot whose `usedQuantity` has drifted below
+      // what this movement claims must land on zero rather than go negative and
+      // start reporting more remaining than was ever delivered.
+      const eased = await tx.stockBatch.updateMany({
+        where: { id: movement.batchId, usedQuantity: { gte: quantity } },
+        data: { usedQuantity: { decrement: quantity } },
+      });
+      if (eased.count === 0) {
+        await tx.stockBatch.updateMany({
+          where: { id: movement.batchId },
+          data: { usedQuantity: 0 },
+        });
+      }
+    }
+
+    // Deliberately not linked to the visit: it is about to stop existing, and a
+    // row pointing at it would only be nulled a moment later. The audit line is
+    // where the two are tied together.
+    await tx.stockMovement.create({
+      data: {
+        itemId: movement.itemId,
+        delta: quantity,
+        reason: 'visit deleted',
+        staffUserId,
+        batchId: movement.batchId,
+      },
+    });
+
+    returned += quantity;
+  }
+
+  return returned;
+}

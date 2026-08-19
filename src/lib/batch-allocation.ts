@@ -8,6 +8,8 @@
  * at all, an expired lot that must be skipped) are testable without a database.
  */
 
+import { today } from '@/lib/dates';
+
 export type AllocatableBatch = {
   id: string;
   expiryDate: Date | null;
@@ -38,11 +40,19 @@ export type Allocation = { batchId: string; quantity: number };
 export function allocateOldestFirst(
   batches: readonly AllocatableBatch[],
   wanted: number,
-  now: Date = new Date(),
+  /**
+   * The day to judge "expired" against — the clinic's, not the container's.
+   *
+   * This defaulted to `new Date()` and took the server's UTC day off it, which
+   * put the skip-an-expired-lot rule an hour or two out around midnight: in a
+   * zone ahead of UTC a lot that had just turned was still allocated from, and
+   * its number went onto a patient's record as what was used.
+   */
+  now: Date = today(),
 ): Allocation[] {
   if (wanted <= 0) return [];
 
-  const today = new Date(
+  const currentDay = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
 
@@ -57,7 +67,7 @@ export function allocateOldestFirst(
           batch.expiryDate.getUTCDate(),
         ),
       );
-      return day >= today;
+      return day >= currentDay;
     })
     .sort((a, b) => {
       if (!a.expiryDate) return b.expiryDate ? 1 : 0;

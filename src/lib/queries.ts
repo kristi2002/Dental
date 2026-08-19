@@ -647,8 +647,14 @@ export async function getUnremindedTomorrow(): Promise<AppointmentView[]> {
  *
  * The three links are joined here rather than looked up per row: a line in the
  * bell has to say whose crown it is about, and one query beats twenty.
+ *
+ * `cache`d for the same reason `loadCandidates` in `recalls.ts` is: the bell in
+ * `AppShell` and the board on the dashboard both ask for this, and on the
+ * dashboard they ask within one render — so the heaviest query on the page ran
+ * twice for exactly the same rows. Every other shared read in this file is
+ * already wrapped this way; this one was missed.
  */
-export async function getOpenFollowUps() {
+export const getOpenFollowUps = cache(async () => {
   return prisma.followUp.findMany({
     where: {
       doneAt: null,
@@ -668,7 +674,7 @@ export async function getOpenFollowUps() {
       assignedTo: { select: { firstName: true, lastName: true } },
     },
   });
-}
+});
 
 export type OpenFollowUp = Awaited<ReturnType<typeof getOpenFollowUps>>[number];
 
