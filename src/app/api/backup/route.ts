@@ -20,12 +20,24 @@ import { prisma } from '@/lib/prisma';
 const PBKDF2_ITERATIONS = 210_000;
 
 /**
- * How many audit rows to carry. The trail is the one table with no natural
- * bound, and a full year of it can dwarf everything else in the file — but a
- * silent cut is worse than a small one, so the payload says when it happened.
- * `prisma/prune-audit.ts` is where a long trail is meant to be archived.
+ * How many audit rows to carry.
+ *
+ * The trail is kept for seven years (`AUDIT_RETENTION_MONTHS`), which is far
+ * more than belongs in a file somebody downloads over a clinic's broadband and
+ * this route builds as one pretty-printed string in memory. So this is a
+ * *transfer* bound, not a retention one, and the two should not be confused:
+ * 20 000 was neither, and quietly carried a few months.
+ *
+ * Where the rest lives is now a real answer rather than a shrug.
+ * `docker/prune-audit.mjs` archives everything past the retention period to
+ * JSON lines on the same volume as the patient files, so the long trail is
+ * covered by the file backup the README already asks for — see "Backups exclude
+ * PIN hashes and uploaded files".
+ *
+ * `auditTruncated` and `auditTotal` still state plainly when this bites, because
+ * a reader has no other way to tell a complete trail from a cut one.
  */
-const AUDIT_LIMIT = 20_000;
+const AUDIT_LIMIT = 100_000;
 
 function encrypt(plaintext: string, passphrase: string): Buffer {
   const salt = randomBytes(16);

@@ -6,19 +6,26 @@
  * removes one, so it grows without bound; on a clinic mini-PC that is a disk
  * that fills up quietly over a couple of years.
  *
- *     npx tsx --env-file=.env prisma/prune-audit.ts                    # dry run, 24 months
+ *     npx tsx --env-file=.env prisma/prune-audit.ts                    # dry run, 7 years
  *     npx tsx --env-file=.env prisma/prune-audit.ts --months 36
  *     npx tsx --env-file=.env prisma/prune-audit.ts --apply
  *     npx tsx --env-file=.env prisma/prune-audit.ts --apply --archive audit-2024.jsonl
  *
  * Archive first when the retention period is a policy rather than a preference:
  * the rows are written out as JSON lines before they are removed, so "who
- * changed this in 2024" is still answerable from a file even once it is no
+ * changed this in 2019" is still answerable from a file even once it is no
  * longer answerable from the app.
+ *
+ * This is the by-hand copy. The policy is enforced without anybody running
+ * anything by `docker/prune-audit.mjs`, which the entrypoint calls on every
+ * boot and which always archives. Reach for this one to prune to a different
+ * period, to inspect what a prune *would* remove, or to run it against a
+ * database from outside the container.
  */
 import { appendFile } from 'node:fs/promises';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { auditCutoff, AUDIT_RETENTION_MONTHS } from '../src/lib/audit-retention';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -26,15 +33,18 @@ const prisma = new PrismaClient({
 
 const args = process.argv.slice(2);
 const APPLY = args.includes('--apply');
-const MONTHS = Number(args[args.indexOf('--months') + 1]) || 24;
+// The practice's stated retention period unless told otherwise — one number,
+// declared in `src/lib/audit-retention.ts` and imported rather than repeated.
+const MONTHS = Number(args[args.indexOf('--months') + 1]) || AUDIT_RETENTION_MONTHS;
 const ARCHIVE = args.includes('--archive') ? args[args.indexOf('--archive') + 1] : null;
 
 /** Written in batches so a decade of rows never has to fit in memory at once. */
 const BATCH = 1000;
 
 async function main() {
-  const cutoff = new Date();
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - MONTHS);
+  // Shared with the boot-time copy, and clamped rather than allowed to overflow
+  // — see `auditCutoff`. A retention floor may only ever err towards keeping.
+  const cutoff = auditCutoff(new Date(), MONTHS);
 
   const total = await prisma.auditLog.count();
   const stale = await prisma.auditLog.count({ where: { createdAt: { lt: cutoff } } });

@@ -131,6 +131,10 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 # Run once after the first deploy to create the Owner account — without it there
 # is no way to sign in to a fresh database. See docs/DEPLOYMENT.md.
 COPY --chown=nextjs:nodejs docker/create-owner.mjs ./docker/create-owner.mjs
+# The activity log's seven-year retention period, enforced on every boot. Its own
+# file rather than `prisma/prune-audit.ts` because this stage carries neither
+# `tsx` nor the `src` tree. See src/lib/audit-retention.ts.
+COPY --chown=nextjs:nodejs docker/prune-audit.mjs ./docker/prune-audit.mjs
 
 # The entrypoint is edited on Windows as often as not, and a trailing CR turns
 # the shebang into a file that does not exist.

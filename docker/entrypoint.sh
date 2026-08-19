@@ -64,6 +64,18 @@ else
   echo "[entrypoint] AUTO_DB_PUSH=false — skipping schema sync."
 fi
 
+# --- Activity log retention -------------------------------------------------
+# Seven years, archived to the volume before anything is removed. Runs here
+# rather than on a schedule because the app has no scheduler and a deploy is the
+# one moment something is guaranteed to run.
+#
+# `|| true` is not redundant with the script's own catch: it also covers the
+# process failing to start at all. Housekeeping must never be the reason a
+# clinic cannot open in the morning.
+if [ "${AUDIT_PRUNE:-true}" = "true" ]; then
+  node /app/docker/prune-audit.mjs || true
+fi
+
 # `server.js` resolves the static assets and the i18n messages relative to the
 # working directory, so this has to be /app.
 cd /app

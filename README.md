@@ -220,7 +220,9 @@ prisma/
                            search keys, and turn each visit's typed list into
                            VisitService rows
   restore-backup.ts        Replay a backup file into an empty database
-  prune-audit.ts           Archive and trim the activity log
+  prune-audit.ts           Archive and trim the activity log by hand. The
+                           seven-year policy runs itself on every deploy —
+                           see docker/prune-audit.mjs
   sweep-orphan-files.ts    Delete patient files no record points at
                            (every one of these is a dry run without --apply)
 prisma.config.ts     Prisma 7 config — holds DATABASE_URL and the seed command
@@ -290,6 +292,13 @@ src/
 - **Backups exclude PIN hashes and uploaded files.** A backup should restore the
   practice, not become an offline target for cracking staff credentials. Copy
   the `storage/` directory alongside it with your ordinary file backup.
+- **The activity log is kept for seven years, then archived — not dropped.** It
+  records who opened which chart, and the records it describes are kept at least
+  that long, so a shorter trail would leave them outliving the only account of
+  who touched them. On every deploy, anything past the period is written out as
+  JSON lines to `/data/audit-archive` and only then removed. That directory sits
+  on the same volume as the patient files, so the same file backup covers both —
+  the JSON export carries a recent window and says so in `auditTruncated`.
 
 ## Adding a language
 

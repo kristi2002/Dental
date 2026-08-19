@@ -1427,9 +1427,15 @@ receptionist repeatedly trying to open the chart is worth seeing.
 - ✅ The design is right, and the lab order sheet already demonstrates its
   second use: per-entity history with **no new table, only a filter**. That
   pattern should be reused for patients, appointments and stock items.
-- ⚠️ **G-52 — no retention policy.** Append-only, nearly every mutation plus
-  every login writes a row. It will be the largest table in the database within
-  two years. Decide now: retain N years then archive, or partition by month.
+- ✅ **G-52 — retention policy: seven years, then archive.** Decided and
+  enforced. `src/lib/audit-retention.ts` holds the number; the entrypoint runs
+  `docker/prune-audit.mjs` on every boot, which writes anything older out as
+  JSON lines to `/data/audit-archive` *before* removing it, so the trail
+  outlives the table it lived in. Seven years because the trail records who
+  opened which chart, and the records it describes carry a statutory retention
+  period at least that long — a shorter trail would leave the records outliving
+  the only account of who touched them. Set `AUDIT_PRUNE=false` to disable, or
+  `AUDIT_RETENTION_MONTHS` to change the period.
 - ⚠️ **G-53 — no per-entity drill-through.** The activity page filters by entity
   *type*, not by entity *id*. Clicking a row does not take you to the record.
 
