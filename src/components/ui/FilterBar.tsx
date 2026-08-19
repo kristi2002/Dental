@@ -37,6 +37,29 @@ export type FilterSearchGroup = {
 };
 
 /**
+ * A pair of `YYYY-MM-DD` inputs bounding a range, both optional.
+ *
+ * Added for the activity log, which is the first list in the app that is read
+ * *backwards in time* rather than filtered down to a category: it is kept for
+ * good, so "the last hundred entries" and a set of chips cannot reach 2021 at
+ * all, and paging there a hundred rows at a time is not reaching it either.
+ *
+ * Two open-ended dates rather than a month select, unlike the works register:
+ * that register is read a month at a time because it is billed a month at a
+ * time, and a trail is read across whatever span the question happens to cover
+ * — the week somebody was on leave, the day a record was disputed.
+ */
+export type FilterDateGroup = {
+  /** Query key for the inclusive lower bound. */
+  fromName: string;
+  /** Query key for the inclusive upper bound. */
+  toName: string;
+  label: string;
+  fromLabel: string;
+  toLabel: string;
+};
+
+/**
  * The filter panel shared by the catalog pages.
  *
  * Every control writes to the query string and the page re-reads it on the
@@ -54,6 +77,7 @@ export function FilterBar({
   label,
   search,
   selects = [],
+  dates,
   chips,
   submitLabel,
   clearLabel,
@@ -67,6 +91,8 @@ export function FilterBar({
   label: string;
   search?: FilterSearchGroup;
   selects?: FilterSelectGroup[];
+  /** An inclusive date range. See `FilterDateGroup`. */
+  dates?: FilterDateGroup;
   chips?: FilterChipGroup;
   submitLabel: string;
   clearLabel: string;
@@ -94,7 +120,15 @@ export function FilterBar({
     return queryString ? `${basePath}?${queryString}` : basePath;
   };
 
-  const owned = new Set([search?.name, ...selects.map((select) => select.name)]);
+  // Keys the form itself posts. Everything else in the query string has to ride
+  // along as a hidden input or submitting would drop it — the dates included,
+  // which is why they are named here rather than only where they are rendered.
+  const owned = new Set([
+    search?.name,
+    ...selects.map((select) => select.name),
+    dates?.fromName,
+    dates?.toName,
+  ]);
   const carried = Object.entries(values).filter(([key, value]) => value && !owned.has(key));
 
   return (
@@ -161,6 +195,36 @@ export function FilterBar({
             </select>
           </div>
         ))}
+
+        {dates ? (
+          <fieldset className="flex min-w-64 flex-1 items-end gap-2 border-0 p-0">
+            <legend className="sr-only">{dates.label}</legend>
+            <div className="min-w-32 flex-1">
+              <label className="field-label" htmlFor={`filter-${dates.fromName}`}>
+                {dates.fromLabel}
+              </label>
+              <input
+                id={`filter-${dates.fromName}`}
+                type="date"
+                name={dates.fromName}
+                defaultValue={values[dates.fromName] ?? ''}
+                className="field-input"
+              />
+            </div>
+            <div className="min-w-32 flex-1">
+              <label className="field-label" htmlFor={`filter-${dates.toName}`}>
+                {dates.toLabel}
+              </label>
+              <input
+                id={`filter-${dates.toName}`}
+                type="date"
+                name={dates.toName}
+                defaultValue={values[dates.toName] ?? ''}
+                className="field-input"
+              />
+            </div>
+          </fieldset>
+        ) : null}
 
         <div className="flex items-center gap-2">
           <button type="submit" className="btn btn-secondary">

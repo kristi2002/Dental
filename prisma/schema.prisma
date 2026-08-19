@@ -121,6 +121,12 @@ model AuditLog {
   /// last half hour — `actorId` on its own answers that by reading everything
   /// they have ever done.
   @@index([actorId, createdAt])
+  /// The activity page's own query: one kind of record, newest first, over a
+  /// span of dates. `entity` alone answered the filter and then left the sort to
+  /// read every matching row — fine against a table trimmed to a few thousand,
+  /// and this one is never trimmed (see `src/lib/audit-retention.ts`), so the
+  /// sort is what would have decayed as the practice used the app.
+  @@index([entity, createdAt])
 }
 
 model Patient {

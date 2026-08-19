@@ -1,25 +1,28 @@
 /**
- * How long the activity log is kept.
+ * How long the activity log is kept, and why nothing deletes it.
  *
- * Seven years, as a policy rather than a preference. The trail records who
- * opened which chart and who changed what, which is the evidence a practice is
- * asked for when a patient disputes their record — and dental records carry a
- * long statutory retention period in every jurisdiction this ships to. Keeping
- * the trail for less time than the records it describes would leave those
+ * The trail records who opened which chart and who changed what — the evidence a
+ * practice is asked for when a patient disputes their record. Dental records
+ * carry a long statutory retention period in every jurisdiction this ships to,
+ * so a trail kept for less time than the records it describes would leave those
  * records outliving the only account of who ever touched them.
  *
- * It is also the one table with no natural bound: append-only, written by nearly
- * every mutation plus every login, logout and refused permission check, and
- * never trimmed by anything in the app. On a clinic mini-PC that is a disk which
- * fills quietly over a few years.
+ * **Seven years is a floor, not an expiry.** The log is kept in the database
+ * indefinitely and the Activity page can be asked about any of it. That is the
+ * whole point: an archive nothing can query is a box in a cupboard, and "who
+ * looked at this chart in 2021" has to be answerable by the person being asked,
+ * at the desk, not by somebody restoring JSON lines off a backup volume.
  *
- * Enforced on boot by `docker/prune-audit.mjs`, which archives before it
- * deletes. `prisma/prune-audit.ts` is the same job run by hand.
+ * The cost of that choice is a table that grows, so it is worth being concrete:
+ * a four-person practice writes on the order of a hundred and fifty entries a
+ * day, which is roughly fifty thousand a year and a third of a million over
+ * seven. Postgres does not notice a third of a million narrow rows, and the
+ * indexes on `AuditLog` are chosen so the page's own queries stay index-only
+ * rather than degrading as the table fills.
  *
- * This constant is the single source of the number. Two scripts outside the
- * TypeScript build need it as well and cannot import it — the deploy image
- * carries neither `tsx` nor the `src` tree — so each restates it and
- * `tests/audit-retention.test.ts` fails if the three ever disagree.
+ * The floor is what `prisma/prune-audit.ts` refuses to cross. Nothing in the
+ * app, and nothing in the deploy, removes an entry — a trim is a deliberate act
+ * somebody performs by hand, and it cannot take the log below this.
  */
 export const AUDIT_RETENTION_MONTHS = 84;
 
@@ -27,14 +30,14 @@ export const AUDIT_RETENTION_MONTHS = 84;
 export const AUDIT_RETENTION_YEARS = AUDIT_RETENTION_MONTHS / 12;
 
 /**
- * The date before which entries may be removed.
+ * The earliest date a by-hand prune may remove entries before.
  *
  * Month arithmetic done the way `addMonths` in `dates.ts` does it, and for the
  * same reason: `setUTCMonth(m - 84)` on the 29th of February lands on a date
  * that does not exist and JavaScript rolls it *forward*, which moves the cutoff
- * later and deletes a day more than the policy allows. A retention floor may
- * only ever err towards keeping things, so the day is clamped to one that
- * exists in the target month.
+ * later and would allow a day more to be removed than the floor permits. A
+ * retention floor may only ever err towards keeping things, so the day is
+ * clamped to one that exists in the target month.
  */
 export function auditCutoff(
   now: Date = new Date(),

@@ -1427,17 +1427,20 @@ receptionist repeatedly trying to open the chart is worth seeing.
 - ✅ The design is right, and the lab order sheet already demonstrates its
   second use: per-entity history with **no new table, only a filter**. That
   pattern should be reused for patients, appointments and stock items.
-- ✅ **G-52 — retention policy: seven years, then archive.** Decided and
-  enforced. `src/lib/audit-retention.ts` holds the number; the entrypoint runs
-  `docker/prune-audit.mjs` on every boot, which writes anything older out as
-  JSON lines to `/data/audit-archive` *before* removing it, so the trail
-  outlives the table it lived in. Seven years because the trail records who
-  opened which chart, and the records it describes carry a statutory retention
-  period at least that long — a shorter trail would leave the records outliving
-  the only account of who touched them. Set `AUDIT_PRUNE=false` to disable, or
-  `AUDIT_RETENTION_MONTHS` to change the period.
+- ✅ **G-52 — retention: kept indefinitely, seven years as a floor.** Decided.
+  Nothing in the app or the deploy deletes an entry; `prisma/prune-audit.ts` is
+  the only thing that can trim, is run by hand, and refuses to go below the
+  floor in `src/lib/audit-retention.ts`. Archiving past seven years was built
+  first and then withdrawn: it made the trail correct and *unqueryable* at the
+  same time, because the app can only ask the database. A third of a million
+  narrow rows over seven years is nothing to Postgres, and the indexes on
+  `AuditLog` are chosen for the page's own query — verified at 300 000 rows as
+  an index scan with no sort.
 - ⚠️ **G-53 — no per-entity drill-through.** The activity page filters by entity
   *type*, not by entity *id*. Clicking a row does not take you to the record.
+  It now pages, and filters by date and by person, so the trail can at least be
+  read across the years it is kept for — but "everything that happened to *this*
+  patient" is still a filter it cannot express.
 
 ---
 

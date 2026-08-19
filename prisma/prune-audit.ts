@@ -16,16 +16,24 @@
  * changed this in 2019" is still answerable from a file even once it is no
  * longer answerable from the app.
  *
- * This is the by-hand copy. The policy is enforced without anybody running
- * anything by `docker/prune-audit.mjs`, which the entrypoint calls on every
- * boot and which always archives. Reach for this one to prune to a different
- * period, to inspect what a prune *would* remove, or to run it against a
- * database from outside the container.
+ * **Nothing runs this for you.** The trail is kept in the database for good so
+ * the Activity page can be asked about any of it — see
+ * `src/lib/audit-retention.ts`. Trimming it is a deliberate act, and this is the
+ * only thing in the project that performs one.
+ *
+ * It will not go below the seven-year floor. `--months 12` is refused rather
+ * than obeyed: the whole reason the number exists is that somebody under
+ * pressure to reclaim disk should not be able to destroy the record of who
+ * opened a chart, and a flag that quietly accepts anything is not a floor.
  */
 import { appendFile } from 'node:fs/promises';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
-import { auditCutoff, AUDIT_RETENTION_MONTHS } from '../src/lib/audit-retention';
+import {
+  auditCutoff,
+  AUDIT_RETENTION_MONTHS,
+  AUDIT_RETENTION_YEARS,
+} from '../src/lib/audit-retention';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -33,9 +41,21 @@ const prisma = new PrismaClient({
 
 const args = process.argv.slice(2);
 const APPLY = args.includes('--apply');
-// The practice's stated retention period unless told otherwise — one number,
-// declared in `src/lib/audit-retention.ts` and imported rather than repeated.
+// The practice's stated retention floor unless told to keep *more* — one
+// number, declared in `src/lib/audit-retention.ts` and imported, not repeated.
 const MONTHS = Number(args[args.indexOf('--months') + 1]) || AUDIT_RETENTION_MONTHS;
+
+if (MONTHS < AUDIT_RETENTION_MONTHS) {
+  console.error(
+    [
+      `Refusing to prune to ${MONTHS} months: the activity log is kept for at least ` +
+        `${AUDIT_RETENTION_MONTHS} (${AUDIT_RETENTION_YEARS} years).`,
+      'That floor is the point of the policy — see src/lib/audit-retention.ts.',
+      'To keep more, pass a larger --months. To keep less, change the policy.',
+    ].join('\n'),
+  );
+  process.exit(1);
+}
 const ARCHIVE = args.includes('--archive') ? args[args.indexOf('--archive') + 1] : null;
 
 /** Written in batches so a decade of rows never has to fit in memory at once. */
