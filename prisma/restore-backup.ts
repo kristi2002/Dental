@@ -83,6 +83,10 @@ const ORDER = [
   'serviceCategories',
   'services',
   'stockCategories',
+  // Before `stock`: a material may be one variant of a product, and a row
+  // carrying a `productId` that names nothing is a foreign key violation that
+  // stops the restore partway.
+  'stockProducts',
   'stock',
   'serviceMaterials',
   'productBarcodes',
@@ -95,11 +99,21 @@ const ORDER = [
   'plans',
   'documents',
   'templates',
+  // After both sides it joins: the template above, the service far earlier.
+  'templateServices',
   'prescriptions',
   'alerts',
   'contacts',
   'closures',
   'waitlist',
+  // The laboratory register. `workProcedures` is a free-standing catalogue with
+  // no foreign keys; a case may name a patient, and a line needs its case.
+  'workProcedures',
+  'works',
+  'workLines',
+  // Last of the live tables, because a line may point at a patient, a case or a
+  // material, and names the staff who wrote, own and closed it.
+  'followUps',
   'movements',
   'audit',
 ] as const;
@@ -116,6 +130,7 @@ const MODEL: Record<Key, string> = {
   serviceCategories: 'serviceCategory',
   services: 'service',
   stockCategories: 'stockCategory',
+  stockProducts: 'stockProduct',
   stock: 'stockItem',
   serviceMaterials: 'serviceMaterial',
   productBarcodes: 'productBarcode',
@@ -128,11 +143,16 @@ const MODEL: Record<Key, string> = {
   plans: 'treatmentPlan',
   documents: 'patientDocument',
   templates: 'prescriptionTemplate',
+  templateServices: 'prescriptionTemplateService',
   prescriptions: 'prescription',
   alerts: 'patientAlert',
   contacts: 'contact',
   closures: 'closure',
   waitlist: 'waitlistEntry',
+  workProcedures: 'workProcedure',
+  works: 'work',
+  workLines: 'workLine',
+  followUps: 'followUp',
   movements: 'stockMovement',
   audit: 'auditLog',
 };

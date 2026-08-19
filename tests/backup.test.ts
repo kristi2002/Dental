@@ -16,6 +16,17 @@ import { describe, it } from 'node:test';
  */
 const RESTORE = path.join(process.cwd(), 'prisma', 'restore-backup.ts');
 const EXPORT = path.join(process.cwd(), 'src', 'app', 'api', 'backup', 'route.ts');
+const SCHEMA = path.join(process.cwd(), 'prisma', 'schema.prisma');
+
+/**
+ * Models the export is allowed not to carry, each for a stated reason. Anything
+ * else new in the schema fails the sweep below until somebody decides which
+ * list it belongs on — which is the whole point of keeping this one short.
+ */
+const NOT_EXPORTED = new Set([
+  // Carried nested inside `plans` — see `NESTED` in the restore script.
+  'TreatmentStep',
+]);
 
 function block(source: string, name: string): string[] {
   const start = source.indexOf(name);
@@ -60,6 +71,42 @@ describe('backup and restore agree with each other', () => {
     );
   });
 
+  /**
+   * The check that was missing, and the reason six tables sat outside the export
+   * unnoticed: the two tests above compare the export against the *restore*, and
+   * both sides agreed because both were missing the same models. Neither ever
+   * asked the schema what a complete practice consists of.
+   *
+   * Read off `schema.prisma` rather than a hand-kept list, so a model added
+   * next year fails here on the day it is added instead of on the day somebody
+   * needs their backup.
+   */
+  it('exports every model in the schema', async () => {
+    const [schema, exporter] = await Promise.all([
+      readFile(SCHEMA, 'utf8'),
+      readFile(EXPORT, 'utf8'),
+    ]);
+
+    const models = [...schema.matchAll(/^model (\w+)/gm)].map((match) => match[1]);
+    assert.ok(models.length > 30, `expected a full schema, saw ${models.length} models`);
+
+    const queried = new Set(
+      [...exporter.matchAll(/prisma\.(\w+)\.findMany/g)].map((match) => match[1]),
+    );
+
+    const missing = models.filter(
+      (model) =>
+        !NOT_EXPORTED.has(model) &&
+        !queried.has(model[0].toLowerCase() + model.slice(1)),
+    );
+
+    assert.deepEqual(
+      missing,
+      [],
+      `these models are in the schema but nothing in the backup reads them: ${missing.join(', ')}`,
+    );
+  });
+
   it('inserts parents before the rows that reference them', async () => {
     const restore = await readFile(RESTORE, 'utf8');
     const order = block(restore, 'const ORDER =');
@@ -94,6 +141,23 @@ describe('backup and restore agree with each other', () => {
     assert.ok(at('appointments') < at('contacts'), 'a contact may name the appointment it was about');
     assert.ok(at('staff') < at('closures'), "a closure may be one person's leave");
     assert.ok(at('patients') < at('waitlist'), 'a waiting entry needs its patient');
+
+    // A material may be one variant of a product. This is the edge that would
+    // have stopped a real restore partway through, and nothing asserted it.
+    assert.ok(at('stockProducts') < at('stock'), 'a material may name its product');
+
+    assert.ok(at('templates') < at('templateServices'), 'a link needs its template');
+    assert.ok(at('services') < at('templateServices'), 'and the treatment it follows');
+
+    // The laboratory register.
+    assert.ok(at('patients') < at('works'), 'a case may name the patient it is for');
+    assert.ok(at('works') < at('workLines'), 'a line needs its case');
+
+    // A follow-up points at any of three live rows and names three staff.
+    assert.ok(at('staff') < at('followUps'), 'a follow-up names who it is for');
+    assert.ok(at('patients') < at('followUps'), 'and may be about a patient');
+    assert.ok(at('works') < at('followUps'), 'or a case at the laboratory');
+    assert.ok(at('stock') < at('followUps'), 'or a material to reorder');
 
     // The trail references everything, so it goes last.
     assert.equal(order.at(-1), 'audit');

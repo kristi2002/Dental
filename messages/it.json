@@ -1177,6 +1177,8 @@
     "feedCopy": "Copia",
     "feedCopied": "Copiato",
     "feedWarning": "Trattalo come una password: chiunque abbia questo link può leggere la tua agenda senza accedere.",
+    "feedRegenerate": "Rigenera link",
+    "feedRegenerateWarning": "Il link attuale smetterà subito di funzionare. Ogni calendario già iscritto dovrà usare quello nuovo. Continuare?",
     "currency": "Valuta",
     "currencyHint": "Codice di tre lettere — ALL, EUR, USD. Usato ovunque compaia un prezzo.",
     "operatoryNewSubtitle": "Quante poltrone ci sono decide quanto si può prenotare in contemporanea.",

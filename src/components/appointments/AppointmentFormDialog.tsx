@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
+import { DuplicateOverride } from '@/components/patients/PatientFields';
 import { PatientPicker } from '@/components/patients/PatientPicker';
 import { saveAppointment } from '@/lib/actions/appointments';
 import { byDepartment } from '@/lib/catalog';
@@ -159,6 +160,10 @@ export function AppointmentFormDialog({
   // Set only after the server reports a clash, and cleared as soon as the dialog
   // closes: overriding a double-booking should be a decision, never a default.
   const [force, setForce] = useState(false);
+  // Kept apart from `force` on purpose. Squeezing in an emergency and accepting
+  // a second record for somebody already on the books are different decisions,
+  // and one tick must not carry both.
+  const [forceDuplicate, setForceDuplicate] = useState(false);
   // Days between the appointments of a run — 0 for the ordinary single booking.
   const [repeat, setRepeat] = useState(0);
   const [repeatCount, setRepeatCount] = useState(4);
@@ -214,6 +219,7 @@ export function AppointmentFormDialog({
         <>
           {appointment ? <input type="hidden" name="id" value={appointment.id} /> : null}
           {force ? <input type="hidden" name="force" value="1" /> : null}
+          {forceDuplicate ? <input type="hidden" name="forceDuplicate" value="1" /> : null}
           {planStepId ? <input type="hidden" name="planStepId" value={planStepId} /> : null}
 
           {slot ? (
@@ -509,6 +515,13 @@ export function AppointmentFormDialog({
               the same way — one deliberate tap. Squeezing in an emergency is a
               real decision a dentist makes, and so is fitting a crown the lab
               says it will deliver early. The message above says which it is. */}
+          {/* The inline "new patient" fields can produce a second record for
+              somebody the practice already has — the same warning the patient
+              form gives, given here, where the duplicate is actually made. */}
+          {state.status === 'error' && state.code === 'duplicate' ? (
+            <DuplicateOverride checked={forceDuplicate} onChange={setForceDuplicate} />
+          ) : null}
+
           {state.status === 'error' &&
           (state.code === 'overlap' || state.code === 'labPending') ? (
             <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5 font-semibold text-warn">

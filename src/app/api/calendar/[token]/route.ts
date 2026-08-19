@@ -36,15 +36,23 @@ export async function GET(
   }
 
   const { token } = await params;
-  const staffUserId = await verifyCalendarToken(token);
-  if (!staffUserId) return new Response('Not found', { status: 404 });
+  const claim = await verifyCalendarToken(token);
+  if (!claim) return new Response('Not found', { status: 404 });
 
+  const { staffUserId } = claim;
   const staff = await prisma.staffUser.findUnique({
     where: { id: staffUserId },
-    select: { firstName: true, lastName: true, active: true },
+    select: { firstName: true, lastName: true, active: true, calendarFeedVersion: true },
   });
   // A disabled account loses its feed along with everything else.
   if (!staff || !staff.active) return new Response('Not found', { status: 404 });
+
+  // Regenerating the link bumps the stored version, which strands every URL
+  // handed out before it — a lost phone is answered by one button rather than by
+  // rotating `AUTH_SECRET` and signing the whole practice out.
+  if (claim.version !== staff.calendarFeedVersion) {
+    return new Response('Not found', { status: 404 });
+  }
 
   const from = addDays(today(), -DAYS_BACK);
   const to = addDays(today(), DAYS_AHEAD);

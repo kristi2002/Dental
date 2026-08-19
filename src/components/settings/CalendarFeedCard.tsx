@@ -1,8 +1,10 @@
 'use client';
 
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, RotateCcw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { ActionForm } from '@/components/ui/ActionForm';
+import { regenerateCalendarFeed } from '@/lib/actions/settings';
 
 /**
  * The subscription URL, and one button that copies it.
@@ -47,6 +49,19 @@ export function CalendarFeedCard({ url }: { url: string }) {
       </div>
 
       <p className="text-[0.9rem] font-semibold text-warn">{t('feedWarning')}</p>
+
+      {/* The answer to a lost phone. Everything this link was ever pasted into
+          stops working the moment it is pressed, which is why it asks first. */}
+      <ActionForm
+        action={regenerateCalendarFeed}
+        values={{}}
+        confirmMessage={t('feedRegenerateWarning')}
+      >
+        <button type="submit" className="btn btn-ghost btn-sm">
+          <RotateCcw size={17} aria-hidden />
+          {t('feedRegenerate')}
+        </button>
+      </ActionForm>
     </div>
   );
 }

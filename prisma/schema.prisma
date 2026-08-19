@@ -30,6 +30,21 @@ model StaffUser {
   lockedUntil    DateTime?
   lastLoginAt    DateTime?
 
+  /// What makes a calendar subscription link revocable.
+  ///
+  /// The feed token is an HMAC over this person's id — no stored row, nothing to
+  /// clean up, which is the whole appeal (see `src/lib/calendar-feed.ts`). It was
+  /// therefore also permanent: a subscription URL sits in a phone's settings for
+  /// years, and if that phone was lost the only remedy was rotating
+  /// `AUTH_SECRET`, which signs out every member of staff and invalidates every
+  /// outstanding confirmation link at the same time.
+  ///
+  /// Signing this number into the token buys per-person revocation for one
+  /// column: bump it, and every link ever issued for this dentist stops
+  /// resolving, while everybody else's keeps working. A new column with a
+  /// default, so `db push` accepts it without touching a row.
+  calendarFeedVersion Int @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -278,6 +293,14 @@ model Appointment {
   @@index([date, status])
   /// "The rest of this run" — asked of every appointment that belongs to one.
   @@index([seriesId])
+  /// Postgres does not index a foreign key on its own, and all three of these
+  /// are `SetNull`: retiring a service, a dentist or a chair makes the database
+  /// look for every appointment naming it, which without these is a sequential
+  /// scan of the diary — the one table here that grows for the life of the
+  /// practice and is never pruned.
+  @@index([serviceId])
+  @@index([staffUserId])
+  @@index([operatoryId])
 }
 
 /// A course of treatment that spans several visits. The point is that a
@@ -411,6 +434,13 @@ model Prescription {
   createdAt  DateTime   @default(now())
 
   @@index([patientId])
+  /// `SetNull`, and `deletePrescriptionTemplate` is a real action — so deleting
+  /// a piece of standard wording searched every prescription ever issued.
+  ///
+  /// The staff columns on this table and the others like it are deliberately
+  /// left unindexed: an account is deactivated, never deleted (see
+  /// `StaffUser.active`), so nothing ever asks the question those would answer.
+  @@index([templateId])
 }
 
 enum AppointmentStatus {
@@ -513,6 +543,8 @@ model ToothRecord {
   visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
 
   @@unique([patientId, toothNum])
+  /// `SetNull` on the visit, so deleting one looks for every tooth it charted.
+  @@index([visitRecordId])
 }
 
 /// Practice-wide preferences that are not opening hours. A single row — the id
@@ -679,6 +711,12 @@ model StockItem {
 
   /// Both the duplicate check on save and searching the shelf by label.
   @@index([code])
+  /// Filtered directly, not merely joined: the catalogue groups the shelf by
+  /// product, the storage-room filter by category, the reorder list by supplier,
+  /// and `singleVariantOf` asks for a product's variants on every scan.
+  @@index([productId])
+  @@index([categoryId])
+  @@index([supplierId])
 }
 
 /// A symbol printed on a product, and the material it names.
@@ -899,6 +937,11 @@ model StockMovement {
   /// `reorder.ts` groups a date window by item. `itemId` leads, so this also
   /// serves the plain "movements for this material" lookup.
   @@index([itemId, createdAt])
+  /// The ledger is append-only and never pruned, which makes it the largest
+  /// table in the database and the worst one to scan. Both of these are
+  /// `SetNull`, so deleting a visit or an account did exactly that.
+  @@index([visitRecordId])
+  @@index([staffUserId])
 }
 
 /// A heading in the treatment catalogue — a department, or one subdivision of a
@@ -1190,6 +1233,9 @@ model WaitlistEntry {
   @@index([resolvedAt])
   /// Booking somebody resolves their open entry, which looks them up by person.
   @@index([patientId])
+  /// `SetNull`, and a treatment genuinely can be deleted from the catalogue —
+  /// which without this looks for every waiting person who asked for it.
+  @@index([serviceId])
 }
 
 /// One line of the works ledger — the register the practice keeps of everything

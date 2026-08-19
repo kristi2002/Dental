@@ -63,7 +63,15 @@ export default async function SettingsPage({
   ]);
 
   // Personal to whoever is reading the page — a feed is one person's diary.
-  const feedUrl = calendarUrl(await calendarToken(user.id));
+  // The version is what "regenerate" bumps; the link below is only ever the
+  // current one, so a revoked URL cannot be recovered by reloading this page.
+  const feedOwner = await prisma.staffUser.findUnique({
+    where: { id: user.id },
+    select: { calendarFeedVersion: true },
+  });
+  const feedUrl = calendarUrl(
+    await calendarToken(user.id, feedOwner?.calendarFeedVersion ?? 1),
+  );
 
   // Rendered here rather than in the form: the locale's own calendar data is
   // the right source for a weekday name, but producing it in the browser made

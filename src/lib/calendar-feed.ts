@@ -31,7 +31,7 @@ function base64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-async function sign(staffUserId: string): Promise<string> {
+async function sign(staffUserId: string, version: number): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
     encoder.encode(getSecret()),
@@ -40,10 +40,13 @@ async function sign(staffUserId: string): Promise<string> {
     ['sign'],
   );
 
+  // The version is inside the signed material, not merely alongside it —
+  // otherwise a holder could edit the number in the URL and walk a revoked link
+  // back to a version that still verifies.
   const signature = await crypto.subtle.sign(
     'HMAC',
     key,
-    encoder.encode(`${PURPOSE}:${staffUserId}`),
+    encoder.encode(`${PURPOSE}:${staffUserId}:${version}`),
   );
 
   // A subscription URL lives in a phone's settings for years, so this gets the
@@ -54,18 +57,44 @@ async function sign(staffUserId: string): Promise<string> {
 /** Same reasoning as `confirmations.ts`: a dot would look like a static file. */
 const SEPARATOR = '~';
 
-export async function calendarToken(staffUserId: string): Promise<string> {
-  return `${staffUserId}${SEPARATOR}${await sign(staffUserId)}`;
+/**
+ * `<staffUserId>~<version>~<mac>` — the whole path segment.
+ *
+ * The version comes from `StaffUser.calendarFeedVersion`; regenerating the link
+ * bumps that column, which is what makes every link issued before the bump stop
+ * resolving. See the field's comment in `schema.prisma`.
+ */
+export async function calendarToken(staffUserId: string, version: number): Promise<string> {
+  return `${staffUserId}${SEPARATOR}${version}${SEPARATOR}${await sign(staffUserId, version)}`;
 }
 
-/** Returns the staff id only when the signature matches. */
-export async function verifyCalendarToken(token: string): Promise<string | null> {
-  const separator = token.lastIndexOf(SEPARATOR);
-  if (separator <= 0) return null;
+export type CalendarTokenClaim = { staffUserId: string; version: number };
 
-  const staffUserId = token.slice(0, separator);
-  const provided = token.slice(separator + 1);
-  const expected = await sign(staffUserId);
+/**
+ * The id and version a token claims, when its signature checks out.
+ *
+ * Signature only — whether the version is still the current one is a question
+ * for the caller, which has to read the staff row anyway to find out whether the
+ * account is still active. Keeping the database out of here is what lets this
+ * module stay a pure pair of functions the tests can exercise directly.
+ *
+ * A two-part token is read as version 1. Those are the links issued before this
+ * column existed, and they keep working exactly until somebody regenerates —
+ * at which point the stored version moves past 1 and they stop, which is the
+ * behaviour that was wanted anyway.
+ */
+export async function verifyCalendarToken(token: string): Promise<CalendarTokenClaim | null> {
+  const parts = token.split(SEPARATOR);
+  if (parts.length !== 2 && parts.length !== 3) return null;
+
+  const staffUserId = parts[0];
+  const provided = parts.at(-1)!;
+  if (!staffUserId) return null;
+
+  const version = parts.length === 3 ? Number(parts[1]) : 1;
+  if (!Number.isInteger(version) || version < 1) return null;
+
+  const expected = await sign(staffUserId, version);
 
   if (provided.length !== expected.length) return null;
   let difference = 0;
@@ -73,7 +102,7 @@ export async function verifyCalendarToken(token: string): Promise<string | null>
     difference |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
   }
 
-  return difference === 0 ? staffUserId : null;
+  return difference === 0 ? { staffUserId, version } : null;
 }
 
 export function calendarUrl(token: string): string {

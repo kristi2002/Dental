@@ -85,10 +85,17 @@ const loadCandidates = cache(async (): Promise<PatientForRecall[]> => {
   const now = today();
 
   return prisma.patient.findMany({
-    // `recallMonths: 0` is how a patient opts out entirely; archiving is how the
-    // practice does — chasing somebody who has been filed away is exactly the
-    // call that makes a recall list stop being trusted.
-    where: { ...ACTIVE_PATIENTS, recallMonths: { gt: 0 } },
+    // Archiving is the one exclusion both lists share: chasing somebody who has
+    // been filed away is exactly the call that makes either list stop being
+    // trusted.
+    //
+    // `recallMonths: 0` deliberately is *not* here. It is the patient saying
+    // they do not want reminding that their check-up is due, and filtering on it
+    // in the shared query silently applied that answer to a question nobody
+    // asked them — the two-day "how is the tooth" call after an extraction,
+    // which is a clinical courtesy rather than a recall. `getRecalls` applies it
+    // where it belongs, beside the other two recall-only gates.
+    where: ACTIVE_PATIENTS,
     select: {
       id: true,
       firstName: true,
@@ -123,6 +130,8 @@ export async function getRecalls(): Promise<RecallRow[]> {
 
   const rows: RecallRow[] = [];
   for (const patient of patients) {
+    // Opted out of being reminded that a check-up is due. Only this list.
+    if (patient.recallMonths <= 0) continue;
     if (patient.appointments.length > 0) continue;
     if (patient.recallSnoozedUntil && patient.recallSnoozedUntil > now) continue;
     if (

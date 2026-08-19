@@ -20,6 +20,7 @@ import {
 } from '@/lib/clinic-hours';
 import { departmentOf } from '@/lib/catalog';
 import { usableQuantity } from '@/lib/expiry';
+import { ACTIVE_PATIENTS, phoneKey } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 import { addDays, toDateKey, timeToMinutes, today } from '@/lib/dates';
 import { DUE_SOON_DAYS } from '@/lib/works';
@@ -439,6 +440,43 @@ export async function getOpenWaitlist() {
   });
 }
 
+/**
+ * People already on the register wearing this phone number.
+ *
+ * Two people can share a line — a family does — so this is only ever material
+ * for a warning, never a refusal. What it stops is the silent second "Arta
+ * Krasniqi", created once at the front desk and once from a hurried booking,
+ * whose history is then split across two records.
+ *
+ * Here rather than inside `savePatient` because there are two doors onto
+ * creating a patient and only one of them was checking: the booking dialog
+ * writes a record inline, which is exactly the "hurried booking" that
+ * `mergePatients` was written to clean up after. One definition, both callers.
+ *
+ * Archived records are deliberately included. An archived duplicate is the one
+ * most worth warning about — it is out of every list and picker, so the person
+ * about to make a second record has no way to have seen it.
+ *
+ * Returns display names, longest-established first, or an empty list when the
+ * number is too short to be worth comparing.
+ */
+export async function findPhoneDuplicates(
+  phone: string,
+  excludeId?: string | null,
+): Promise<string[]> {
+  const key = phoneKey(phone);
+  if (key.length < 6) return [];
+
+  const existing = await prisma.patient.findMany({
+    where: { phone: { endsWith: key }, ...(excludeId ? { NOT: { id: excludeId } } : {}) },
+    orderBy: { createdAt: 'asc' },
+    select: { firstName: true, lastName: true },
+    take: 5,
+  });
+
+  return existing.map((patient) => `${patient.lastName} ${patient.firstName}`);
+}
+
 export async function getPatientAppointments(patientId: string): Promise<AppointmentView[]> {
   const rows = await prisma.appointment.findMany({
     where: { patientId },
@@ -612,7 +650,16 @@ export async function getUnremindedTomorrow(): Promise<AppointmentView[]> {
  */
 export async function getOpenFollowUps() {
   return prisma.followUp.findMany({
-    where: { doneAt: null },
+    where: {
+      doneAt: null,
+      // A line about somebody who has been filed away is not work any more —
+      // the same rule the recall list and every patient list already follow.
+      // Written as "no patient, or a patient who is still active" rather than
+      // as a plain `patient: ACTIVE_PATIENTS`, because most lines are about
+      // nothing in particular ("order more gloves") and a null relation would
+      // fail that filter and empty the board.
+      OR: [{ patientId: null }, { patient: ACTIVE_PATIENTS }],
+    },
     orderBy: [{ dueAt: 'asc' }, { createdAt: 'asc' }],
     include: {
       patient: { select: { id: true, firstName: true, lastName: true } },

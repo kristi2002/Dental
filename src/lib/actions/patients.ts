@@ -13,13 +13,13 @@ import {
   buildSearchKey,
   fold,
   patientSearchClauses,
-  phoneKey,
 } from '@/lib/patient-search';
 import { parseMaterialList } from '@/lib/material-history';
 import { completeStepForAppointment } from '@/lib/plan-sync';
 import { prisma } from '@/lib/prisma';
+import { findPhoneDuplicates } from '@/lib/queries';
 import { takeFromShelf } from '@/lib/stock-consumption';
-import { timeToMinutes, toDay } from '@/lib/dates';
+import { timeToMinutes, today } from '@/lib/dates';
 import { DEFAULT_TOOTH_STATUS, formatSurfaces, isToothStatus, isValidTooth } from '@/lib/teeth';
 import { optionalString, parseServiceList, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -96,25 +96,12 @@ export async function savePatient(_prev: ActionState, formData: FormData): Promi
     return actionError(t('fillRequired'));
   }
 
-  // Two people can share a phone — a family does — so this warns rather than
-  // refuses, the same shape as a double-booking. What it stops is the silent
-  // second "Arta Krasniqi", created once at the front desk and once from a
-  // hurried booking, whose history is then split across two records.
+  // Warned about, never refused — see `findPhoneDuplicates`, which the booking
+  // dialog's inline "new patient" path now asks the same question of.
   if (!id && requiredString(formData.get('force')) !== '1') {
-    const key = phoneKey(phone);
-    if (key.length >= 6) {
-      const existing = await prisma.patient.findMany({
-        // An archived duplicate is exactly the one worth warning about: it is
-        // out of every list, so the person creating a second record has no way
-        // to have seen it.
-        where: { phone: { endsWith: key } },
-        select: { firstName: true, lastName: true },
-        take: 5,
-      });
-      if (existing.length > 0) {
-        const names = existing.map((p) => `${p.lastName} ${p.firstName}`).join(', ');
-        return actionError(t('duplicatePhone', { list: names }), 'duplicate');
-      }
+    const duplicates = await findPhoneDuplicates(phone);
+    if (duplicates.length > 0) {
+      return actionError(t('duplicatePhone', { list: duplicates.join(', ') }), 'duplicate');
     }
   }
 
@@ -378,6 +365,10 @@ export async function mergePatients(
       // The works register keeps its own copy of the name and number as written
       // on the docket (see `Work.patientName`); only the link moves.
       await tx.work.updateMany(move);
+      // The board too. Left behind, a line saying "ring about Berisha's bridge"
+      // goes on pointing at the husk — and the bell draws every open line on
+      // every page, so it keeps asking about a record that has been merged away.
+      await tx.followUp.updateMany(move);
 
       if (Object.keys(fill).length > 0) {
         await tx.patient.update({ where: { id: keepId }, data: fill });
@@ -434,7 +425,12 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
     return actionError(t('fillRequired'));
   }
 
-  const day = visitDate ? new Date(`${visitDate}T00:00:00.000Z`) : toDay(new Date());
+  // `today()`, not `toDay(new Date())`: the second is the server's UTC day, and
+  // this value is both the date the visit is filed under *and* the key the
+  // candidate slots below are matched on. A container running UTC would file a
+  // late-evening write-up on tomorrow — and then find no appointment on it,
+  // because the diary is keyed to the clinic's own calendar day.
+  const day = visitDate ? new Date(`${visitDate}T00:00:00.000Z`) : today();
 
   // What was done, as rows rather than as a sentence to be split on commas.
   //
@@ -684,7 +680,7 @@ export async function saveToothRecord(
   // belongs to that visit far more often than it belongs to nothing. Anything
   // charted on a day with no visit recorded stays unattributed, which is honest.
   const sameDayVisit = await prisma.visitRecord.findFirst({
-    where: { patientId, visitDate: toDay(new Date()) },
+    where: { patientId, visitDate: today() },
     orderBy: { createdAt: 'desc' },
     select: { id: true },
   });

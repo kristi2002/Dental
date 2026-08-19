@@ -1177,6 +1177,8 @@
     "feedCopy": "Copy",
     "feedCopied": "Copied",
     "feedWarning": "Treat it like a password: anyone with this link can read your schedule without signing in.",
+    "feedRegenerate": "Regenerate link",
+    "feedRegenerateWarning": "This immediately stops the current link from working. Any calendar already subscribed to it will need the new one. Continue?",
     "currency": "Currency",
     "currencyHint": "Three-letter code — ALL, EUR, USD. Used everywhere a price is shown.",
     "operatoryNewSubtitle": "How many chairs there are is what decides how much can be booked at once.",

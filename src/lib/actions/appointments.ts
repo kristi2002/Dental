@@ -9,7 +9,7 @@ import { NEW_PATIENT_VALUE } from '@/lib/booking';
 import { toDateKey } from '@/lib/dates';
 import { buildSearchKey } from '@/lib/patient-search';
 import { addDays, fromDateKey, today } from '@/lib/dates';
-import { getDaySchedule } from '@/lib/queries';
+import { findPhoneDuplicates, getDaySchedule } from '@/lib/queries';
 import { completeStepForAppointment } from '@/lib/plan-sync';
 import {
   findConflicts,
@@ -117,6 +117,23 @@ export async function saveAppointment(
     const lastName = requiredString(formData.get('newPatientLastName'));
     const phone = requiredString(formData.get('newPatientPhone'));
     if (!firstName || !lastName || !phone) return actionError(t('fillRequired'));
+
+    // The same question the patient form asks, asked at the other door.
+    //
+    // This path is the "hurried booking" that `savePatient`'s own comment names
+    // as the source of the duplicate it refuses — and `mergePatients` exists to
+    // clean up after. The app built the detector and the repair tool, and left
+    // this door open.
+    //
+    // Its own flag rather than the `force` the overlap check reads: the two are
+    // different decisions, and one tick meant to squeeze in an emergency must
+    // not also wave through a second record for somebody already on the books.
+    if (requiredString(formData.get('forceDuplicate')) !== '1') {
+      const duplicates = await findPhoneDuplicates(phone);
+      if (duplicates.length > 0) {
+        return actionError(t('duplicatePhone', { list: duplicates.join(', ') }), 'duplicate');
+      }
+    }
 
     const dob = optionalString(formData.get('newPatientDateOfBirth'));
     const email = optionalString(formData.get('newPatientEmail'));
@@ -347,6 +364,28 @@ export async function saveAppointment(
       entityId: planStepId,
       summary: `${patientName} · ${date} ${startTime}`,
     });
+  }
+
+  // The status select on this form can close a slot exactly as the one-press
+  // button on the calendar can, and the plan step has to follow it either way.
+  // Only this one has ever ticked it off, so "3 of 5 done" depended on which
+  // control somebody happened to reach for — the precise drift `plan-sync.ts`
+  // exists to prevent. Idempotent: it no-ops on a step that is not PENDING, so
+  // re-saving a slot that was already completed writes nothing.
+  //
+  // Edits only. A booking made COMPLETED from the outset has no step bound to
+  // it yet — the link is written inside the transaction above, in the create
+  // branch, and there is nothing to close.
+  if (id && data.status === AppointmentStatus.COMPLETED) {
+    const step = await completeStepForAppointment(id);
+    if (step) {
+      await recordAudit(user, {
+        action: 'update',
+        entity: 'plan',
+        entityId: step.planId,
+        summary: `${step.title} → DONE`,
+      });
+    }
   }
 
   revalidateAll();

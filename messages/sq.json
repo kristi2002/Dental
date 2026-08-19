@@ -1177,6 +1177,8 @@
     "feedCopy": "Kopjo",
     "feedCopied": "U kopjua",
     "feedWarning": "Trajtoje si fjalëkalim: kushdo që ka këtë lidhje mund të lexojë orarin tënd pa u kyçur.",
+    "feedRegenerate": "Rigjenero lidhjen",
+    "feedRegenerateWarning": "Lidhja aktuale ndalon së funksionuari menjëherë. Çdo kalendar i abonuar do të ketë nevojë për lidhjen e re. Të vazhdohet?",
     "currency": "Monedha",
     "currencyHint": "Kod me tre shkronja — ALL, EUR, USD. Përdoret kudo ku shfaqet një çmim.",
     "operatoryNewSubtitle": "Sa karrige ka është ajo që vendos sa mund të rezervohet njëkohësisht.",

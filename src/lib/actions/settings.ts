@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { AppointmentStatus, ToothNumbering } from '@/generated/prisma/enums';
-import { authorize, recordAudit } from '@/lib/auth/guard';
+import { authorize, recordAudit, requireUser } from '@/lib/auth/guard';
 import { DEFAULT_WEEK, rangesFor } from '@/lib/clinic-hours';
 import { timeToMinutes, toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
@@ -346,4 +346,37 @@ export async function saveClinicProfile(
 
   revalidateAll();
   return actionOk();
+}
+
+/**
+ * Cut every calendar subscription this person has ever handed out.
+ *
+ * The feed URL is the one credential in the app that leaves the building and
+ * stays out: it sits in a phone's settings for years, it carries no session, and
+ * anyone holding it can read that dentist's diary. Until now the only way to
+ * take one back was rotating `AUTH_SECRET`, which signs out the whole practice
+ * and kills every outstanding confirmation link as well — a remedy so blunt
+ * nobody would reach for it, which in effect meant a leaked link was permanent.
+ *
+ * Deliberately self-service and ungated beyond being signed in. It is *your*
+ * diary and *your* lost phone, and a receptionist should not have to find the
+ * owner to close their own link. Nobody can revoke anyone else's: the id comes
+ * from the session, never from the form.
+ */
+export async function regenerateCalendarFeed(): Promise<void> {
+  const user = await requireUser();
+
+  await prisma.staffUser.update({
+    where: { id: user.id },
+    data: { calendarFeedVersion: { increment: 1 } },
+  });
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'settings',
+    entityId: user.id,
+    summary: 'Calendar feed link regenerated — every previous link revoked',
+  });
+
+  revalidateAll();
 }

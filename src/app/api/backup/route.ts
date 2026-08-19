@@ -57,6 +57,7 @@ export async function POST(request: Request) {
     teeth,
     services,
     serviceMaterials,
+    stockProducts,
     stock,
     movements,
     plans,
@@ -77,6 +78,11 @@ export async function POST(request: Request) {
     closures,
     clinicHours,
     clinicProfile,
+    templateServices,
+    workProcedures,
+    works,
+    workLines,
+    followUps,
     auditTotal,
   ] = await Promise.all([
     prisma.staffUser.findMany({
@@ -96,6 +102,11 @@ export async function POST(request: Request) {
     prisma.toothRecord.findMany(),
     prisma.service.findMany(),
     prisma.serviceMaterial.findMany(),
+    // Before `stock`, because every material may name the product it is a
+    // variant of. Without these the restore inserts a `StockItem` holding a
+    // `productId` that names nothing and stops there, partway through — which is
+    // the worst way for a restore to fail, because everything before it worked.
+    prisma.stockProduct.findMany(),
     prisma.stockItem.findMany(),
     prisma.stockMovement.findMany(),
     prisma.treatmentPlan.findMany({ include: { steps: true } }),
@@ -131,13 +142,31 @@ export async function POST(request: Request) {
     prisma.closure.findMany(),
     prisma.clinicHours.findMany(),
     prisma.clinicProfile.findMany(),
+    // Which standard wording follows which treatment. A join table, and the only
+    // record of a decision somebody made once per template — restoring the
+    // templates without it hands the dentist the flat list of everything the
+    // practice has ever saved, which is the state the link was added to end.
+    prisma.prescriptionTemplateService.findMany(),
+    // The laboratory register, in full. Three tables and an entire module of the
+    // app, absent from every export written before this: a practice restoring
+    // from backup got its patients and its cupboard back and lost every case it
+    // had ever sent out, along with the serial numbers the lab bills against.
+    prisma.workProcedure.findMany(),
+    prisma.work.findMany(),
+    prisma.workLine.findMany(),
+    // The practice's own board of things to come back to. Same story — a whole
+    // module, and the one table holding work that has not happened yet.
+    prisma.followUp.findMany(),
     prisma.auditLog.count(),
   ]);
 
   const payload = JSON.stringify(
     {
       format: 'dentorganizer-backup',
-      version: 2,
+      // v3 adds the laboratory register, the follow-up board, stock products and
+      // the template↔treatment links. A v2 file still restores — the restore
+      // skips a key it does not find — it simply carries none of those.
+      version: 3,
       exportedAt: new Date().toISOString(),
       exportedBy: user.fullName,
       note: 'Staff PIN hashes and uploaded files are not included — see README.',
@@ -153,6 +182,7 @@ export async function POST(request: Request) {
         teeth,
         services,
         serviceMaterials,
+        stockProducts,
         stock,
         movements,
         plans,
@@ -173,6 +203,11 @@ export async function POST(request: Request) {
         closures,
         clinicHours,
         clinicProfile,
+        templateServices,
+        workProcedures,
+        works,
+        workLines,
+        followUps,
       },
     },
     null,
