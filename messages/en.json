@@ -29,7 +29,8 @@
     "stockCatalog": "Catalogue",
     "workProcedures": "Kinds of work",
     "stockLabels": "Labels",
-    "followUps": "Follow-ups"
+    "followUps": "Follow-ups",
+    "outbox": "Send queue"
   },
   "common": {
     "save": "Save",
@@ -615,6 +616,42 @@
     "followUpEmailBody": "Hello {name},\n\nIt has been {days} days since we treated you ({services}). We wanted to check how you are getting on.\n\nIf anything is painful or does not feel right, reply to this email or call us and we will see you.\n\nKind regards,\nThe dental clinic",
     "waitlistWhatsapp": "Hello {name}, a slot has opened up on {day} at {time}. Would you like it? Let us know and we will hold it for you.",
     "confirmAsk": "Please let us know if you are coming: {link}"
+  },
+  "outbox": {
+    "title": "Send queue",
+    "subtitle": "Reminders prepared for tomorrow. Nothing leaves until somebody sends it.",
+    "empty": "The queue is clear — nothing is waiting to be sent.",
+    "waitingTitle": "Waiting to be sent",
+    "waitingSubtitle": "{count, plural, one {# reminder} other {# reminders}}",
+    "passedTitle": "Nobody got to these",
+    "passedSubtitle": "{count, plural, one {# appointment has already begun} other {# appointments have already begun}}",
+    "passedBadge": "Too late",
+    "handledTitle": "Handled today",
+    "handledSubtitle": "{count, plural, one {# message} other {# messages}}",
+    "noPhone": "No phone number",
+    "called": "Rang them",
+    "setAside": "Set aside",
+    "dismiss": "Clear",
+    "putBack": "Put back",
+    "status_PENDING": "Waiting",
+    "status_SENT": "Sent",
+    "status_CANCELLED": "Withdrawn",
+    "status_SKIPPED": "Not sent",
+    "note": {
+      "skipAnswered": "the patient had already answered",
+      "skipContacted": "somebody had already reminded them",
+      "skipOptedOut": "the patient asked not to be contacted",
+      "skipNoDetails": "no phone number and no email address",
+      "cancelRescheduled": "the appointment moved",
+      "cancelStatus": "the appointment is no longer scheduled",
+      "cancelAnswered": "the patient answered before it was sent",
+      "cancelDeleted": "the appointment was deleted",
+      "cancelPassed": "the appointment had already begun",
+      "cancelSetAside": "set aside by hand",
+      "sentWhatsapp": "opened in WhatsApp",
+      "sentEmail": "opened in a mail client",
+      "sentPhone": "the patient was telephoned"
+    }
   },
   "errors": {
     "duplicatePhone": "A patient with this number already exists: {list}.",

@@ -7,7 +7,7 @@ import { getCurrentUser, type SessionUser } from './session';
 export type AuditEntry = {
   /** create · update · delete · export · login · logout · denied · failed · locked · confirmed · declined */
   action: string;
-  /** patient · appointment · visit · tooth · stock · service · staff · session · recall · waitlist · plan · work · document · prescription · backup · settings */
+  /** patient · appointment · visit · tooth · stock · service · staff · session · recall · waitlist · plan · work · document · prescription · message · backup · settings */
   entity: string;
   entityId?: string | null;
   /** Already composed for reading, e.g. `Deleted patient Arta Krasniqi`. */

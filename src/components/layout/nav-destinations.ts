@@ -56,6 +56,12 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     ],
   },
   { href: '/recalls', key: 'recalls', permission: 'recall.view' },
+  // Beside the recalls because it is the same errand from the other end: the
+  // recall list is people the practice has not heard from, and this is people it
+  // has already decided to write to. It sits in the top level rather than under
+  // the calendar for the reason everything else here does — it is worked down
+  // once a day, and a queue nobody can find is a queue nobody empties.
+  { href: '/outbox', key: 'outbox', permission: 'recall.view' },
   // Beside the recalls rather than filed anywhere: both are lists the practice
   // works down each morning, and this one is the only thing in the rail that
   // chases the practice rather than a patient. The bell keeps it from ever being

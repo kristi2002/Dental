@@ -23,7 +23,7 @@
  */
 
 /** Entity names whose `entityId` is always a patient id. */
-const PATIENT_ENTITIES = new Set(['patient', 'tooth', 'recall', 'contact', 'waitlist']);
+const PATIENT_ENTITIES = new Set(['patient', 'tooth', 'recall', 'contact', 'waitlist', 'message']);
 
 /** Entity names whose `entityId` is always a stock item id. */
 const STOCK_ENTITIES = new Set(['stock']);

@@ -1,5 +1,5 @@
 import { AppointmentStatus, ContactPurpose, MessageStatus } from '@/generated/prisma/enums';
-import { addDays, today } from '@/lib/dates';
+import { addDays, clinicMinutesNow, toDateKey, today } from '@/lib/dates';
 import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 import {
@@ -8,6 +8,7 @@ import {
   REMINDER_DAYS_AHEAD,
   shouldQueueReminder,
   SKIP_NOTES,
+  stillWorthSending,
   type CancelReason,
 } from './outbox';
 
@@ -35,7 +36,61 @@ import {
  * that silently omits somebody cannot answer "why did Mr Hoxha not get one?",
  * and that is the question the front desk actually asks.
  */
+/**
+ * Withdraw rows whose moment has been and gone.
+ *
+ * The one piece of tidying the queue cannot do for itself. Every other way a
+ * PENDING row stops being worth sending is an *event* — the slot moves, the
+ * patient answers, somebody cancels — and each of those has a write it can hang
+ * off. Time passing is not an event: nothing happens at nine o'clock, so nothing
+ * runs, and the row sits there.
+ *
+ * The queue screen shows these rather than filtering them away, because a
+ * reminder nobody got to is worth knowing about. But shown is not the same as
+ * kept: without this they would accumulate for the life of the practice, and a
+ * bucket that only ever grows is one people stop reading.
+ */
+export async function withdrawPassedReminders(): Promise<number> {
+  const now = { dateKey: toDateKey(today()), minutes: clinicMinutesNow() };
+
+  const stale = await prisma.scheduledMessage.findMany({
+    where: {
+      status: MessageStatus.PENDING,
+      // Everything before today is past by definition; today's rows need the
+      // clock. Anything later cannot be stale, and this is what keeps the scan
+      // off the whole table.
+      appointment: { date: { lte: today() } },
+    },
+    select: { id: true, appointment: { select: { date: true, startTime: true } } },
+  });
+
+  const passed = stale
+    .filter(
+      (row) =>
+        row.appointment &&
+        !stillWorthSending(
+          { date: toDateKey(row.appointment.date), startTime: row.appointment.startTime },
+          now,
+        ),
+    )
+    .map((row) => row.id);
+
+  if (passed.length === 0) return 0;
+
+  const { count } = await prisma.scheduledMessage.updateMany({
+    where: { id: { in: passed }, status: MessageStatus.PENDING },
+    data: {
+      status: MessageStatus.CANCELLED,
+      note: CANCEL_NOTES.passed,
+      resolvedAt: new Date(),
+    },
+  });
+
+  return count;
+}
+
 export async function queueAppointmentReminders(): Promise<string> {
+  const withdrawn = await withdrawPassedReminders();
   const day = addDays(today(), REMINDER_DAYS_AHEAD);
 
   const appointments = await prisma.appointment.findMany({
@@ -86,7 +141,12 @@ export async function queueAppointmentReminders(): Promise<string> {
     };
   });
 
-  if (rows.length === 0) return 'no appointments tomorrow';
+  // Reported either way, so a run that only tidied still says what it did — a
+  // `JobRun` reading "no appointments tomorrow" while it withdrew nine stale
+  // rows would be an accurate sentence about the wrong half of the job.
+  const tidied = withdrawn > 0 ? `withdrew ${withdrawn} that had passed; ` : '';
+
+  if (rows.length === 0) return `${tidied}no appointments tomorrow`;
 
   const { count } = await prisma.scheduledMessage.createMany({
     data: rows,
@@ -96,7 +156,7 @@ export async function queueAppointmentReminders(): Promise<string> {
   const pending = rows.filter((row) => row.status === MessageStatus.PENDING).length;
   const skipped = rows.length - pending;
 
-  return `${appointments.length} booked tomorrow; queued ${count} new (${pending} to send, ${skipped} skipped)`;
+  return `${tidied}${appointments.length} booked tomorrow; queued ${count} new (${pending} to send, ${skipped} skipped)`;
 }
 
 /**

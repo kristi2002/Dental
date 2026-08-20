@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { describe, it } from 'node:test';
 import {
   CANCEL_NOTES,
   dedupeKey,
+  noteKey,
+  SENT_NOTES,
   shouldQueueReminder,
   SKIP_NOTES,
+  stillWorthSending,
   type ReminderCandidate,
 } from '../src/lib/messages/outbox';
 
@@ -118,6 +123,113 @@ describe('shouldQueueReminder — who is worth reminding', () => {
   });
 });
 
+describe('stillWorthSending — the queue does not offer to remind somebody in the chair', () => {
+  // 10:30 on the 20th, which is the moment every case below is judged against.
+  const now = { dateKey: '2026-08-20', minutes: 10 * 60 + 30 };
+
+  it('keeps tomorrow', () => {
+    assert.equal(stillWorthSending({ date: '2026-08-21', startTime: '09:00' }, now), true);
+  });
+
+  it('drops yesterday, whatever the hour', () => {
+    assert.equal(stillWorthSending({ date: '2026-08-19', startTime: '23:59' }, now), false);
+  });
+
+  it('keeps a slot later today', () => {
+    assert.equal(stillWorthSending({ date: '2026-08-20', startTime: '10:31' }, now), true);
+  });
+
+  it('drops a slot earlier today', () => {
+    assert.equal(stillWorthSending({ date: '2026-08-20', startTime: '09:00' }, now), false);
+  });
+
+  /**
+   * By the start, not the end. Once they are due in the chair a reminder cannot
+   * change anything, and "the appointment is not over yet" is not the question.
+   */
+  it('drops one that has just begun', () => {
+    assert.equal(stillWorthSending({ date: '2026-08-20', startTime: '10:30' }, now), false);
+  });
+
+  it('compares dates as dates, not as strings that happen to sort', () => {
+    // Across a month boundary a naive comparison of `startTime` alone, or of
+    // day-of-month, gets this backwards.
+    assert.equal(stillWorthSending({ date: '2026-09-01', startTime: '08:00' }, now), true);
+    assert.equal(stillWorthSending({ date: '2026-07-31', startTime: '23:00' }, now), false);
+  });
+
+  /**
+   * A birthday or a recall has no moment to be late for. Those are paced by
+   * `sendAfter`; this rule has nothing to say about them and must not quietly
+   * drop them.
+   */
+  it('keeps a message that is not about a slot at all', () => {
+    assert.equal(stillWorthSending(null, now), true);
+  });
+});
+
+describe('noteKey — an English note on an Albanian screen', () => {
+  it('recognises every note the app writes', () => {
+    const notes = [
+      ...Object.values(SKIP_NOTES),
+      ...Object.values(CANCEL_NOTES),
+      ...Object.values(SENT_NOTES),
+    ];
+    for (const note of notes) {
+      assert.ok(noteKey(note), `no translation key for "${note}"`);
+    }
+  });
+
+  it('gives every note a key of its own', () => {
+    const notes = [
+      ...Object.values(SKIP_NOTES),
+      ...Object.values(CANCEL_NOTES),
+      ...Object.values(SENT_NOTES),
+    ];
+    const keys = notes.map((note) => noteKey(note));
+    assert.equal(
+      new Set(keys).size,
+      keys.length,
+      'two notes share a key, so one of them will be shown as the other',
+    );
+  });
+
+  it('falls through on anything it does not know, rather than inventing a key', () => {
+    assert.equal(noteKey('something a later version wrote'), null);
+    assert.equal(noteKey(null), null);
+    assert.equal(noteKey(''), null);
+  });
+
+  /**
+   * The half of this that a unit test would otherwise miss entirely. `noteKey`
+   * returning `'cancelPassed'` is worth nothing if no catalogue has a sentence
+   * under that name — next-intl renders the key itself, so the front desk reads
+   * `outbox.note.cancelPassed` and the failure looks like a typo rather than a
+   * missing translation. Every locale, because the one that gets forgotten is
+   * never the one being developed in.
+   */
+  it('has all three catalogues agreeing with it', async () => {
+    const notes = [
+      ...Object.values(SKIP_NOTES),
+      ...Object.values(CANCEL_NOTES),
+      ...Object.values(SENT_NOTES),
+    ];
+
+    for (const locale of ['en', 'it', 'sq']) {
+      const raw = await readFile(path.join(process.cwd(), 'messages', `${locale}.json`), 'utf8');
+      const catalogue = JSON.parse(raw) as { outbox?: { note?: Record<string, string> } };
+      const translated = catalogue.outbox?.note ?? {};
+
+      const missing = notes
+        .map((note) => noteKey(note))
+        .filter((key): key is string => key !== null)
+        .filter((key) => !translated[key]);
+
+      assert.deepEqual(missing, [], `${locale}.json has no outbox.note for: ${missing.join(', ')}`);
+    }
+  });
+});
+
 describe('notes — every outcome can explain itself', () => {
   it('has a sentence for every skip reason', () => {
     const reasons = ['answered', 'already-contacted', 'opted-out', 'no-contact-details'] as const;
@@ -127,14 +239,29 @@ describe('notes — every outcome can explain itself', () => {
   });
 
   it('has a sentence for every cancel reason', () => {
-    const reasons = ['rescheduled', 'status-changed', 'answered', 'deleted'] as const;
+    const reasons = [
+      'rescheduled',
+      'status-changed',
+      'answered',
+      'deleted',
+      'passed',
+      'set-aside',
+    ] as const;
     for (const reason of reasons) {
       assert.ok(CANCEL_NOTES[reason]?.length > 0, `no note for ${reason}`);
     }
+    // Read off the object too, so a reason added to the type without a sentence
+    // fails here rather than rendering as an empty line on the queue.
+    assert.equal(Object.keys(CANCEL_NOTES).length, reasons.length);
   });
 
   it('says nothing a patient should not read, because these are internal', () => {
-    for (const note of [...Object.values(SKIP_NOTES), ...Object.values(CANCEL_NOTES)]) {
+    const notes = [
+      ...Object.values(SKIP_NOTES),
+      ...Object.values(CANCEL_NOTES),
+      ...Object.values(SENT_NOTES),
+    ];
+    for (const note of notes) {
       assert.doesNotMatch(note, /^[A-Z]/, `"${note}" reads like a sentence sent to somebody`);
     }
   });

@@ -1,3 +1,5 @@
+import { timeToMinutes } from '@/lib/dates';
+
 /**
  * What the outbox queues, and what it refuses to.
  *
@@ -86,6 +88,33 @@ export function shouldQueueReminder(candidate: ReminderCandidate): QueueDecision
   return { queue: true };
 }
 
+/**
+ * Whether a queued reminder still has a point.
+ *
+ * The queue's own filter, and the reason it needs one: a reminder is *about* a
+ * moment, and the row outlives the moment. The job queues tomorrow's bookings at
+ * six in the evening; whoever works the queue may well be doing it at eleven the
+ * next morning, by which time the nine o'clock has already come and gone. A list
+ * that still offers to remind that patient is not merely useless — it is how
+ * somebody ends up sending "see you tomorrow at 09:00" to a person sitting in
+ * the waiting room.
+ *
+ * By the slot's *start* rather than its end. The question is not whether the
+ * appointment is over, it is whether telling them about it could still change
+ * anything, and once they are due in the chair it cannot.
+ *
+ * A row with no appointment — a birthday, a recall — has no moment to be late
+ * for, so it is always still worth sending. `sendAfter` is what paces those.
+ */
+export function stillWorthSending(
+  slot: { date: string; startTime: string } | null,
+  now: { dateKey: string; minutes: number },
+): boolean {
+  if (!slot) return true;
+  if (slot.date !== now.dateKey) return slot.date > now.dateKey;
+  return timeToMinutes(slot.startTime) > now.minutes;
+}
+
 /** The one-line `note` explaining a row that was queued and then set aside. */
 export const SKIP_NOTES: Record<Exclude<QueueDecision, { queue: true }>['reason'], string> = {
   answered: 'the patient had already answered',
@@ -103,11 +132,75 @@ export const SKIP_NOTES: Record<Exclude<QueueDecision, { queue: true }>['reason'
  * blueprint calls T1, and forgetting it is how an outbox starts sending people
  * reminders for appointments they cancelled last week.
  */
-export type CancelReason = 'rescheduled' | 'status-changed' | 'answered' | 'deleted';
+export type CancelReason =
+  | 'rescheduled'
+  | 'status-changed'
+  | 'answered'
+  | 'deleted'
+  /** Nobody got to it in time — see `stillWorthSending`. */
+  | 'passed'
+  /** Somebody read the row and decided against it. */
+  | 'set-aside';
 
 export const CANCEL_NOTES: Record<CancelReason, string> = {
   rescheduled: 'the appointment moved',
   'status-changed': 'the appointment is no longer scheduled',
   answered: 'the patient answered before it was sent',
   deleted: 'the appointment was deleted',
+  passed: 'the appointment had already begun',
+  'set-aside': 'set aside by hand',
+};
+
+/**
+ * The one-line `note` recording that somebody sent it, and how.
+ *
+ * "Opened" rather than "sent", and the wording is load-bearing. Pressing the
+ * button hands the message to WhatsApp or to a mail client; what happens after
+ * that is out of this app's sight, and `logContact` already says as much about
+ * the `Contact` row it writes. The queue must not be the one place that claims
+ * more than it knows.
+ *
+ * `PHONE` is the row somebody ticks off after ringing them, which is the one
+ * channel where the practice really does know the message was delivered.
+ */
+export const SENT_NOTES: Record<'WHATSAPP' | 'EMAIL' | 'PHONE', string> = {
+  WHATSAPP: 'opened in WhatsApp',
+  EMAIL: 'opened in a mail client',
+  PHONE: 'the patient was telephoned',
+};
+
+/**
+ * The English note on the row, mapped back to something the UI can translate.
+ *
+ * A wrinkle worth naming rather than working around. `note` is stored English
+ * because the job that writes it has no reader and therefore no language — a
+ * clock cannot ask whose screen this will land on. But the screen it lands on
+ * is an Albanian one four times out of five, and a queue that explains itself in
+ * a language the front desk does not read explains nothing.
+ *
+ * So the note stays as written — it is what a restored database, a support
+ * request or an audit trail will contain, and those want one stable wording —
+ * and this maps the known ones onto translation keys. Anything unrecognised
+ * falls through to the note itself, which is right: a row written by a future
+ * version of this file should still say *something*.
+ */
+export function noteKey(note: string | null | undefined): string | null {
+  if (!note) return null;
+  return NOTE_KEYS[note] ?? null;
+}
+
+const NOTE_KEYS: Record<string, string> = {
+  [SKIP_NOTES.answered]: 'skipAnswered',
+  [SKIP_NOTES['already-contacted']]: 'skipContacted',
+  [SKIP_NOTES['opted-out']]: 'skipOptedOut',
+  [SKIP_NOTES['no-contact-details']]: 'skipNoDetails',
+  [CANCEL_NOTES.rescheduled]: 'cancelRescheduled',
+  [CANCEL_NOTES['status-changed']]: 'cancelStatus',
+  [CANCEL_NOTES.answered]: 'cancelAnswered',
+  [CANCEL_NOTES.deleted]: 'cancelDeleted',
+  [CANCEL_NOTES.passed]: 'cancelPassed',
+  [CANCEL_NOTES['set-aside']]: 'cancelSetAside',
+  [SENT_NOTES.WHATSAPP]: 'sentWhatsapp',
+  [SENT_NOTES.EMAIL]: 'sentEmail',
+  [SENT_NOTES.PHONE]: 'sentPhone',
 };

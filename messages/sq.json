@@ -29,7 +29,8 @@
     "stockCatalog": "Katalogu",
     "workProcedures": "Llojet e punimeve",
     "stockLabels": "Etiketa",
-    "followUps": "Detyrat"
+    "followUps": "Detyrat",
+    "outbox": "Radha e dërgimit"
   },
   "common": {
     "save": "Ruaj",
@@ -615,6 +616,42 @@
     "followUpEmailBody": "Përshëndetje {name},\n\nKanë kaluar {days} ditë nga trajtimi juaj ({services}). Donim të dinim si po ia kaloni.\n\nNëse keni dhimbje ose diçka nuk shkon, përgjigjuni këtij emaili ose na telefononi dhe do t’ju presim.\n\nMe respekt,\nKlinika dentare",
     "waitlistWhatsapp": "Përshëndetje {name}, u lirua një orar më {day} në {time}. E dëshironi? Na tregoni dhe e mbajmë për ju.",
     "confirmAsk": "Ju lutemi na tregoni nëse do të vini: {link}"
+  },
+  "outbox": {
+    "title": "Radha e dërgimit",
+    "subtitle": "Kujtesa të përgatitura për nesër. Asgjë nuk niset derisa dikush ta dërgojë.",
+    "empty": "Radha është e pastër — asgjë nuk pret të dërgohet.",
+    "waitingTitle": "Në pritje për t'u dërguar",
+    "waitingSubtitle": "{count, plural, one {# kujtesë} other {# kujtesa}}",
+    "passedTitle": "Askush nuk arriti t'i dërgojë",
+    "passedSubtitle": "{count, plural, one {# takim ka filluar tashmë} other {# takime kanë filluar tashmë}}",
+    "passedBadge": "Tepër vonë",
+    "handledTitle": "Të trajtuara sot",
+    "handledSubtitle": "{count, plural, one {# mesazh} other {# mesazhe}}",
+    "noPhone": "Pa numër telefoni",
+    "called": "U telefonua",
+    "setAside": "Lëre mënjanë",
+    "dismiss": "Pastro",
+    "putBack": "Kthe në radhë",
+    "status_PENDING": "Në pritje",
+    "status_SENT": "U dërgua",
+    "status_CANCELLED": "U tërhoq",
+    "status_SKIPPED": "Nuk u dërgua",
+    "note": {
+      "skipAnswered": "pacienti kishte përgjigjur tashmë",
+      "skipContacted": "dikush e kishte kujtuar tashmë",
+      "skipOptedOut": "pacienti kërkoi të mos kontaktohet",
+      "skipNoDetails": "pa numër telefoni dhe pa email",
+      "cancelRescheduled": "takimi u zhvendos",
+      "cancelStatus": "takimi nuk është më i planifikuar",
+      "cancelAnswered": "pacienti u përgjigj para se të dërgohej",
+      "cancelDeleted": "takimi u fshi",
+      "cancelPassed": "takimi kishte filluar tashmë",
+      "cancelSetAside": "u la mënjanë me dorë",
+      "sentWhatsapp": "u hap në WhatsApp",
+      "sentEmail": "u hap në programin e postës",
+      "sentPhone": "pacienti u telefonua"
+    }
   },
   "errors": {
     "duplicatePhone": "Ekziston tashmë një pacient me këtë numër: {list}.",

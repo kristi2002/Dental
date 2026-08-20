@@ -11,7 +11,7 @@ describe('where a line in the activity log points', () => {
     // All five are written with a *patient* id, not an id of their own — the
     // chart is keyed by patient, and a recall, a contact and a waiting entry
     // are all filed against the person.
-    for (const entity of ['patient', 'tooth', 'recall', 'contact', 'waitlist']) {
+    for (const entity of ['patient', 'tooth', 'recall', 'contact', 'waitlist', 'message']) {
       assert.deepEqual(
         auditDestination(entity, ID),
         { href: `/patients/${ID}`, kind: 'patient', id: ID },

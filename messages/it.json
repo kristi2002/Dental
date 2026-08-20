@@ -29,7 +29,8 @@
     "stockCatalog": "Catalogo",
     "workProcedures": "Tipi di lavorazione",
     "stockLabels": "Etichette",
-    "followUps": "Da fare"
+    "followUps": "Da fare",
+    "outbox": "Coda di invio"
   },
   "common": {
     "save": "Salva",
@@ -615,6 +616,42 @@
     "followUpEmailBody": "Buongiorno {name},\n\nSono passati {days} giorni dal trattamento ({services}). Volevamo sapere come sta procedendo.\n\nSe qualcosa fa male o non le sembra giusto, risponda a questa email o ci telefoni e la riceveremo.\n\nCordiali saluti,\nLo studio dentistico",
     "waitlistWhatsapp": "Buongiorno {name}, si è liberato un posto {day} alle {time}. Le interessa? Ci faccia sapere e lo teniamo per lei.",
     "confirmAsk": "Ci faccia sapere se verrà: {link}"
+  },
+  "outbox": {
+    "title": "Coda di invio",
+    "subtitle": "Promemoria preparati per domani. Non parte nulla finché qualcuno non lo invia.",
+    "empty": "La coda è vuota — non c'è nulla in attesa di invio.",
+    "waitingTitle": "In attesa di invio",
+    "waitingSubtitle": "{count, plural, one {# promemoria} other {# promemoria}}",
+    "passedTitle": "Nessuno è riuscito a inviarli",
+    "passedSubtitle": "{count, plural, one {# appuntamento è già iniziato} other {# appuntamenti sono già iniziati}}",
+    "passedBadge": "Troppo tardi",
+    "handledTitle": "Gestiti oggi",
+    "handledSubtitle": "{count, plural, one {# messaggio} other {# messaggi}}",
+    "noPhone": "Nessun numero",
+    "called": "Telefonato",
+    "setAside": "Metti da parte",
+    "dismiss": "Archivia",
+    "putBack": "Rimetti in coda",
+    "status_PENDING": "In attesa",
+    "status_SENT": "Inviato",
+    "status_CANCELLED": "Ritirato",
+    "status_SKIPPED": "Non inviato",
+    "note": {
+      "skipAnswered": "il paziente aveva già risposto",
+      "skipContacted": "qualcuno lo aveva già avvisato",
+      "skipOptedOut": "il paziente ha chiesto di non essere contattato",
+      "skipNoDetails": "nessun numero di telefono e nessuna email",
+      "cancelRescheduled": "l'appuntamento è stato spostato",
+      "cancelStatus": "l'appuntamento non è più in programma",
+      "cancelAnswered": "il paziente ha risposto prima dell'invio",
+      "cancelDeleted": "l'appuntamento è stato eliminato",
+      "cancelPassed": "l'appuntamento era già iniziato",
+      "cancelSetAside": "messo da parte a mano",
+      "sentWhatsapp": "aperto in WhatsApp",
+      "sentEmail": "aperto nel client di posta",
+      "sentPhone": "il paziente è stato chiamato"
+    }
   },
   "errors": {
     "duplicatePhone": "Esiste già un paziente con questo numero: {list}.",
