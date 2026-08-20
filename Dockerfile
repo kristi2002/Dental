@@ -124,6 +124,18 @@ RUN addgroup -S -g 1001 nodejs \
     && adduser -S -u 1001 -G nodejs nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+# The schema and the migration history.
+#
+# `migrate deploy` replays these at boot, and it is the only thing in the image
+# that wants them: nothing in the application imports a `.sql` file, so Next's
+# build tracer has no reason to put them in the standalone output. Without this
+# line the entrypoint starts, finds an empty migrations directory and exits —
+# which is invisible in a deploy log, because the container reports "Started"
+# first and dies a second later.
+#
+# It went unnoticed because the old `db push` workflow read `schema.prisma` and
+# nothing else, and that one file *was* traced.
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=prisma-cli --chown=nextjs:nodejs /opt/prisma-cli /opt/prisma-cli

@@ -100,6 +100,14 @@ if [ "${AUTO_DB_MIGRATE:-${AUTO_DB_PUSH:-true}}" = "true" ]; then
     fail "database needs a one-time baseline before migrations can be applied."
   fi
 
+  # An image built without the migration history fails inside the Prisma CLI
+  # with an error that reads like a Prisma problem rather than a packaging one.
+  # Name it here instead: the remedy is a COPY line in the Dockerfile, and
+  # nobody should have to work that out from "No migration found".
+  if [ ! -d /app/prisma/migrations ] || [ -z "$(ls -A /app/prisma/migrations 2>/dev/null)" ]; then
+    fail "no migrations in /app/prisma/migrations — this image was built without them (see the runner stage in the Dockerfile)."
+  fi
+
   echo "[entrypoint] applying migrations (database is '$state')..."
 
   node /opt/prisma-cli/node_modules/prisma/build/index.js migrate deploy \
