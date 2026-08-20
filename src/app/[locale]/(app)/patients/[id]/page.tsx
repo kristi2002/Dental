@@ -47,8 +47,9 @@ import { archivePatient, deletePatient } from '@/lib/actions/patients';
 import { MergeDialog } from '@/components/patients/MergeDialog';
 import { recordView, requirePermission } from '@/lib/auth/guard';
 import type { Permission } from '@/lib/auth/permissions';
-import { DocumentKind } from '@/generated/prisma/enums';
+import { DocumentKind, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { addDays, addMonths, age, toDateKey, today } from '@/lib/dates';
+import { isPromisedSlot } from '@/lib/plan-progress';
 import { ID_KINDS } from '@/lib/documents';
 import { allergyLines } from '@/lib/medical';
 import { prisma } from '@/lib/prisma';
@@ -176,8 +177,13 @@ export default async function PatientDetailPage({
           steps: {
             orderBy: { position: 'asc' },
             // The slot a step is booked into, so the plan and the calendar
-            // finally show the same thing.
-            include: { appointment: { select: { date: true, startTime: true } } },
+            // finally show the same thing — with its `status`, because a slot
+            // the patient cancelled is not a date this plan is waiting for. The
+            // practice-wide list has always known that (`isPromisedSlot`); this
+            // tab printed any linked appointment as if it still stood.
+            include: {
+              appointment: { select: { date: true, startTime: true, status: true } },
+            },
           },
         },
       },
@@ -341,6 +347,37 @@ export default async function PatientDetailPage({
   const recall = { dueDate: recallDue, overdue: recallDue <= today() };
 
   const fullName = `${patient.lastName} ${patient.firstName}`;
+
+  /**
+   * The booking dialog for every step that could take one, keyed by step.
+   *
+   * `AppointmentFormDialog` needs the catalogue, the providers and the chairs,
+   * and the plan list should not have to load them — that much was already true
+   * when this was a render prop. What changed is that the step list is a client
+   * component now, so that it can move a step without a round trip, and a
+   * function cannot be handed across that boundary. Elements can.
+   */
+  const planBookSlots: Record<string, ReactNode> = {};
+  if (canBook && can('plan.view')) {
+    for (const plan of patient.plans) {
+      for (const step of plan.steps) {
+        if (step.status !== TreatmentStepStatus.PENDING || step.appointmentId !== null)
+          continue;
+        planBookSlots[step.id] = (
+          <AppointmentFormDialog
+            services={services}
+            staff={staff}
+            operatories={operatories}
+            defaultPatient={{ id: patient.id, name: fullName, phone: patient.phone }}
+            defaultDate={toDateKey(today())}
+            planStepId={step.id}
+            triggerClassName="btn btn-secondary btn-sm"
+            triggerLabel={t('bookStep')}
+          />
+        );
+      }
+    }
+  }
 
   return (
     <>
@@ -914,29 +951,19 @@ export default async function PatientDetailPage({
             patientId={patient.id}
             canEdit={can('plan.edit')}
             canDelete={canDelete}
+            canBook={canBook}
             services={services}
+            staff={staff}
+            operatories={operatories}
             charted={teeth}
             numbering={clinicProfile.toothNumbering}
             titles={planTitles}
             // Booking a step is a diary action, so it needs the diary's own
-            // collections — handed down as a render prop rather than making the
-            // plan list load four things it has no other use for.
-            bookStep={
-              canBook
-                ? (step) => (
-                    <AppointmentFormDialog
-                      services={services}
-                      staff={staff}
-                      operatories={operatories}
-                      defaultPatient={{ id: patient.id, name: fullName, phone: patient.phone }}
-                      defaultDate={toDateKey(today())}
-                      planStepId={step.id}
-                      triggerClassName="btn btn-secondary btn-sm"
-                      triggerLabel={t('bookStep')}
-                    />
-                  )
-                : undefined
-            }
+            // collections. Built here as elements keyed by step rather than
+            // handed down as a render prop: the step list is a client component
+            // now — it has to be, to move a step without a round trip — and a
+            // function cannot cross that boundary.
+            bookSlots={planBookSlots}
             plans={patient.plans.map((plan) => ({
               id: plan.id,
               title: plan.title,
@@ -944,14 +971,19 @@ export default async function PatientDetailPage({
               status: plan.status,
               steps: plan.steps.map((step) => ({
                 id: step.id,
-                position: step.position,
                 title: step.title,
                 toothNum: step.toothNum,
                 notes: step.notes ?? '',
                 status: step.status,
-                booked: step.appointment
-                  ? `${toDateKey(step.appointment.date)} ${step.appointment.startTime}`
-                  : '',
+                serviceId: step.serviceId,
+                linked: step.appointmentId !== null,
+                // The same test the practice-wide list applies, from the same
+                // function: a slot that has been and gone, or that the patient
+                // cancelled, is history rather than the date this step is
+                // waiting for.
+                booked: isPromisedSlot(step.appointment, today())
+                  ? { date: step.appointment.date, startTime: step.appointment.startTime }
+                  : null,
               })),
             }))}
           />

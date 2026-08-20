@@ -1,6 +1,64 @@
 import type { Prisma } from '@/generated/prisma/client';
 import { allocateOldestFirst, type Allocation } from '@/lib/batch-allocation';
 
+export type BatchForPlanning = {
+  id: string;
+  expiryDate: Date | null;
+  quantity: number;
+  usedQuantity: number;
+};
+
+/**
+ * Which lots a consumption comes out of, and the movement rows that describe it.
+ *
+ * The whole decision `recordConsumption` makes, with the writes left to the
+ * caller — so the three things that are easy to get wrong here can be tested
+ * without a transaction:
+ *
+ *  - a scanned lot is honoured ahead of oldest-first, and honoured even when it
+ *    has expired, because a scanned lot number is an answer and oldest-first is
+ *    only ever a guess;
+ *  - the preferred lot is then excluded from the oldest-first pass, so it cannot
+ *    be drawn down twice for one consumption;
+ *  - an item with no lots, or lots that do not cover the amount, still produces a
+ *    movement for the shortfall with no batch attached. Losing that line would
+ *    lose the consumption itself — the shelf has already been decremented.
+ */
+export function planConsumption(
+  batches: BatchForPlanning[],
+  quantity: number,
+  preferBatchId: string | null = null,
+): { allocations: Allocation[]; lines: Array<{ delta: number; batchId: string | null }> } {
+  const allocations: Allocation[] = [];
+  let left = quantity;
+
+  const preferred = preferBatchId ? batches.find((batch) => batch.id === preferBatchId) : undefined;
+  if (preferred) {
+    const take = Math.min(left, preferred.quantity - preferred.usedQuantity);
+    if (take > 0) {
+      allocations.push({ batchId: preferred.id, quantity: take });
+      left -= take;
+    }
+  }
+
+  if (left > 0) {
+    allocations.push(
+      ...allocateOldestFirst(
+        batches.filter((batch) => batch.id !== preferred?.id),
+        left,
+      ),
+    );
+  }
+
+  const allocated = allocations.reduce((sum, a) => sum + a.quantity, 0);
+  const lines = [
+    ...allocations.map((a) => ({ delta: -a.quantity, batchId: a.batchId as string | null })),
+    ...(quantity > allocated ? [{ delta: -(quantity - allocated), batchId: null }] : []),
+  ];
+
+  return { allocations, lines };
+}
+
 /**
  * Write the ledger side of a consumption that has already been taken off the
  * counter: which lots it came out of, and one movement per lot.
@@ -49,26 +107,7 @@ export async function recordConsumption(
     select: { id: true, expiryDate: true, quantity: true, usedQuantity: true },
   });
 
-  const allocations: Allocation[] = [];
-  let left = quantity;
-
-  const preferred = preferBatchId ? batches.find((batch) => batch.id === preferBatchId) : undefined;
-  if (preferred) {
-    const take = Math.min(left, preferred.quantity - preferred.usedQuantity);
-    if (take > 0) {
-      allocations.push({ batchId: preferred.id, quantity: take });
-      left -= take;
-    }
-  }
-
-  if (left > 0) {
-    allocations.push(
-      ...allocateOldestFirst(
-        batches.filter((batch) => batch.id !== preferred?.id),
-        left,
-      ),
-    );
-  }
+  const { allocations, lines } = planConsumption(batches, quantity, preferBatchId);
 
   for (const allocation of allocations) {
     await tx.stockBatch.update({
@@ -76,14 +115,6 @@ export async function recordConsumption(
       data: { usedQuantity: { increment: allocation.quantity } },
     });
   }
-
-  // An item with no lots — or lots that do not cover the amount — still gets its
-  // movement, with no batch attached, rather than losing the consumption.
-  const allocated = allocations.reduce((sum, a) => sum + a.quantity, 0);
-  const lines = [
-    ...allocations.map((a) => ({ delta: -a.quantity, batchId: a.batchId })),
-    ...(quantity > allocated ? [{ delta: -(quantity - allocated), batchId: null }] : []),
-  ];
 
   for (const movement of lines) {
     await tx.stockMovement.create({

@@ -1,9 +1,17 @@
+'use client';
+
 import {
   Ban,
   CalendarCheck,
+  Copy,
+  CalendarClock,
+  CalendarPlus,
   Check,
+  ChevronDown,
+  ChevronRight,
   ClipboardList,
   History,
+  PhoneCall,
   Printer,
   RotateCcw,
   SkipForward,
@@ -11,18 +19,26 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
-import type { ServiceOption } from '@/components/appointments/AppointmentFormDialog';
-import { ActionForm } from '@/components/ui/ActionForm';
+import { useState, type ReactNode } from 'react';
+import type {
+  OperatoryOption,
+  ServiceOption,
+  StaffOption,
+} from '@/components/appointments/AppointmentFormDialog';
+import { ReportingActionForm } from '@/components/ui/ActionForm';
 import { ActionMenu } from '@/components/ui/ActionMenu';
 import { Badge } from '@/components/ui/Badge';
 import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { Link } from '@/i18n/navigation';
-import { deletePlan, setPlanStatus, setStepStatus } from '@/lib/actions/plans';
+import { deletePlan, duplicatePlan, setPlanStatus, setStepStatus } from '@/lib/actions/plans';
 import { toDateKey } from '@/lib/dates';
 import { toothLabel, type ToothNumbering } from '@/lib/teeth';
 import { cn, initials } from '@/lib/utils';
+import { ChaseDialog } from './ChaseDialog';
 import { PlanFormDialog } from './PlanFormDialog';
+import { SeriesBookingDialog } from './SeriesBookingDialog';
 import { StepFormDialog } from './StepFormDialog';
+import { StepList, type StepView } from './StepList';
 
 /**
  * How many of the *remaining* steps are named before the rest become a count.
@@ -33,21 +49,7 @@ const MAX_CHIPS = 5;
 /** A slot, as this row needs to print and link to it. */
 export type PlanRowSlot = { date: Date; startTime: string };
 
-export type PlanRowStep = {
-  id: string;
-  title: string;
-  toothNum: number | null;
-  status: TreatmentStepStatus;
-  /**
-   * A slot is already bound to this step. `TreatmentStep.appointmentId` is
-   * unique, so a second booking would have nothing to bind itself to — the
-   * button has to disappear on the strength of the link existing, not on the
-   * strength of the slot still being a promise.
-   */
-  linked: boolean;
-  /** That slot, when it is still ahead and still standing. */
-  booked: PlanRowSlot | null;
-};
+export type PlanRowStep = StepView;
 
 export type PlanRowView = {
   id: string;
@@ -67,6 +69,9 @@ export type PlanRowView = {
    * no way of checking — every closed row looked the same age.
    */
   updatedAt: Date;
+  /** Parked until a day that has not arrived. See `chasePlan`. */
+  snoozed: boolean;
+  followUpOn: Date | null;
   /** The soonest slot any outstanding step is booked into. */
   nextBooked: PlanRowSlot | null;
 };
@@ -82,43 +87,52 @@ export type PlanRowView = {
  * later". The verbs the row exists to provoke — tick the step off, put it in the
  * diary, add what was missed, stop chasing it — now happen on the row itself.
  *
- * They are not all out on the card, though. Laid out as six buttons in a line
- * they made the one thing anybody presses all day look exactly as important as
- * printing, and every card ended in a hedge of unlabelled icons. What is left in
- * the open is what the plan is *for*; the rest is behind the menu at the end,
- * the same arrangement an appointment row uses.
+ * And beyond the next step, too. The row acted on `pending[0]` and nothing else,
+ * so ticking off step three out of order, correcting a title, or putting the
+ * sequence right still meant leaving the screen — which is the same two
+ * navigations wearing a different hat. Opening the row hands over the whole
+ * plan, on the same `StepList` the patient's own record uses.
  */
 export function PlanRow({
   plan,
   canEdit,
   canDelete,
+  canBook,
   services,
+  staff = [],
+  operatories = [],
   numbering,
-  bookStep,
+  bookSlots,
 }: {
   plan: PlanRowView;
   canEdit: boolean;
   canDelete: boolean;
+  canBook?: boolean;
   /** The catalogue, so a step added from here is picked rather than typed. */
   services: ServiceOption[];
+  staff?: StaffOption[];
+  operatories?: OperatoryOption[];
   numbering: ToothNumbering;
   /**
-   * Renders the booking dialog for one step. Passed in for the same reason the
-   * patient tab passes it: booking needs the diary's providers and chairs, and
-   * a plan list should not have to load them to reach a button.
+   * The booking dialog for each step, by step id, rendered on the server for the
+   * same reason the patient tab passes them: booking needs the diary's providers
+   * and chairs, and a plan list should not load them to reach a button.
    */
-  bookStep?: (step: PlanRowStep) => React.ReactNode;
+  bookSlots?: Record<string, ReactNode>;
 }) {
   const t = useTranslations('plans');
   const tc = useTranslations('common');
   const tt = useTranslations('teeth');
   const format = useFormatter();
 
+  const [open, setOpen] = useState(false);
+
   const isActive = plan.status === TreatmentPlanStatus.ACTIVE;
   const pending = plan.steps.filter((step) => step.status === TreatmentStepStatus.PENDING);
 
-  // A plan is a sequence, so "what is left" has a front. Everything the row
-  // offers to do points at this one step; the rest stay chips.
+  // A plan is a sequence, so "what is left" has a front. Everything the collapsed
+  // row offers to do points at this one step; the rest stay chips until it is
+  // opened.
   //
   // Only while the plan is running, though: a cancelled one gets no buttons, and
   // if the front step were still held back for a strip that is never drawn, the
@@ -128,12 +142,16 @@ export function PlanRow({
   const rest = next ? pending.slice(1) : pending;
   const shown = rest.slice(0, MAX_CHIPS);
   const hidden = rest.length - shown.length;
+  const bookable = pending.filter((step) => !step.linked).length;
 
   const slotLabel = (slot: PlanRowSlot) =>
     t('nextOn', {
       date: format.dateTime(slot.date, { day: 'numeric', month: 'short', timeZone: 'UTC' }),
       time: slot.startTime,
     });
+
+  const dayLabel = (day: Date) =>
+    format.dateTime(day, { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
   const tooth = (toothNum: number) => tt('tooth', { num: toothLabel(toothNum, numbering) });
 
@@ -162,9 +180,15 @@ export function PlanRow({
         // than a thick bar down one edge — nothing else in the app marks a
         // record that way, and a stripe is a fifth thing saying what the badge,
         // the tint and the sort order already say.
+        //
+        // A parked plan is the opposite errand and gets the opposite treatment:
+        // it recedes onto the page's own paper, because somebody has already
+        // dealt with it and the promise they made is the reason it is quiet.
         plan.stalled
           ? 'border-warn/35 bg-warn-soft/50'
-          : 'border-line bg-surface hover:border-line-strong',
+          : plan.snoozed
+            ? 'border-line bg-paper/60 hover:border-line-strong'
+            : 'border-line bg-surface hover:border-line-strong',
       )}
     >
       <div className="grid gap-x-5 gap-y-3.5 @[46rem]:grid-cols-[minmax(0,1fr)_15rem]">
@@ -189,11 +213,14 @@ export function PlanRow({
           <div className="min-w-0">
             {/* A heading, not a paragraph: this is the one thing the card is
                 about, and a screen reader should be able to jump between plans
-                the way the eye does. It lands on the tab the work is actually
-                done from. */}
+                the way the eye does. It lands on the plan's own page rather than
+                at the top of a tab holding every plan this patient has ever had.
+                It used to point at `/patients/<id>?tab=plans#plan-<id>`, which
+                was the closest thing to an address a plan had before it had
+                one. */}
             <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
               <Link
-                href={`/patients/${plan.patient.id}?tab=plans`}
+                href={`/plans/${plan.id}`}
                 className="text-[1.1rem] font-bold text-ink no-underline hover:text-brand-deep hover:underline"
               >
                 {plan.title}
@@ -202,6 +229,12 @@ export function PlanRow({
                 <Badge tone="warn">
                   <TriangleAlert size={14} aria-hidden />
                   {t('stalled')}
+                </Badge>
+              ) : null}
+              {plan.snoozed && plan.followUpOn ? (
+                <Badge>
+                  <CalendarClock size={14} aria-hidden />
+                  {t('chasingOn', { date: dayLabel(plan.followUpOn) })}
                 </Badge>
               ) : null}
               {/* Only said out loud on the archive tabs, where a row's status is
@@ -306,17 +339,17 @@ export function PlanRow({
           </span>
         </div>
 
-        {/* The one step the whole row is about. `next` is null on the archive
-            tabs — what a cancelled plan left undone is history, and history does
-            not come with buttons. */}
-        {next ? (
+        {/* The one step the whole row is about, while the row is shut. `next` is
+            null on the archive tabs — what a cancelled plan left undone is history,
+            and history does not come with buttons. */}
+        {next && !open ? (
           <div
             className={cn(
               'flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2.5',
               '@[46rem]:col-span-2',
-              // Recessed against whatever the card is: paper inside a white
-              // card, white inside a tinted one. A panel the same colour as the
-              // thing it sits on is a border pretending to be a panel.
+              // Recessed against whatever the card is: paper inside a white card,
+              // white inside a tinted one. A panel the same colour as the thing it
+              // sits on is a border pretending to be a panel.
               plan.stalled ? 'border-warn/25 bg-surface' : 'border-line bg-paper',
             )}
           >
@@ -341,9 +374,9 @@ export function PlanRow({
 
             {canEdit ? (
               <div className="flex items-center gap-1.5">
-                {bookStep && !next.linked ? bookStep(next) : null}
+                {!next.linked ? bookSlots?.[next.id] : null}
 
-                <ActionForm
+                <ReportingActionForm
                   action={setStepStatus}
                   values={{ id: next.id, status: TreatmentStepStatus.DONE }}
                 >
@@ -351,9 +384,9 @@ export function PlanRow({
                     <Check size={16} aria-hidden />
                     {t('markDone')}
                   </button>
-                </ActionForm>
+                </ReportingActionForm>
 
-                <ActionForm
+                <ReportingActionForm
                   action={setStepStatus}
                   values={{ id: next.id, status: TreatmentStepStatus.SKIPPED }}
                 >
@@ -361,9 +394,27 @@ export function PlanRow({
                     <SkipForward size={16} aria-hidden />
                     <span className="sr-only">{t('skip')}</span>
                   </button>
-                </ActionForm>
+                </ReportingActionForm>
               </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {/* Every step, with everything that can be done to any of them. This is
+            what the row was missing: triage found the plan and then had nowhere to
+            put "the third one is done and the fifth was never needed". */}
+        {open ? (
+          <div className="@[46rem]:col-span-2">
+            <StepList
+              planId={plan.id}
+              steps={plan.steps}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              services={services}
+              numbering={numbering}
+              bookSlots={bookSlots}
+              compact
+            />
           </div>
         ) : null}
 
@@ -372,7 +423,7 @@ export function PlanRow({
               without a second navigation. Anything past the cap is counted rather
               than dropped — "and four more" is information; showing five of nine
               and saying nothing is a wrong answer. */}
-          {shown.length > 0 ? (
+          {shown.length > 0 && !open ? (
             <p className="flex min-w-0 flex-wrap items-center gap-1.5">
               <ClipboardList size={15} aria-hidden className="text-ink-faint" />
               {shown.map((step) => (
@@ -384,9 +435,6 @@ export function PlanRow({
                 </Badge>
               ))}
               {hidden > 0 ? (
-                // `ink-soft`, not `faint`: this is the tail of the same list
-                // the chips beside it are, and faint grey lands at 4.5:1 on a
-                // stalled card's tint by a hair's breadth.
                 <span className="text-[0.88rem] font-semibold text-ink-soft">
                   {t('andMore', { count: hidden })}
                 </span>
@@ -396,78 +444,147 @@ export function PlanRow({
 
           {/* `ml-auto` rather than `justify-between`, which would swing the whole
               cluster left on the rows that have no chips beside it. */}
-          <div className="ml-auto flex items-center gap-1.5">
-            {/* Adding to a finished plan reopens it — see `saveStep` — which is
-                what makes this the right verb for "we missed one", and why it is
-                the one thing besides the menu left out on the card. */}
-            {canEdit ? (
-              <StepFormDialog
-                planId={plan.id}
-                services={services}
-                numbering={numbering}
-                triggerClassName="btn btn-secondary btn-sm"
-              />
+          <div className="ml-auto flex flex-wrap items-center gap-1">
+            {plan.steps.length > 0 ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                aria-expanded={open}
+                onClick={() => setOpen((value) => !value)}
+              >
+                {open ? (
+                  <ChevronDown size={16} aria-hidden />
+                ) : (
+                  <ChevronRight size={16} aria-hidden />
+                )}
+                {open ? t('hideSteps') : t('showSteps', { count: plan.steps.length })}
+              </button>
             ) : null}
 
-            <ActionMenu label={tc('moreActions')}>
-              {canEdit ? (
-                <PlanFormDialog
-                  patientId={plan.patient.id}
-                  variant="menu"
-                  plan={{
-                    id: plan.id,
-                    title: plan.title,
-                    notes: plan.notes,
-                    status: plan.status,
-                  }}
+            {canEdit ? (
+              <>
+                {/* Adding to a finished plan reopens it — see `saveStep` — which
+                    is what makes this the right verb for "we missed one". */}
+                <StepFormDialog
+                  planId={plan.id}
+                  services={services}
+                  numbering={numbering}
+                  triggerClassName="btn btn-secondary btn-sm"
                 />
-              ) : null}
 
-              {canEdit && plan.status === TreatmentPlanStatus.CANCELLED ? (
-                <ActionForm
-                  action={setPlanStatus}
-                  values={{ id: plan.id, status: TreatmentPlanStatus.ACTIVE }}
-                  className="block"
-                >
-                  <button type="submit" role="menuitem" className="menu-item">
-                    <RotateCcw size={19} aria-hidden className="shrink-0" />
-                    {t('reopenPlan')}
-                  </button>
-                </ActionForm>
-              ) : canEdit && isActive ? (
-                // The way off a stalled list that is not a lie: ticking off work
-                // nobody did, or deleting the record that it was ever planned,
-                // were the only two exits this page had.
-                <ActionForm
-                  action={setPlanStatus}
-                  values={{ id: plan.id, status: TreatmentPlanStatus.CANCELLED }}
-                  confirmMessage={t('confirmCancelPlan')}
-                  className="block"
-                >
-                  <button type="submit" role="menuitem" className="menu-item">
-                    <Ban size={19} aria-hidden className="shrink-0" />
-                    {t('cancelPlan')}
-                  </button>
-                </ActionForm>
-              ) : null}
+                {/* The whole outstanding run, in one pass through one form. */}
+                {canBook && isActive && bookable > 1 ? (
+                  <SeriesBookingDialog
+                    planId={plan.id}
+                    pending={bookable}
+                    staff={staff}
+                    operatories={operatories}
+                    triggerClassName="btn btn-ghost btn-sm"
+                    trigger={
+                      <>
+                        <CalendarPlus size={16} aria-hidden />
+                        {t('bookSeries')}
+                      </>
+                    }
+                  />
+                ) : null}
 
-              <Link href={`/plans/${plan.id}/print`} role="menuitem" className="menu-item">
-                <Printer size={19} aria-hidden className="shrink-0" />
+                {/* The exit this list never had. Stalled asks "has anybody done
+                    anything", and ringing a patient is not something anybody can
+                    do to a plan — so the only ways to quieten a row were to tick
+                    off treatment nobody gave or to abandon a course the patient
+                    still means to finish. */}
+                {isActive ? (
+                  <ChaseDialog
+                    planId={plan.id}
+                    followUpOn={plan.followUpOn}
+                    triggerClassName="btn btn-ghost btn-sm"
+                    trigger={
+                      <>
+                        <PhoneCall size={16} aria-hidden />
+                        {plan.snoozed ? t('chaseAgain') : t('chase')}
+                      </>
+                    }
+                  />
+                ) : null}
+              </>
+            ) : null}
+
+            <ActionMenu label={tc('moreActions')} triggerClassName="btn btn-ghost btn-sm">
+              <Link href={`/plans/${plan.id}/print`} className="menu-item" role="menuitem">
+                <Printer size={18} aria-hidden className="shrink-0" />
                 {t('print')}
               </Link>
 
+              {canEdit ? (
+                <div className="border-t border-line">
+                  <PlanFormDialog
+                    patientId={plan.patient.id}
+                    triggerClassName="menu-item"
+                    plan={{ id: plan.id, title: plan.title, notes: plan.notes }}
+                  />
+                </div>
+              ) : null}
+
+              {/* The same course again, for the same patient — perio maintenance
+                  comes round every year and was retyped every year. The copy is
+                  the intention, not the history: every step comes back
+                  outstanding and unbooked. */}
+              {canEdit ? (
+                <ReportingActionForm
+                  action={duplicatePlan}
+                  values={{ sourceId: plan.id, patientId: plan.patient.id }}
+                  className="block border-t border-line"
+                >
+                  <button type="submit" role="menuitem" className="menu-item">
+                    <Copy size={18} aria-hidden className="shrink-0" />
+                    {t('copyPlan')}
+                  </button>
+                </ReportingActionForm>
+              ) : null}
+
+              {canEdit && plan.status === TreatmentPlanStatus.CANCELLED ? (
+                <ReportingActionForm
+                  action={setPlanStatus}
+                  values={{ id: plan.id, status: TreatmentPlanStatus.ACTIVE }}
+                  className="block border-t border-line"
+                >
+                  <button type="submit" role="menuitem" className="menu-item">
+                    <RotateCcw size={18} aria-hidden className="shrink-0" />
+                    {t('reopenPlan')}
+                  </button>
+                </ReportingActionForm>
+              ) : null}
+
+              {canEdit && isActive ? (
+                // The way off a stalled list that is not a lie: ticking off work
+                // nobody did, or deleting the record that it was ever planned,
+                // were the only two exits this page had.
+                <ReportingActionForm
+                  action={setPlanStatus}
+                  values={{ id: plan.id, status: TreatmentPlanStatus.CANCELLED }}
+                  confirmMessage={t('confirmCancelPlan')}
+                  className="block border-t border-line"
+                >
+                  <button type="submit" role="menuitem" className="menu-item">
+                    <Ban size={18} aria-hidden className="shrink-0" />
+                    {t('cancelPlan')}
+                  </button>
+                </ReportingActionForm>
+              ) : null}
+
               {canDelete ? (
-                <ActionForm
+                <ReportingActionForm
                   action={deletePlan}
                   values={{ id: plan.id }}
                   confirmMessage={tc('confirmDelete')}
                   className="block border-t border-line"
                 >
                   <button type="submit" role="menuitem" className="menu-item menu-item-danger">
-                    <Trash2 size={19} aria-hidden className="shrink-0" />
+                    <Trash2 size={18} aria-hidden className="shrink-0" />
                     {tc('delete')}
                   </button>
-                </ActionForm>
+                </ReportingActionForm>
               ) : null}
             </ActionMenu>
           </div>

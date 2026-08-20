@@ -2,9 +2,16 @@
 #
 # Bring the database up to the current schema, then hand over to the server.
 #
-# The project keeps no migration history — `prisma db push` is its workflow — so
-# this is what turns an empty Postgres into a working one on first boot, and what
-# applies schema changes on later deploys.
+# The project keeps its schema under migration control in `prisma/migrations`, so
+# this replays that history: it turns an empty Postgres into a working one on
+# first boot, and applies whatever is pending on later deploys.
+#
+# This used to be `prisma db push`, which reads `schema.prisma` and makes the
+# database match it. That always worked, and that was the problem — it meant the
+# migrations directory was never exercised by anything, and it had drifted nine
+# commits behind the schema before anybody noticed. It also has no history, so
+# there was no rollback, no record of when a column appeared, and no reviewed SQL
+# for a change that rewrites patient data.
 #
 set -e
 
@@ -38,20 +45,36 @@ if [ "$(stat -c %d "$STORAGE_DIR")" = "$(stat -c %d /)" ]; then
 fi
 
 # --- Schema -----------------------------------------------------------------
-# Run without --accept-data-loss on purpose: a schema change that would drop a
-# column stops the deploy rather than quietly discarding patient records. If that
-# happens, resolve it deliberately (see docs/DEPLOYMENT.md) instead of forcing it.
-if [ "${AUTO_DB_PUSH:-true}" = "true" ]; then
-  echo "[entrypoint] syncing database schema..."
+# `AUTO_DB_PUSH` is still honoured as the off switch, under its old name, so an
+# existing deployment that set it to false does not silently start migrating.
+if [ "${AUTO_DB_MIGRATE:-${AUTO_DB_PUSH:-true}}" = "true" ]; then
 
+  # Which of three states is the database in? `check-migration-state.mjs`
+  # explains them; the short version is that `migrate deploy` is safe against
+  # two of them and would fail against the third.
+  #
+  # Exit code 2 means "could not connect", which on a fresh stack usually means
+  # Postgres is still starting rather than that anything is wrong.
   attempt=1
   max_attempts="${DB_PUSH_ATTEMPTS:-10}"
 
-  until node /opt/prisma-cli/node_modules/prisma/build/index.js db push \
-    --config=/opt/prisma-cli/prisma.config.mjs; do
+  while :; do
+    # `set -e` off across these two lines only: a non-zero exit is the answer
+    # here, not a failure. `$?` has to be read into a variable immediately —
+    # after an `if`, it is the status of the `if` rather than of the command.
+    set +e
+    state="$(node /app/docker/check-migration-state.mjs 2>/dev/null)"
+    rc=$?
+    set -e
 
-    if [ "$attempt" -ge "$max_attempts" ]; then
-      fail "could not sync the schema after $attempt attempts (see the error above)."
+    if [ "$rc" -eq 0 ]; then
+      break
+    fi
+
+    if [ "$rc" -ne 2 ] || [ "$attempt" -ge "$max_attempts" ]; then
+      # Run it once more without swallowing stderr, so the reason is on the log.
+      node /app/docker/check-migration-state.mjs || true
+      fail "could not read the database state after $attempt attempts."
     fi
 
     echo "[entrypoint] database not ready yet (attempt $attempt/$max_attempts) — retrying in 3s"
@@ -59,9 +82,33 @@ if [ "${AUTO_DB_PUSH:-true}" = "true" ]; then
     sleep 3
   done
 
+  if [ "$state" = "unbaselined" ]; then
+    echo "[entrypoint] ============================ STOPPING ===========================" >&2
+    echo "[entrypoint] This database has our tables but no _prisma_migrations table." >&2
+    echo "[entrypoint]" >&2
+    echo "[entrypoint] That is what a database built by the old 'prisma db push'" >&2
+    echo "[entrypoint] workflow looks like. Replaying the migration history over it" >&2
+    echo "[entrypoint] would start at 0_init and try to CREATE TABLE \"Patient\" on top" >&2
+    echo "[entrypoint] of a Patient table that already holds patients." >&2
+    echo "[entrypoint]" >&2
+    echo "[entrypoint] Nothing is wrong and nothing has been changed. What is needed is" >&2
+    echo "[entrypoint] a one-time decision about which migrations those tables already" >&2
+    echo "[entrypoint] reflect, which is not a decision a container should make at boot." >&2
+    echo "[entrypoint]" >&2
+    echo "[entrypoint] See 'Baselining an existing database' in docs/DEPLOYMENT.md." >&2
+    echo "[entrypoint] =================================================================" >&2
+    fail "database needs a one-time baseline before migrations can be applied."
+  fi
+
+  echo "[entrypoint] applying migrations (database is '$state')..."
+
+  node /opt/prisma-cli/node_modules/prisma/build/index.js migrate deploy \
+    --config=/opt/prisma-cli/prisma.config.mjs \
+    || fail "migrations failed to apply (see the error above)."
+
   echo "[entrypoint] schema is up to date."
 else
-  echo "[entrypoint] AUTO_DB_PUSH=false — skipping schema sync."
+  echo "[entrypoint] schema sync disabled — skipping migrations."
 fi
 
 # --- Activity log -----------------------------------------------------------

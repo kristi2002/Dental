@@ -1,45 +1,31 @@
-import {
-  CalendarCheck,
-  ChevronDown,
-  ChevronUp,
-  ListChecks,
-  Printer,
-  RotateCcw,
-  SkipForward,
-  Trash2,
-} from 'lucide-react';
+import { CalendarPlus, ListChecks, Printer, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { ServiceOption } from '@/components/appointments/AppointmentFormDialog';
+import type { ReactNode } from 'react';
+import type {
+  OperatoryOption,
+  ServiceOption,
+  StaffOption,
+} from '@/components/appointments/AppointmentFormDialog';
 import type { ChartedTeeth } from '@/components/dental/ToothPicker';
-import { ActionForm } from '@/components/ui/ActionForm';
+import { ReportingActionForm } from '@/components/ui/ActionForm';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Link } from '@/i18n/navigation';
 import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
-import { deletePlan, deleteStep, moveStep, setStepStatus } from '@/lib/actions/plans';
+import { deletePlan } from '@/lib/actions/plans';
 import { planProgress } from '@/lib/plan-progress';
 import type { ToothNumbering } from '@/lib/teeth';
-import { cn } from '@/lib/utils';
 import { PlanFormDialog } from './PlanFormDialog';
+import { SeriesBookingDialog } from './SeriesBookingDialog';
 import { StepFormDialog } from './StepFormDialog';
-
-export type PlanStepView = {
-  id: string;
-  position: number;
-  title: string;
-  toothNum: number | null;
-  notes: string;
-  status: TreatmentStepStatus;
-  /** `YYYY-MM-DD HH:MM` of the slot this step is booked into, when it is. */
-  booked: string;
-};
+import { StepList, type StepView } from './StepList';
 
 export type PlanView = {
   id: string;
   title: string;
   notes: string;
   status: TreatmentPlanStatus;
-  steps: PlanStepView[];
+  steps: StepView[];
 };
 
 const PLAN_TONES: Record<TreatmentPlanStatus, BadgeTone> = {
@@ -52,14 +38,22 @@ const PLAN_TONES: Record<TreatmentPlanStatus, BadgeTone> = {
  * A course of treatment and where it has got to. The progress line is the
  * feature: the reason plans get abandoned is that nobody can see how far in
  * they are without reading every visit note.
+ *
+ * The steps themselves are `StepList`, shared with the practice-wide plans page
+ * — the two screens disagreeing about which step comes next, or about what a
+ * tooth is called, is the kind of thing nobody reports and everybody stops
+ * trusting. This screen keeps only what belongs to the plan as a whole.
  */
 export function TreatmentPlans({
   patientId,
   plans,
   canEdit,
   canDelete,
-  bookStep,
+  canBook,
+  bookSlots,
   services = [],
+  staff = [],
+  operatories = [],
   charted = {},
   numbering = 'FDI',
   titles = [],
@@ -68,22 +62,27 @@ export function TreatmentPlans({
   plans: PlanView[];
   canEdit: boolean;
   canDelete: boolean;
+  canBook?: boolean;
   /** The catalogue and the chart, so a step is picked rather than typed. */
   services?: ServiceOption[];
+  staff?: StaffOption[];
+  operatories?: OperatoryOption[];
   charted?: ChartedTeeth;
   numbering?: ToothNumbering;
   titles?: string[];
   /**
-   * Renders the booking dialog for one step. Passed in rather than imported:
-   * `AppointmentFormDialog` needs the patient list, the catalogue, the providers
-   * and the chairs, and threading four server-loaded collections through this
-   * component to reach a button would make a plan list depend on the diary.
+   * The booking dialog for each step, by step id, rendered on the server.
+   *
+   * Was a render prop, which cannot cross into the client component the step
+   * list had to become to move a step without a round trip. Same reason as
+   * before for it coming from outside at all: `AppointmentFormDialog` needs the
+   * patient list, the catalogue, the providers and the chairs, and a plan should
+   * not have to load four collections to reach a button.
    */
-  bookStep?: (step: PlanStepView) => React.ReactNode;
+  bookSlots?: Record<string, ReactNode>;
 }) {
   const t = useTranslations('plans');
   const tc = useTranslations('common');
-  const tt = useTranslations('teeth');
 
   if (plans.length === 0) {
     return (
@@ -109,13 +108,32 @@ export function TreatmentPlans({
         // two screens quoting different progress for one plan is the kind of
         // disagreement nobody reports and everybody stops trusting.
         const { done, relevant, percent } = planProgress(plan.steps);
+        const bookable = plan.steps.filter(
+          (step) => step.status === TreatmentStepStatus.PENDING && !step.linked,
+        ).length;
 
         return (
-          <section key={plan.id} className="px-5 py-4">
+          // Anchored and targetable: arriving from the practice-wide list used
+          // to drop you at the top of a tab holding every plan this patient has,
+          // with nothing saying which one you had just clicked.
+          <section
+            key={plan.id}
+            id={`plan-${plan.id}`}
+            className="scroll-mt-24 px-5 py-4 target:rounded-lg target:bg-brand-soft/50 target:ring-2 target:ring-brand"
+          >
             <header className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="flex flex-wrap items-center gap-2 text-[1.12rem] font-bold text-ink">
-                  {plan.title}
+                  {/* The plan's own page. Reading a patient is one job and
+                      working a single course of treatment is another; this tab
+                      is the first, and the link is how you get to the second
+                      without carrying the rest of the record with you. */}
+                  <Link
+                    href={`/plans/${plan.id}`}
+                    className="text-ink no-underline hover:text-brand-deep hover:underline"
+                  >
+                    {plan.title}
+                  </Link>
                   <Badge tone={PLAN_TONES[plan.status]}>{t(`status_${plan.status}`)}</Badge>
                 </h3>
                 {plan.notes ? (
@@ -142,16 +160,11 @@ export function TreatmentPlans({
                   <PlanFormDialog
                     patientId={patientId}
                     titles={titles}
-                    plan={{
-                      id: plan.id,
-                      title: plan.title,
-                      notes: plan.notes,
-                      status: plan.status,
-                    }}
+                    plan={{ id: plan.id, title: plan.title, notes: plan.notes }}
                   />
                 ) : null}
                 {canDelete ? (
-                  <ActionForm
+                  <ReportingActionForm
                     action={deletePlan}
                     values={{ id: plan.id }}
                     confirmMessage={tc('confirmDelete')}
@@ -160,7 +173,7 @@ export function TreatmentPlans({
                       <Trash2 size={16} aria-hidden />
                       <span className="sr-only">{tc('delete')}</span>
                     </button>
-                  </ActionForm>
+                  </ReportingActionForm>
                 ) : null}
               </div>
             </header>
@@ -184,171 +197,48 @@ export function TreatmentPlans({
               </span>
             </div>
 
-            <ol className="mt-3 space-y-1.5">
-              {plan.steps.map((step, index) => {
-                const isDone = step.status === TreatmentStepStatus.DONE;
-                const isSkipped = step.status === TreatmentStepStatus.SKIPPED;
+            <div className="mt-3">
+              <StepList
+                planId={plan.id}
+                steps={plan.steps}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                services={services}
+                charted={charted}
+                numbering={numbering}
+                bookSlots={bookSlots}
+              />
+            </div>
 
-                return (
-                  <li
-                    key={step.id}
-                    className={cn(
-                      'flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2',
-                      isDone
-                        ? 'border-ok/30 bg-ok-soft'
-                        : isSkipped
-                          ? 'border-line bg-paper opacity-70'
-                          : 'border-line-strong bg-surface',
-                    )}
-                  >
-                    <span
-                      aria-hidden
-                      className="grid size-7 shrink-0 place-items-center rounded-full bg-surface text-[0.85rem] font-bold text-ink-soft"
-                    >
-                      {index + 1}
-                    </span>
+            {canEdit || canBook ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {canEdit ? (
+                  <StepFormDialog
+                    planId={plan.id}
+                    services={services}
+                    charted={charted}
+                    numbering={numbering}
+                  />
+                ) : null}
 
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={cn(
-                          'text-[1.02rem] font-semibold',
-                          isDone ? 'text-ok' : isSkipped ? 'text-ink-faint line-through' : 'text-ink',
-                        )}
-                      >
-                        {step.title}
-                        {step.toothNum ? (
-                          <span className="ml-2 text-[0.9rem] font-normal text-ink-soft">
-                            {tt('tooth', { num: step.toothNum })}
-                          </span>
-                        ) : null}
-                      </p>
-                      {step.notes ? (
-                        <p className="text-[0.9rem] text-ink-soft">{step.notes}</p>
-                      ) : null}
-                      {/* The slot it is booked into. Without it the plan and the
-                          calendar are two accounts of the same treatment and
-                          only one of them is ever open. */}
-                      {step.booked ? (
-                        <p className="flex items-center gap-1.5 text-[0.9rem] font-semibold text-brand-deep tabular-nums">
-                          <CalendarCheck size={15} aria-hidden />
-                          {step.booked}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    {canEdit ? (
-                      <div className="flex items-center gap-1">
-                        {isDone || isSkipped ? (
-                          <ActionForm
-                            action={setStepStatus}
-                            values={{ id: step.id, status: TreatmentStepStatus.PENDING }}
-                          >
-                            <button
-                              type="submit"
-                              className="btn btn-ghost btn-sm"
-                              title={t('reopen')}
-                            >
-                              <RotateCcw size={16} aria-hidden />
-                              <span className="sr-only">{t('reopen')}</span>
-                            </button>
-                          </ActionForm>
-                        ) : (
-                          <>
-                            {/* Booking is offered only while the step is still
-                                outstanding and not already in the diary — the
-                                relation is one-to-one, so a second booking would
-                                have nothing to bind itself to. */}
-                            {bookStep && !step.booked ? bookStep(step) : null}
-
-                            <ActionForm
-                              action={setStepStatus}
-                              values={{ id: step.id, status: TreatmentStepStatus.DONE }}
-                            >
-                              <button type="submit" className="btn btn-secondary btn-sm">
-                                {t('markDone')}
-                              </button>
-                            </ActionForm>
-                            <ActionForm
-                              action={setStepStatus}
-                              values={{ id: step.id, status: TreatmentStepStatus.SKIPPED }}
-                            >
-                              <button
-                                type="submit"
-                                className="btn btn-ghost btn-sm"
-                                title={t('skip')}
-                              >
-                                <SkipForward size={16} aria-hidden />
-                                <span className="sr-only">{t('skip')}</span>
-                              </button>
-                            </ActionForm>
-                          </>
-                        )}
-
-                        <ActionForm action={moveStep} values={{ id: step.id, direction: 'up' }}>
-                          <button
-                            type="submit"
-                            className="btn btn-ghost btn-sm"
-                            title={t('moveUp')}
-                            disabled={index === 0}
-                          >
-                            <ChevronUp size={16} aria-hidden />
-                            <span className="sr-only">{t('moveUp')}</span>
-                          </button>
-                        </ActionForm>
-                        <ActionForm action={moveStep} values={{ id: step.id, direction: 'down' }}>
-                          <button
-                            type="submit"
-                            className="btn btn-ghost btn-sm"
-                            title={t('moveDown')}
-                            disabled={index === plan.steps.length - 1}
-                          >
-                            <ChevronDown size={16} aria-hidden />
-                            <span className="sr-only">{t('moveDown')}</span>
-                          </button>
-                        </ActionForm>
-
-                        <StepFormDialog
-                          planId={plan.id}
-                          services={services}
-                          charted={charted}
-                          numbering={numbering}
-                          step={{
-                            id: step.id,
-                            title: step.title,
-                            toothNum: step.toothNum,
-                            notes: step.notes,
-                          }}
-                        />
-
-                        <ActionForm
-                          action={deleteStep}
-                          values={{ id: step.id }}
-                          confirmMessage={tc('confirmDelete')}
-                        >
-                          <button
-                            type="submit"
-                            className="btn btn-ghost btn-sm text-danger"
-                            title={tc('delete')}
-                          >
-                            <Trash2 size={16} aria-hidden />
-                            <span className="sr-only">{tc('delete')}</span>
-                          </button>
-                        </ActionForm>
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ol>
-
-            {canEdit ? (
-              <div className="mt-2">
-                <StepFormDialog
-                  planId={plan.id}
-                  services={services}
-                  charted={charted}
-                  numbering={numbering}
-                />
+                {/* The whole run at once. A course of treatment is a sequence of
+                    visits, and the diary could only ever be given one of them
+                    per trip through the booking form — with the interval held in
+                    somebody's head while the patient stood at the desk. */}
+                {canBook && bookable > 1 ? (
+                  <SeriesBookingDialog
+                    planId={plan.id}
+                    pending={bookable}
+                    staff={staff}
+                    operatories={operatories}
+                    trigger={
+                      <>
+                        <CalendarPlus size={17} aria-hidden />
+                        {t('bookSeries')}
+                      </>
+                    }
+                  />
+                ) : null}
               </div>
             ) : null}
           </section>

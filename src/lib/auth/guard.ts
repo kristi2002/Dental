@@ -5,7 +5,7 @@ import type { Permission } from './permissions';
 import { getCurrentUser, type SessionUser } from './session';
 
 export type AuditEntry = {
-  /** create · update · delete · export · login · logout · denied · confirmed · declined */
+  /** create · update · delete · export · login · logout · denied · failed · locked · confirmed · declined */
   action: string;
   /** patient · appointment · visit · tooth · stock · service · staff · session · recall · waitlist · plan · work · document · prescription · backup · settings */
   entity: string;
@@ -15,19 +15,23 @@ export type AuditEntry = {
 };
 
 /**
- * A line written by someone who is not staff — today, only a patient answering
- * their own confirmation link. Recorded with a name and no role, so the feed
- * never implies the person holds permissions in the practice.
+ * A line written by somebody the app cannot name — nobody is signed in, and the
+ * request carries no session to attribute it to.
+ *
+ * Recorded with a label and no role, so the feed never implies the person holds
+ * permissions in the practice. Two callers today: a patient answering their own
+ * confirmation link, and a sign-in attempt against a staff id that does not
+ * exist.
  */
-export async function recordPatientAudit(
-  patientName: string,
+export async function recordAnonymousAudit(
+  actorName: string,
   entry: AuditEntry,
 ): Promise<void> {
   try {
     await prisma.auditLog.create({
       data: {
         actorId: null,
-        actorName: patientName,
+        actorName,
         actorRole: null,
         action: entry.action,
         entity: entry.entity,
@@ -36,8 +40,16 @@ export async function recordPatientAudit(
       },
     });
   } catch (error) {
-    console.error('[audit] failed to record patient entry', entry, error);
+    console.error('[audit] failed to record anonymous entry', entry, error);
   }
+}
+
+/** A patient answering their own confirmation link. See `recordAnonymousAudit`. */
+export async function recordPatientAudit(
+  patientName: string,
+  entry: AuditEntry,
+): Promise<void> {
+  await recordAnonymousAudit(patientName, entry);
 }
 
 /**

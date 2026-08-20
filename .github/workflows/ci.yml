@@ -1,0 +1,110 @@
+# The checks that would have caught what this repository was shipping.
+#
+# Every one of these steps corresponds to something that was actually broken and
+# stayed broken because nothing ran: a lockfile that failed `npm ci` while
+# `npm install` papered over it, a migrations directory nine commits behind the
+# schema, 374 tests nobody executed on a push.
+#
+# Kept to one job on purpose. The whole thing runs in a couple of minutes, and a
+# matrix of parallel jobs that each spend forty seconds installing would be
+# slower and harder to read.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # So a red main can be re-checked without an empty commit.
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      # Needed by the schema drift check, which replays the migration history
+      # into a scratch database. Nothing else here touches a database.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dent
+          POSTGRES_PASSWORD: dent
+          POSTGRES_DB: dentorganizer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dent -d dentorganizer"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://dent:dent@localhost:5432/dentorganizer?schema=public
+      # A database the role may create and drop; `migrate diff --from-migrations`
+      # replays the history into it.
+      SHADOW_DATABASE_URL: postgresql://dent:dent@localhost:5432/shadow?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci`, not `npm install`. The difference is the entire point: `ci`
+      # fails on a lockfile out of sync with package.json, which is what the
+      # Dockerfile does and what had been broken.
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # Does prisma/migrations still describe prisma/schema.prisma?
+      #
+      # --exit-code makes an empty diff 0 and a non-empty diff 2, so a schema
+      # change committed without its migration fails here rather than at the
+      # next deploy. This is the check whose absence let three whole models
+      # exist in the schema and in no migration.
+      - name: Create the shadow database
+        run: PGPASSWORD=dent psql -h localhost -U dent -d dentorganizer -c 'CREATE DATABASE shadow;'
+
+      - name: Schema and migrations must agree
+        run: |
+          npx prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema prisma/schema.prisma \
+            --exit-code \
+          || {
+            echo "::error::prisma/migrations no longer describes prisma/schema.prisma."
+            echo "Author the missing migration — see 'Schema changes' in docs/DEPLOYMENT.md."
+            exit 1
+          }
+
+      # And does that history actually replay? A migration can be generated
+      # correctly and still fail on a real database.
+      - name: Migrations must replay into an empty database
+        run: |
+          PGPASSWORD=dent psql -h localhost -U dent -d dentorganizer -c 'CREATE DATABASE replay;'
+          DATABASE_URL='postgresql://dent:dent@localhost:5432/replay?schema=public' \
+            npx prisma migrate deploy
+
+      # The step that was failing in the dark. `next build` is what the
+      # Dockerfile runs, and it is where a broken install or a bad import
+      # surfaces.
+      - name: Build
+        run: npm run build
+        env:
+          AUTH_SECRET: ci-placeholder-never-signs-a-real-cookie

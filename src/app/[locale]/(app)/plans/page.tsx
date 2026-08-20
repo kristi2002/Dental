@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import type { Prisma } from '@/generated/prisma/client';
-import { TreatmentPlanStatus } from '@/generated/prisma/enums';
+import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { requirePermission } from '@/lib/auth/guard';
 import { toDateKey, today } from '@/lib/dates';
 import { isPromisedSlot, STALLED_DAYS, summarisePlan, worstFirst } from '@/lib/plan-progress';
@@ -19,7 +19,7 @@ import {
   getProviderOptions,
   getServiceOptions,
 } from '@/lib/queries';
-import { cn, matches } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,15 +32,12 @@ const isArchive = (filter: Filter) => filter === 'completed' || filter === 'canc
 /**
  * Closed plans are history and grow without bound, so the archive tabs are
  * capped — and say so, rather than quietly showing a slice as if it were all.
+ * The open tabs are capped too now, for the same reason and at a higher number:
+ * a practice with four thousand courses of treatment under way has a problem
+ * this page cannot solve by rendering all of them.
  */
 const ARCHIVE_LIMIT = 60;
-
-/**
- * How deep a search goes into the archive. A search that only looked at the
- * sixty most recent finished plans would answer "no such plan" about one that is
- * sitting there, which is worse than not offering the search at all.
- */
-const ARCHIVE_SEARCH_SCAN = 500;
+const OPEN_LIMIT = 300;
 
 const PLAN_INCLUDE = {
   patient: { select: { id: true, firstName: true, lastName: true } },
@@ -51,6 +48,39 @@ const PLAN_INCLUDE = {
 } as const;
 
 type LoadedPlan = Prisma.TreatmentPlanGetPayload<{ include: typeof PLAN_INCLUDE }>;
+
+/**
+ * One box, three things somebody might remember: whose plan it is, what the plan
+ * was called, or the treatment itself.
+ *
+ * Asked of the database rather than of an array. Every open plan in the practice
+ * used to be loaded with all of its steps and then filtered in JavaScript, which
+ * is a scan of the whole table to answer a question Postgres was already holding
+ * an index for — and, unlike the archives beside it, was not even capped. The
+ * cost of that is invisible for a year and then the page is the slow one.
+ *
+ * `mode: 'insensitive'` is case-folding, not accent-folding: Postgres will match
+ * "MARIA" for "maria" but not "Kelmendi" for "Kelmëndi". The patient half of the
+ * search therefore also goes through `searchKey`, which is the accent-stripped
+ * column the patient list already searches on, so a plan is findable by its
+ * owner exactly as its owner is.
+ */
+function planWhere(status: TreatmentPlanStatus, query: string): Prisma.TreatmentPlanWhereInput {
+  if (!query) return { status };
+
+  const folded = query.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase();
+
+  return {
+    status,
+    OR: [
+      { title: { contains: query, mode: 'insensitive' } },
+      { steps: { some: { title: { contains: query, mode: 'insensitive' } } } },
+      { patient: { searchKey: { contains: folded } } },
+      { patient: { firstName: { contains: query, mode: 'insensitive' } } },
+      { patient: { lastName: { contains: query, mode: 'insensitive' } } },
+    ],
+  };
+}
 
 export async function generateMetadata({
   params,
@@ -73,9 +103,10 @@ export async function generateMetadata({
  * finish?
  *
  * And then answers it with something to press. Every verb a plan has — tick the
- * step off, put it in the diary, add the one that was missed, stop chasing it
- * altogether — is on the row, because a triage list whose only affordance is a
- * link to somewhere else is a list that gets read and not worked.
+ * step off, put the whole run in the diary, add the one that was missed, record
+ * the phone call, stop chasing it altogether — is on the row, because a triage
+ * list whose only affordance is a link to somewhere else is a list that gets
+ * read and not worked.
  */
 export default async function PlansPage({
   params,
@@ -107,29 +138,35 @@ export default async function PlansPage({
   // read zero while the finished tab was open, which is the one moment it most
   // needs to still be shouting.
   //
-  // The archives are loaded when their own tab is open, and additionally
-  // whenever a search is running: a tab count that ignores the search is a count
-  // of something nobody asked for.
+  // The archives are counted always and loaded only when they are being read:
+  // a tab count is a `count` query, not a page of rows nobody asked to see.
   const archive = (status: TreatmentPlanStatus, wanted: boolean) =>
     wanted
       ? prisma.treatmentPlan.findMany({
-          where: { status },
+          where: planWhere(status, query),
           orderBy: { updatedAt: 'desc' },
-          take: searching ? ARCHIVE_SEARCH_SCAN : ARCHIVE_LIMIT,
+          take: ARCHIVE_LIMIT,
           include: PLAN_INCLUDE,
         })
       : Promise.resolve<LoadedPlan[]>([]);
 
-  const [active, completed, cancelled, completedTotal, cancelledTotal] = await Promise.all([
-    prisma.treatmentPlan.findMany({
-      where: { status: TreatmentPlanStatus.ACTIVE },
-      include: PLAN_INCLUDE,
-    }),
-    archive(TreatmentPlanStatus.COMPLETED, filter === 'completed' || searching),
-    archive(TreatmentPlanStatus.CANCELLED, filter === 'cancelled' || searching),
-    prisma.treatmentPlan.count({ where: { status: TreatmentPlanStatus.COMPLETED } }),
-    prisma.treatmentPlan.count({ where: { status: TreatmentPlanStatus.CANCELLED } }),
-  ]);
+  const [active, completed, cancelled, activeTotal, completedTotal, cancelledTotal] =
+    await Promise.all([
+      prisma.treatmentPlan.findMany({
+        where: planWhere(TreatmentPlanStatus.ACTIVE, query),
+        orderBy: { updatedAt: 'desc' },
+        take: OPEN_LIMIT,
+        include: PLAN_INCLUDE,
+      }),
+      archive(TreatmentPlanStatus.COMPLETED, filter === 'completed'),
+      archive(TreatmentPlanStatus.CANCELLED, filter === 'cancelled'),
+      // Counted rather than measured from the rows: the open list is capped now,
+      // so `openRows.length` stops being the number of open plans exactly when
+      // somebody most needs to be told that it has.
+      prisma.treatmentPlan.count({ where: planWhere(TreatmentPlanStatus.ACTIVE, query) }),
+      prisma.treatmentPlan.count({ where: planWhere(TreatmentPlanStatus.COMPLETED, query) }),
+      prisma.treatmentPlan.count({ where: planWhere(TreatmentPlanStatus.CANCELLED, query) }),
+    ]);
 
   // Everything the row's own buttons need. Loaded only for the people who can
   // press them — a read-only account has no use for the catalogue or the diary's
@@ -140,18 +177,6 @@ export default async function PlansPage({
     canBook ? getOperatoryOptions() : Promise.resolve([]),
     getClinicProfile(),
   ]);
-
-  /**
-   * One box, three things somebody might remember: whose plan it is, what the
-   * plan was called, or the treatment itself. Accent-insensitive, because nobody
-   * reaches for the diacritics when they are hunting for a row.
-   */
-  const hit = (plan: LoadedPlan) =>
-    !searching ||
-    matches(plan.title, query) ||
-    matches(`${plan.patient.lastName} ${plan.patient.firstName}`, query) ||
-    matches(`${plan.patient.firstName} ${plan.patient.lastName}`, query) ||
-    plan.steps.some((step) => matches(step.title, query));
 
   const toRow = (plan: LoadedPlan): PlanRowView => {
     const summary = summarisePlan(plan, now);
@@ -168,6 +193,8 @@ export default async function PlansPage({
       quietDays: summary.quietDays,
       stalled: summary.stalled,
       updatedAt: plan.updatedAt,
+      snoozed: summary.snoozed,
+      followUpOn: summary.followUpOn,
       nextBooked: summary.next
         ? {
             date: summary.next.appointment!.date,
@@ -179,7 +206,9 @@ export default async function PlansPage({
           id: step.id,
           title: step.title,
           toothNum: step.toothNum,
+          notes: step.notes ?? '',
           status: step.status,
+          serviceId: step.serviceId,
           linked: step.appointmentId !== null,
           booked: isPromisedSlot(step.appointment, now)
             ? { date: step.appointment.date, startTime: step.appointment.startTime }
@@ -189,26 +218,61 @@ export default async function PlansPage({
     };
   };
 
-  const summarise = (plans: LoadedPlan[]) => plans.filter(hit).map(toRow);
-
-  const openRows = summarise(active);
-  const completedRows = summarise(completed);
-  const cancelledRows = summarise(cancelled);
+  const openRows = active.map(toRow);
+  const completedRows = completed.map(toRow);
+  const cancelledRows = cancelled.map(toRow);
 
   const counts: Record<Filter, number> = {
-    open: openRows.length,
+    open: activeTotal,
+    // Stalled is derived per plan, so this one can only be counted from the rows
+    // that were loaded. It is exact until the cap bites, and the line at the
+    // foot of the page says when that is.
     stalled: openRows.filter((row) => row.stalled).length,
-    // Unsearched, the archives are known from a count query rather than from a
-    // page of rows nobody asked to see.
-    completed: searching ? completedRows.length : completedTotal,
-    cancelled: searching ? cancelledRows.length : cancelledTotal,
+    completed: completedTotal,
+    cancelled: cancelledTotal,
   };
 
   // Closed plans are read newest-first — the archive answers "what did we wrap
   // up", not "what is being neglected", and nothing in it can be stalled.
   const visible = isArchive(filter)
-    ? (filter === 'completed' ? completedRows : cancelledRows).slice(0, ARCHIVE_LIMIT)
+    ? filter === 'completed'
+      ? completedRows
+      : cancelledRows
     : (filter === 'stalled' ? openRows.filter((row) => row.stalled) : openRows).sort(worstFirst);
+
+  /**
+   * The booking dialog for every step that could take one, built once for the
+   * whole page.
+   *
+   * `AppointmentFormDialog` is a client component that needs the patient list,
+   * the catalogue, the providers and the chairs; `PlanRow` and `StepList` are
+   * client components too, and a function cannot be handed across that boundary.
+   * So the elements are made here, on the server, and the rows only choose which
+   * of them to show.
+   */
+  const bookSlots: Record<string, React.ReactNode> = {};
+  if (canBook) {
+    for (const plan of visible) {
+      for (const step of plan.steps) {
+        if (step.status !== TreatmentStepStatus.PENDING || step.linked) continue;
+        bookSlots[step.id] = (
+          <AppointmentFormDialog
+            services={services}
+            staff={staff}
+            operatories={operatories}
+            defaultPatient={{
+              id: plan.patient.id,
+              name: `${plan.patient.lastName} ${plan.patient.firstName}`,
+            }}
+            defaultDate={toDateKey(today())}
+            planStepId={step.id}
+            triggerClassName="btn btn-secondary btn-sm"
+            triggerLabel={t('bookStep')}
+          />
+        );
+      }
+    }
+  }
 
   /** Every link on this screen keeps the other half of the state it is not about. */
   const hrefFor = (option: Filter, text = query) => {
@@ -360,30 +424,12 @@ export default async function PlansPage({
               plan={plan}
               canEdit={canEdit}
               canDelete={canDelete}
+              canBook={canBook}
               services={services}
+              staff={staff}
+              operatories={operatories}
               numbering={clinicProfile.toothNumbering}
-              // Booking a step is a diary action, so it needs the diary's own
-              // collections — handed down as a render prop rather than making
-              // the plan list depend on them from the inside.
-              bookStep={
-                canBook
-                  ? (step) => (
-                      <AppointmentFormDialog
-                        services={services}
-                        staff={staff}
-                        operatories={operatories}
-                        defaultPatient={{
-                          id: plan.patient.id,
-                          name: `${plan.patient.lastName} ${plan.patient.firstName}`,
-                        }}
-                        defaultDate={toDateKey(today())}
-                        planStepId={step.id}
-                        triggerClassName="btn btn-secondary btn-sm"
-                        triggerLabel={t('bookStep')}
-                      />
-                    )
-                  : undefined
-              }
+              bookSlots={bookSlots}
             />
           ))}
         </ul>
@@ -396,6 +442,12 @@ export default async function PlansPage({
       {isArchive(filter) && counts[filter] > visible.length ? (
         <p className="mt-3 text-[0.92rem] text-ink-faint">
           {t('showingRecent', { count: visible.length, total: counts[filter] })}
+        </p>
+      ) : null}
+
+      {!isArchive(filter) && activeTotal > openRows.length ? (
+        <p className="mt-3 text-[0.92rem] text-ink-faint">
+          {t('showingRecent', { count: visible.length, total: activeTotal })}
         </p>
       ) : null}
     </>

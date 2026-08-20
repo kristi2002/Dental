@@ -9,6 +9,7 @@ import {
   worstFirst,
   type ScheduledStep,
 } from '../src/lib/plan-progress';
+import { moveInList, positionWrites, targetIndex } from '../src/lib/plan-steps';
 
 const NOW = new Date('2026-08-14T00:00:00.000Z');
 
@@ -188,5 +189,163 @@ describe('worstFirst — the order the list opens in', () => {
       [...rows].sort(worstFirst).map((row) => row.name),
       ['stalled 300', 'stalled 70', 'quiet 40', 'quiet 10'],
     );
+  });
+});
+
+describe('summarisePlan — a plan somebody has already rung about', () => {
+  const chased = (followUpOn: Date | null, steps: ScheduledStep[] = [step()]) =>
+    summarisePlan(
+      { status: 'ACTIVE', createdAt: day(-200), steps, followUpOn } as never,
+      NOW,
+    );
+
+  it('stops calling a plan stalled while the promised day is still ahead', () => {
+    // The whole point. Ringing a patient is not something anybody can do *to a
+    // plan*, so a plan chased this morning shouted exactly as loudly this
+    // afternoon — and the only ways to quieten it were to tick off treatment
+    // nobody gave or to abandon a course the patient means to finish.
+    const summary = chased(day(30));
+    assert.equal(summary.quietDays, 200);
+    assert.equal(summary.snoozed, true);
+    assert.equal(summary.stalled, false);
+    assert.equal(summary.followUpDays, 30);
+  });
+
+  it('lets it back onto the list the moment the promised day arrives', () => {
+    const summary = chased(NOW);
+    assert.equal(summary.snoozed, false);
+    assert.equal(summary.stalled, true);
+    assert.equal(summary.followUpDays, 0);
+  });
+
+  it('shouts again once the promised day has gone by', () => {
+    const summary = chased(day(-3));
+    assert.equal(summary.snoozed, false);
+    assert.equal(summary.stalled, true);
+    assert.equal(summary.followUpDays, -3);
+  });
+
+  it('is unchanged by a call recorded without a day', () => {
+    const summary = chased(null);
+    assert.equal(summary.snoozed, false);
+    assert.equal(summary.stalled, true);
+    assert.equal(summary.followUpOn, null);
+  });
+
+  it('does not park a plan that is not otherwise stalled anyway', () => {
+    // Snoozing is a suppression, not a state of its own: a plan with a visit
+    // booked was never shouting, and must not start now.
+    const summary = summarisePlan(
+      {
+        status: 'ACTIVE',
+        createdAt: day(-200),
+        steps: [step({ appointment: booking(day(30)) })],
+        followUpOn: day(10),
+      } as never,
+      NOW,
+    );
+    assert.equal(summary.stalled, false);
+    assert.ok(summary.next);
+  });
+});
+
+describe('worstFirst — a parked plan sinks', () => {
+  it('sorts a plan somebody has already dealt with below one nobody has', () => {
+    const rows = [
+      { name: 'parked 300', stalled: false, quietDays: 300, snoozed: true },
+      { name: 'quiet 10', stalled: false, quietDays: 10, snoozed: false },
+      { name: 'stalled 70', stalled: true, quietDays: 70, snoozed: false },
+    ];
+    assert.deepEqual(
+      [...rows].sort(worstFirst).map((row) => row.name),
+      ['stalled 70', 'quiet 10', 'parked 300'],
+    );
+  });
+});
+
+describe('targetIndex — where a step is being asked to go', () => {
+  it('moves one place, or all the way', () => {
+    assert.equal(targetIndex(3, 'up', 6), 2);
+    assert.equal(targetIndex(3, 'down', 6), 4);
+    assert.equal(targetIndex(3, 'top', 6), 0);
+    assert.equal(targetIndex(3, 'bottom', 6), 5);
+  });
+
+  it('clamps at both ends rather than refusing', () => {
+    // "Move up" on the first row is a no-op, not an error: the caller should not
+    // have to know which row it is holding to ask.
+    assert.equal(targetIndex(0, 'up', 4), 0);
+    assert.equal(targetIndex(3, 'down', 4), 3);
+    assert.equal(targetIndex(0, 'bottom', 1), 0);
+  });
+});
+
+describe('moveInList — lift out and put down, never swap', () => {
+  it('carries the rest of the list along', () => {
+    // A swap is only the same thing for neighbours. Dropping the last item at
+    // the top with a swap leaves the first one at the bottom, which is not what
+    // anybody dragging it meant.
+    assert.deepEqual(moveInList(['a', 'b', 'c', 'd'], 3, 0), ['d', 'a', 'b', 'c']);
+    assert.deepEqual(moveInList(['a', 'b', 'c', 'd'], 0, 3), ['b', 'c', 'd', 'a']);
+  });
+
+  it('is a no-op for a drag that ended where it started', () => {
+    assert.deepEqual(moveInList(['a', 'b', 'c'], 1, 1), ['a', 'b', 'c']);
+  });
+
+  it('leaves the list alone when asked to move something that is not in it', () => {
+    assert.deepEqual(moveInList(['a', 'b'], 5, 0), ['a', 'b']);
+  });
+});
+
+describe('positionWrites — the smallest set of writes that puts an order right', () => {
+  const stored = (...positions: number[]) =>
+    positions.map((position, index) => ({ id: `s${index + 1}`, position }));
+
+  it('writes only the rows that actually move', () => {
+    // Reordering the tail of a plan should not rewrite its head.
+    const writes = positionWrites(['s1', 's2', 's4', 's3'], stored(1, 2, 3, 4));
+    assert.deepEqual(writes, [
+      { id: 's4', position: 3 },
+      { id: 's3', position: 4 },
+    ]);
+  });
+
+  it('writes nothing when the order is already the stored one', () => {
+    assert.deepEqual(positionWrites(['s1', 's2', 's3'], stored(1, 2, 3)), []);
+  });
+
+  it('closes the gaps a deleted step left behind', () => {
+    // The old neighbour swap preserved whatever gaps the sequence had grown, so
+    // this is the repair as much as the reorder.
+    const writes = positionWrites(['s1', 's2', 's3'], stored(1, 7, 12));
+    assert.deepEqual(writes, [
+      { id: 's2', position: 2 },
+      { id: 's3', position: 3 },
+    ]);
+  });
+
+  it('keeps a step the caller forgot to mention, at the end', () => {
+    // A stale tab posting yesterday's list can misorder a plan, which is
+    // recoverable. It must never drop a step out of one.
+    // s2 goes on the end, keeping its place relative to anything else omitted.
+    const writes = positionWrites(['s3', 's1'], stored(1, 2, 3));
+    assert.deepEqual(writes, [
+      { id: 's3', position: 1 },
+      { id: 's1', position: 2 },
+      { id: 's2', position: 3 },
+    ]);
+  });
+
+  it('ignores ids that are not steps of this plan, and repeated ones', () => {
+    const writes = positionWrites(['ghost', 's2', 's2', 's1'], stored(1, 2));
+    assert.deepEqual(writes, [
+      { id: 's2', position: 1 },
+      { id: 's1', position: 2 },
+    ]);
+  });
+
+  it('leaves the plan exactly as it found it when no order was named', () => {
+    assert.deepEqual(positionWrites([], stored(1, 2, 3)), []);
   });
 });
