@@ -7,6 +7,7 @@ import { authorize, recordAudit } from '@/lib/auth/guard';
 import { isAllowedMimeType, MAX_FILE_BYTES } from '@/lib/file-constants';
 import { deleteStoredFile, storeFile } from '@/lib/files';
 import { prisma } from '@/lib/prisma';
+import { isValidTooth } from '@/lib/teeth';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
@@ -61,7 +62,16 @@ export async function uploadDocument(
         mimeType: file.type,
         sizeBytes: file.size,
         storageKey,
-        toothNum: toothRaw >= 1 && toothRaw <= 32 ? toothRaw : null,
+        // FDI, like every other tooth column in this app — `isValidTooth`
+        // is the same check `plans.ts` and `patients.ts` use.
+        //
+        // This was `>= 1 && <= 32`, the *Universal* range, and the upload
+        // dialog had already been fixed for exactly that confusion (see the
+        // comment beside its `ToothPicker`) while this line was left behind.
+        // A radiograph filed against tooth 46 — a lower-right first molar,
+        // and any of 33–48 or the primary 51–85 — was written with a null
+        // tooth and no error: in the patient's file, attached to nothing.
+        toothNum: isValidTooth(toothRaw) ? toothRaw : null,
         notes: optionalString(formData.get('notes')),
         uploadedById: user.id,
       },

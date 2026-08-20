@@ -11,6 +11,7 @@ import {
 } from '@/lib/catalogue-import';
 import { IMPORT_LIMIT } from '@/lib/patients-import';
 import { prisma } from '@/lib/prisma';
+import { IMPORT_TX_OPTIONS, logImportFailure } from './import-tx';
 import { actionError, actionOk, type ActionState } from './types';
 
 /**
@@ -151,8 +152,9 @@ export async function commitServiceImport(
 
       if (data.length === 0) return;
       created = (await tx.service.createMany({ data, skipDuplicates: true })).count;
-    });
-  } catch {
+    }, IMPORT_TX_OPTIONS);
+  } catch (error) {
+    logImportFailure('the treatment catalogue import', error);
     return actionError(t('generic'));
   }
 
@@ -241,8 +243,9 @@ export async function commitStockImport(
 
       if (data.length === 0) return;
       created = (await tx.stockItem.createMany({ data, skipDuplicates: true })).count;
-    });
-  } catch {
+    }, IMPORT_TX_OPTIONS);
+  } catch (error) {
+    logImportFailure('the material catalogue import', error);
     return actionError(t('generic'));
   }
 

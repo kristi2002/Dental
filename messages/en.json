@@ -797,6 +797,7 @@
       "view": "See treatment plans",
       "edit": "Create and update treatment plans"
     },
+    "followup": { "view": "See the follow-ups board", "edit": "Add and close follow-ups" },
     "work": {
       "view": "See the works register",
       "edit": "Add and edit works",
@@ -907,6 +908,8 @@
     "action_delete": "Deleted",
     "action_login": "Signed in",
     "action_logout": "Signed out",
+    "action_failed": "Failed sign-in",
+    "action_locked": "Locked out",
     "action_denied": "Blocked",
     "entity_patient": "Patient",
     "entity_appointment": "Appointment",
@@ -931,6 +934,7 @@
     "entity_followup": "Follow-up",
     "entity_supplier": "Supplier",
     "entity_contact": "Contact",
+    "entity_message": "Message",
     "entity_alert": "Medical alert",
     "entity_settings": "Settings",
     "entity_stockCategory": "Stock category",
@@ -1540,6 +1544,7 @@
     "severity": "How serious",
     "substance": "Substance",
     "substanceHint": "Written the way you would recognise it — this is what a prescription is checked against.",
+    "substancePlaceholder": "Penicillin",
     "kind_ALLERGY": "Allergy",
     "kind_ANTICOAGULANT": "On anticoagulants",
     "kind_PREGNANCY": "Pregnant",

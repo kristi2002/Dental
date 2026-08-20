@@ -9,6 +9,10 @@ const isDev = process.env.NODE_ENV === 'development';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // Nothing gains from announcing the framework and its presence only helps
+  // somebody deciding which exploits to try against the practice's domain.
+  poweredByHeader: false,
+
   // Emit `.next/standalone`: a self-contained server with only the traced
   // dependencies, so the deployed image carries neither the toolchain nor the
   // 700-odd MB of `node_modules` behind it.
@@ -18,6 +22,22 @@ const nextConfig: NextConfig = {
     // Pin the workspace root — otherwise Turbopack walks up and finds unrelated
     // lockfiles in the parent directories.
     root: path.resolve(import.meta.dirname),
+  },
+
+  // Next caps a server action's request body at 1 MB by default. Every upload in
+  // this app — a radiograph on a patient's chart, a photograph of a delivery
+  // note, a file pinned to a follow-up — goes through a server action, and
+  // `MAX_FILE_BYTES` lets them be 12 MB. So the app's own limit was never the
+  // one that applied: a real intraoral X-ray is two to eight megabytes, and it
+  // failed at the framework layer with an opaque error before any of the
+  // checks in `documents.ts` ran.
+  //
+  // 13 MB rather than 12: the cap counts the raw HTTP body, and multipart adds
+  // boundaries and part headers on top of the file itself.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '13mb',
+    },
   },
 
   // The response headers this app ships with. It had none, while serving

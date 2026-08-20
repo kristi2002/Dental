@@ -384,6 +384,12 @@ export async function mergePatients(
       // goes on pointing at the husk — and the bell draws every open line on
       // every page, so it keeps asking about a record that has been merged away.
       await tx.followUp.updateMany(move);
+      // And the queue. A reminder left on the husk is composed from the husk:
+      // the merge fills the survivor's blanks and leaves the duplicate exactly
+      // as it was, so tomorrow's message would be addressed from whichever
+      // stale phone or email the duplicate happened to carry — or skipped as
+      // "no contact details" for a patient who has them.
+      await tx.scheduledMessage.updateMany(move);
 
       if (Object.keys(fill).length > 0) {
         await tx.patient.update({ where: { id: keepId }, data: fill });

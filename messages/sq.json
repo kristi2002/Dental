@@ -797,6 +797,7 @@
       "view": "Sheh planet e trajtimit",
       "edit": "Krijon dhe përditëson plane trajtimi"
     },
+    "followup": { "view": "Sheh tabelën Detyrat", "edit": "Shton dhe mbyll detyra" },
     "work": {
       "view": "Sheh regjistrin e punimeve",
       "edit": "Shton dhe ndryshon punime",
@@ -907,6 +908,8 @@
     "action_delete": "Fshiu",
     "action_login": "Hyri",
     "action_logout": "Doli",
+    "action_failed": "Hyrje e dështuar",
+    "action_locked": "U bllokua përkohësisht",
     "action_denied": "U bllokua",
     "entity_patient": "Pacient",
     "entity_appointment": "Takim",
@@ -931,6 +934,7 @@
     "entity_followup": "Detyrë",
     "entity_supplier": "Furnitor",
     "entity_contact": "Kontakt",
+    "entity_message": "Mesazh",
     "entity_alert": "Alertë mjekësore",
     "entity_settings": "Cilësimet",
     "entity_stockCategory": "Kategori inventari",
@@ -1540,6 +1544,7 @@
     "severity": "Sa serioze",
     "substance": "Substanca",
     "substanceHint": "Shkruaje si do ta njihje — me këtë krahasohet receta.",
+    "substancePlaceholder": "Penicilinë",
     "kind_ALLERGY": "Alergji",
     "kind_ANTICOAGULANT": "Me antikoagulantë",
     "kind_PREGNANCY": "Shtatzënë",

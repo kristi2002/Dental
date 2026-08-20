@@ -11,7 +11,32 @@
  * A container defaulting to UTC would otherwise shift the working day by an
  * hour or two — silently, and only in summer.
  */
-export const CLINIC_TIME_ZONE = process.env.CLINIC_TIME_ZONE || 'Europe/Tirane';
+export const CLINIC_TIME_ZONE = readClinicTimeZone();
+
+/**
+ * The configured zone, checked before anything depends on it.
+ *
+ * `Intl` throws on an unknown name, and every formatter below is built at module
+ * load — so a typo like `Europe/Tirana` (the English spelling of the city, and
+ * the mistake most likely to be made here) took the whole app down with a
+ * `RangeError` from inside an import, naming no environment variable. Failing is
+ * right: a clinic silently keeping its diary in the wrong hour is worse than one
+ * that will not start. Only the message needed to say what to fix.
+ */
+function readClinicTimeZone(): string {
+  const configured = process.env.CLINIC_TIME_ZONE?.trim();
+  if (!configured) return 'Europe/Tirane';
+
+  try {
+    new Intl.DateTimeFormat('en-GB', { timeZone: configured });
+  } catch {
+    throw new Error(
+      `CLINIC_TIME_ZONE=${JSON.stringify(configured)} is not an IANA time zone name. ` +
+        'Use a value like "Europe/Tirane" (note the spelling) or "Europe/Rome".',
+    );
+  }
+  return configured;
+}
 
 const clinicClock = new Intl.DateTimeFormat('en-GB', {
   timeZone: CLINIC_TIME_ZONE,

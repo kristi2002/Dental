@@ -33,7 +33,30 @@ export const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
  * navigation, so the browser drops it on its own once nobody is there — which
  * makes the timeout enforced by expiry rather than by anything the page does.
  */
-export const SESSION_IDLE_SECONDS = Number(process.env.SESSION_IDLE_MINUTES ?? 15) * 60;
+export const SESSION_IDLE_SECONDS = readIdleMinutes() * 60;
+
+/**
+ * Minutes, or the default — never `NaN`.
+ *
+ * This was a bare `Number(...)`, and the value is written straight into the
+ * cookie's `maxAge`. `SESSION_IDLE_MINUTES=15m` — the form every other duration
+ * in the deployment takes — parsed to `NaN`, and a `NaN` `maxAge` makes the
+ * browser drop the cookie the moment the tab closes, so the practice would
+ * simply find that staying signed in had stopped working, with nothing
+ * anywhere saying why.
+ */
+function readIdleMinutes(): number {
+  const raw = process.env.SESSION_IDLE_MINUTES;
+  if (raw === undefined || raw.trim() === '') return 15;
+
+  const minutes = Number(raw);
+  if (Number.isFinite(minutes) && minutes >= 1) return minutes;
+
+  console.warn(
+    `[auth] SESSION_IDLE_MINUTES=${JSON.stringify(raw)} is not a number of minutes — using 15.`,
+  );
+  return 15;
+}
 
 export const SESSION_COOKIE = 'dent_session';
 

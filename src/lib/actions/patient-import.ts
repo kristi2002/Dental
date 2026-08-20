@@ -11,6 +11,7 @@ import {
   type ImportRow,
 } from '@/lib/patients-import';
 import { prisma } from '@/lib/prisma';
+import { IMPORT_TX_OPTIONS, logImportFailure } from './import-tx';
 import { actionError, actionOk, type ActionState } from './types';
 
 /**
@@ -121,8 +122,9 @@ export async function commitPatientImport(
       // one row rather than the whole import.
       const result = await tx.patient.createMany({ data, skipDuplicates: true });
       created = result.count;
-    });
-  } catch {
+    }, IMPORT_TX_OPTIONS);
+  } catch (error) {
+    logImportFailure('the patient import', error);
     return actionError(t('generic'));
   }
 

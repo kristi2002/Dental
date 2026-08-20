@@ -797,6 +797,7 @@
       "view": "Vede i piani di cura",
       "edit": "Crea e aggiorna piani di cura"
     },
+    "followup": { "view": "Vede la bacheca Da fare", "edit": "Aggiunge e chiude voci Da fare" },
     "work": {
       "view": "Vede il registro delle lavorazioni",
       "edit": "Aggiunge e modifica lavorazioni",
@@ -907,6 +908,8 @@
     "action_delete": "Eliminato",
     "action_login": "Accesso",
     "action_logout": "Uscita",
+    "action_failed": "Accesso fallito",
+    "action_locked": "Bloccato",
     "action_denied": "Bloccato",
     "entity_patient": "Paziente",
     "entity_appointment": "Appuntamento",
@@ -931,6 +934,7 @@
     "entity_followup": "Da fare",
     "entity_supplier": "Fornitore",
     "entity_contact": "Contatto",
+    "entity_message": "Messaggio",
     "entity_alert": "Allerta medica",
     "entity_settings": "Impostazioni",
     "entity_stockCategory": "Categoria magazzino",
@@ -1540,6 +1544,7 @@
     "severity": "Gravità",
     "substance": "Sostanza",
     "substanceHint": "Scritta come la riconosceresti — è ciò con cui viene confrontata la ricetta.",
+    "substancePlaceholder": "Penicillina",
     "kind_ALLERGY": "Allergia",
     "kind_ANTICOAGULANT": "In terapia anticoagulante",
     "kind_PREGNANCY": "In gravidanza",

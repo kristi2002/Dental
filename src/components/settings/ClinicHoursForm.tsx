@@ -178,7 +178,7 @@ export function ClinicHoursForm({
               />
               <span className="flex items-start gap-1.5">
                 <TriangleAlert size={18} aria-hidden className="mt-0.5 shrink-0" />
-                {tc('saveAnyway')}
+                {t('saveAnyway')}
               </span>
             </label>
           ) : null}

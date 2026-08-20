@@ -42,6 +42,26 @@ services:
       # Where the backup sidecar writes down what it did. Read-only to the app,
       # which only ever reports it — see src/lib/backup-status.ts.
       BACKUP_STATUS_DIR: /status
+      # How the app sends a reminder itself, rather than handing the receptionist
+      # a wa.me link. `src/lib/messages/email.ts` reads all four at runtime, and
+      # unset means the Settings page reports "not configured" and the outbox
+      # offers WhatsApp only — which is the correct default, not a failure.
+      #
+      # These were documented in .env.production.example and in DEPLOYMENT.md but
+      # never declared here, so pasting them into Coolify put them in this file's
+      # interpolation scope and never in the container: the operator configured a
+      # provider, redeployed, and Settings still said unset.
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-}
+      MAIL_API_KEY: ${MAIL_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      # The clinic's wall clock. Everything that asks "what day is it" resolves
+      # through this (src/lib/dates.ts); unset, the container's UTC answers, and
+      # an evening appointment in Tirane files against the wrong day.
+      CLINIC_TIME_ZONE: ${CLINIC_TIME_ZONE:-Europe/Tirane}
+      TZ: ${TZ:-Europe/Tirane}
+      # How long a chart may sit open on the reception tablet before it locks.
+      SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-15}
     volumes:
       # X-rays, photos and signed consent forms. The one piece of state Postgres
       # does not hold, and the one that no backup of the database would restore.

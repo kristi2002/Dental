@@ -7,6 +7,25 @@ import { getDaySchedule } from '@/lib/queries';
 /** Slots are offered on the half hour — a clinic diary, not a calendar app. */
 export const SLOT_STEP_MINUTES = 15;
 
+/**
+ * The statuses that mean a chair and a dentist are spoken for.
+ *
+ * `ARRIVED` belongs here and had been left out of all three queries in this
+ * file, while every other occupancy query in the app included it
+ * (`queries.ts`, `settings.ts`, `utilisation.ts`, the calendar feed). The
+ * effect was the wrong way round from a harmless omission: pressing the front
+ * desk's most-used button made the patient's own chair look free. Booking over
+ * them raised no conflict, "next free slot" offered the slot they were sitting
+ * in, and the day grid drew it as empty.
+ *
+ * Named once, so the next status added has one place to be considered.
+ */
+const OCCUPYING_STATUSES: AppointmentStatus[] = [
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.ARRIVED,
+  AppointmentStatus.COMPLETED,
+];
+
 export type Conflict = {
   id: string;
   startTime: string;
@@ -74,7 +93,7 @@ export async function findConflicts({
   const sameDay = await prisma.appointment.findMany({
     where: {
       date,
-      status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED] },
+      status: { in: OCCUPYING_STATUSES },
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
     select: {
@@ -226,7 +245,7 @@ export async function findFreeGaps({
     prisma.appointment.findMany({
       where: {
         date,
-        status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED] },
+        status: { in: OCCUPYING_STATUSES },
         ...(staffUserId ? { staffUserId } : {}),
       },
       select: { startTime: true, durationMin: true },
@@ -280,7 +299,7 @@ export async function findNextGaps({
   const booked = await prisma.appointment.findMany({
     where: {
       date: { gte: from, lte: lastDay },
-      status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED] },
+      status: { in: OCCUPYING_STATUSES },
       ...(staffUserId ? { staffUserId } : {}),
     },
     select: { date: true, startTime: true, durationMin: true },

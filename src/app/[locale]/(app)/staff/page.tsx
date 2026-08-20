@@ -41,8 +41,23 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
   const tp = await getTranslations('permissions');
   const format = await getFormatter();
 
+  // Named explicitly, so `pinHash` and `pinSalt` are not sitting in a variable
+  // one careless `staff={person}` away from a client component. A scrypt hash of
+  // a four-digit PIN in an RSC payload is a hash of 10 000 candidates: it would
+  // fall in the time it takes to read this comment.
   const staff = await prisma.staffUser.findMany({
     orderBy: [{ active: 'desc' }, { role: 'asc' }, { firstName: 'asc' }],
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      active: true,
+      lockedUntil: true,
+      lastLoginAt: true,
+      calendarFeedVersion: true,
+      createdAt: true,
+    },
   });
 
   const now = new Date();

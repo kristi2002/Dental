@@ -112,7 +112,7 @@ export function AlertFormDialog({
           hint={t('substanceHint')}
           required={kind === 'ALLERGY'}
           defaultValue={alert?.substance}
-          placeholder="Penicilinë"
+          placeholder={t('substancePlaceholder')}
         />
       ) : null}
 
