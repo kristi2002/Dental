@@ -912,6 +912,7 @@
     "filter_completed": "Të përfunduara",
     "filter_cancelled": "Të anuluara",
     "stalled": "E ngecur",
+    "startedOn": "Nisur më {date}",
     "noneStalled": "Asgjë nuk ka mbetur pezull. Çdo plan në vazhdim ose ka lëvizur së fundmi, ose e ka vizitën e radhës të caktuar.",
     "noneCancelled": "Asnjë plan trajtimi nuk është anuluar.",
     "nextOn": "Radhën më {date} në {time}",

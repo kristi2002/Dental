@@ -912,6 +912,7 @@
     "filter_completed": "Finished",
     "filter_cancelled": "Cancelled",
     "stalled": "Stalled",
+    "startedOn": "Started {date}",
     "noneStalled": "Nothing has been left hanging. Every plan in progress has either moved recently or has its next visit booked.",
     "noneCancelled": "No course of treatment has been cancelled.",
     "nextOn": "Next {date} at {time}",

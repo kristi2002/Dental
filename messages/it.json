@@ -912,6 +912,7 @@
     "filter_completed": "Conclusi",
     "filter_cancelled": "Annullati",
     "stalled": "Fermo",
+    "startedOn": "Iniziato il {date}",
     "noneStalled": "Non è rimasto niente in sospeso. Ogni piano in corso si è mosso di recente oppure ha già la prossima visita fissata.",
     "noneCancelled": "Nessun percorso di cura è stato annullato.",
     "nextOn": "Prossima il {date} alle {time}",

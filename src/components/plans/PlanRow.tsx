@@ -168,11 +168,13 @@ export function PlanRow({
       <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
         <div className="min-w-0 flex-1 basis-72">
           {/* The plan is what the row is about, so the plan is the link — and it
-              lands on the plan itself rather than at the top of a tab holding
-              every plan this patient has ever had. */}
+              lands on the plan's own page rather than at the top of a tab
+              holding every plan this patient has ever had. It used to point at
+              `/patients/<id>?tab=plans#plan-<id>`, which was the closest thing
+              to an address a plan had before it had one. */}
           <p className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/patients/${plan.patient.id}?tab=plans#plan-${plan.id}`}
+              href={`/plans/${plan.id}`}
               className="text-[1.1rem] font-bold text-ink no-underline hover:text-brand-deep hover:underline"
             >
               {plan.title}
