@@ -26,7 +26,7 @@ export async function BackupBanner({ status }: { status: BackupStatus }) {
   // either a stack deployed before the backup service existed or one where it
   // is failing to start. Both want saying.
   const unconfiguredInProduction =
-    status.severity === 'unknown' && process.env.NODE_ENV === 'production';
+    status.reason === 'unconfigured' && process.env.NODE_ENV === 'production';
 
   if (status.severity === 'ok' || (status.severity === 'unknown' && !unconfiguredInProduction)) {
     return null;
@@ -34,11 +34,28 @@ export async function BackupBanner({ status }: { status: BackupStatus }) {
 
   const critical = status.severity === 'critical' || unconfiguredInProduction;
 
-  const message = unconfiguredInProduction
-    ? t('banner.unconfigured')
-    : status.ageHours === null
-      ? t('banner.never')
-      : t('banner.stale', { hours: Math.floor(status.ageHours) });
+  // Each reason gets its own sentence, because each wants a different thing
+  // done. "No backup for 40 hours" sends somebody to the logs; "nothing is
+  // leaving this server" sends them to the bucket setup; and `failing` must not
+  // borrow either, because a run that failed an hour after one that worked has
+  // a *recent* good copy — saying "no backup for 1 hour" would be both alarming
+  // and false.
+  function message(): string {
+    switch (status.reason) {
+      case 'localOnly':
+        return t('banner.localOnly');
+      case 'unconfigured':
+        return t('banner.unconfigured');
+      case 'never':
+        return t('banner.never');
+      case 'failing':
+        return t('banner.failing');
+      default:
+        return status.ageHours === null
+          ? t('banner.never')
+          : t('banner.stale', { hours: Math.floor(status.ageHours) });
+    }
+  }
 
   return (
     <div
@@ -56,7 +73,7 @@ export async function BackupBanner({ status }: { status: BackupStatus }) {
           aria-hidden
         />
         <p className={`text-[1.02rem] font-bold ${critical ? 'text-danger' : 'text-warn'}`}>
-          {message}
+          {message()}
         </p>
         <Link
           href="/staff"

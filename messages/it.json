@@ -1253,11 +1253,13 @@
     "title": "Backup automatico",
     "notConfigured": "Il servizio di backup non ha ancora dato notizie. Su questo server nulla sta copiando il database e i file dei pazienti a intervalli regolari.",
     "notConfiguredHint": "Finché non è attivo, l’unica copia è quella scaricata a mano qui sotto. Vedi docs/RESTORE.md.",
-    "state": {
+    "badge": {
       "ok": "In regola",
-      "late": "In ritardo",
-      "critical": "Non funziona",
-      "unknown": "Non configurato"
+      "unconfigured": "Non configurato",
+      "never": "Mai eseguito",
+      "stale": "In ritardo",
+      "failing": "Ultima esecuzione fallita",
+      "localOnly": "Non fuori sede"
     },
     "lastRunFailed": "L’ultima esecuzione è fallita: {message}",
     "lastSuccess": "Ultima copia riuscita",
@@ -1284,7 +1286,9 @@
       "stale": "Nessun backup completato da {hours} ore.",
       "never": "Nessun backup è mai stato completato.",
       "unconfigured": "I backup automatici non sono attivi.",
-      "action": "Controlla lo stato del backup"
+      "action": "Controlla lo stato del backup",
+      "localOnly": "I backup restano su questo server. Nulla viene copiato fuori sede.",
+      "failing": "L’ultima esecuzione del backup è fallita."
     }
   },
   "settings": {

@@ -1253,11 +1253,13 @@
     "title": "Rezervimi automatik",
     "notConfigured": "Shërbimi i rezervimit nuk ka raportuar ende. Asgjë në këtë server nuk po kopjon bazën e të dhënave dhe skedarët e pacientëve sipas një orari.",
     "notConfiguredHint": "Derisa të nisë, e vetmja kopje është ajo që shkarkohet me dorë më poshtë. Shih docs/RESTORE.md.",
-    "state": {
+    "badge": {
       "ok": "Në rregull",
-      "late": "Me vonesë",
-      "critical": "Po dështon",
-      "unknown": "I pakonfiguruar"
+      "unconfigured": "I pakonfiguruar",
+      "never": "Kurrë e ekzekutuar",
+      "stale": "Me vonesë",
+      "failing": "Dështoi së fundmi",
+      "localOnly": "Jo jashtë serverit"
     },
     "lastRunFailed": "Ekzekutimi i fundit dështoi: {message}",
     "lastSuccess": "Kopja e fundit e suksesshme",
@@ -1284,7 +1286,9 @@
       "stale": "Asnjë rezervim nuk ka përfunduar prej {hours} orësh.",
       "never": "Asnjë rezervim nuk ka përfunduar ndonjëherë.",
       "unconfigured": "Rezervimet automatike nuk po funksionojnë.",
-      "action": "Shiko gjendjen e rezervimit"
+      "action": "Shiko gjendjen e rezervimit",
+      "localOnly": "Rezervimet po qëndrojnë në këtë server. Asgjë nuk po kopjohet jashtë tij.",
+      "failing": "Ekzekutimi i fundit i rezervimit dështoi."
     }
   },
   "settings": {

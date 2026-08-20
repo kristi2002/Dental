@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  assess,
   BACKUP_CRITICAL_HOURS,
   BACKUP_LATE_HOURS,
   type BackupRun,
@@ -101,6 +102,59 @@ describe('severityOf', () => {
     // from now on is invisible until the copy ages out on its own.
     const blip = run({ state: 'failed', lastSuccessAt: new Date(NOW.getTime() - 4 * HOUR) });
     assert.equal(severityOf(blip, NOW), 'late');
+  });
+
+  /**
+   * The rule this module exists for, applied to itself.
+   *
+   * With no offsite repository the sidecar dumps, succeeds, and writes a
+   * cheerful status file — and every copy it has ever made is on the same disk
+   * as the database it protects. A dead disk, the realistic disaster for a
+   * single-clinic Postgres, takes both. Showing that as green would be the
+   * manufactured confidence this whole system was built to prevent.
+   */
+  it('refuses to call a local-only copy healthy', () => {
+    const localOnly = run({
+      offsite: { configured: false, repository: '', snapshotId: null, snapshotCount: 0 },
+    });
+    assert.deepEqual(assess(localOnly, NOW), { severity: 'late', reason: 'localOnly' });
+  });
+
+  it('reports a live problem ahead of an unfinished setup step', () => {
+    // Local-only *and* three days stale. The staleness is what needs doing
+    // something about today; ranking the setup step first would bury it.
+    const both = run({
+      lastSuccessAt: new Date(NOW.getTime() - 72 * HOUR),
+      offsite: { configured: false, repository: '', snapshotId: null, snapshotCount: 0 },
+    });
+    assert.deepEqual(assess(both, NOW), { severity: 'critical', reason: 'stale' });
+  });
+});
+
+describe('assess — which sentence to say', () => {
+  it('separates a failing run from a stale one', () => {
+    // Both are amber, and they want opposite things done: one sends somebody to
+    // the container logs, the other means no copy has been made in over a day.
+    // The banner would say "no backup for 4 hours" for both if it went by age,
+    // which is false for the first — a backup *did* complete four hours ago.
+    const failing = run({ state: 'failed', lastSuccessAt: new Date(NOW.getTime() - 4 * HOUR) });
+    const stale = run({ lastSuccessAt: new Date(NOW.getTime() - 30 * HOUR) });
+
+    assert.equal(assess(failing, NOW).reason, 'failing');
+    assert.equal(assess(stale, NOW).reason, 'stale');
+    assert.equal(assess(failing, NOW).severity, assess(stale, NOW).severity);
+  });
+
+  it('calls a missing status file unconfigured rather than broken', () => {
+    assert.deepEqual(assess(null, NOW), { severity: 'unknown', reason: 'unconfigured' });
+  });
+
+  it('distinguishes never-succeeded from gone-stale', () => {
+    assert.equal(assess(run({ state: 'failed', lastSuccessAt: null }), NOW).reason, 'never');
+  });
+
+  it('is green only when a recent copy actually left the building', () => {
+    assert.deepEqual(assess(run(), NOW), { severity: 'ok', reason: 'ok' });
   });
 });
 

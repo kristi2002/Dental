@@ -1253,11 +1253,13 @@
     "title": "Automatic backup",
     "notConfigured": "The backup service has not reported yet. Nothing on this server is copying the database or the patient files on a schedule.",
     "notConfiguredHint": "Until it is running, the only copy is the one somebody downloads by hand below. See docs/RESTORE.md.",
-    "state": {
+    "badge": {
       "ok": "Healthy",
-      "late": "Late",
-      "critical": "Failing",
-      "unknown": "Not set up"
+      "unconfigured": "Not set up",
+      "never": "Never run",
+      "stale": "Late",
+      "failing": "Last run failed",
+      "localOnly": "Not offsite"
     },
     "lastRunFailed": "The last run failed: {message}",
     "lastSuccess": "Last successful copy",
@@ -1284,7 +1286,9 @@
       "stale": "No backup has completed for {hours} hours.",
       "never": "No backup has ever completed.",
       "unconfigured": "Automatic backups are not running.",
-      "action": "Check backup status"
+      "action": "Check backup status",
+      "localOnly": "Backups are staying on this server. Nothing is being copied offsite.",
+      "failing": "The last backup run failed."
     }
   },
   "settings": {

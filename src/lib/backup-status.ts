@@ -46,6 +46,16 @@ export const BACKUP_CRITICAL_HOURS = 48;
 
 export type BackupSeverity = 'ok' | 'late' | 'critical' | 'unknown';
 
+/**
+ * *Why* it is not healthy, as opposed to how loudly to say so.
+ *
+ * Severity decides the colour; this decides the sentence. Keeping them apart
+ * matters because two of these — a copy that is late and a copy that never
+ * leaves the building — are equally amber and want completely different things
+ * done about them.
+ */
+export type BackupReason = 'ok' | 'unconfigured' | 'never' | 'stale' | 'failing' | 'localOnly';
+
 export type BackupRun = {
   state: 'ok' | 'failed';
   message: string;
@@ -81,6 +91,8 @@ export type BackupStatus = {
   run: BackupRun | null;
   verification: BackupVerification | null;
   severity: BackupSeverity;
+  /** Which sentence the banner should say. See `assess`. */
+  reason: BackupReason;
   /** Hours since the last successful backup, or null if there has never been one. */
   ageHours: number | null;
 };
@@ -189,31 +201,53 @@ export function parseVerification(
 // --- The verdict ------------------------------------------------------------
 
 /**
- * How loudly to say something, given the last run and the clock.
+ * What to say, and how loudly, given the last run and the clock.
  *
  * Kept separate from the reading so it can be tested without a filesystem —
  * this is the decision the banner is built on, and it is the one place a
  * mistake would be invisible in exactly the situation it exists for.
  *
- * The age is measured from the last **success**, never from the last attempt. A
- * sidecar that has been failing every twelve hours since Tuesday is running
- * perfectly and protecting nothing; judging it by `finishedAt` would show a
- * green light on a practice with a week-old backup.
+ * Two rules do the real work here.
+ *
+ * **Age is measured from the last success, never the last attempt.** A sidecar
+ * that has been failing every twelve hours since Tuesday is running perfectly
+ * and protecting nothing; judging it by `finishedAt` would show a green light
+ * on a practice with a week-old backup.
+ *
+ * **A copy that never leaves the building is not healthy.** When the offsite
+ * repository is unconfigured the sidecar still dumps, still succeeds, and still
+ * writes a cheerful status file — but every copy it makes sits on the same disk
+ * as the database it protects, so the dead disk that is the realistic disaster
+ * for a single-clinic Postgres takes both. Reporting that as green would be
+ * this module doing the exact thing it exists to prevent.
  */
-export function severityOf(run: BackupRun | null, now: Date = new Date()): BackupSeverity {
-  if (!run) return 'unknown';
-  if (!run.lastSuccessAt) return 'critical';
+export function assess(
+  run: BackupRun | null,
+  now: Date = new Date(),
+): { severity: BackupSeverity; reason: BackupReason } {
+  if (!run) return { severity: 'unknown', reason: 'unconfigured' };
+  if (!run.lastSuccessAt) return { severity: 'critical', reason: 'never' };
 
   const ageHours = (now.getTime() - run.lastSuccessAt.getTime()) / 3_600_000;
 
-  if (ageHours >= BACKUP_CRITICAL_HOURS) return 'critical';
+  if (ageHours >= BACKUP_CRITICAL_HOURS) return { severity: 'critical', reason: 'stale' };
   // A single failed run is a warning while a good copy is still recent, and
   // becomes critical on its own as that copy ages out above. Reporting it as
   // critical immediately would mean a transient network blip during one run
   // puts a red bar across a practice whose backup is four hours old.
-  if (run.state === 'failed' || ageHours >= BACKUP_LATE_HOURS) return 'late';
+  if (run.state === 'failed') return { severity: 'late', reason: 'failing' };
+  if (ageHours >= BACKUP_LATE_HOURS) return { severity: 'late', reason: 'stale' };
 
-  return 'ok';
+  // Last, because every condition above is a live problem and this one is an
+  // unfinished setup step. It is still amber rather than green: local-only is
+  // better than nothing and it is not a backup.
+  if (!run.offsite.configured) return { severity: 'late', reason: 'localOnly' };
+
+  return { severity: 'ok', reason: 'ok' };
+}
+
+export function severityOf(run: BackupRun | null, now: Date = new Date()): BackupSeverity {
+  return assess(run, now).severity;
 }
 
 export function ageHoursOf(run: BackupRun | null, now: Date = new Date()): number | null {
@@ -232,12 +266,14 @@ export async function getBackupStatus(now: Date = new Date()): Promise<BackupSta
 
   const run = parseRun(runRaw);
   const verification = parseVerification(verifyRaw);
+  const { severity, reason } = assess(run, now);
 
   return {
     configured: run !== null,
     run,
     verification,
-    severity: severityOf(run, now),
+    severity,
+    reason,
     ageHours: ageHoursOf(run, now),
   };
 }

@@ -2,7 +2,7 @@ import { CloudOff, CloudUpload, HardDrive, ShieldAlert, ShieldCheck, TriangleAle
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
-import { type BackupStatus, formatBytes } from '@/lib/backup-status';
+import { type BackupSeverity, type BackupStatus, formatBytes } from '@/lib/backup-status';
 
 /**
  * What the automatic backup did last, stated plainly.
@@ -19,7 +19,14 @@ import { type BackupStatus, formatBytes } from '@/lib/backup-status';
  * reassuring card would have left out.
  */
 
-const TONES: Record<string, BadgeTone> = {
+/**
+ * Colour comes from the severity, wording from the reason.
+ *
+ * They are deliberately not the same lookup. "Late" and "not offsite" are both
+ * amber, and a badge that called a local-only copy *late* would be describing
+ * the clock when the problem is the geography.
+ */
+const TONES: Record<BackupSeverity, BadgeTone> = {
   ok: 'ok',
   late: 'warn',
   critical: 'danger',
@@ -49,7 +56,7 @@ export async function BackupStatusCard({ status }: { status: BackupStatus }) {
         <CardHeader
           title={t('title')}
           icon={<CloudOff size={22} aria-hidden />}
-          action={<Badge tone="neutral">{t('state.unknown')}</Badge>}
+          action={<Badge tone="neutral">{t('badge.unconfigured')}</Badge>}
         />
         <div className="space-y-3 p-5">
           <p className="text-[1.02rem] text-ink-soft">{t('notConfigured')}</p>
@@ -61,7 +68,7 @@ export async function BackupStatusCard({ status }: { status: BackupStatus }) {
     );
   }
 
-  const { run, verification, severity } = status;
+  const { run, verification, severity, reason } = status;
   const tone = TONES[severity] ?? 'neutral';
 
   return (
@@ -75,7 +82,7 @@ export async function BackupStatusCard({ status }: { status: BackupStatus }) {
             <ShieldAlert size={22} aria-hidden />
           )
         }
-        action={<Badge tone={tone}>{t(`state.${severity}`)}</Badge>}
+        action={<Badge tone={tone}>{t(`badge.${reason}`)}</Badge>}
       />
 
       <div className="p-5">
