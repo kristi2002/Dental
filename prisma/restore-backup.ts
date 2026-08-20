@@ -118,6 +118,10 @@ const ORDER = [
   // is: a row naming a follow-up that has not been written yet is a foreign key
   // violation partway through the restore.
   'followUpFiles',
+  // The message outbox. After the patient it is addressed to, the appointment
+  // it is about and the staff member who resolved it — all three are foreign
+  // keys, and all three are far above.
+  'scheduledMessages',
   'movements',
   'audit',
 ] as const;
@@ -158,6 +162,7 @@ const MODEL: Record<Key, string> = {
   workLines: 'workLine',
   followUps: 'followUp',
   followUpFiles: 'followUpAttachment',
+  scheduledMessages: 'scheduledMessage',
   movements: 'stockMovement',
   audit: 'auditLog',
 };

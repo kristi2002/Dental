@@ -96,6 +96,7 @@ export async function POST(request: Request) {
     workLines,
     followUps,
     followUpFiles,
+    scheduledMessages,
     auditTotal,
   ] = await Promise.all([
     prisma.staffUser.findMany({
@@ -174,17 +175,27 @@ export async function POST(request: Request) {
     // ever is, see the note below — but without the rows a restored practice
     // has the errand and no idea a photograph of the casting was ever attached.
     prisma.followUpAttachment.findMany(),
+    // The outbox: patient messages queued but not yet sent, and the record of
+    // which ones somebody cancelled and why.
+    //
+    // This one is worse to lose than it looks. `dedupeKey` is unique, and it is
+    // the only thing making the reminder job safe to run twice — a restore
+    // without these rows brings back a practice whose every already-handled
+    // reminder has lost its key, so the next sweep queues the lot again and the
+    // patients get them a second time. The backup would not have lost data so
+    // much as re-armed it.
+    prisma.scheduledMessage.findMany(),
     prisma.auditLog.count(),
   ]);
 
   const payload = JSON.stringify(
     {
       format: 'dentorganizer-backup',
-      // v4 adds the files pinned to a follow-up. v3 added the laboratory
-      // register, the follow-up board, stock products and the template↔treatment
-      // links. An older file still restores — the restore skips a key it does
-      // not find — it simply carries none of those.
-      version: 4,
+      // v5 adds the message outbox. v4 added the files pinned to a follow-up;
+      // v3 the laboratory register, the follow-up board, stock products and the
+      // template↔treatment links. An older file still restores — the restore
+      // skips a key it does not find — it simply carries none of those.
+      version: 5,
       exportedAt: new Date().toISOString(),
       exportedBy: user.fullName,
       note: 'Staff PIN hashes and uploaded files are not included — see README.',
@@ -227,6 +238,7 @@ export async function POST(request: Request) {
         workLines,
         followUps,
         followUpFiles,
+        scheduledMessages,
       },
     },
     null,
