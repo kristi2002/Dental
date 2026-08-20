@@ -56,6 +56,11 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     ],
   },
   { href: '/recalls', key: 'recalls', permission: 'recall.view' },
+  // Beside the recalls rather than filed anywhere: both are lists the practice
+  // works down each morning, and this one is the only thing in the rail that
+  // chases the practice rather than a patient. The bell keeps it from ever being
+  // missed; this is where it is actually worked.
+  { href: '/follow-ups', key: 'followUps', permission: 'followup.view' },
   {
     href: '/services',
     key: 'services',

@@ -17,11 +17,10 @@
  *     `lookupScan` reads it here before it tries `parseScan`.
  *
  * The id is in the path rather than a short code of its own, so that nothing
- * has to be allocated, kept unique or migrated — a material already has an id,
- * and the deploy runs `db push` and never a backfill (see
- * `dental-deploy-runs-db-push-not-migrations`). A uuid costs about fourteen
- * characters of symbol density over a short code, which is one QR version and
- * no practical difference on a 30mm sticker.
+ * has to be allocated, kept unique or backfilled — a material already has an
+ * id. A uuid costs about fourteen characters of symbol density over a short
+ * code, which is one QR version and no practical difference on a 30mm
+ * sticker.
  */
 
 /**

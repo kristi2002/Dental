@@ -374,19 +374,19 @@ Postgres's `unaccent()` in the query. Pick one and use it on both sides.
 
 ## 4. Operational
 
-### 4.1 ⚪ No migration history
+### 4.1 ✅ No migration history — *closed*
 
-There is no `prisma/migrations/` directory; the workflow is `db push`. That is
-fine while the schema is molten, but it means:
+There was no `prisma/migrations/` directory; the workflow was `db push`, which
+left no record of how production got to its shape, no rollback, and no way to
+apply a change to a running clinic database without Prisma deciding the diff at
+deploy time.
 
-- no record of how production got to its current shape,
-- no rollback,
-- no way to apply a change to a running clinic database without Prisma deciding
-  the diff at deploy time.
-
-Before this runs anywhere real, run `prisma migrate dev --name init` once to
-baseline, and switch to `migrate deploy` in the release step. Several of the
-changes above (enums, added columns) need data migrations, not just schema ones.
+**Closed.** The directory exists, `docker/entrypoint.sh` replays it with
+`migrate deploy`, and CI replays it from empty on every push. The last line of
+the original note — *"several of the changes above need data migrations, not
+just schema ones"* — is the part that had been quietly blocking work: see
+[GAPS-2026-08 §1.3](GAPS-2026-08.md) for what became possible, including the
+patient-search backfill that had never run in production.
 
 ### 4.2 ⚪ Backup has no restore, and quietly truncates
 

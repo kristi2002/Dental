@@ -482,8 +482,11 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
       status: {
         in: [AppointmentStatus.SCHEDULED, AppointmentStatus.ARRIVED, AppointmentStatus.COMPLETED],
       },
-      // The gate that stands in for the unique constraint the deploy will not
-      // accept: a slot already written up is not a candidate for a second one.
+      // A slot already written up is not a candidate for a second one. Backed
+      // by a unique index on `VisitRecord.appointmentId` since
+      // `20260820110000_constraints_the_deploy_can_now_carry`; this filter is
+      // still what makes the common case pick the *next* free slot rather than
+      // failing, and the index is what settles a genuine race.
       visitRecords: { none: {} },
     },
     select: { id: true, startTime: true, status: true },

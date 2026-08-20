@@ -1,4 +1,4 @@
-import { Check, CircleCheck, ExternalLink, Trash2 } from 'lucide-react';
+import { Check, CircleCheck, ExternalLink, Paperclip, Trash2 } from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { Badge } from '@/components/ui/Badge';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -14,6 +14,7 @@ import {
   SNOOZE_DAYS,
   sortFollowUps,
 } from '@/lib/follow-ups';
+import { excerpt } from '@/lib/markdown';
 import type { OpenFollowUp } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import { FollowUpFormDialog, type StaffOption } from './FollowUpFormDialog';
@@ -97,9 +98,23 @@ export async function FollowUpList({
 
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="font-bold text-ink">{item.title}</span>
+                {/* The way in to the note itself — where the full text, the
+                    checklist and the attachments live. The row stays a summary;
+                    everything that does not fit in one is one press away. */}
+                <Link href={`/follow-ups/${item.id}`} className="font-bold text-ink">
+                  {item.title}
+                </Link>
                 {item.priority === 'URGENT' ? (
                   <Badge tone="danger">{t('urgent')}</Badge>
+                ) : null}
+                {item._count.attachments > 0 ? (
+                  <span
+                    className="inline-flex items-center gap-1 text-[0.85rem] font-semibold text-ink-faint tabular-nums"
+                    title={t('attachmentCount', { count: item._count.attachments })}
+                  >
+                    <Paperclip size={13} aria-hidden />
+                    {item._count.attachments}
+                  </span>
                 ) : null}
               </p>
 
@@ -144,8 +159,11 @@ export async function FollowUpList({
                 ) : null}
               </p>
 
+              {/* One line, with the Markdown taken off. A row is a summary, and
+                  a note that is now allowed to be a checklist would otherwise
+                  print its dashes and asterisks into the bell. */}
               {item.notes ? (
-                <p className="mt-1 text-[0.88rem] text-ink-faint">{item.notes}</p>
+                <p className="mt-1 text-[0.88rem] text-ink-faint">{excerpt(item.notes, 120)}</p>
               ) : null}
 
               {/* The working verbs, and only in the bell. The dashboard card is

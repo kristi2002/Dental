@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  AlarmClock,
   BellRing,
   CalendarDays,
   ChartColumn,
@@ -41,6 +42,7 @@ const ICONS: Record<string, LucideIcon> = {
   plans: ClipboardList,
   works: FlaskConical,
   recalls: BellRing,
+  followUps: AlarmClock,
   services: Stethoscope,
   serviceCategories: Tags,
   prescriptions: Pill,

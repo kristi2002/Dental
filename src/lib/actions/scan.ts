@@ -10,7 +10,7 @@ import { prisma } from '@/lib/prisma';
 import { parseStockLabel, stockLabelPath } from '@/lib/stock-labels';
 import { takeFromShelf } from '@/lib/stock-consumption';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
-import { actionError, actionOk, type ActionState } from './types';
+import { actionError, actionOk, isUniqueViolation, type ActionState } from './types';
 
 function revalidateAll() {
   revalidatePath('/', 'layout');
@@ -22,18 +22,6 @@ function parseDay(raw: string | null): Date | null {
 }
 
 const isoDay = (value: Date | null | undefined) => value?.toISOString().slice(0, 10) ?? null;
-
-/**
- * Prisma's "unique constraint failed".
- *
- * Read off the code rather than by importing Prisma's error class, which is a
- * generated type this file has no other reason to know about.
- */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002'
-  );
-}
 
 /** Which way the scan moves the shelf. */
 export type ScanDirection = 'in' | 'out';
@@ -459,10 +447,10 @@ export async function linkBarcode(_prev: ActionState, formData: FormData): Promi
   } catch (error) {
     // The check above lost a race — two people linked the same symbol in the
     // same moment. `ProductBarcode.code` is unique in the database exactly so
-    // the second one cannot land, and this is the one place in the storage room
-    // where that constraint exists to be leaned on: the other duplicate checks
-    // guard columns `db push` will not let us index (see `StockItem.code`), so
-    // they have no conflict to catch and nothing to retry.
+    // the second one cannot land. `StockItem.code` is now backed the same way;
+    // the remaining duplicate checks in the storage room guard columns whose
+    // rule is case-insensitive and therefore deliberately not an index, so they
+    // have no conflict to catch and nothing to retry.
     //
     // Worth telling apart from a real failure, because the answer is a sentence
     // the person can act on — which material already wears this code — and not

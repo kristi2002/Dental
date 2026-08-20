@@ -49,11 +49,17 @@ export function buildSearchKey(patient: {
  * The `OR` clauses a patient search should use.
  *
  * `searchKey` is the good path — one folded column, one comparison, indexable.
- * The raw columns are kept beside it deliberately, because `searchKey` is
- * populated by a backfill and a deployment that has not run it yet would
- * otherwise return *nothing* for every name typed. Basic search must not depend
- * on a data migration having happened; it degrades to the old case-insensitive
- * behaviour instead, and sharpens once the backfill runs.
+ * It is filled on every save and, since
+ * `20260820100000_backfill_patient_search_key`, for every row that predates the
+ * column too. That migration is what finally made accent folding real in
+ * production: until the deploy started replaying migrations there was no way to
+ * run it, so typing `cesh` found nothing called `Çështje` on any row nobody had
+ * happened to edit.
+ *
+ * The raw columns are kept beside it all the same. They cost nothing, and they
+ * mean a search still works on a database restored from an older backup, or one
+ * where the backfill has yet to be applied — basic search should never depend on
+ * a data migration having happened.
  *
  * The phone clause is only added when digits were actually typed: an empty
  * `contains` matches every row, which would turn a name search into

@@ -78,12 +78,13 @@ export async function saveService(_prev: ActionState, formData: FormData): Promi
 /**
  * Name a department, or a subcategory inside one.
  *
- * The duplicate check is here rather than on a unique index because the deploy
- * runs `prisma db push` without `--accept-data-loss` (see `docker/entrypoint.sh`)
- * and adding a unique index is exactly the change that stops it dead. It is
- * scoped to the parent: two departments cannot share a name, two
- * subcategories of one department cannot share a name, but "Zbardhim" under
- * Estetikë and "Zbardhim" under Protetikë are two different headings.
+ * The duplicate check is here rather than on a unique index because it is
+ * scoped to the parent and compared case-insensitively — two departments cannot
+ * share a name, two subcategories of one department cannot share a name, but
+ * "Zbardhim" under Estetikë and "Zbardhim" under Protetikë are two different
+ * headings. A `@@unique([parentId, name])` would be case-*sensitive* and would
+ * treat every top-level row as sharing one null parent, so it would enforce a
+ * different and wronger rule than this one.
  */
 export async function saveServiceCategory(
   _prev: ActionState,

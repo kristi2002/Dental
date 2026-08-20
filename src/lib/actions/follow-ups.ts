@@ -5,6 +5,8 @@ import { getTranslations } from 'next-intl/server';
 import { FollowUpPriority } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { fromDateKey, today } from '@/lib/dates';
+import { isAllowedMimeType, MAX_FILE_BYTES } from '@/lib/file-constants';
+import { deleteStoredFile, storeFile } from '@/lib/files';
 import { clampNotes, clampTitle, snoozeUntil } from '@/lib/follow-ups';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
@@ -209,15 +211,134 @@ export async function deleteFollowUp(formData: FormData): Promise<void> {
   const id = requiredString(formData.get('id'));
   if (!id) return;
 
-  const item = await prisma.followUp.findUnique({ where: { id }, select: { title: true } });
+  const item = await prisma.followUp.findUnique({
+    where: { id },
+    // The attachment rows cascade with the line; the bytes they name do not.
+    // Read the keys before the delete takes the rows that carry them, or the
+    // files are stranded in storage with nothing left pointing at them.
+    select: { title: true, attachments: { select: { storageKey: true } } },
+  });
   if (!item) return;
 
   await prisma.followUp.delete({ where: { id } });
+  await Promise.all(item.attachments.map((file) => deleteStoredFile(file.storageKey)));
+
   await recordAudit(user, {
     action: 'delete',
     entity: 'followup',
     entityId: id,
     summary: item.title,
+  });
+
+  revalidateAll();
+}
+
+/**
+ * Pin a photograph, a scan or a PDF to one follow-up.
+ *
+ * The same shape as `uploadDocument`, and deliberately so — same allowlist, same
+ * size ceiling, same generated storage key, same "delete the bytes if the row
+ * fails" ordering. What differs is only where it is filed and who may see it:
+ * `followup.edit` rather than `document.edit`, because a working note is not a
+ * medical record. See `FollowUpAttachment` in the schema for that argument.
+ */
+export async function uploadFollowUpAttachment(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('errors');
+  const td = await getTranslations('documents');
+
+  const user = await authorize('followup.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const followUpId = requiredString(formData.get('followUpId'));
+  const file = formData.get('file');
+  if (!followUpId || !(file instanceof File) || file.size === 0) {
+    return actionError(td('errorNoFile'));
+  }
+
+  if (file.size > MAX_FILE_BYTES) {
+    return actionError(td('errorTooLarge', { max: Math.floor(MAX_FILE_BYTES / (1024 * 1024)) }));
+  }
+  if (!isAllowedMimeType(file.type)) {
+    return actionError(td('errorType'));
+  }
+
+  // Checked before anything is written to disk: an id from a stale page would
+  // otherwise leave bytes in storage that no row will ever point at.
+  const followUp = await prisma.followUp.findUnique({
+    where: { id: followUpId },
+    select: { id: true, title: true },
+  });
+  if (!followUp) return actionError(t('generic'));
+
+  let storageKey: string;
+  try {
+    storageKey = await storeFile(new Uint8Array(await file.arrayBuffer()), file.type);
+  } catch (error) {
+    console.error('[follow-ups] could not store attachment', error);
+    return actionError(t('generic'));
+  }
+
+  try {
+    await prisma.followUpAttachment.create({
+      data: {
+        followUpId: followUp.id,
+        fileName: file.name.slice(0, 180),
+        mimeType: file.type,
+        sizeBytes: file.size,
+        storageKey,
+        uploadedById: user.id,
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    await deleteStoredFile(storageKey);
+    console.error('[follow-ups] could not record attachment', error);
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: 'create',
+    entity: 'followup',
+    entityId: followUp.id,
+    summary: `${followUp.title} — attached ${file.name}`,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/**
+ * Unpin a file, and take the bytes with it.
+ *
+ * The row goes first: an orphaned file on disk is a housekeeping problem that
+ * `sweep-orphan-files.ts` already exists to mop up, while a row pointing at
+ * bytes that are gone is a broken link on the screen every time somebody opens
+ * the note.
+ */
+export async function deleteFollowUpAttachment(formData: FormData): Promise<void> {
+  const user = await authorize('followup.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const attachment = await prisma.followUpAttachment.findUnique({
+    where: { id },
+    select: { storageKey: true, fileName: true, followUpId: true },
+  });
+  if (!attachment) return;
+
+  await prisma.followUpAttachment.delete({ where: { id } });
+  await deleteStoredFile(attachment.storageKey);
+
+  await recordAudit(user, {
+    action: 'delete',
+    entity: 'followup',
+    entityId: attachment.followUpId,
+    summary: `removed ${attachment.fileName}`,
   });
 
   revalidateAll();

@@ -28,7 +28,8 @@
     "prescriptions": "Ricette",
     "stockCatalog": "Catalogo",
     "workProcedures": "Tipi di lavorazione",
-    "stockLabels": "Etichette"
+    "stockLabels": "Etichette",
+    "followUps": "Da fare"
   },
   "common": {
     "save": "Salva",
@@ -1084,7 +1085,30 @@
     "lateBy": "{days, plural, one {# giorno} other {# giorni}} di ritardo",
     "bellOpen": "{count, plural, =0 {niente in sospeso} one {# in sospeso} other {# in sospeso}}",
     "bellLate": "{count, plural, one {# in ritardo} other {# in ritardo}}",
-    "dueCount": "{count, plural, one {# da fare ora} other {# da fare ora}}"
+    "dueCount": "{count, plural, one {# da fare ora} other {# da fare ora}}",
+    "subtitle": "Quello che lo studio deve a sé stesso — inseguito, non ricordato.",
+    "searchPlaceholder": "Una parola del titolo o della nota",
+    "unassigned": "Ancora nessuno",
+    "statusOpen": "Da fare",
+    "statusDone": "Fatte",
+    "statusAll": "Tutte",
+    "bucket_overdue": "In ritardo",
+    "bucket_today": "Oggi",
+    "bucket_week": "Questa settimana",
+    "bucket_later": "Più avanti",
+    "bucket_done": "Completate",
+    "bucketCount": "{count, plural, one {# voce} other {# voci}}",
+    "resultCount": "{count, plural, =0 {nessun risultato} one {# voce} other {# voci}}",
+    "reopen": "Rimettila",
+    "doneOn": "Fatta il {date}",
+    "doneBy": "chiusa da {name}",
+    "writtenBy": "scritta da {name}, {date}",
+    "detailTitle": "La nota",
+    "detailSubtitle": "Spazio per tutto: un elenco, un collegamento, cosa ha detto il laboratorio.",
+    "attachments": "File",
+    "attachmentsEmpty": "Nessun allegato. Una foto del manufatto vale più di una frase che lo descrive.",
+    "attach": "Allega un file",
+    "attachmentCount": "{count, plural, one {# file} other {# file}}"
   },
   "workProcedures": {
     "title": "Tipi di lavorazione",
@@ -1449,5 +1473,20 @@
     "formatElement": "GS1",
     "formatDigitalLink": "QR GS1",
     "formatPlain": "Codice semplice"
+  },
+  "editor": {
+    "bold": "Grassetto",
+    "italic": "Corsivo",
+    "bullets": "Elenco puntato",
+    "numbers": "Elenco numerato",
+    "link": "Collegamento",
+    "preview": "Anteprima",
+    "write": "Scrivi",
+    "previewEmpty": "Ancora niente di scritto.",
+    "linkText": "collegamento",
+    "boldText": "grassetto",
+    "italicText": "corsivo",
+    "hint": "**grassetto**, *corsivo*, - per un elenco. Un indirizzo incollato diventa un collegamento.",
+    "remaining": "{count} rimasti"
   }
 }

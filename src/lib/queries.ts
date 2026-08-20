@@ -119,11 +119,13 @@ export type ServiceCategoryOption = {
  *
  * The carry-over is `getStockCategories`' twin, for the same reason: the
  * categories the practice already typed are real information — the whole
- * catalogue is grouped by them — and the deploy runs `prisma db push` without
- * ever running migration SQL or a backfill script (see `docker/entrypoint.sh`),
- * so the app has to do it the first time it looks. Each distinct spelling
- * becomes one top-level `ServiceCategory`; nothing arrives as a subcategory,
- * because the old text box could not express one.
+ * catalogue is grouped by them — and it is done on first read so that a
+ * practice sees its own headings without anybody having to run anything. A
+ * migration could do it now that the deploy replays them, and this could be
+ * retired into one; it is left here because it is idempotent, costs an empty
+ * query once adopted, and works the same on a database restored from backup.
+ * Each distinct spelling becomes one top-level `ServiceCategory`; nothing
+ * arrives as a subcategory, because the old text box could not express one.
  */
 export async function getServiceCategories(): Promise<ServiceCategoryOption[]> {
   const orphaned = await prisma.service.findMany({
@@ -543,9 +545,9 @@ export type StockCategoryOption = { id: string; name: string };
  *
  * The categories the practice already has were typed into a text box, one
  * material at a time, and they are real information: the stocktake screen walks
- * the room by them. They cannot be moved by a migration, because the deploy runs
- * `prisma db push` and never runs migration SQL or a backfill script (see
- * `docker/entrypoint.sh`), so the app has to do it the first time it looks.
+ * the room by them. This moves them on first read rather than in a migration —
+ * see `getServiceCategories` above for why that is still the case now that
+ * migrations do run.
  *
  * Each distinct spelling becomes one `StockCategory`, the materials wearing it
  * are pointed at that row, and `legacyCategory` is cleared in the same
@@ -710,6 +712,7 @@ export const getOpenFollowUps = cache(async () => {
       work: { select: { number: true, patientName: true } },
       stockItem: { select: { name: true } },
       assignedTo: { select: { firstName: true, lastName: true } },
+      _count: { select: { attachments: true } },
     },
   });
 });
@@ -761,3 +764,101 @@ export const getAssignableStaff = cache(async (): Promise<StaffOption[]> => {
     name: `${person.firstName} ${person.lastName}`,
   }));
 });
+
+/**
+ * The relations every rendering of a follow-up needs, named once.
+ *
+ * The board, the bell and the detail screen all have to say whose crown a line
+ * is about and whose job it is, and all three would otherwise spell out the
+ * same four joins slightly differently.
+ */
+const FOLLOW_UP_LINKS = {
+  patient: { select: { id: true, firstName: true, lastName: true } },
+  work: { select: { number: true, patientName: true } },
+  stockItem: { select: { name: true } },
+  assignedTo: { select: { firstName: true, lastName: true } },
+} as const;
+
+/** How the board is narrowed. Every value comes straight off the query string. */
+export type FollowUpFilters = {
+  /** `open` (the default), `done`, or `all`. */
+  status?: string;
+  /** A staff id, or `none` for the lines nobody has been given. */
+  assignee?: string;
+  /** Matched against the title and the note. */
+  q?: string;
+};
+
+/**
+ * The board, in full — including what has been ticked off.
+ *
+ * `getOpenFollowUps` above answers the bell's question ("what is still to do?")
+ * and is cached for it. This one answers the *page's*, which is a different
+ * question: a board somebody works down has to be able to show what was closed
+ * last week, or a line ticked by mistake is gone for good. The two are kept
+ * apart rather than parameterised into one, because the bell's version is read
+ * on every single page in the app and must stay the narrow, cacheable query.
+ */
+export async function getFollowUpBoard(filters: FollowUpFilters = {}) {
+  const status = filters.status === 'done' || filters.status === 'all' ? filters.status : 'open';
+  const term = filters.q?.trim();
+
+  return prisma.followUp.findMany({
+    where: {
+      ...(status === 'open' ? { doneAt: null } : {}),
+      ...(status === 'done' ? { doneAt: { not: null } } : {}),
+      // Same rule as the bell: a line about somebody who has been filed away is
+      // not work any more, and most lines are about nobody in particular.
+      OR: [{ patientId: null }, { patient: ACTIVE_PATIENTS }],
+      ...(filters.assignee === 'none'
+        ? { assignedToId: null }
+        : filters.assignee
+          ? { assignedToId: filters.assignee }
+          : {}),
+      ...(term
+        ? {
+            AND: [
+              {
+                OR: [
+                  { title: { contains: term, mode: 'insensitive' as const } },
+                  { notes: { contains: term, mode: 'insensitive' as const } },
+                ],
+              },
+            ],
+          }
+        : {}),
+    },
+    // A closed board reads newest-first — "what did we do?" — while an open one
+    // reads by date. `sortFollowUps` puts the open buckets in reading order
+    // afterwards; this only has to get the closed case right, which it cannot,
+    // because "done" has no bucket to sort into.
+    orderBy: status === 'done' ? [{ doneAt: 'desc' }] : [{ dueAt: 'asc' }, { createdAt: 'asc' }],
+    include: {
+      ...FOLLOW_UP_LINKS,
+      doneBy: { select: { firstName: true, lastName: true } },
+      // The count alone: the board shows a paperclip and a number, and reading
+      // every filename for every row to print one digit is a query per line.
+      _count: { select: { attachments: true } },
+    },
+  });
+}
+
+export type BoardFollowUp = Awaited<ReturnType<typeof getFollowUpBoard>>[number];
+
+/** One line, with everything its own screen shows. */
+export async function getFollowUp(id: string) {
+  return prisma.followUp.findUnique({
+    where: { id },
+    include: {
+      ...FOLLOW_UP_LINKS,
+      createdBy: { select: { firstName: true, lastName: true } },
+      doneBy: { select: { firstName: true, lastName: true } },
+      attachments: {
+        orderBy: { createdAt: 'asc' },
+        include: { uploadedBy: { select: { firstName: true, lastName: true } } },
+      },
+    },
+  });
+}
+
+export type FollowUpDetail = NonNullable<Awaited<ReturnType<typeof getFollowUp>>>;

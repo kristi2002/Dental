@@ -28,7 +28,8 @@
     "prescriptions": "Recetat",
     "stockCatalog": "Katalogu",
     "workProcedures": "Llojet e punimeve",
-    "stockLabels": "Etiketa"
+    "stockLabels": "Etiketa",
+    "followUps": "Detyrat"
   },
   "common": {
     "save": "Ruaj",
@@ -1084,7 +1085,30 @@
     "lateBy": "{days, plural, one {# ditë} other {# ditë}} vonesë",
     "bellOpen": "{count, plural, =0 {asgjë e hapur} one {# e hapur} other {# të hapura}}",
     "bellLate": "{count, plural, one {# me vonesë} other {# me vonesë}}",
-    "dueCount": "{count, plural, one {# për tani} other {# për tani}}"
+    "dueCount": "{count, plural, one {# për tani} other {# për tani}}",
+    "subtitle": "Çfarë i detyrohet klinika vetes — e ndjekur, jo e mbajtur mend.",
+    "searchPlaceholder": "Një fjalë nga titulli ose shënimi",
+    "unassigned": "Ende askush",
+    "statusOpen": "Për t’u bërë",
+    "statusDone": "Të kryera",
+    "statusAll": "Të gjitha",
+    "bucket_overdue": "Me vonesë",
+    "bucket_today": "Sot",
+    "bucket_week": "Këtë javë",
+    "bucket_later": "Më vonë",
+    "bucket_done": "Të mbyllura",
+    "bucketCount": "{count, plural, one {# detyrë} other {# detyra}}",
+    "resultCount": "{count, plural, =0 {asnjë përputhje} one {# detyrë} other {# detyra}}",
+    "reopen": "Rikthe",
+    "doneOn": "Kryer më {date}",
+    "doneBy": "mbyllur nga {name}",
+    "writtenBy": "shkruar nga {name}, {date}",
+    "detailTitle": "Shënimi",
+    "detailSubtitle": "Vend për gjithë punën — një listë, një lidhje, çfarë tha laboratori.",
+    "attachments": "Skedarë",
+    "attachmentsEmpty": "Asgjë e bashkëngjitur. Një foto e punës vlen më shumë se një fjali që e përshkruan.",
+    "attach": "Bashkëngjit skedar",
+    "attachmentCount": "{count, plural, one {# skedar} other {# skedarë}}"
   },
   "workProcedures": {
     "title": "Llojet e punimeve",
@@ -1449,5 +1473,20 @@
     "formatElement": "GS1",
     "formatDigitalLink": "QR GS1",
     "formatPlain": "Kod i thjeshtë"
+  },
+  "editor": {
+    "bold": "Të trasha",
+    "italic": "Të pjerrëta",
+    "bullets": "Listë me pika",
+    "numbers": "Listë me numra",
+    "link": "Lidhje",
+    "preview": "Pamje",
+    "write": "Shkruaj",
+    "previewEmpty": "Ende asgjë e shkruar.",
+    "linkText": "lidhje",
+    "boldText": "të trasha",
+    "italicText": "të pjerrëta",
+    "hint": "**të trasha**, *të pjerrëta*, - për listë. Një adresë e ngjitur bëhet lidhje.",
+    "remaining": "{count} të mbetura"
   }
 }

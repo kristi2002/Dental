@@ -16,7 +16,17 @@ import { addDays, toDay, today } from './dates';
 
 /** Long enough for a real errand, short enough to read in the bell's width. */
 export const MAX_TITLE_LENGTH = 160;
-export const MAX_NOTES_LENGTH = 1000;
+
+/**
+ * Room for a note that is now allowed to have structure.
+ *
+ * Was 1000, which was the right size for the two lines a textarea invited. Once
+ * a note can carry a checklist, a supplier's address and the three things to
+ * ask on the phone, that ceiling starts truncating mid-sentence — and silently,
+ * because `clampNotes` cuts rather than refuses. Four thousand is still far
+ * short of "this is a document"; it is about a screenful of prose.
+ */
+export const MAX_NOTES_LENGTH = 4000;
 
 /**
  * What "later" is allowed to mean.

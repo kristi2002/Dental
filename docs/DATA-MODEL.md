@@ -11,16 +11,17 @@ and which parts of the app are *derived* rather than stored. Companion document:
 
 ## 1. How the tables are created
 
-There is no SQL file anywhere in the repo. Every table is generated from one
-declarative source.
+Every table is generated from one declarative source, and every change to it is
+recorded as reviewed SQL under `prisma/migrations/`.
 
 ```
-prisma/schema.prisma          ← the single source of truth (16 models, 5 enums)
+prisma/schema.prisma          ← the single source of truth (35 models, 12 enums)
         │
-        ├── prisma db push ──→ PostgreSQL     (creates/alters tables directly)
-        │   prisma migrate dev                (same, but writes a migration file)
+        ├── prisma migrate diff ─→ prisma/migrations/<name>/migration.sql
+        │        │                 (reviewed, committed, replayed on deploy)
+        │        └── prisma migrate deploy ──→ PostgreSQL
         │
-        └── prisma generate ─→ src/generated/prisma/   (the typed client)
+        └── prisma generate ─────→ src/generated/prisma/   (the typed client)
 ```
 
 ### The pieces
@@ -36,14 +37,21 @@ prisma/schema.prisma          ← the single source of truth (16 models, 5 enums
 ### The commands
 
 ```bash
-npm run db:push      # sync schema → database, no migration file (current workflow)
+npm run db:deploy    # replay pending migrations (what the container does on boot)
 npm run db:migrate   # create + apply a named migration
+npm run db:push      # sync schema → database with no migration file (local only)
 npm run db:seed      # demo data — DELETES every row first
 npm run db:studio    # browse the database
 ```
 
-There is **no `prisma/migrations/` directory** — the project has only ever used
-`db push`. See [IMPROVEMENTS.md §4.1](IMPROVEMENTS.md#41-no-migration-history).
+`prisma/migrations/` is the history, and `docker/entrypoint.sh` replays it with
+`prisma migrate deploy` on every boot. It used to run `db push` instead, which
+is why several models still carry columns and a table that nothing reads: for as
+long as that was the deploy, a column could be added but never dropped, a unique
+index could never be introduced at all, and no backfill could run. Those are all
+ordinary migrations now. See [DEPLOYMENT.md](DEPLOYMENT.md) for authoring one —
+the database role has no shadow-database rights, so they are written with
+`prisma migrate diff` and marked applied with `prisma migrate resolve`.
 
 ### Conventions applied to every table
 
@@ -312,9 +320,9 @@ so a carton read off its EAN-13 and off its GS1 DataMatrix resolves to one row.
 `packQty` is what a single scan is worth — a carton of 100 and a box of 100
 carry different codes, and scanning the carton must add what the carton holds.
 
-Unlike `StockItem.code`, this one *does* carry a unique constraint: the table
-ships empty, so `db push` will add it, and an ambiguous scan is the one thing a
-scanner must never produce.
+This carries a unique constraint because an ambiguous scan is the one thing a
+scanner must never produce. `StockItem.code` now carries one too — it could not
+while the deploy ran `db push`, which refuses to add a unique index at all.
 
 #### `ServiceMaterial` — retired
 Was the bill of materials for a treatment: set once per service, and recording a
@@ -322,10 +330,10 @@ visit deducted it. Nothing reads or writes it now — consumption is scanned off
 the product instead, which records the box that was actually used and its lot
 rather than the catalog's prediction of both.
 
-Still declared only because the deploy runs `prisma db push` without
-`--accept-data-loss`, and removing a populated table halts the release. See
-[`drop-service-materials.ts`](../prisma/drop-service-materials.ts) for the
-two-release removal.
+Still declared because the table still holds rows, and dropping a populated
+table is a decision rather than a tidy-up — no longer because the deploy cannot
+carry it. See [`drop-service-materials.ts`](../prisma/drop-service-materials.ts),
+which is the work a migration would fold in.
 
 #### `StockMovement` — the ledger
 Append-only quantity changes. This table, not `StockItem.quantity`, is what the

@@ -80,11 +80,11 @@ export function linesUsing(usage: ReadonlyArray<ProcedureUsage>, name: string): 
 /**
  * The names already written down the register that the catalogue has not got.
  *
- * The catalogue arrives empty — the deploy runs `prisma db push` and never a
- * backfill (see `docker/entrypoint.sh`), so nothing carries the old free text
- * across on its own. Rather than a script nobody will run, or a silent adoption
- * on first read that would resurrect itself every time the practice deleted an
- * entry, the names are *offered*: each one becomes a button on the catalogue
+ * The catalogue arrives empty, and nothing carries the old free text across on
+ * its own. That is a choice rather than a limitation: a migration could adopt
+ * every distinct spelling, and it should not. A silent adoption would resurrect
+ * itself every time the practice deleted an entry, and a bulk one would enshrine
+ * the typos. So the names are *offered*: each becomes a button on the catalogue
  * page.
  *
  * That turns the migration into the job the catalogue exists for. A register

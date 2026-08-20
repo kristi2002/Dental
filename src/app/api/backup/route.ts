@@ -95,6 +95,7 @@ export async function POST(request: Request) {
     works,
     workLines,
     followUps,
+    followUpFiles,
     auditTotal,
   ] = await Promise.all([
     prisma.staffUser.findMany({
@@ -169,16 +170,21 @@ export async function POST(request: Request) {
     // The practice's own board of things to come back to. Same story — a whole
     // module, and the one table holding work that has not happened yet.
     prisma.followUp.findMany(),
+    // What is pinned to those lines. The bytes are not in this file — no upload
+    // ever is, see the note below — but without the rows a restored practice
+    // has the errand and no idea a photograph of the casting was ever attached.
+    prisma.followUpAttachment.findMany(),
     prisma.auditLog.count(),
   ]);
 
   const payload = JSON.stringify(
     {
       format: 'dentorganizer-backup',
-      // v3 adds the laboratory register, the follow-up board, stock products and
-      // the template↔treatment links. A v2 file still restores — the restore
-      // skips a key it does not find — it simply carries none of those.
-      version: 3,
+      // v4 adds the files pinned to a follow-up. v3 added the laboratory
+      // register, the follow-up board, stock products and the template↔treatment
+      // links. An older file still restores — the restore skips a key it does
+      // not find — it simply carries none of those.
+      version: 4,
       exportedAt: new Date().toISOString(),
       exportedBy: user.fullName,
       note: 'Staff PIN hashes and uploaded files are not included — see README.',
@@ -220,6 +226,7 @@ export async function POST(request: Request) {
         works,
         workLines,
         followUps,
+        followUpFiles,
       },
     },
     null,

@@ -31,3 +31,20 @@ export function actionOk(): ActionState {
 export function actionError(message: string, code?: ActionErrorCode): ActionState {
   return { status: 'error', message, ts: Date.now(), code };
 }
+
+/**
+ * Prisma's "unique constraint failed".
+ *
+ * Read off the code rather than by importing Prisma's error class, which is a
+ * generated type the action files have no other reason to know about.
+ *
+ * Lives here rather than beside its first caller because there is more than one
+ * now: every duplicate check in the app races with itself, and the ones whose
+ * column carries a real index can turn that race into the same sentence the
+ * check would have produced instead of a shrug.
+ */
+export function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002'
+  );
+}

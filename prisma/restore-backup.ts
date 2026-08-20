@@ -114,6 +114,10 @@ const ORDER = [
   // Last of the live tables, because a line may point at a patient, a case or a
   // material, and names the staff who wrote, own and closed it.
   'followUps',
+  // After the lines they hang off, for the same reason every other child table
+  // is: a row naming a follow-up that has not been written yet is a foreign key
+  // violation partway through the restore.
+  'followUpFiles',
   'movements',
   'audit',
 ] as const;
@@ -153,6 +157,7 @@ const MODEL: Record<Key, string> = {
   works: 'work',
   workLines: 'workLine',
   followUps: 'followUp',
+  followUpFiles: 'followUpAttachment',
   movements: 'stockMovement',
   audit: 'auditLog',
 };

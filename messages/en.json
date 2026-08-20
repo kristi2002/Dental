@@ -28,7 +28,8 @@
     "prescriptions": "Prescriptions",
     "stockCatalog": "Catalogue",
     "workProcedures": "Kinds of work",
-    "stockLabels": "Labels"
+    "stockLabels": "Labels",
+    "followUps": "Follow-ups"
   },
   "common": {
     "save": "Save",
@@ -1084,7 +1085,30 @@
     "lateBy": "{days, plural, one {# day} other {# days}} late",
     "bellOpen": "{count, plural, =0 {nothing open} one {# open} other {# open}}",
     "bellLate": "{count, plural, one {# late} other {# late}}",
-    "dueCount": "{count, plural, one {# to do now} other {# to do now}}"
+    "dueCount": "{count, plural, one {# to do now} other {# to do now}}",
+    "subtitle": "What the practice owes itself — chased, not remembered.",
+    "searchPlaceholder": "A word from the title or the note",
+    "unassigned": "Nobody yet",
+    "statusOpen": "Still to do",
+    "statusDone": "Done",
+    "statusAll": "Everything",
+    "bucket_overdue": "Late",
+    "bucket_today": "Today",
+    "bucket_week": "This week",
+    "bucket_later": "Later",
+    "bucket_done": "Ticked off",
+    "bucketCount": "{count, plural, one {# line} other {# lines}}",
+    "resultCount": "{count, plural, =0 {nothing matches} one {# line} other {# lines}}",
+    "reopen": "Put it back",
+    "doneOn": "Done {date}",
+    "doneBy": "ticked by {name}",
+    "writtenBy": "written by {name}, {date}",
+    "detailTitle": "The note",
+    "detailSubtitle": "Room for the whole errand — a checklist, a link, what the lab said.",
+    "attachments": "Files",
+    "attachmentsEmpty": "Nothing attached. A photograph of the casting beats a sentence describing it.",
+    "attach": "Attach a file",
+    "attachmentCount": "{count, plural, one {# file} other {# files}}"
   },
   "workProcedures": {
     "title": "Kinds of work",
@@ -1449,5 +1473,20 @@
     "formatElement": "GS1",
     "formatDigitalLink": "GS1 QR",
     "formatPlain": "Plain code"
+  },
+  "editor": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "bullets": "Bulleted list",
+    "numbers": "Numbered list",
+    "link": "Link",
+    "preview": "Preview",
+    "write": "Write",
+    "previewEmpty": "Nothing written yet.",
+    "linkText": "link",
+    "boldText": "bold",
+    "italicText": "italic",
+    "hint": "**bold**, *italic*, - for a list. A pasted address becomes a link.",
+    "remaining": "{count} left"
   }
 }

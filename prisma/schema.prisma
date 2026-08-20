@@ -41,8 +41,8 @@ model StaffUser {
   ///
   /// Signing this number into the token buys per-person revocation for one
   /// column: bump it, and every link ever issued for this dentist stops
-  /// resolving, while everybody else's keeps working. A new column with a
-  /// default, so `db push` accepts it without touching a row.
+  /// resolving, while everybody else's keeps working. The default is what lets
+  /// it land on a table that already has rows.
   calendarFeedVersion Int @default(1)
 
   createdAt DateTime @default(now())
@@ -57,6 +57,7 @@ model StaffUser {
   appointments   Appointment[]
   leave          Closure[]
   contacts       Contact[]
+  followUpFiles  FollowUpAttachment[]
   alertsCreated  PatientAlert[]
 
   /// Three roles on one board: who wrote the line, whose job it is, who ticked
@@ -299,8 +300,14 @@ model Appointment {
   contacts Contact[]
 
   /// The write-up of what actually happened in this slot. See
-  /// `VisitRecord.appointment` for why the two were separate for so long, and
-  /// why this is a list of at most one rather than a single row.
+  /// `VisitRecord.appointment` for why the two were separate for so long.
+  ///
+  /// A list of at most one, and the "at most" is now the database's word rather
+  /// than an intention: `VisitRecord.appointmentId` carries a unique index. Kept
+  /// as a list rather than narrowed to `VisitRecord?` because every read of it
+  /// is an existence test — `visitRecords: { none: {} }`, `_count` — which says
+  /// what it means in the list form, and converting would be a wide, purely
+  /// cosmetic edit across queries that already behave correctly.
   visitRecords VisitRecord[]
 
   @@index([date])
@@ -534,16 +541,21 @@ model VisitRecord {
   /// off the appointment.
   ///
   /// Nullable because a walk-in has no slot and a no-show has no visit, and
-  /// because rows written before this field existed have no link and will not
-  /// grow one — the deploy runs `db push` and never a backfill.
+  /// because rows written before this field existed have no link and never grew
+  /// one.
   ///
-  /// One write-up per slot is the rule, but it is **not** `@unique`, for the
-  /// reason `StockCategory.name` is not: the deploy runs `prisma db push`
-  /// without `--accept-data-loss` (see `docker/entrypoint.sh`), and that refuses
-  /// to add a unique constraint at all — not just when the data would violate
-  /// it — which takes the release down on boot. `saveVisit` is the gate
-  /// instead: it only ever links a slot that has no write-up yet.
-  appointmentId String?
+  /// One write-up per slot, and now enforced rather than merely intended. This
+  /// was prose for as long as the deploy ran `prisma db push`, which refuses to
+  /// add a unique constraint at all — not just when the data would violate it —
+  /// and would have taken the release down on boot. The deploy replays
+  /// `prisma/migrations` now, so the rule is a rule; see
+  /// `20260820110000_constraints_the_deploy_can_now_carry`, which unlinks the
+  /// later of any two write-ups claiming one slot before adding the index.
+  ///
+  /// `saveVisit` still checks first, because a constraint violation surfaces as
+  /// a database error and "this slot is already written up" is a sentence
+  /// somebody at the desk can act on.
+  appointmentId String? @unique
   appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   services       VisitService[]
@@ -651,10 +663,11 @@ model StockItem {
   /// holding a carton had to translate each one back into "how many of these are
   /// on the shelf" — which was always the actual question.
   ///
-  /// Kept only because the deploy cannot drop it: `db push` runs without
-  /// `--accept-data-loss` (see `docker/entrypoint.sh`), so removing the column
-  /// would halt the release rather than migrate it. New rows are written "box"
-  /// for the day somebody wants the old wording back and finds it never left.
+  /// Kept because dropping a populated column is a decision, not a tidy-up —
+  /// no longer because the deploy cannot carry it, which was the reason while it
+  /// ran `db push`. A migration could drop this in reviewed SQL whenever the
+  /// practice is sure. New rows are written "box" in the meantime, for the day
+  /// somebody wants the old wording back and finds it never left.
   unit String @default("box")
 
   updatedAt DateTime @updatedAt
@@ -696,12 +709,14 @@ model StockItem {
 
   /// What `category` used to be: whatever anyone typed into a free-text box.
   ///
-  /// Superseded by `categoryId`, and kept only because the deploy cannot drop
-  /// it — `db push` runs without `--accept-data-loss`, so removing the column
-  /// would halt the release rather than migrate it. `@map` keeps the database
-  /// column exactly where it was, which is what lets the value survive the
-  /// deploy at all: `getStockCategories` reads it once, turns each distinct
-  /// spelling into a `StockCategory`, and clears it. Nothing writes it again.
+  /// Superseded by `categoryId`. `@map` keeps the database column exactly where
+  /// it was, which is what let the value survive the rename at all:
+  /// `getStockCategories` reads it once, turns each distinct spelling into a
+  /// `StockCategory`, and clears it. Nothing writes it again.
+  ///
+  /// Kept now only until somebody confirms every practice has been through that
+  /// adoption pass — the deploy replays migrations, so dropping it is a
+  /// migration away rather than impossible.
   legacyCategory String? @map("category")
 
   /// The practice's own article number, as written on the shelf label.
@@ -711,13 +726,17 @@ model StockItem {
   /// numbers off boxes and order forms. Optional, because a practice that never
   /// numbered anything should not be made to invent them.
   ///
-  /// Kept unique by `saveStockItem` rather than by a constraint: the deploy runs
-  /// `prisma db push` *without* `--accept-data-loss` on purpose, and adding a
-  /// unique index is exactly the change that stops it dead (see
-  /// `docker/entrypoint.sh`). Two people typing the same number in the same
-  /// second would slip through; the cost of that is a duplicate label somebody
-  /// edits, against a deploy that will not start.
-  code String?
+  /// Unique, at last. `saveStockItem` checked for a duplicate and said so in a
+  /// sentence, but the check had a race in it — two people typing the same
+  /// number in the same second both passed — and it could not be closed while
+  /// the deploy ran `prisma db push`, which refuses to add a unique index and
+  /// takes the release with it.
+  ///
+  /// Postgres permits any number of NULLs in a unique index, which is what makes
+  /// this compatible with the column staying optional. `saveStockItem` keeps its
+  /// check: it is what turns a collision into a readable refusal instead of a
+  /// database error.
+  code String? @unique
 
   /// What one `unit` costs to buy — the last price actually paid.
   ///
@@ -735,7 +754,8 @@ model StockItem {
   /// places in pieces. The shelf is boxes, the order is boxes, the ledger is
   /// boxes, and every screen now says so in the same word.
   ///
-  /// Kept for the reason `unit` is: `db push` will not drop a column.
+  /// Kept for the reason `unit` is: dropping a populated column is a decision
+  /// nobody has made, rather than one the deploy cannot carry.
   packSize Int @default(1)
 
   /// How many boxes to buy once the minimum is reached.
@@ -802,13 +822,13 @@ model ProductBarcode {
   /// scanned off its EAN-13 and the same carton scanned off its GS1 DataMatrix
   /// find one row rather than two — see `normaliseGtin` in `src/lib/barcode.ts`.
   ///
-  /// Unique, and here rather than enforced in the action the way `StockItem.code`
-  /// is: the reason that one cannot have a constraint is that adding a unique
-  /// index to a *populated* table stops `prisma db push` (see
-  /// `docker/entrypoint.sh`). This table is new, so it ships empty and the
-  /// constraint costs nothing. It also has to be a constraint: two rows claiming
-  /// one code would make a scan ambiguous, which is the one thing a scanner
-  /// must never be.
+  /// Unique, and always was — this table shipped empty, so the constraint cost
+  /// nothing even when `prisma db push` would not add one to a populated table.
+  /// `StockItem.code` has caught up since the deploy started replaying
+  /// migrations.
+  ///
+  /// It has to be a constraint either way: two rows claiming one code would make
+  /// a scan ambiguous, which is the one thing a scanner must never be.
   code String @unique
 
   itemId String
@@ -853,8 +873,10 @@ model ProductBarcode {
 /// is a product of one and is listed exactly like any other.
 ///
 /// `name` is deliberately **not** `@unique`, for the reason `StockCategory.name`
-/// is not: the deploy runs `prisma db push`, which refuses to add a unique
-/// constraint to a populated table and takes the release down with it.
+/// is not — and it is no longer the deploy's reason. `saveStockItem` matches
+/// case-insensitively, and a plain unique index does not: it would let "Filtek
+/// Z250" and "filtek z250" both exist while claiming to prevent exactly that,
+/// which is worse than no constraint, because it reads like one.
 model StockProduct {
   id   String @id @default(uuid())
   name String
@@ -884,11 +906,18 @@ model StockProduct {
 /// A named row is a closed list: the category picker offers what the practice
 /// decided, and a rename fixes every material at once instead of none of them.
 ///
-/// `name` is deliberately **not** `@unique`, for the reason `StockItem.code`
-/// is not: the deploy runs `prisma db push`, which refuses to add a unique
-/// constraint and takes the release down with it. `saveStockCategory` is the
-/// gate instead, and it compares case-insensitively — which a unique index
-/// would not have done anyway.
+/// `name` is deliberately **not** `@unique`, and this is now the only reason
+/// left: `saveStockCategory` compares case-insensitively, which a unique index
+/// would not do. "Higjienë" and "higjienë" are one shelf to everybody except a
+/// database index, so the index would wave through the exact duplicate the
+/// check exists to stop.
+///
+/// `StockItem.code` gained its constraint once the deploy started replaying
+/// migrations; this one stays in the action deliberately, not for want of a
+/// migration. Postgres could express it as a unique index over `lower(name)`,
+/// which Prisma cannot describe in this file — so the schema and the database
+/// would disagree about what constraints exist, and the check would still be
+/// needed for the readable refusal.
 model StockCategory {
   id        String   @id @default(uuid())
   name      String
@@ -1045,13 +1074,14 @@ model Service {
 
   /// What `category` used to be: whatever anyone typed into a free-text box.
   ///
-  /// Superseded by `categoryId`, and kept only because the deploy cannot drop
-  /// it — `db push` runs without `--accept-data-loss`, so removing the column
-  /// would halt the release rather than migrate it. `@map` keeps the database
-  /// column exactly where it was, which is what lets the value survive the
-  /// deploy at all: `getServiceCategories` reads it once, turns each distinct
-  /// spelling into a top-level `ServiceCategory`, and clears it. Nothing writes
-  /// it again.
+  /// Superseded by `categoryId`. `@map` keeps the database column exactly where
+  /// it was, which is what let the value survive the rename at all:
+  /// `getServiceCategories` reads it once, turns each distinct spelling into a
+  /// top-level `ServiceCategory`, and clears it. Nothing writes it again.
+  ///
+  /// Kept now only until somebody confirms every practice has been through that
+  /// adoption pass — the deploy replays migrations, so dropping it is a
+  /// migration away rather than impossible.
   legacyCategory String? @map("category")
 
   /// Retired — see `ServiceMaterial`. Declared because Prisma requires both
@@ -1112,15 +1142,16 @@ model VisitService {
 /// could never handle, where a treatment used two anaesthetic carpules instead
 /// of the one the catalogue predicted.
 ///
-/// Still declared only because the deploy runs `prisma db push` *without*
-/// `--accept-data-loss` (see `docker/entrypoint.sh`): removing a model whose
-/// table holds rows is exactly the change that stops the release dead. The same
-/// reason `Service.legacyCategory` is still here.
+/// Still declared because the table still holds rows, and dropping a populated
+/// table is a decision rather than a tidy-up. It is no longer *blocked*, though:
+/// the deploy replays migrations now, so a migration could empty and drop it in
+/// reviewed SQL — which is what `prisma/drop-service-materials.ts` does by hand
+/// today.
 ///
-/// To be rid of it: run `tsx prisma/drop-service-materials.ts` once against the
-/// live database, which empties the table, then delete this model and the two
-/// relation fields that name it (`Service.materials`, `StockItem.usedBy`). With
-/// no rows to lose, the next `db push` drops it without complaint.
+/// To be rid of it: fold that script into a migration, then delete this model
+/// and the two relation fields that name it (`Service.materials`,
+/// `StockItem.usedBy`). What is wanted before that is somebody deciding the
+/// bills of materials are genuinely not coming back.
 model ServiceMaterial {
   id        String    @id @default(uuid())
   serviceId String
@@ -1359,10 +1390,9 @@ model Work {
   /// register is read and billed in, so the date has to be the one that is true.
   ///
   /// The default is for the deploy, not for the app — `saveWork` always sets
-  /// this. Without one, `db push` refuses to add a required column to a table
-  /// that already has rows and takes the release down on boot (see
-  /// `docker/entrypoint.sh`); with one, a row written before the column existed
-  /// simply lands on the day of the deploy.
+  /// this. A required column cannot be added to a table that already has rows
+  /// without one, and with it a row written before the column existed simply
+  /// lands on the day of the deploy.
   sentAt DateTime @default(now())
 
   /// The day the laboratory promised it back, at UTC midnight.
@@ -1549,6 +1579,9 @@ model FollowUp {
   stockItemId String?
   stockItem   StockItem? @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
 
+  /// Photographs, scans and PDFs pinned to this errand. See `FollowUpAttachment`.
+  attachments FollowUpAttachment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1559,4 +1592,41 @@ model FollowUp {
   @@index([patientId])
   @@index([workId])
   @@index([stockItemId])
+}
+
+/// A photograph, a scan or a PDF pinned to one follow-up.
+///
+/// Deliberately its own table rather than a `PatientDocument` with a nullable
+/// patient. Two reasons, and the second is the one that decides it:
+///
+///  - Most follow-ups are about nothing in particular — "order more articaine
+///    before Friday" — so the patient link is null far more often than not, and
+///    `PatientDocument.patientId` is required precisely because a radiograph
+///    without a patient is a bug.
+///  - A working note is not a medical record. The photo of a cracked casting
+///    somebody snapped to remember which one to ring the lab about does not
+///    belong in the patient's file alongside their consent forms and their
+///    X-rays, and quietly filing it there would be the app deciding something
+///    the practice should decide. `saveToPatientFile` is the explicit way over.
+///
+/// The bytes go through the same storage layer as everything else — see
+/// `files.ts` — so the on-disk name is generated, the original filename is kept
+/// for display only, and nothing is reachable without a session.
+model FollowUpAttachment {
+  id         String   @id @default(uuid())
+  followUpId String
+  followUp   FollowUp @relation(fields: [followUpId], references: [id], onDelete: Cascade)
+
+  /// As uploaded. Display only — user input never steers a filesystem path.
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+  /// Opaque on-disk name, as `PatientDocument.storageKey`.
+  storageKey String @unique
+
+  uploadedById String?
+  uploadedBy   StaffUser? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+
+  @@index([followUpId])
 }

@@ -11,7 +11,7 @@ import { prisma } from '@/lib/prisma';
 import { decrementShelf, recordConsumption, takeFromShelf } from '@/lib/stock-consumption';
 import { isPhotoMimeType, isPhotoOwner } from '@/lib/stock-photos';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
-import { actionError, actionOk, type ActionState } from './types';
+import { actionError, actionOk, isUniqueViolation, type ActionState } from './types';
 
 function revalidateAll() {
   revalidatePath('/', 'layout');
@@ -148,9 +148,11 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
   const orderQty = rawOrderQty === null ? null : Math.max(1, toInt(rawOrderQty, 1));
 
   // An article number is a label the practice reads off a shelf, so two rows
-  // wearing the same one is a real mix-up. Checked here rather than by a unique
-  // constraint — see the field's comment in `schema.prisma` for why the database
-  // cannot be the one to say no.
+  // wearing the same one is a real mix-up. Checked here *and* enforced by a
+  // unique index since
+  // `20260820110000_constraints_the_deploy_can_now_carry` — the check is what
+  // turns a collision into "that number is already taken", and the index is
+  // what makes that true even when two people save in the same moment.
   const code = optionalString(formData.get('code'));
   if (code !== null) {
     const clash = await prisma.stockItem.findFirst({
@@ -209,7 +211,12 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
     } else {
       savedId = (await prisma.stockItem.create({ data, select: { id: true } })).id;
     }
-  } catch {
+  } catch (error) {
+    // The pre-check above lost a race: two people gave two materials the same
+    // article number in the same moment. Now that `StockItem.code` carries a
+    // unique index there is a conflict to catch, so the loser is told the same
+    // thing the check would have told them rather than "something went wrong".
+    if (isUniqueViolation(error)) return actionError(t('codeTaken'));
     return actionError(t('generic'));
   }
 
@@ -571,10 +578,10 @@ export async function restoreStockItem(formData: FormData): Promise<void> {
 /**
  * Name a shelf.
  *
- * The duplicate check is here rather than on a unique index because `db push`
- * will not add one without taking the deploy with it (see `StockCategory`), and
- * it is case-insensitive because "Higjienë" and "higjienë" are one shelf to
- * everybody except a database index.
+ * The duplicate check is here rather than on a unique index because it is
+ * case-insensitive: "Higjienë" and "higjienë" are one shelf to everybody except
+ * a database index, which would wave the second one through while appearing to
+ * forbid exactly that. See `StockCategory` in the schema.
  */
 export async function saveStockCategory(
   _prev: ActionState,
