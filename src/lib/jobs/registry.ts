@@ -1,6 +1,7 @@
 import { readdir, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '@/lib/prisma';
+import { queueAppointmentReminders } from '@/lib/messages/queue';
 import { referencedStorageKeys } from '@/lib/storage-keys';
 
 /**
@@ -102,6 +103,20 @@ async function sweepOrphanFiles(): Promise<string> {
 }
 
 export const JOBS: Record<string, Job> = {
+  /**
+   * Work out who needs reminding about tomorrow, and put them in the outbox.
+   *
+   * The first job that exists for the practice rather than for the machine, and
+   * the first thing in this app that decides something about a patient without
+   * being asked. It still sends nothing: it fills a queue a person works down.
+   * That is the line the app has always drawn — see "nudge, don't send" in the
+   * blueprint — and the clock does not move it.
+   */
+  'queue-appointment-reminders': {
+    description: "Queue tomorrow's appointment reminders for somebody to send.",
+    run: queueAppointmentReminders,
+  },
+
   'sweep-orphan-files': {
     description: 'Remove uploaded files that no record points at any more.',
     run: sweepOrphanFiles,

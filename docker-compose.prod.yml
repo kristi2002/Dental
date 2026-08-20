@@ -88,6 +88,9 @@ services:
     environment:
       JOBS_SECRET: ${SERVICE_PASSWORD_64_JOBSSECRET}
       JOBS_APP_URL: http://app:3000
+      # Every evening at six: the day's bookings have settled and whoever is on
+      # the desk can still work the queue down before going home.
+      REMINDERS_SCHEDULE: ${REMINDERS_SCHEDULE:-0 18 * * *}
       # Sunday, a quarter past three — after the backup's own verify at 03:30
       # would be worse, so it sits before it and competes with nothing.
       SWEEP_SCHEDULE: ${SWEEP_SCHEDULE:-15 3 * * 0}

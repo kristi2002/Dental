@@ -58,6 +58,7 @@ model StaffUser {
   leave          Closure[]
   contacts       Contact[]
   followUpFiles  FollowUpAttachment[]
+  messagesSent   ScheduledMessage[]
   alertsCreated  PatientAlert[]
 
   /// Three roles on one board: who wrote the line, whose job it is, who ticked
@@ -159,6 +160,7 @@ model Patient {
   prescriptions Prescription[]
 
   contacts      Contact[]
+  scheduledMessages ScheduledMessage[]
   alerts        PatientAlert[]
   works         Work[]
   followUps     FollowUp[]
@@ -299,6 +301,7 @@ model Appointment {
   planStep TreatmentStep?
   contacts Contact[]
 
+  scheduledMessages ScheduledMessage[]
   /// The write-up of what actually happened in this slot. See
   /// `VisitRecord.appointment` for why the two were separate for so long.
   ///
@@ -1592,6 +1595,96 @@ model FollowUp {
   @@index([patientId])
   @@index([workId])
   @@index([stockItemId])
+}
+
+/// A message the practice means to send, before anybody has sent it.
+///
+/// Everything else in this app that touches a patient is *past tense*:
+/// `Contact` records what was put in front of somebody, after a human pressed a
+/// link. This is the first thing that is future tense, and it exists because a
+/// clock cannot press a link — something has to hold "tomorrow's six need
+/// reminding" between the job that works it out and the person who acts on it.
+///
+/// **It stores intent, not words.** There is no body column, deliberately. The
+/// wording is composed by `composeReminder` when the queue is drawn and again
+/// when it is sent, so a slot that moves between those two moments cannot
+/// produce a message quoting the old time — which is exactly the failure a
+/// snapshotted body would cause, and the one a patient would notice. `Contact`
+/// still snapshots what was actually sent, because *that* is a record of the
+/// past and must never be rewritten by a later edit.
+///
+/// The channel is not stored either, for the same reason: which of WhatsApp,
+/// email or the telephone is right depends on the patient's details and consent
+/// *now*, and `Contact.channel` records which one it turned out to be.
+model ScheduledMessage {
+  id String @id @default(uuid())
+
+  kind   MessageKind
+  status MessageStatus @default(PENDING)
+
+  /// What makes a clock safe to run twice.
+  ///
+  /// The one column that has to be unique, and the reason this table is
+  /// idempotent: a job that fires at 18:00 and again at 18:05 because a deploy
+  /// restarted the container must not queue tomorrow's reminders twice. Built
+  /// by the rule that queues the row — `reminder:<appointmentId>` — so a kind
+  /// that repeats can namespace itself by year or by month without this table
+  /// needing to know how. See `src/lib/messages/outbox.ts`.
+  ///
+  /// Enforceable at all only because the deploy replays migrations now; under
+  /// `prisma db push` a unique index could not be added, which is why nothing
+  /// like this table existed before.
+  dedupeKey String @unique
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  /// The booking it is about, when it is about one. Cascades: a deleted slot
+  /// has nothing left to remind anybody of.
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  /// The earliest this may go out.
+  ///
+  /// Carries little weight while a human presses send — the queue simply shows
+  /// what is due, and "quiet hours" are whatever hour the job runs at. It earns
+  /// its keep the day anything sends by itself, which is why it is here now
+  /// rather than added later to a table full of rows that lack it.
+  sendAfter DateTime
+
+  /// When it stopped being PENDING, and who did that. Null while it waits.
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   StaffUser? @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  /// Why it was skipped or cancelled, in one line — "no phone or email",
+  /// "appointment cancelled". Never shown to a patient; this is the practice
+  /// explaining itself to itself.
+  note String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The queue's own question: what is still waiting, soonest first.
+  @@index([status, sendAfter])
+  @@index([patientId])
+  @@index([appointmentId])
+}
+
+enum MessageKind {
+  /// "You have an appointment tomorrow at 10:30."
+  APPOINTMENT_REMINDER
+}
+
+enum MessageStatus {
+  /// Waiting for somebody to send it.
+  PENDING
+  /// Put in front of the patient. A `Contact` row records what was said.
+  SENT
+  /// The reason went away — the slot was cancelled, moved, or already answered.
+  CANCELLED
+  /// Deliberately not sent: no way to reach them, or they asked not to be.
+  SKIPPED
 }
 
 /// One run of one scheduled job, whether it worked, and what it did.

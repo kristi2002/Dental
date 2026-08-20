@@ -45,15 +45,21 @@ chmod 600 "$ENV_FILE"
 # note puts it at weekly.
 SWEEP_SCHEDULE="${SWEEP_SCHEDULE:-15 3 * * 0}"
 
+# Early evening, every day. Late enough that the day's bookings and cancellations
+# have settled, early enough that whoever is on the desk can work the queue down
+# before they go home — which is the point of queueing it rather than sending it.
+REMINDERS_SCHEDULE="${REMINDERS_SCHEDULE:-0 18 * * *}"
+
 # `/proc/1/fd/1` is this process's own stdout — what `docker logs` and Coolify's
 # log view read. Without it a cron job's output goes to a mail spool that does
 # not exist in this image, and every run is silent.
 cat > /etc/crontabs/root <<CRONTAB
+$REMINDERS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-appointment-reminders > /proc/1/fd/1 2>&1
 $SWEEP_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh sweep-orphan-files > /proc/1/fd/1 2>&1
 CRONTAB
 
 log "app: $APP_URL"
-log "schedule: sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
+log "schedule: reminders '$REMINDERS_SCHEDULE', sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
 
 # --- Reachability -----------------------------------------------------------
 # Not a first run of the job itself: unlike a backup, nothing here is urgent

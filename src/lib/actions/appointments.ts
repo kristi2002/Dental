@@ -18,6 +18,7 @@ import {
   type Conflict,
   type DatedGap,
 } from '@/lib/scheduling';
+import { cancelScheduledFor } from '@/lib/messages/queue';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -441,6 +442,14 @@ export async function setAppointmentStatus(formData: FormData): Promise<void> {
     summary: `${appointment.patient.firstName} ${appointment.patient.lastName} · ${toDateKey(appointment.date)} ${appointment.startTime} → ${status}`,
   });
 
+  // A slot that is no longer scheduled has nothing left to remind anybody
+  // about. Without this the outbox keeps a PENDING row describing an
+  // appointment cancelled this morning, and whoever works the queue down at six
+  // sends it.
+  if (status !== AppointmentStatus.SCHEDULED) {
+    await cancelScheduledFor(id, 'status-changed');
+  }
+
   // The step this slot was booked for is now done, and the plan closes itself
   // if it was the last one. Nobody has to remember to say so on another screen.
   if (status === AppointmentStatus.COMPLETED) {
@@ -586,6 +595,11 @@ export async function rescheduleAppointment(
     return actionError(t('generic'));
   }
 
+  // The superseded slot's queued reminder still quotes the old day. The
+  // replacement gets its own when the job next runs; the reminder is not
+  // carried across, because these are two appointments by design.
+  await cancelScheduledFor(id, 'rescheduled');
+
   await recordAudit(user, {
     action: 'update',
     entity: 'appointment',
@@ -672,6 +686,16 @@ export async function moveAppointment({
     await prisma.appointment.update({ where: { id }, data: { date: when, startTime } });
   } catch {
     return actionError(t('generic'));
+  }
+
+  // Only when the *day* changes. A block nudged half an hour down the grid is
+  // still the same booking on the same day, and its queued reminder is still
+  // correct — the wording is composed from the appointment when it is sent, so
+  // it picks the new time up by itself. That is the payoff for the outbox
+  // holding intent rather than text. Moved to another day, though, and a
+  // reminder queued as "tomorrow" is about something else entirely.
+  if (toDateKey(original.date) !== date) {
+    await cancelScheduledFor(id, 'rescheduled');
   }
 
   // Both ends of the move on one line: a nudge that turns out to have been

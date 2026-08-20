@@ -10,6 +10,7 @@ import {
 import { recordPatientAudit } from '@/lib/auth/guard';
 import { verifyConfirmationToken } from '@/lib/confirmations';
 import { today, toDateKey } from '@/lib/dates';
+import { cancelScheduledFor } from '@/lib/messages/queue';
 import { prisma } from '@/lib/prisma';
 import { requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -88,6 +89,12 @@ export async function respondToAppointment(
   } catch {
     return actionError(t('errorGeneric'));
   }
+
+  // They have answered, so there is nothing left to ask. This is the case the
+  // outbox most needs to honour: a patient who confirms at nine in the evening
+  // and is reminded at six the next morning has been made to answer twice, and
+  // the second one reads as the practice not listening.
+  await cancelScheduledFor(appointmentId, 'answered');
 
   await recordPatientAudit(`${appointment.patient.firstName} ${appointment.patient.lastName}`, {
     action: coming ? 'confirmed' : 'declined',

@@ -33,6 +33,17 @@ const NOT_EXPORTED = new Set([
   // without the container that wrote them, which the backup does not carry
   // either. See `src/lib/jobs/run.ts`.
   'JobRun',
+  // Tomorrow's reminders, waiting for somebody to send them. Excluded because
+  // carrying them across would be actively harmful rather than merely useless:
+  // a database restored from Tuesday's backup on Friday would hand the front
+  // desk a queue of PENDING rows about appointments that already happened, and
+  // the whole value of the queue is that working down it is safe.
+  //
+  // Nothing is lost. The queue is derived — one run of
+  // `queue-appointment-reminders` rebuilds it from the appointments, which *are*
+  // in the backup — and what was actually said to a patient lives in `Contact`,
+  // which is the record that has to survive. See `src/lib/messages/queue.ts`.
+  'ScheduledMessage',
 ]);
 
 function block(source: string, name: string): string[] {
@@ -148,6 +159,15 @@ describe('backup and restore agree with each other', () => {
     assert.ok(at('appointments') < at('contacts'), 'a contact may name the appointment it was about');
     assert.ok(at('staff') < at('closures'), "a closure may be one person's leave");
     assert.ok(at('patients') < at('waitlist'), 'a waiting entry needs its patient');
+    assert.ok(at('patients') < at('scheduledMessages'), 'a queued message needs its patient');
+    assert.ok(
+      at('appointments') < at('scheduledMessages'),
+      'a reminder may name the slot it is about',
+    );
+    assert.ok(
+      at('staff') < at('scheduledMessages'),
+      'and the person who cancelled it, if somebody did',
+    );
 
     // A material may be one variant of a product. This is the edge that would
     // have stopped a real restore partway through, and nothing asserted it.
