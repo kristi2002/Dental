@@ -20,7 +20,22 @@ import { prisma } from '@/lib/prisma';
 import { findPhoneDuplicates } from '@/lib/queries';
 import { reverseVisitConsumption, takeFromShelf } from '@/lib/stock-consumption';
 import { timeToMinutes, today } from '@/lib/dates';
-import { DEFAULT_TOOTH_STATUS, formatSurfaces, isToothStatus, isValidTooth } from '@/lib/teeth';
+import {
+  formatBleeding,
+  formatPockets,
+  hasPerio,
+  parseMobility,
+  parsePockets,
+  PERIO_SITE_COUNT,
+  toPocketDepth,
+} from '@/lib/perio';
+import {
+  DEFAULT_TOOTH_STATUS,
+  formatSurfaces,
+  isToothStatus,
+  isValidTooth,
+  statusTakesSurfaces,
+} from '@/lib/teeth';
 import { optionalString, parseServiceList, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
@@ -666,6 +681,49 @@ export async function deleteVisit(formData: FormData): Promise<void> {
   revalidateAll();
 }
 
+/**
+ * Which visit today's charting belongs to.
+ *
+ * The chart is edited from its own tab rather than from inside the visit form,
+ * so there is no id to thread through — but charting is something done *while*
+ * writing up today's treatment, and a change made on the same day as a visit
+ * belongs to that visit far more often than it belongs to nothing. Anything
+ * charted on a day with no visit recorded stays unattributed, which is honest.
+ */
+async function sameDayVisitId(patientId: string): Promise<string | null> {
+  const visit = await prisma.visitRecord.findFirst({
+    where: { patientId, visitDate: today() },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  });
+  return visit?.id ?? null;
+}
+
+/**
+ * What is already on file for this tooth, for the writes that must not take
+ * the rest of the row with them.
+ *
+ * Two things live on a `ToothRecord` that the form doing the writing does not
+ * show: the note somebody typed, and the periodontal readings. Both of them
+ * decide whether "healthy with nothing on it" is really an empty row — a tooth
+ * with perfect enamel sitting in an 8mm pocket is a row worth keeping, and
+ * dropping it would silently delete the examination.
+ */
+async function toothRowContext(patientId: string, toothNum: number) {
+  const row = await prisma.toothRecord.findUnique({
+    where: { patientId_toothNum: { patientId, toothNum } },
+    select: {
+      status: true,
+      surfaces: true,
+      notes: true,
+      mobility: true,
+      pockets: true,
+      bleeding: true,
+    },
+  });
+  return { row, perio: row !== null && hasPerio(row) };
+}
+
 export async function saveToothRecord(
   _prev: ActionState,
   formData: FormData,
@@ -691,29 +749,23 @@ export async function saveToothRecord(
     formatSurfaces(formData.getAll('surfaces').filter((v) => typeof v === 'string').join('')) ||
     null;
 
-  // Which visit put the tooth in this state.
-  //
-  // The chart is edited from its own tab rather than from inside the visit form,
-  // so there is no id to thread through — but charting is something done *while*
-  // writing up today's treatment, and a change made on the same day as a visit
-  // belongs to that visit far more often than it belongs to nothing. Anything
-  // charted on a day with no visit recorded stays unattributed, which is honest.
-  const sameDayVisit = await prisma.visitRecord.findFirst({
-    where: { patientId, visitDate: today() },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true },
-  });
+  const [visitId, { perio }] = await Promise.all([
+    sameDayVisitId(patientId),
+    toothRowContext(patientId, toothNum),
+  ]);
 
   try {
-    if (status === DEFAULT_TOOTH_STATUS && !notes && !surfaces) {
-      // "Healthy with no note" is the implicit default — drop the row instead of
-      // storing noise, so the chart summary stays meaningful.
+    // "Healthy with no note" is the implicit default — drop the row instead of
+    // storing noise, so the chart summary stays meaningful. Unless the row is
+    // carrying a periodontal examination this form never showed, in which case
+    // clearing the condition would throw the readings away with it.
+    if (status === DEFAULT_TOOTH_STATUS && !notes && !surfaces && !perio) {
       await prisma.toothRecord.deleteMany({ where: { patientId, toothNum } });
     } else {
       await prisma.toothRecord.upsert({
         where: { patientId_toothNum: { patientId, toothNum } },
-        create: { patientId, toothNum, status, notes, surfaces, visitRecordId: sameDayVisit?.id },
-        update: { status, notes, surfaces, visitRecordId: sameDayVisit?.id ?? null },
+        create: { patientId, toothNum, status, notes, surfaces, visitRecordId: visitId },
+        update: { status, notes, surfaces, visitRecordId: visitId },
       });
     }
   } catch {
@@ -725,6 +777,174 @@ export async function saveToothRecord(
     entity: 'tooth',
     entityId: patientId,
     summary: `#${toothNum}${surfaces ? ` (${surfaces})` : ''} · ${status}`,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/**
+ * One tooth's condition, written straight down without a form.
+ *
+ * This is what the chart's marking tools call. Charting a mouth is thirty-two
+ * findings entered one after another, and routing each of them through the
+ * dialog — open, read eight options, pick, press save, wait for it to close —
+ * turned a two-minute examination into a filing exercise. With a tool selected
+ * the click *is* the record.
+ *
+ * The client has already worked out the resulting state with `applyCondition`,
+ * so what arrives here is the answer rather than the gesture — that is what
+ * lets the drawing update on the click instead of after the round trip. It is
+ * still checked rather than trusted: the status has to be one of the eight, and
+ * a status that names no surface has its surfaces dropped however they arrived.
+ *
+ * The note and the periodontal readings are deliberately not in the payload.
+ * Marking a tooth is not a statement about either, and a quick tool that
+ * silently wiped a typed note would be the worst kind of fast.
+ */
+export async function setToothCondition(input: {
+  patientId: string;
+  toothNum: number;
+  status: string;
+  surfaces: string;
+}): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('patient.medical.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const { patientId, toothNum } = input;
+  if (
+    !patientId ||
+    !Number.isInteger(toothNum) ||
+    !isValidTooth(toothNum) ||
+    !isToothStatus(input.status)
+  ) {
+    return actionError(t('generic'));
+  }
+  const status = input.status;
+  const surfaces = statusTakesSurfaces(status) ? formatSurfaces(input.surfaces) || null : null;
+
+  const [visitId, { row, perio }] = await Promise.all([
+    sameDayVisitId(patientId),
+    toothRowContext(patientId, toothNum),
+  ]);
+
+  try {
+    if (status === DEFAULT_TOOTH_STATUS && !surfaces && !row?.notes && !perio) {
+      await prisma.toothRecord.deleteMany({ where: { patientId, toothNum } });
+    } else {
+      await prisma.toothRecord.upsert({
+        where: { patientId_toothNum: { patientId, toothNum } },
+        create: { patientId, toothNum, status, surfaces, visitRecordId: visitId },
+        update: { status, surfaces, visitRecordId: visitId },
+      });
+    }
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'tooth',
+    entityId: patientId,
+    summary: `#${toothNum}${surfaces ? ` (${surfaces})` : ''} · ${status}`,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/**
+ * The periodontal examination of one tooth: six probe depths, which of those
+ * sites bled, and how much the tooth moves.
+ *
+ * Its own action rather than more fields on `saveToothRecord`, because the two
+ * are separate examinations that happen at separate moments — the condition is
+ * charted looking at the tooth and the pocket depths are charted with a probe,
+ * often by different people. Sharing one form would mean each save rewriting
+ * the other's findings from whatever was on screen at the time.
+ *
+ * `visitRecordId` is set on create only. A perio row's visit says which visit
+ * *charted the tooth*, and re-probing a gum months later is not a statement
+ * about when the filling went in.
+ */
+export async function saveToothPerio(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('patient.medical.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const patientId = requiredString(formData.get('patientId'));
+  const toothNum = Number.parseInt(requiredString(formData.get('toothNum')), 10);
+  if (!patientId || !Number.isInteger(toothNum) || !isValidTooth(toothNum)) {
+    return actionError(t('generic'));
+  }
+
+  // Out-of-range and unreadable readings become "not probed" rather than an
+  // error: a slipped keypress in the middle of six boxes should cost that one
+  // box, not the whole examination the nurse just read out.
+  const pockets = formatPockets(
+    Array.from({ length: PERIO_SITE_COUNT }, (_, site) =>
+      toPocketDepth(requiredString(formData.get(`depth${site}`))),
+    ),
+  );
+
+  // Bleeding is only meaningful where a probe went in, so a tick left behind on
+  // a box that was then cleared is dropped with it.
+  //
+  // Read back off `pockets` rather than off what was typed, so "went in" means
+  // the reading that is actually being stored. Asking the typed value instead
+  // let a depth the column refuses — a 0, which is not a pocket any mouth has —
+  // keep its tick, leaving a site that bled at no depth and a mouth whose
+  // bleeding score was a percentage of more sites than were probed.
+  const stored = parsePockets(pockets);
+  const bleeding = formatBleeding(
+    Array.from(
+      { length: PERIO_SITE_COUNT },
+      (_, site) => stored[site] !== null && formData.get(`bop${site}`) !== null,
+    ),
+  );
+  const mobility = parseMobility(optionalString(formData.get('mobility')));
+
+  const { row } = await toothRowContext(patientId, toothNum);
+  const empty = pockets === null && bleeding === null && mobility === null;
+
+  try {
+    // Clearing the last reading off a tooth that has nothing else recorded takes
+    // the row with it, the same way clearing the condition does — otherwise a
+    // mistyped examination, corrected, leaves a permanent healthy-looking row.
+    if (empty && (!row || (row.status === DEFAULT_TOOTH_STATUS && !row.notes && !row.surfaces))) {
+      await prisma.toothRecord.deleteMany({ where: { patientId, toothNum } });
+    } else {
+      await prisma.toothRecord.upsert({
+        where: { patientId_toothNum: { patientId, toothNum } },
+        create: {
+          patientId,
+          toothNum,
+          status: DEFAULT_TOOTH_STATUS,
+          mobility,
+          pockets,
+          bleeding,
+          visitRecordId: await sameDayVisitId(patientId),
+        },
+        update: { mobility, pockets, bleeding },
+      });
+    }
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'tooth',
+    entityId: patientId,
+    summary: `#${toothNum} · perio ${pockets ?? '—'}${
+      mobility !== null ? ` · M${mobility}` : ''
+    }`,
   });
 
   revalidateAll();

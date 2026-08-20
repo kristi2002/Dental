@@ -553,6 +553,24 @@ model ToothRecord {
   notes     String?
   updatedAt DateTime @updatedAt
 
+  /// Miller mobility grade, 0–3. Null is "nobody has pressed it", which is not
+  /// the same fact as 0 — an unassessed tooth must not be reported as firm.
+  mobility Int?
+
+  /// Probing depths in millimetres at the six standard sites, comma-separated
+  /// in the order `PERIO_SITES` declares: DB, B, MB round the cheek side, then
+  /// DL, L, ML round the tongue side. An empty slot is a site not probed, so
+  /// `"3,2,,4,3,2"` is five readings and not a 0.
+  ///
+  /// One column rather than a row per site: six readings are taken together, in
+  /// one pass, and are only ever read together. See `src/lib/perio.ts`.
+  pockets String?
+
+  /// Which of those six sites bled on probing, as six characters of `1` and
+  /// `0`. Bleeding is what turns a 4mm pocket from a measurement into a
+  /// diagnosis, so it is recorded per site alongside the depth or not at all.
+  bleeding String?
+
   /// The visit that put the tooth in this state, when it was recorded during
   /// one. Turns a snapshot into something a timeline can explain.
   visitRecordId String?

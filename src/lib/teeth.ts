@@ -272,6 +272,85 @@ export function needsAttention(status: string): boolean {
 }
 
 /* ------------------------------------------------------------------ *
+ * Marking a tooth
+ * ------------------------------------------------------------------ */
+
+/**
+ * The statuses that describe the whole tooth, where naming a surface is
+ * nonsense: an extracted tooth has no mesial face left to have caries on.
+ */
+export const WHOLE_TOOTH_STATUSES: readonly ToothStatus[] = [
+  'HEALTHY',
+  'EXTRACTED',
+  'MISSING',
+  'IMPLANT',
+  'CROWN',
+];
+
+export function statusTakesSurfaces(status: ToothStatus): boolean {
+  return !WHOLE_TOOTH_STATUSES.includes(status);
+}
+
+/** What is recorded on one tooth, as the chart paints it — surfaces in the
+ *  stored short form, `''` for a status that names none. */
+export interface ToothCondition {
+  status: ToothStatus;
+  surfaces: string;
+}
+
+export const HEALTHY_TOOTH: ToothCondition = { status: DEFAULT_TOOTH_STATUS, surfaces: '' };
+
+/**
+ * What a tooth becomes when a condition is painted onto it — optionally onto
+ * one named face of it.
+ *
+ * This is the whole of the quick-marking rule, in one pure function, because it
+ * is needed in two places at once: the browser applies it to show the change
+ * immediately, and the server applies it again to decide what to store. Written
+ * twice it would drift, and the drift would show up as a tooth that looks
+ * marked until the page reloads.
+ *
+ * Four cases, in the order they come up:
+ *
+ *  - **A whole-tooth condition** clears the surfaces, because it has none.
+ *  - **A condition painted on the tooth itself** rather than on a face keeps
+ *    whatever faces were already written down, so re-marking an MOD caries as a
+ *    filling stays MOD instead of forgetting where it was.
+ *  - **A face, under a different condition** replaces it: painting caries onto
+ *    a filled tooth means the caries is on that face, not that the old filling
+ *    grew one.
+ *  - **A face, under the same condition** toggles — that is what a marking tool
+ *    is expected to do, and it is what makes an accidental click cost one click
+ *    to undo rather than a trip through the dialog. Toggling off the last face
+ *    leaves the tooth healthy, since a caries on no surface is not a finding.
+ */
+export function applyCondition(
+  current: ToothCondition,
+  status: ToothStatus,
+  surface: ToothSurface | null,
+): ToothCondition {
+  if (!statusTakesSurfaces(status)) return { status, surfaces: '' };
+
+  if (surface === null) {
+    return {
+      status,
+      surfaces: statusTakesSurfaces(current.status) ? formatSurfaces(current.surfaces) : '',
+    };
+  }
+
+  if (current.status !== status) return { status, surfaces: surface };
+
+  const marked = parseSurfaces(current.surfaces);
+  const next = marked.includes(surface)
+    ? marked.filter((face) => face !== surface)
+    : [...marked, surface];
+
+  return next.length === 0
+    ? HEALTHY_TOOTH
+    : { status, surfaces: TOOTH_SURFACES.filter((face) => next.includes(face)).join('') };
+}
+
+/* ------------------------------------------------------------------ *
  * Anatomy, for the drawn chart
  * ------------------------------------------------------------------ */
 

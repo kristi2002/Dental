@@ -1,17 +1,29 @@
 'use client';
 
-import { ClipboardList, Stethoscope, X } from 'lucide-react';
+import { Activity, ClipboardList, Droplet, Stethoscope, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useActionState, useEffect, useId, useRef, useState } from 'react';
+import { useActionState, useEffect, useId, useRef, useState, useTransition } from 'react';
+import { ConditionPalette } from '@/components/dental/ConditionPalette';
+import { PerioFields } from '@/components/dental/PerioFields';
+import { PerioStrip } from '@/components/dental/PerioStrip';
 import { SurfaceTarget, SURFACE_UNMARKED } from '@/components/dental/SurfaceTarget';
 import { ToothDefs, ToothGlyph } from '@/components/dental/ToothGlyph';
 import { SubmitButton } from '@/components/ui/SubmitButton';
-import { saveToothRecord } from '@/lib/actions/patients';
+import { saveToothPerio, saveToothRecord, setToothCondition } from '@/lib/actions/patients';
 import { planStepForTooth } from '@/lib/actions/plans';
 import { IDLE_STATE } from '@/lib/actions/types';
 import {
+  MOBILITY_LABEL,
+  PERIO_SITES,
+  perioOverview,
+  perioSummaryOf,
+  type PerioSummary,
+} from '@/lib/perio';
+import {
   ALL_TEETH,
+  applyCondition,
   DEFAULT_TOOTH_STATUS,
+  HEALTHY_TOOTH,
   PERMANENT_LOWER_LEFT,
   PERMANENT_LOWER_RIGHT,
   PERMANENT_UPPER_LEFT,
@@ -20,15 +32,18 @@ import {
   PRIMARY_LOWER_RIGHT,
   PRIMARY_UPPER_LEFT,
   PRIMARY_UPPER_RIGHT,
+  statusTakesSurfaces,
   TOOTH_STATUSES,
   TOOTH_STATUS_STYLE,
   TOOTH_SURFACES,
+  WHOLE_TOOTH_STATUSES,
   dentitionOf,
   isAnterior,
   parseSurfaces,
   quadrantOf,
   toothKind,
   toothLabel as toothLabelFor,
+  type ToothCondition,
   type ToothNumbering,
   type ToothStatus,
   type ToothSurface,
@@ -46,11 +61,25 @@ import { cn } from '@/lib/utils';
  * row of squares also meant counting along to find the tooth, which is how the
  * wrong one gets clicked.
  *
- * Clicking the tooth opens its record. Clicking a segment of the target opens
- * the same record with that surface already ticked, so the common path —
- * "distal-occlusal of 46" — is two clicks and not a hunt through a checkbox
- * list. Both go through the one authorised server action, so there is a single
- * save path and a single audit entry.
+ * Two things are being recorded here, and they are two examinations rather than
+ * one, so the chart has two views of the same arches:
+ *
+ *   **Gjendja**      what is wrong with the tooth — caries, fillings, crowns,
+ *                    what is missing. Charted by looking.
+ *   **Periodonti**   what is wrong with the hold on it — pocket depths at six
+ *                    sites, which of them bled, how far the tooth moves.
+ *                    Charted with a probe, often by a different person.
+ *
+ * The second one is not decoration. A tooth can be flawless enamel and still be
+ * leaving, and a chart that only draws the crown will call it healthy right up
+ * until it is extracted.
+ *
+ * Recording is built for the pace it actually happens at. Holding a condition
+ * from the palette turns every click into a record, because charting a mouth is
+ * thirty-two findings in a row and a dialog apiece made this screen lose to
+ * paper. The dialog is still the first tool on the palette, for the times a
+ * note has to be typed rather than a colour applied — and it is what a click
+ * does when no tool is held, which is where the chart starts.
  */
 
 export type ToothRecordMap = Record<
@@ -69,17 +98,18 @@ export type ToothRecordMap = Record<
      * reuse this map only ever needed the state, not its date.
      */
     chartedOn?: string;
+    /** Miller grade, or null for a tooth nobody has pressed. See `perio.ts`. */
+    mobility?: number | null;
+    /** Six probe depths, comma-separated. */
+    pockets?: string | null;
+    /** Which of those six bled, as a six-character mask. */
+    bleeding?: string | null;
   }
 >;
 
-/** Statuses that describe the whole tooth, where naming a surface is nonsense. */
-const WHOLE_TOOTH_STATUSES: readonly ToothStatus[] = [
-  'HEALTHY',
-  'EXTRACTED',
-  'MISSING',
-  'IMPLANT',
-  'CROWN',
-];
+/** Which examination the arches are showing. */
+const CHART_VIEWS = ['CONDITION', 'PERIO'] as const;
+type ChartView = (typeof CHART_VIEWS)[number];
 
 /**
  * The status hues as flat colour, for the SVG target.
@@ -112,11 +142,24 @@ const CELL = 'w-12 shrink-0';
  *  quadrants are padded to so every midline on the page lines up. */
 const HALF = 'w-96 shrink-0';
 
+/** Deep enough that one wrong click never costs an examination, short enough
+ *  that the stack is not a second copy of the chart's history. */
+const UNDO_DEPTH = 50;
+
+/** One step back: which tooth, and what it was before. Carries its own id
+ *  because a write that fails has to find the step it pushed among however many
+ *  have been pushed on that tooth since. */
+type UndoEntry = { id: number; toothNum: number; before: ToothCondition };
+
 function statusOf(records: ToothRecordMap, toothNum: number): ToothStatus {
   const raw = records[toothNum]?.status;
   return raw && (TOOTH_STATUSES as readonly string[]).includes(raw)
     ? (raw as ToothStatus)
     : DEFAULT_TOOTH_STATUS;
+}
+
+function storedCondition(records: ToothRecordMap, toothNum: number): ToothCondition {
+  return { status: statusOf(records, toothNum), surfaces: records[toothNum]?.surfaces ?? '' };
 }
 
 /**
@@ -172,12 +215,147 @@ export function DentalChart({
   const [state, formAction] = useActionState(saveToothRecord, IDLE_STATE);
   const handledTs = useRef<number | undefined>(undefined);
 
+  /** Which examination the arches are drawing, and which half of the dialog
+   *  opens with them. */
+  const [view, setView] = useState<ChartView>('CONDITION');
+  const [dialogTab, setDialogTab] = useState<ChartView>('CONDITION');
+
+  const [perioState, perioFormAction] = useActionState(saveToothPerio, IDLE_STATE);
+  const handledPerioTs = useRef<number | undefined>(undefined);
+
   /** What the tooth was before this edit — the offer below turns on the change. */
   const [openedAs, setOpenedAs] = useState<ToothStatus>(DEFAULT_TOOTH_STATUS);
   /** The tooth whose decay is waiting to be planned, once one has been found. */
   const [offerFor, setOfferFor] = useState<number | null>(null);
   const [planState, planFormAction] = useActionState(planStepForTooth, IDLE_STATE);
   const handledPlanTs = useRef<number | undefined>(undefined);
+
+  /* ---------------------------------------------------------------- *
+   * Marking with a held tool
+   * ---------------------------------------------------------------- */
+
+  /** The condition being applied on click, or null when a click opens the record. */
+  const [tool, setTool] = useState<ToothStatus | null>(null);
+  /**
+   * Teeth changed since the last server render, so the drawing answers the
+   * click rather than the round trip. Marking is done at the speed of speech
+   * and a chart that lags a save behind is one that gets clicked twice.
+   */
+  const [pending, setPending] = useState<Record<number, ToothCondition>>({});
+  const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
+  const [markError, setMarkError] = useState<string | null>(null);
+  const [, startMarking] = useTransition();
+  /** Identifies one pushed step, so a failed write takes back the step *it*
+   *  pushed rather than every step ever recorded on that tooth. */
+  const undoSeq = useRef(0);
+
+  /**
+   * Drop the optimistic entries the server has now confirmed, and keep the ones
+   * still in flight.
+   *
+   * Clearing the whole map on every render would be simpler and would make each
+   * mark flicker back to its old colour while the *next* mark's revalidation
+   * lands — every write revalidates the entire page, so a fast hand always has
+   * more than one outstanding.
+   */
+  useEffect(() => {
+    setPending((current) => {
+      const waiting = Object.entries(current).filter(([key, condition]) => {
+        const stored = storedCondition(records, Number(key));
+        return stored.status !== condition.status || stored.surfaces !== condition.surfaces;
+      });
+      return waiting.length === Object.keys(current).length ? current : Object.fromEntries(waiting);
+    });
+  }, [records]);
+
+  /** What the tooth is right now, as far as this screen knows. */
+  function conditionOf(toothNum: number): ToothCondition {
+    return pending[toothNum] ?? storedCondition(records, toothNum);
+  }
+
+  /** Write a resolved condition, keeping the drawing ahead of the round trip. */
+  function write(toothNum: number, after: ToothCondition, undoTo: ToothCondition | null) {
+    setMarkError(null);
+    setPending((current) => ({ ...current, [toothNum]: after }));
+
+    let step: number | null = null;
+    if (undoTo !== null) {
+      const id = (step = ++undoSeq.current);
+      setUndoStack((stack) => [...stack, { id, toothNum, before: undoTo }].slice(-UNDO_DEPTH));
+    }
+
+    startMarking(async () => {
+      const result = await setToothCondition({
+        patientId,
+        toothNum,
+        status: after.status,
+        surfaces: after.surfaces,
+      });
+
+      if (result.status === 'error') {
+        // Drop the optimistic entry rather than replacing it with the old
+        // value: what is on file is whatever the server still has, and falling
+        // back to the record is the one answer that cannot be wrong.
+        setPending((current) =>
+          Object.fromEntries(
+            Object.entries(current).filter(([key]) => Number(key) !== toothNum),
+          ),
+        );
+        // Only this write's own step. Filtering by tooth took back every step
+        // recorded on it, so one refused mark made the marks before it — which
+        // are on file and perfectly undoable — permanently un-undoable.
+        setUndoStack((stack) => stack.filter((entry) => entry.id !== step));
+        setMarkError(result.message);
+      }
+    });
+  }
+
+  function mark(toothNum: number, surface: ToothSurface | null) {
+    if (readOnly || tool === null) return;
+
+    const before = conditionOf(toothNum);
+    const after = applyCondition(before, tool, surface);
+    // Clicking a face that is already marked with the held tool turns it off,
+    // and clicking one that changes nothing should not cost a write.
+    if (after.status === before.status && after.surfaces === before.surfaces) return;
+
+    write(toothNum, after, before);
+  }
+
+  function undo() {
+    const last = undoStack[undoStack.length - 1];
+    if (!last) return;
+    setUndoStack((stack) => stack.slice(0, -1));
+    write(last.toothNum, last.before, null);
+  }
+
+  // Ctrl+Z where a marking tool is held. Bound to the window rather than to the
+  // chart because the hand that just clicked a tooth is not on a focused
+  // control, and a shortcut that needs the right thing focused first is one
+  // nobody reaches for.
+  useEffect(() => {
+    if (readOnly || view !== 'CONDITION') return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
+      // Nothing to take back is not the chart's shortcut to swallow — with an
+      // empty stack the keypress belongs to whatever the browser would have
+      // done with it.
+      if (dialogRef.current?.open || undoStack.length === 0) return;
+      event.preventDefault();
+      undo();
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // Rebound as the stack changes, so `undo` always closes over the current
+    // top of it rather than the one that existed when the tool was picked up.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly, view, undoStack]);
+
+  /* ---------------------------------------------------------------- *
+   * The record dialog
+   * ---------------------------------------------------------------- */
 
   useEffect(() => {
     if (state.status !== 'ok' || state.ts === handledTs.current) return;
@@ -201,6 +379,12 @@ export function DentalChart({
   }, [state]);
 
   useEffect(() => {
+    if (perioState.status !== 'ok' || perioState.ts === handledPerioTs.current) return;
+    handledPerioTs.current = perioState.ts;
+    dialogRef.current?.close();
+  }, [perioState]);
+
+  useEffect(() => {
     if (planState.status !== 'ok' || planState.ts === handledPlanTs.current) return;
     handledPlanTs.current = planState.ts;
     dialogRef.current?.close();
@@ -212,21 +396,32 @@ export function DentalChart({
   function openTooth(toothNum: number, surface: ToothSurface | null = null) {
     if (readOnly && surface !== null) return;
 
-    const recorded = statusOf(records, toothNum);
+    const recorded = conditionOf(toothNum).status;
     // Naming a surface on a tooth whose status has none is a contradiction, and
     // the surface list is hidden for those statuses — so the click would vanish.
     // Clicking a segment says the finding is on that face, and caries is far and
     // away the most common reason to say so. It is a starting position, not a
     // decision: the radio is right there.
-    const opening =
-      surface !== null && WHOLE_TOOTH_STATUSES.includes(recorded) ? 'CARIES' : recorded;
+    const opening = surface !== null && !statusTakesSurfaces(recorded) ? 'CARIES' : recorded;
 
     setSelected(toothNum);
     setFocusSurface(surface);
     setStatus(opening);
     setOpenedAs(recorded);
     setOfferFor(null);
+    // Opened from the periodontal arches, it is the probe readings the hand is
+    // reaching for — not the condition it was already looking at.
+    setDialogTab(view);
     dialogRef.current?.showModal();
+  }
+
+  /** A click on a tooth: mark it where a tool is held, open it where none is. */
+  function touch(toothNum: number, surface: ToothSurface | null = null) {
+    if (view === 'CONDITION' && tool !== null && !readOnly) {
+      mark(toothNum, surface);
+      return;
+    }
+    openTooth(toothNum, surface);
   }
 
   // Primary teeth are hidden rather than absent: twenty empty milk teeth on an
@@ -242,26 +437,86 @@ export function DentalChart({
       ].some((n) => records[n] && records[n].status !== DEFAULT_TOOTH_STATUS),
   );
 
-  const surfacesApply = !WHOLE_TOOTH_STATUSES.includes(status);
+  const surfacesApply = statusTakesSurfaces(status);
   const current = selected === null ? null : records[selected];
   const label = (n: number) => toothLabelFor(n, numbering);
+  const perioOf = (toothNum: number): PerioSummary => perioSummaryOf(records[toothNum] ?? {});
+
+  /**
+   * The open tooth as *the screen* knows it, which is one mark ahead of the
+   * server while a click is still in flight.
+   *
+   * The status the dialog opens on already comes from `conditionOf`, so the
+   * surfaces have to as well. Reading them off `records` instead meant that
+   * marking the distal of 46 and then opening it before the round trip landed
+   * showed caries with no face ticked — and saving that wrote the answer back,
+   * quietly taking the surface off a finding that had just been recorded.
+   */
+  const openCondition: ToothCondition = selected === null ? HEALTHY_TOOTH : conditionOf(selected);
+  const openSurfaces = parseSurfaces(openCondition.surfaces);
 
   // What the caries and filling thumbnails should show. The surface being
   // recorded if there is one, so the picture the dentist is choosing between is
   // a picture of *their* finding rather than a generic one.
   const previewSurfaces: ToothSurface[] = focusSurface
     ? [focusSurface]
-    : parseSurfaces(current?.surfaces).length > 0
-      ? parseSurfaces(current?.surfaces)
+    : openSurfaces.length > 0
+      ? openSurfaces
       : ['O'];
 
+  /**
+   * What one status thumbnail draws for *this* tooth.
+   *
+   * Caries and fillings show a face even where none is named — a finding with
+   * no surface still has to be visible. A root canal is drawn from what was
+   * actually written down, so its thumbnail shows the ticked faces and nothing
+   * when there are none: it may carry surfaces, and the option that promises
+   * "this is how the tooth will look" was ignoring them. The rest are
+   * whole-tooth states with no face to draw.
+   */
+  const previewFor = (option: ToothStatus): ToothSurface[] => {
+    if (option === 'CARIES' || option === 'FILLED') return previewSurfaces;
+    if (!statusTakesSurfaces(option)) return [];
+    return focusSurface ? [focusSurface] : openSurfaces;
+  };
+
+  /**
+   * What the tooth's own button announces.
+   *
+   * In the periodontal view that has to carry the readings. The strip drawn
+   * under the tooth is a picture and is hidden from assistive technology, the
+   * same way the surface wheel is — so without this the entire examination is
+   * legible only to someone looking at it.
+   */
+  function announce(toothNum: number): string {
+    const name = t('tooth', { num: label(toothNum) });
+    if (view !== 'PERIO') return name;
+
+    const perio = perioOf(toothNum);
+    if (!perio.recorded) return `${name} — ${t('perioNone')}`;
+
+    return `${name} — ${[
+      perio.deepest !== null ? `${t('perioDeepest')} ${perio.deepest}mm` : null,
+      perio.bleedingCount > 0
+        ? `${t('perioBleeding')}: ${t('perioBleedingCount', { count: perio.bleedingCount })}`
+        : null,
+      perio.mobility !== null ? `${t('mobility')} ${MOBILITY_LABEL[perio.mobility]}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ')}`;
+  }
+
   const rowProps = {
-    records,
+    view,
+    conditionOf,
+    perioOf,
     readOnly,
-    onSelect: openTooth,
+    hasNote: (n: number) => Boolean(records[n]?.notes),
+    marking: tool !== null && !readOnly && view === 'CONDITION',
+    onSelect: touch,
     highlight,
     numberLabel: label,
-    toothLabel: (n: number) => t('tooth', { num: label(n) }),
+    toothLabel: announce,
   };
 
   return (
@@ -269,9 +524,47 @@ export function DentalChart({
     // actually has depends on the sidebar and on the shell's padding, both of
     // which change at their own breakpoints, so a viewport width is the wrong
     // question to ask.
-    <div className="@container space-y-6">
+    <div className="@container space-y-5">
       <ToothDefs />
-      <p className="text-[1.02rem] text-ink-soft">{t('subtitle')}</p>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[1.02rem] text-ink-soft">
+          {t(view === 'PERIO' ? 'perioSubtitle' : 'subtitle')}
+        </p>
+
+        {/* The two examinations, as two views of the same arches rather than
+            two screens. They are read against each other constantly — a 6mm
+            pocket on a tooth already crowned is a different conversation from
+            one on a sound tooth — and a tab that navigated away would break
+            that comparison every time. */}
+        <div
+          role="group"
+          aria-label={t('viewLabel')}
+          className="inline-flex rounded-lg border border-line-strong bg-surface p-0.5"
+        >
+          {CHART_VIEWS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={view === option}
+              onClick={() => setView(option)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[0.92rem] font-bold',
+                view === option
+                  ? 'bg-brand-dark text-white'
+                  : 'text-ink-soft hover:bg-brand-soft hover:text-brand-deep',
+              )}
+            >
+              {option === 'PERIO' ? (
+                <Activity size={16} aria-hidden />
+              ) : (
+                <Stethoscope size={16} aria-hidden />
+              )}
+              {t(`view_${option}`)}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* The arches and the written record of them, side by side — but only
           past the width where both fit whole. A permanent chart is two 24rem
@@ -285,7 +578,16 @@ export function DentalChart({
           odontogram into something you scroll, which is a bad trade — on this
           screen the drawing is the interface. */}
       <div className="grid gap-6 @min-[68rem]:grid-cols-[minmax(0,1fr)_18rem] @min-[68rem]:items-start">
-        <div className="min-w-0 space-y-6">
+        <div className="min-w-0 space-y-5">
+          {markError !== null ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-danger bg-danger-soft px-3 py-2 font-semibold text-danger"
+            >
+              {markError}
+            </p>
+          ) : null}
+
           <div className="overflow-x-auto pb-2">
             {/* Sized to its contents rather than the viewport, so the arches keep
                 their proportions and the page scrolls instead of the chart
@@ -324,32 +626,47 @@ export function DentalChart({
             {showPrimary ? t('hidePrimary') : t('showPrimary')}
           </button>
 
-          {/* The legend draws the same molar in each state rather than a lettered
-              square. A key whose swatches look nothing like the thing they label
-              is a second notation to learn; this one is just the chart, smaller. */}
-          <div className="rounded-lg border border-line bg-paper px-4 py-3">
-            <p className="mb-2 text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</p>
-            <ul className="grid grid-cols-4 gap-x-3 gap-y-2 sm:grid-cols-8">
-              {TOOTH_STATUSES.map((status) => (
-                <li key={status} className="flex flex-col items-center gap-0.5 text-center">
-                  <span aria-hidden className="h-16 w-9">
-                    <ToothGlyph
-                      toothNum={LEGEND_TOOTH}
-                      status={status}
-                      surfaces={status === 'CARIES' || status === 'FILLED' ? ['O'] : []}
-                    />
-                  </span>
-                  <span className="text-[0.82rem] leading-tight font-semibold text-ink">
-                    {t(`status_${status}`)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {view === 'PERIO' ? (
+            <PerioLegend />
+          ) : readOnly ? (
+            // The legend draws the same molar in each state rather than a
+            // lettered square. A key whose swatches look nothing like the thing
+            // they label is a second notation to learn; this one is just the
+            // chart, smaller. Where the chart can be edited the palette *is*
+            // this legend, and showing both would be the same key twice.
+            <div className="rounded-lg border border-line bg-paper px-4 py-3">
+              <p className="mb-2 text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</p>
+              <ul className="grid grid-cols-4 gap-x-3 gap-y-2 @min-[40rem]:grid-cols-8">
+                {TOOTH_STATUSES.map((option) => (
+                  <li key={option} className="flex flex-col items-center gap-0.5 text-center">
+                    <span aria-hidden className="h-16 w-9">
+                      <ToothGlyph
+                        toothNum={LEGEND_TOOTH}
+                        status={option}
+                        surfaces={option === 'CARIES' || option === 'FILLED' ? ['O'] : []}
+                      />
+                    </span>
+                    <span className="text-[0.82rem] leading-tight font-semibold text-ink">
+                      {t(`status_${option}`)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <ConditionPalette
+              tool={tool}
+              onPick={setTool}
+              onUndo={undo}
+              canUndo={undoStack.length > 0}
+            />
+          )}
         </div>
 
         <ChartFindings
+          view={view}
           records={records}
+          conditionOf={conditionOf}
           numberLabel={label}
           onSelect={(toothNum) => openTooth(toothNum)}
           onPoint={setHighlight}
@@ -438,169 +755,334 @@ export function DentalChart({
                   <SubmitButton label={tp('addToPlan')} pendingLabel={tc('saving')} />
                 </footer>
               </form>
-            ) : readOnly ? (
+            ) : (
               <>
-                <div className="space-y-4 px-5 py-5">
-                  <div>
-                    <p className="field-label">{t('condition')}</p>
-                    <p className="text-[1.05rem] font-semibold text-ink">
-                      {t(`status_${statusOf(records, selected)}`)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="field-label">{t('notes')}</p>
-                    <p
+                {/* Both examinations of the tooth, behind one heading. They are
+                    written at different moments by different hands, so they are
+                    two forms and two saves — but they are one tooth, and making
+                    the probe readings a separate screen would mean closing the
+                    record to answer "and how deep is it round there?". */}
+                <div
+                  role="group"
+                  aria-label={t('viewLabel')}
+                  className="flex gap-1 border-b border-line px-5 pt-3"
+                >
+                  {CHART_VIEWS.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-pressed={dialogTab === option}
+                      onClick={() => setDialogTab(option)}
                       className={cn(
-                        'text-[1.02rem] whitespace-pre-line',
-                        current?.notes ? 'text-ink' : 'text-ink-faint',
+                        '-mb-px border-b-2 px-3 py-2 text-[0.95rem] font-bold',
+                        dialogTab === option
+                          ? 'border-brand-dark text-brand-deep'
+                          : 'border-transparent text-ink-soft hover:text-ink',
                       )}
                     >
-                      {current?.notes || tc('none')}
-                    </p>
-                  </div>
+                      {t(`view_${option}`)}
+                    </button>
+                  ))}
                 </div>
 
-                <footer className="flex items-center justify-end border-t border-line px-5 py-4">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => dialogRef.current?.close()}
-                  >
-                    {tc('close')}
-                  </button>
-                </footer>
-              </>
-            ) : (
-              // Keyed so the uncontrolled radios and checkboxes remount when a
-              // different tooth — or the same tooth by a different surface — is
-              // opened. Without it the previous tooth's ticks stay on screen.
-              <form action={formAction} key={`${selected}-${focusSurface ?? ''}`}>
-                <div className="space-y-4 px-5 py-5">
-                  <input type="hidden" name="patientId" value={patientId} />
-                  <input type="hidden" name="toothNum" value={selected} />
+                {dialogTab === 'PERIO' ? (
+                  readOnly ? (
+                    <>
+                      <div className="px-5 py-5">
+                        <PerioReadout summary={perioOf(selected)} toothNum={selected} />
+                      </div>
+                      <footer className="flex items-center justify-end border-t border-line px-5 py-4">
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => dialogRef.current?.close()}
+                        >
+                          {tc('close')}
+                        </button>
+                      </footer>
+                    </>
+                  ) : (
+                    // Keyed on the tooth so six uncontrolled boxes are remounted
+                    // rather than carrying the previous tooth's readings across
+                    // — which on this form would be six plausible wrong numbers.
+                    <form action={perioFormAction} key={`perio-${selected}`}>
+                      <div className="px-5 py-5">
+                        <input type="hidden" name="patientId" value={patientId} />
+                        <input type="hidden" name="toothNum" value={selected} />
+                        <PerioFields toothNum={selected} summary={perioOf(selected)} />
 
-                  {/* The choice is made on a picture of the outcome: each option
-                      draws *this* tooth as it would look once the condition is
-                      recorded, so picking one is recognition rather than reading
-                      eight labels and translating each into a mental image. */}
-                  <fieldset>
-                    <legend className="field-label">{t('condition')}</legend>
-                    <div className="grid grid-cols-4 gap-2">
-                      {TOOTH_STATUSES.map((option) => (
-                        <label
-                          key={option}
+                        {perioState.status === 'error' ? (
+                          <p
+                            role="alert"
+                            className="mt-4 rounded-lg border border-danger bg-danger-soft px-3 py-2 font-semibold text-danger"
+                          >
+                            {perioState.message}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <footer className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => dialogRef.current?.close()}
+                        >
+                          {tc('cancel')}
+                        </button>
+                        <SubmitButton label={tc('save')} pendingLabel={tc('saving')} />
+                      </footer>
+                    </form>
+                  )
+                ) : readOnly ? (
+                  <>
+                    <div className="space-y-4 px-5 py-5">
+                      <div>
+                        <p className="field-label">{t('condition')}</p>
+                        <p className="text-[1.05rem] font-semibold text-ink">
+                          {t(`status_${openCondition.status}`)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="field-label">{t('notes')}</p>
+                        <p
                           className={cn(
-                            'flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-line-strong px-1 py-2',
-                            'text-center text-[0.82rem] leading-tight font-semibold hover:border-ink',
-                            'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
+                            'text-[1.02rem] whitespace-pre-line',
+                            current?.notes ? 'text-ink' : 'text-ink-faint',
                           )}
                         >
-                          <input
-                            type="radio"
-                            name="status"
-                            value={option}
-                            defaultChecked={status === option}
-                            onChange={() => setStatus(option)}
-                            className="sr-only"
-                          />
-                          <span aria-hidden className="h-16 w-9">
-                            <ToothGlyph
-                              toothNum={selected}
-                              status={option}
-                              surfaces={
-                                option === 'CARIES' || option === 'FILLED'
-                                  ? previewSurfaces
-                                  : []
-                              }
-                            />
-                          </span>
-                          {t(`status_${option}`)}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-
-                  {/* "Caries on 14" is a note; "caries on the distal-occlusal of
-                      14" is a treatment plan. Hidden for the statuses where a
-                      surface makes no sense — a missing tooth has none.
-
-                      These are also the accessible form of the target above: it
-                      is a mouse shortcut and hidden from assistive technology,
-                      so the same five surfaces have to be reachable here. */}
-                  {surfacesApply ? (
-                    <fieldset>
-                      <legend className="field-label">{t('surfaces')}</legend>
-                      <div className="flex flex-wrap gap-2">
-                        {TOOTH_SURFACES.map((surface) => (
-                          <label
-                            key={surface}
-                            className={cn(
-                              'flex cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-3 py-2',
-                              'text-[0.92rem] font-semibold hover:border-ink',
-                              'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              name="surfaces"
-                              value={surface}
-                              defaultChecked={
-                                surface === focusSurface ||
-                                parseSurfaces(current?.surfaces).includes(surface)
-                              }
-                              className="sr-only"
-                            />
-                            <span aria-hidden className="font-bold">
-                              {surface}
-                            </span>
-                            {surface === 'O'
-                              ? t(isAnterior(selected) ? 'surface_I' : 'surface_O')
-                              : t(`surface_${surface}`)}
-                          </label>
-                        ))}
+                          {current?.notes || tc('none')}
+                        </p>
                       </div>
-                    </fieldset>
-                  ) : null}
+                    </div>
 
-                  <div>
-                    <label className="field-label" htmlFor={`${uid}-notes`}>
-                      {t('notes')}
-                      <span className="ml-1.5 font-normal text-ink-faint">({tc('optional')})</span>
-                    </label>
-                    <textarea
-                      id={`${uid}-notes`}
-                      name="notes"
-                      rows={3}
-                      className="field-input min-h-20 resize-y"
-                      defaultValue={current?.notes ?? ''}
-                    />
-                  </div>
+                    <footer className="flex items-center justify-end border-t border-line px-5 py-4">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => dialogRef.current?.close()}
+                      >
+                        {tc('close')}
+                      </button>
+                    </footer>
+                  </>
+                ) : (
+                  // Keyed so the uncontrolled radios and checkboxes remount when a
+                  // different tooth — or the same tooth by a different surface — is
+                  // opened. Without it the previous tooth's ticks stay on screen.
+                  <form action={formAction} key={`${selected}-${focusSurface ?? ''}`}>
+                    <div className="space-y-4 px-5 py-5">
+                      <input type="hidden" name="patientId" value={patientId} />
+                      <input type="hidden" name="toothNum" value={selected} />
 
-                  {state.status === 'error' ? (
-                    <p
-                      role="alert"
-                      className="rounded-lg border border-danger bg-danger-soft px-3 py-2 font-semibold text-danger"
-                    >
-                      {state.message}
-                    </p>
-                  ) : null}
-                </div>
+                      {/* The choice is made on a picture of the outcome: each option
+                          draws *this* tooth as it would look once the condition is
+                          recorded, so picking one is recognition rather than reading
+                          eight labels and translating each into a mental image. */}
+                      <fieldset>
+                        <legend className="field-label">{t('condition')}</legend>
+                        <div className="grid grid-cols-4 gap-2">
+                          {TOOTH_STATUSES.map((option) => (
+                            <label
+                              key={option}
+                              className={cn(
+                                'flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-line-strong px-1 py-2',
+                                'text-center text-[0.82rem] leading-tight font-semibold hover:border-ink',
+                                'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
+                              )}
+                            >
+                              <input
+                                type="radio"
+                                name="status"
+                                value={option}
+                                defaultChecked={status === option}
+                                onChange={() => setStatus(option)}
+                                className="sr-only"
+                              />
+                              <span aria-hidden className="h-16 w-9">
+                                <ToothGlyph
+                                  toothNum={selected}
+                                  status={option}
+                                  surfaces={previewFor(option)}
+                                />
+                              </span>
+                              {t(`status_${option}`)}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
 
-                <footer className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => dialogRef.current?.close()}
-                  >
-                    {tc('cancel')}
-                  </button>
-                  <SubmitButton label={tc('save')} pendingLabel={tc('saving')} />
-                </footer>
-              </form>
+                      {/* "Caries on 14" is a note; "caries on the distal-occlusal of
+                          14" is a treatment plan. Hidden for the statuses where a
+                          surface makes no sense — a missing tooth has none.
+
+                          These are also the accessible form of the target above: it
+                          is a mouse shortcut and hidden from assistive technology,
+                          so the same five surfaces have to be reachable here. */}
+                      {surfacesApply ? (
+                        <fieldset>
+                          <legend className="field-label">{t('surfaces')}</legend>
+                          <div className="flex flex-wrap gap-2">
+                            {TOOTH_SURFACES.map((surface) => (
+                              <label
+                                key={surface}
+                                className={cn(
+                                  'flex cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-3 py-2',
+                                  'text-[0.92rem] font-semibold hover:border-ink',
+                                  'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  name="surfaces"
+                                  value={surface}
+                                  defaultChecked={
+                                    surface === focusSurface || openSurfaces.includes(surface)
+                                  }
+                                  className="sr-only"
+                                />
+                                <span aria-hidden className="font-bold">
+                                  {surface}
+                                </span>
+                                {surface === 'O'
+                                  ? t(isAnterior(selected) ? 'surface_I' : 'surface_O')
+                                  : t(`surface_${surface}`)}
+                              </label>
+                            ))}
+                          </div>
+                        </fieldset>
+                      ) : null}
+
+                      <div>
+                        <label className="field-label" htmlFor={`${uid}-notes`}>
+                          {t('notes')}
+                          <span className="ml-1.5 font-normal text-ink-faint">({tc('optional')})</span>
+                        </label>
+                        <textarea
+                          id={`${uid}-notes`}
+                          name="notes"
+                          rows={3}
+                          className="field-input min-h-20 resize-y"
+                          defaultValue={current?.notes ?? ''}
+                        />
+                      </div>
+
+                      {state.status === 'error' ? (
+                        <p
+                          role="alert"
+                          className="rounded-lg border border-danger bg-danger-soft px-3 py-2 font-semibold text-danger"
+                        >
+                          {state.message}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <footer className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => dialogRef.current?.close()}
+                      >
+                        {tc('cancel')}
+                      </button>
+                      <SubmitButton label={tc('save')} pendingLabel={tc('saving')} />
+                    </footer>
+                  </form>
+                )}
+              </>
             )}
           </>
         )}
       </dialog>
+    </div>
+  );
+}
+
+/** The three bands the depth numbers are coloured in, spelled out — the colour
+ *  is a second channel over the digits, and a reader has to be told what it
+ *  means once. */
+function PerioLegend() {
+  const t = useTranslations('teeth');
+
+  const bands: { key: string; className: string }[] = [
+    { key: 'perioBandHealthy', className: 'bg-ok-soft text-ok' },
+    { key: 'perioBandWatch', className: 'bg-warn-soft text-warn' },
+    { key: 'perioBandDiseased', className: 'bg-danger-soft text-danger' },
+  ];
+
+  return (
+    <div className="rounded-lg border border-line bg-paper px-4 py-3">
+      <p className="mb-2 text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</p>
+      <ul className="flex flex-wrap gap-x-4 gap-y-2">
+        {bands.map((band) => (
+          <li key={band.key} className="flex items-center gap-2">
+            <span className={cn('rounded px-2 py-0.5 text-[0.85rem] font-bold', band.className)}>
+              {t(`${band.key}Range`)}
+            </span>
+            <span className="text-[0.9rem] text-ink">{t(band.key)}</span>
+          </li>
+        ))}
+        <li className="flex items-center gap-2">
+          <span className="rounded px-2 py-0.5 text-[0.85rem] font-bold text-ink underline decoration-danger decoration-2 underline-offset-[2px]">
+            4
+          </span>
+          <span className="text-[0.9rem] text-ink">{t('perioBleeding')}</span>
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="rounded bg-warn-soft px-2 py-0.5 text-[0.85rem] font-bold text-warn">
+            MII
+          </span>
+          <span className="text-[0.9rem] text-ink">{t('mobility')}</span>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+/** One tooth's readings written out, for a reader who may not change them. */
+function PerioReadout({ summary, toothNum }: { summary: PerioSummary; toothNum: number }) {
+  const t = useTranslations('teeth');
+  const tc = useTranslations('common');
+
+  if (!summary.recorded) {
+    return <p className="text-[1.02rem] text-ink-faint">{t('perioNone')}</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="field-label">{t('perioDepths')}</p>
+        <div className="mt-1 flex items-center gap-3">
+          <PerioStrip toothNum={toothNum} summary={summary} className="scale-125 origin-left" />
+          <p className="text-[0.95rem] text-ink-soft">
+            {PERIO_SITES.map((site, index) =>
+              summary.depths[index] === null
+                ? null
+                : `${t(`site_${site}`)} ${summary.depths[index]}`,
+            )
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <p>
+          <span className="field-label">{t('perioBleeding')}</span>
+          <span className="text-[1.02rem] font-semibold text-ink">
+            {summary.bleedingCount > 0
+              ? t('perioBleedingCount', { count: summary.bleedingCount })
+              : tc('none')}
+          </span>
+        </p>
+        <p>
+          <span className="field-label">{t('mobility')}</span>
+          <span className="text-[1.02rem] font-semibold text-ink">
+            {summary.mobility === null
+              ? t('mobilityUnknown')
+              : `${MOBILITY_LABEL[summary.mobility]} — ${t(`mobility_${summary.mobility}`)}`}
+          </span>
+        </p>
+      </div>
     </div>
   );
 }
@@ -626,14 +1108,24 @@ export function DentalChart({
  * A tooth charted healthy but carrying a note is listed too: that note is
  * invisible on the drawing apart from one grey dot, and "watch the fissure on
  * 36" is exactly the kind of thing written once and never seen again.
+ *
+ * In the periodontal view it lists the same teeth by a different question —
+ * which pockets are deep, which sites bleed, which teeth move — under the two
+ * numbers a periodontal examination is actually reported as.
  */
 function ChartFindings({
+  view,
   records,
+  conditionOf,
   numberLabel,
   onSelect,
   onPoint,
 }: {
+  view: ChartView;
   records: ToothRecordMap;
+  /** The tooth as the screen knows it — one mark ahead of `records` while a
+   *  click is in flight. */
+  conditionOf: (toothNum: number) => ToothCondition;
   numberLabel: (toothNum: number) => string;
   onSelect: (toothNum: number) => void;
   /** Ring this tooth on the arch, or clear the ring with null. */
@@ -641,15 +1133,32 @@ function ChartFindings({
 }) {
   const t = useTranslations('teeth');
 
-  const findings = ALL_TEETH.map((toothNum) => ({
-    toothNum,
-    status: statusOf(records, toothNum),
-    surfaces: parseSurfaces(records[toothNum]?.surfaces),
-    notes: records[toothNum]?.notes ?? '',
-    chartedOn: records[toothNum]?.chartedOn ?? '',
-  })).filter((finding) => finding.status !== DEFAULT_TOOTH_STATUS || finding.notes !== '');
+  const perio = view === 'PERIO';
+
+  const findings = ALL_TEETH.map((toothNum) => {
+    // The condition as the screen knows it, so a tooth just marked on the arch
+    // appears in the list beside it on the same click. Read off `records` this
+    // list stayed a round trip behind the drawing, and under a fast hand it was
+    // permanently behind — the panel and the arch disagreeing about the mouth.
+    const condition = conditionOf(toothNum);
+    return {
+      toothNum,
+      status: condition.status,
+      surfaces: parseSurfaces(condition.surfaces),
+      notes: records[toothNum]?.notes ?? '',
+      chartedOn: records[toothNum]?.chartedOn ?? '',
+      perio: perioSummaryOf(records[toothNum] ?? {}),
+    };
+  }).filter((finding) =>
+    perio
+      ? finding.perio.recorded
+      : finding.status !== DEFAULT_TOOTH_STATUS || finding.notes !== '',
+  );
 
   const flagged = findings.filter((finding) => finding.status !== DEFAULT_TOOTH_STATUS);
+  const overview = perioOverview(
+    ALL_TEETH.map((toothNum) => perioSummaryOf(records[toothNum] ?? {})),
+  );
 
   // Counted in the order the statuses are declared, which is roughly worst
   // first — a tally that reshuffles itself as teeth are charted is one nobody
@@ -662,34 +1171,77 @@ function ChartFindings({
     <aside className="overflow-hidden rounded-lg border border-line bg-paper @min-[68rem]:sticky @min-[68rem]:top-4">
       <div className="border-b border-line px-4 py-3">
         <p className="flex items-center gap-2 text-[0.9rem] font-bold text-ink-faint uppercase">
-          <Stethoscope size={17} aria-hidden />
-          {t('findings')}
-        </p>
-        <p className="mt-1 font-semibold text-ink-soft">
-          {t('summary', { count: flagged.length })}
+          {perio ? <Activity size={17} aria-hidden /> : <Stethoscope size={17} aria-hidden />}
+          {t(perio ? 'perioFindings' : 'findings')}
         </p>
 
-        {tally.length > 0 ? (
-          <ul className="mt-2.5 flex flex-wrap gap-1.5">
-            {tally.map(({ status, count }) => (
-              <li
-                key={status}
-                className={cn(
-                  'rounded-full border px-2.5 py-0.5 text-[0.82rem] font-bold',
-                  TOOTH_STATUS_STYLE[status].swatch,
-                )}
-              >
-                {t(`status_${status}`)}
-                <span className="ml-1.5 tabular-nums">{count}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        {perio ? (
+          <>
+            <p className="mt-1 font-semibold text-ink-soft">
+              {t('perioSummary', { count: overview.teethProbed })}
+            </p>
+            {overview.teethProbed > 0 ? (
+              <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                {overview.deepest !== null ? (
+                  <li
+                    className={cn(
+                      'rounded-full border px-2.5 py-0.5 text-[0.82rem] font-bold',
+                      overview.deepest >= 6
+                        ? 'border-danger bg-danger-soft text-danger'
+                        : overview.deepest > 3
+                          ? 'border-warn bg-warn-soft text-warn'
+                          : 'border-line-strong bg-ok-soft text-ok',
+                    )}
+                  >
+                    {t('perioDeepest')}
+                    <span className="ml-1.5 tabular-nums">{overview.deepest}mm</span>
+                  </li>
+                ) : null}
+                {overview.bleedingPercent !== null ? (
+                  <li
+                    className={cn(
+                      'flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[0.82rem] font-bold',
+                      overview.bleedingPercent >= 10
+                        ? 'border-danger bg-danger-soft text-danger'
+                        : 'border-line-strong bg-surface text-ink-soft',
+                    )}
+                  >
+                    <Droplet size={13} aria-hidden />
+                    <span className="tabular-nums">{overview.bleedingPercent}%</span>
+                  </li>
+                ) : null}
+              </ul>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <p className="mt-1 font-semibold text-ink-soft">
+              {t('summary', { count: flagged.length })}
+            </p>
+
+            {tally.length > 0 ? (
+              <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                {tally.map(({ status, count }) => (
+                  <li
+                    key={status}
+                    className={cn(
+                      'rounded-full border px-2.5 py-0.5 text-[0.82rem] font-bold',
+                      TOOTH_STATUS_STYLE[status].swatch,
+                    )}
+                  >
+                    {t(`status_${status}`)}
+                    <span className="ml-1.5 tabular-nums">{count}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        )}
       </div>
 
       {findings.length === 0 ? (
         <p className="px-4 py-6 text-center text-[0.98rem] text-ink-faint">
-          {t('findingsEmpty')}
+          {t(perio ? 'perioFindingsEmpty' : 'findingsEmpty')}
         </p>
       ) : (
         <ul className="max-h-[34rem] space-y-2 overflow-y-auto p-3">
@@ -722,14 +1274,54 @@ function ChartFindings({
                       <span className="text-[1.05rem] leading-tight font-bold text-ink tabular-nums">
                         {numberLabel(finding.toothNum)}
                       </span>
-                      <span
-                        className={cn(
-                          'rounded-full border px-2 py-0.5 text-[0.78rem] font-bold',
-                          TOOTH_STATUS_STYLE[finding.status].swatch,
-                        )}
-                      >
-                        {t(`status_${finding.status}`)}
-                      </span>
+                      {perio ? (
+                        <>
+                          {finding.perio.deepest !== null ? (
+                            <span
+                              className={cn(
+                                'rounded-full border px-2 py-0.5 text-[0.78rem] font-bold tabular-nums',
+                                finding.perio.deepest >= 6
+                                  ? 'border-danger bg-danger-soft text-danger'
+                                  : finding.perio.deepest > 3
+                                    ? 'border-warn bg-warn-soft text-warn'
+                                    : 'border-line-strong bg-ok-soft text-ok',
+                              )}
+                            >
+                              {finding.perio.deepest}mm
+                            </span>
+                          ) : null}
+                          {finding.perio.mobility !== null && finding.perio.mobility > 0 ? (
+                            // Banded exactly as the strip bands it, so the chip
+                            // and the drawing beside it never disagree about
+                            // how bad the same grade is.
+                            <span
+                              className={cn(
+                                'rounded-full border px-2 py-0.5 text-[0.78rem] font-bold',
+                                finding.perio.mobility >= 2
+                                  ? 'border-danger bg-danger-soft text-danger'
+                                  : 'border-warn bg-warn-soft text-warn',
+                              )}
+                            >
+                              M{MOBILITY_LABEL[finding.perio.mobility]}
+                            </span>
+                          ) : null}
+                          {finding.perio.bleedingCount > 0 ? (
+                            <span className="flex items-center gap-1 rounded-full border border-danger bg-danger-soft px-2 py-0.5 text-[0.78rem] font-bold text-danger">
+                              <Droplet size={12} aria-hidden />
+                              <span className="tabular-nums">{finding.perio.bleedingCount}</span>
+                            </span>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span
+                          className={cn(
+                            'rounded-full border px-2 py-0.5 text-[0.78rem] font-bold',
+                            TOOTH_STATUS_STYLE[finding.status].swatch,
+                          )}
+                        >
+                          {t(`status_${finding.status}`)}
+                        </span>
+                      )}
                     </span>
 
                     <span className="mt-0.5 block text-[0.88rem] leading-snug text-ink-soft">
@@ -738,39 +1330,51 @@ function ChartFindings({
                       {dentitionOf(finding.toothNum) === 'PRIMARY' ? ` · ${t('primaryTooth')}` : ''}
                     </span>
 
-                    {/* The letters are how the finding is written down and the
-                        words are how it is checked — "MOD" is unreadable to
-                        anyone outside the surgery, and the names alone are too
-                        long to scan. */}
-                    {finding.surfaces.length > 0 ? (
-                      <span className="mt-1 block text-[0.88rem] leading-snug text-ink">
-                        <span className="font-bold tracking-wide">
-                          {finding.surfaces.join('')}
-                        </span>
-                        <span className="text-ink-soft">
-                          {' — '}
-                          {finding.surfaces
-                            .map((surface) =>
-                              surface === 'O'
-                                ? t(isAnterior(finding.toothNum) ? 'surface_I' : 'surface_O')
-                                : t(`surface_${surface}`),
-                            )
-                            .join(', ')}
-                        </span>
+                    {perio ? (
+                      // A flex parent rather than a block one: the strip centres
+                      // its own rows, and in a full-width block that centring
+                      // pushes it into the middle of the row instead of lining
+                      // it up under the tooth number.
+                      <span className="mt-1 flex">
+                        <PerioStrip toothNum={finding.toothNum} summary={finding.perio} />
                       </span>
-                    ) : null}
+                    ) : (
+                      <>
+                        {/* The letters are how the finding is written down and the
+                            words are how it is checked — "MOD" is unreadable to
+                            anyone outside the surgery, and the names alone are too
+                            long to scan. */}
+                        {finding.surfaces.length > 0 ? (
+                          <span className="mt-1 block text-[0.88rem] leading-snug text-ink">
+                            <span className="font-bold tracking-wide">
+                              {finding.surfaces.join('')}
+                            </span>
+                            <span className="text-ink-soft">
+                              {' — '}
+                              {finding.surfaces
+                                .map((surface) =>
+                                  surface === 'O'
+                                    ? t(isAnterior(finding.toothNum) ? 'surface_I' : 'surface_O')
+                                    : t(`surface_${surface}`),
+                                )
+                                .join(', ')}
+                            </span>
+                          </span>
+                        ) : null}
 
-                    {finding.notes ? (
-                      <span className="mt-1 block line-clamp-3 text-[0.92rem] leading-snug whitespace-pre-line text-ink">
-                        {finding.notes}
-                      </span>
-                    ) : null}
+                        {finding.notes ? (
+                          <span className="mt-1 block line-clamp-3 text-[0.92rem] leading-snug whitespace-pre-line text-ink">
+                            {finding.notes}
+                          </span>
+                        ) : null}
 
-                    {finding.chartedOn ? (
-                      <span className="mt-1 block text-[0.8rem] text-ink-faint">
-                        {t('chartedOn', { date: finding.chartedOn })}
-                      </span>
-                    ) : null}
+                        {finding.chartedOn ? (
+                          <span className="mt-1 block text-[0.8rem] text-ink-faint">
+                            {t('chartedOn', { date: finding.chartedOn })}
+                          </span>
+                        ) : null}
+                      </>
+                    )}
                   </span>
                 </button>
               </li>
@@ -820,8 +1424,16 @@ function ArchRow({
 
 type ToothCellProps = {
   toothNum: number;
-  records: ToothRecordMap;
+  /** Which examination this row is drawing. */
+  view: ChartView;
+  /** The tooth as the screen currently knows it — which is one mark ahead of
+   *  the server while a click is in flight. */
+  conditionOf: (toothNum: number) => ToothCondition;
+  perioOf: (toothNum: number) => PerioSummary;
+  hasNote: (toothNum: number) => boolean;
   readOnly: boolean;
+  /** Whether a condition is held, so a click writes rather than opens. */
+  marking: boolean;
   /** Crown down, root up — and the number sits beneath the target. */
   upper?: boolean;
   primary?: boolean;
@@ -835,8 +1447,12 @@ type ToothCellProps = {
 
 function ToothCell({
   toothNum,
-  records,
+  view,
+  conditionOf,
+  perioOf,
+  hasNote,
   readOnly,
+  marking,
   upper = false,
   primary = false,
   onSelect,
@@ -844,10 +1460,11 @@ function ToothCell({
   numberLabel,
   toothLabel,
 }: ToothCellProps) {
-  const record = records[toothNum];
-  const status = statusOf(records, toothNum);
+  const condition = conditionOf(toothNum);
+  const status = condition.status;
   const style = TOOTH_STATUS_STYLE[status];
-  const marked = parseSurfaces(record?.surfaces);
+  const marked = parseSurfaces(condition.surfaces);
+  const perio = perioOf(toothNum);
 
   const glyph = (
     <button
@@ -862,22 +1479,39 @@ function ToothCell({
       )}
     >
       <ToothGlyph toothNum={toothNum} status={status} surfaces={marked} />
-      {record?.notes ? (
+      {hasNote(toothNum) ? (
         <span aria-hidden className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-ink-faint" />
       ) : null}
     </button>
   );
 
-  const target = (
-    <div className="mx-auto h-9 w-9">
-      <SurfaceTarget
-        toothNum={toothNum}
-        readOnly={readOnly}
-        fillOf={(surface) => surfaceFill(status, record?.surfaces, surface)}
-        onSurfaceClick={(surface) => onSelect(toothNum, surface)}
-      />
-    </div>
-  );
+  // Under the tooth: the five faces in the condition view, the six probe
+  // readings in the periodontal one. The same slot either way, so the number
+  // stays where the eye left it when the view changes.
+  const under =
+    view === 'PERIO' ? (
+      // Hidden from assistive technology and skipped by the tab key, exactly
+      // as the surface target is: it opens the same record the tooth above it
+      // opens, and two controls with one name is a list read twice.
+      <button
+        type="button"
+        aria-hidden
+        tabIndex={-1}
+        onClick={() => onSelect(toothNum)}
+        className="mx-auto block rounded-md px-0.5 py-0.5 transition-colors hover:bg-brand-soft/60"
+      >
+        <PerioStrip toothNum={toothNum} summary={perio} />
+      </button>
+    ) : (
+      <div className="mx-auto h-9 w-9">
+        <SurfaceTarget
+          toothNum={toothNum}
+          readOnly={readOnly}
+          fillOf={(surface) => surfaceFill(status, condition.surfaces, surface)}
+          onSurfaceClick={(surface) => onSelect(toothNum, surface)}
+        />
+      </div>
+    );
 
   // The status letter rides with the number so the condition never depends on
   // colour alone — the same reason the legend carries one.
@@ -902,19 +1536,22 @@ function ToothCell({
       className={cn(
         CELL,
         'flex flex-col gap-1 rounded-md px-0.5 py-0.5',
+        // With a tool held the whole cell is a target, and saying so with the
+        // cursor is cheaper than a tooltip nobody waits for.
+        marking && 'cursor-crosshair',
         highlight === toothNum && 'bg-brand-soft ring-2 ring-brand',
       )}
     >
       {upper ? (
         <>
           {glyph}
-          {target}
+          {under}
           {number}
         </>
       ) : (
         <>
           {number}
-          {target}
+          {under}
           {glyph}
         </>
       )}

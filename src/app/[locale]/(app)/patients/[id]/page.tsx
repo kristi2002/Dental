@@ -52,6 +52,7 @@ import { addDays, addMonths, age, toDateKey, today } from '@/lib/dates';
 import { ID_KINDS } from '@/lib/documents';
 import { allergyLines } from '@/lib/medical';
 import { prisma } from '@/lib/prisma';
+import { DEFAULT_TOOTH_STATUS } from '@/lib/teeth';
 import {
   getOperatoryOptions,
   getPatientAppointments,
@@ -256,6 +257,13 @@ export default async function PatientDetailPage({
         status: record.status,
         notes: record.notes ?? '',
         surfaces: record.surfaces ?? '',
+        // The periodontal half of the same row — pocket depths, which sites
+        // bled, and how far the tooth moves. Passed raw and parsed in the
+        // chart: `src/lib/perio.ts` owns the encoding, and a second reading of
+        // it here is a second place for it to be read wrong.
+        mobility: record.mobility,
+        pockets: record.pockets,
+        bleeding: record.bleeding,
         // When the tooth was last charted. A caries found two years ago and one
         // found this morning are the same red on the drawing and two very
         // different conversations.
@@ -844,6 +852,16 @@ export default async function PatientDetailPage({
                       fromCatalog: false,
                     })),
               teeth: [...visit.toothRecords]
+                // Only the rows that say something about the *tooth*. Probing a
+                // gum creates a row too — healthy, no surfaces, holding nothing
+                // but pocket depths — and the timeline draws a condition, so a
+                // full periodontal examination would otherwise append thirty-two
+                // teeth captioned "Healthy" to the visit that took it, none of
+                // which the visit changed and none of which show the readings.
+                .filter(
+                  (record) =>
+                    record.status !== DEFAULT_TOOTH_STATUS || record.surfaces || record.notes,
+                )
                 .sort((a, b) => a.toothNum - b.toothNum)
                 .map((record) => ({
                   toothNum: record.toothNum,
