@@ -4,6 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { NewPlanForm } from '@/components/plans/NewPlanForm';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
+import { TreatmentStepStatus } from '@/generated/prisma/enums';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
 import { getClinicProfile, getServiceOptions } from '@/lib/queries';
@@ -48,7 +49,7 @@ export default async function NewPlanPage({
 
   const { patient: patientId } = await searchParams;
 
-  const [services, clinicProfile, titleRows, patient] = await Promise.all([
+  const [services, clinicProfile, titleRows, templateRows, patient] = await Promise.all([
     getServiceOptions(),
     getClinicProfile(),
     // Plan names the practice has already used, suggested on the next one so
@@ -58,6 +59,26 @@ export default async function NewPlanPage({
       orderBy: { title: 'asc' },
       take: 40,
       select: { title: true },
+    }),
+    // And the plans themselves, whole, so the steps under a repeated title are
+    // not rebuilt by hand every time. Newest first and one per title: a practice
+    // that has written "Upper right quadrant restoration" nine times means the
+    // most recent one, not the first attempt at it.
+    prisma.treatmentPlan.findMany({
+      distinct: ['title'],
+      orderBy: { createdAt: 'desc' },
+      take: 12,
+      select: {
+        id: true,
+        title: true,
+        steps: {
+          orderBy: { position: 'asc' },
+          // Skipped steps are what one patient turned out not to need, which
+          // says nothing about the next one.
+          where: { status: { not: TreatmentStepStatus.SKIPPED } },
+          select: { title: true, serviceId: true },
+        },
+      },
     }),
     // The chart comes with the patient, because the findings on it are what this
     // form offers as steps. A `?patient=` that names nobody falls back to asking.
@@ -111,6 +132,9 @@ export default async function NewPlanPage({
         charted={charted}
         numbering={clinicProfile.toothNumbering}
         titles={titleRows.map((row) => row.title)}
+        // A template with no steps in it is a title, and the datalist above is
+        // already offering those.
+        templates={templateRows.filter((row) => row.steps.length > 0)}
       />
     </>
   );

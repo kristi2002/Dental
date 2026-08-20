@@ -27,9 +27,17 @@ import { prisma } from '@/lib/prisma';
 export async function syncPlanStatus(planId: string): Promise<void> {
   const plan = await prisma.treatmentPlan.findUnique({
     where: { id: planId },
-    select: { status: true },
+    select: { status: true, _count: { select: { steps: true } } },
   });
   if (!plan || plan.status === TreatmentPlanStatus.CANCELLED) return;
+
+  // A plan with no steps at all is empty, not finished. "Nothing outstanding"
+  // is true of both, and reading it as *done* files a course of treatment
+  // somebody has only just started writing — or one whose steps were all
+  // deleted to be rewritten — straight into the archive, where it is not
+  // looked for. The steps decide the status; with no steps there is nothing
+  // to decide it, so whatever it already says stands.
+  if (plan._count.steps === 0) return;
 
   const outstanding = await prisma.treatmentStep.count({
     where: { planId, status: TreatmentStepStatus.PENDING },

@@ -16,6 +16,8 @@ export type StepDefaults = {
   title: string;
   toothNum: number | null;
   notes: string;
+  /** The catalogue entry behind the title, when there is one. */
+  serviceId: string | null;
 };
 
 export function StepFormDialog({
@@ -24,6 +26,7 @@ export function StepFormDialog({
   services = [],
   charted = {},
   numbering = 'FDI',
+  triggerClassName = 'btn btn-ghost btn-sm',
 }: {
   planId: string;
   step?: StepDefaults;
@@ -31,6 +34,8 @@ export function StepFormDialog({
   services?: ServiceOption[];
   charted?: ChartedTeeth;
   numbering?: ToothNumbering;
+  /** Full class list for the trigger — `menu-item` when it sits in an overflow. */
+  triggerClassName?: string;
 }) {
   const t = useTranslations('plans');
   const tc = useTranslations('common');
@@ -40,6 +45,11 @@ export function StepFormDialog({
 
   const [title, setTitle] = useState(step?.title ?? '');
   const [toothNum, setToothNum] = useState<number | null>(step?.toothNum ?? null);
+  // Which catalogue entry this step plans, when it came from one. Tracked
+  // separately from the title because the title stays editable — "composite
+  // filling, deep" is still that treatment — and it is the id, not the wording,
+  // that tells a booking how long to leave in the diary.
+  const [serviceId, setServiceId] = useState<string | null>(step?.serviceId ?? null);
 
   return (
     <FormDialog
@@ -49,6 +59,7 @@ export function StepFormDialog({
       onClose={() => {
         setTitle(step?.title ?? '');
         setToothNum(step?.toothNum ?? null);
+        setServiceId(step?.serviceId ?? null);
       }}
       title={editing ? t('editStep') : t('addStep')}
       submitLabel={tc('save')}
@@ -56,12 +67,14 @@ export function StepFormDialog({
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
       triggerTitle={editing ? t('editStep') : t('addStep')}
-      triggerClassName="btn btn-ghost btn-sm"
+      triggerClassName={triggerClassName}
       trigger={
         editing ? (
           <>
             <Pencil size={16} aria-hidden />
-            <span className="sr-only">{t('editStep')}</span>
+            <span className={triggerClassName === 'menu-item' ? '' : 'sr-only'}>
+              {t('editStep')}
+            </span>
           </>
         ) : (
           <>
@@ -74,6 +87,7 @@ export function StepFormDialog({
       <input type="hidden" name="planId" value={planId} />
       {step ? <input type="hidden" name="id" value={step.id} /> : null}
       <input type="hidden" name="toothNum" value={toothNum ?? ''} />
+      <input type="hidden" name="serviceId" value={serviceId ?? ''} />
 
       <TextField
         id={`${uid}-title`}
@@ -81,7 +95,13 @@ export function StepFormDialog({
         label={t('stepTitle')}
         required
         value={title}
-        onChange={(event) => setTitle(event.target.value)}
+        onChange={(event) => {
+          setTitle(event.target.value);
+          // Typed over rather than picked: whatever chip was tapped no longer
+          // describes this step, and a stale id would hand the booking form the
+          // wrong length.
+          if (event.target.value !== step?.title) setServiceId(null);
+        }}
       />
 
       {/* One tap fills the field above. It stays editable, because "composite
@@ -99,10 +119,13 @@ export function StepFormDialog({
                   <button
                     key={service.id}
                     type="button"
-                    aria-pressed={title === service.name}
-                    onClick={() => setTitle(service.name)}
+                    aria-pressed={serviceId === service.id}
+                    onClick={() => {
+                      setTitle(service.name);
+                      setServiceId(service.id);
+                    }}
                     className={
-                      title === service.name
+                      serviceId === service.id
                         ? 'rounded-full border border-brand-dark bg-brand-dark px-3 py-1.5 text-[0.88rem] font-semibold text-white'
                         : 'rounded-full border border-line-strong bg-surface px-3 py-1.5 text-[0.88rem] font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep'
                     }
