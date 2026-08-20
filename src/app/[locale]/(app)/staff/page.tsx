@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { RoleBadge } from '@/components/auth/RoleBadge';
 import { BackupCard } from '@/components/staff/BackupCard';
+import { BackupStatusCard } from '@/components/staff/BackupStatusCard';
 import { StaffFormDialog } from '@/components/staff/StaffFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
@@ -13,6 +14,7 @@ import { Role } from '@/generated/prisma/enums';
 import { setStaffActive, unlockStaff } from '@/lib/actions/staff';
 import { requirePermission } from '@/lib/auth/guard';
 import { ROLE_ORDER, ROLE_PERMISSIONS } from '@/lib/auth/permissions';
+import { getBackupStatus } from '@/lib/backup-status';
 import { prisma } from '@/lib/prisma';
 import { cn, initials } from '@/lib/utils';
 
@@ -206,7 +208,16 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
           </div>
         </Card>
 
-        {currentUser.permissions.includes('backup.export') ? <BackupCard /> : null}
+        {/* The automatic copy first, then the manual one. The order is the
+            argument: the export below is what somebody takes deliberately, the
+            card above is what happens whether anyone remembers or not, and only
+            one of those is a backup strategy. */}
+        {currentUser.permissions.includes('backup.export') ? (
+          <>
+            <BackupStatusCard status={await getBackupStatus()} />
+            <BackupCard />
+          </>
+        ) : null}
       </div>
     </>
   );

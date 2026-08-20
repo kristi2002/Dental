@@ -211,15 +211,40 @@ later deploy is an ordinary `migrate deploy`.
 
 ## Backups
 
-Two things need copying, and the database is only one of them:
+**Full instructions, including creating the bucket and restoring from it, are in
+[RESTORE.md](RESTORE.md).** The short version:
 
-- **Postgres** — Coolify backs up managed databases on a schedule (Path B). On
-  Path A, back up the `db-data` volume, or add a scheduled `pg_dump`.
-- **`/data`** — the patient files. Nothing in a database dump contains them, and
-  the in-app backup export deliberately excludes them too. Back up this volume.
+`docker-compose.prod.yml` includes a `backup` service that dumps Postgres at
+02:00 and 13:00, copies the dump *and* the `/data` volume to a Backblaze B2
+bucket encrypted, and rehearses the restore every Sunday. It needs four
+environment variables — `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`,
+`BACKUP_S3_KEY_ID`, `BACKUP_S3_APPLICATION_KEY` — and does nothing offsite
+without them.
 
-The app's own owner-only export (Settings → Backup) covers records but, by
-design, neither PIN hashes nor uploaded files.
+Two things need copying and the database is only one of them:
+
+- **Postgres** — every record, including the staff PIN hashes.
+- **`/data`** — the patient files. Nothing in a database dump contains them.
+  Restoring the database alone brings the records back pointing at storage keys
+  and every document in every chart is broken.
+
+The sidecar covers both, in one snapshot, so a restore cannot pair Tuesday's
+records with Monday's radiographs.
+
+> **The passphrase must not live only on this server.** `RESTIC_PASSWORD` is
+> what decrypts the offsite copy. If the only copy of it is on the machine that
+> died, the backups are undecryptable noise. Generate it yourself, put it in the
+> password manager and on paper, *then* paste it into Coolify.
+
+Path B (Coolify's managed Postgres) also has its own database backup UI, which
+covers the records but not `/data` — the sidecar is still what copies the
+radiographs.
+
+The app's own owner-only export (Staff → Backup) remains, as the portable
+by-hand copy. It carries neither PIN hashes nor uploaded files by design, so it
+is a supplement to the automatic backup rather than a substitute for it. The
+Staff page also reports what the automatic backup did last, and the app shows
+the owner a warning bar when nothing has succeeded for 26 hours.
 
 ## Troubleshooting
 
@@ -228,6 +253,8 @@ design, neither PIN hashes nor uploaded files.
 | Container restarts, log says `FATAL: AUTH_SECRET` | Not set, or under 16 characters. |
 | `database not ready yet (attempt n/10)` | Postgres is still starting, or `DATABASE_URL` is wrong. It retries ten times, then gives up. |
 | Log warns `/data/patient-files is NOT a mounted volume` | No persistent storage mapped. Uploads will be lost on redeploy. |
+| A warning bar across every page saying backups have stopped | The `backup` sidecar has not completed a run for 26 hours. `docker compose logs backup` says why; [RESTORE.md](RESTORE.md) covers the setup. |
+| `backup` logs `RESTIC_REPOSITORY is not set` | Expected until the bucket is configured. Dumps are being written to the server's own disk and nowhere else. |
 | Login page lists nobody | No staff accounts yet — see [First sign-in](#first-sign-in). |
 | `This database has our tables but no _prisma_migrations table` | Built by the old `db push` workflow. One-time fix: [Baselining an existing database](#baselining-an-existing-database). |
 | Confirmation links point at `localhost` | `NEXT_PUBLIC_APP_URL` was not set as a **build** variable. Rebuild. |

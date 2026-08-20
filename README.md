@@ -28,7 +28,7 @@ every screen doing one obvious thing.
 | **Statistics** | Visits per month, new patients, top services, material usage, appointment outcomes |
 | **Staff and roles** | Four roles with distinct permissions, PIN sign-in, and a visible permission matrix |
 | **Activity log** | Append-only record of every change and who made it |
-| **Backup** | Owner-only full export, optionally encrypted with a passphrase |
+| **Backup** | Records and uploaded files copied offsite twice a day, encrypted, with a weekly automated restore drill — plus an owner-only export for a copy by hand |
 
 Full interface in **Albanian (default)**, **English** and **Italian**.
 
@@ -219,7 +219,9 @@ prisma/
   backfill-services.ts     One-off: give existing rows their service ids and
                            search keys, and turn each visit's typed list into
                            VisitService rows
-  restore-backup.ts        Replay a backup file into an empty database
+  restore-backup.ts        Replay a by-hand JSON export into an empty database
+                           (the automatic backup restores with pg_restore
+                           instead — see docs/RESTORE.md)
   prune-audit.ts           Archive and trim the activity log by hand. Nothing
                            runs it for you, and it refuses to go below the
                            seven-year floor
@@ -254,6 +256,15 @@ src/
     teeth.ts         The 32-tooth model and its colour legend
     reminders.ts     wa.me / mailto link builders
   proxy.ts           next-intl locale negotiation (Next 16 middleware)
+docker/
+  entrypoint.sh      Applies migrations, then serves
+  create-owner.mjs   The first account, on a fresh database
+  backup/            The backup sidecar — see docs/RESTORE.md
+    run-backup.sh      Dump, verify it is readable, copy offsite, record it
+    verify-restore.sh  The Sunday drill: restore the offsite copy for real and
+                       reconcile every stored file against the records
+scripts/
+  backup-pull.ps1    Pulls the offsite backup down to a disk in the clinic
 ```
 
 ### Conventions worth knowing
@@ -289,9 +300,16 @@ src/
   first name and a time — nothing that would matter if the link were forwarded.
 - **Issued prescriptions keep their own copy of the text.** Editing a template
   later must never rewrite what a patient was actually handed.
-- **Backups exclude PIN hashes and uploaded files.** A backup should restore the
-  practice, not become an offline target for cracking staff credentials. Copy
-  the `storage/` directory alongside it with your ordinary file backup.
+- **The by-hand export excludes PIN hashes and uploaded files.** An export
+  somebody downloads should restore the practice, not become an offline target
+  for cracking staff credentials. The automatic backup is the opposite trade —
+  it never leaves the encrypted repository, so it carries both, which is why it
+  is the one a real recovery uses. See [docs/RESTORE.md](docs/RESTORE.md).
+- **Backups are not a button somebody has to remember to press.** The `backup`
+  sidecar dumps Postgres and copies the patient files to an encrypted bucket
+  twice a day, rehearses the restore every Sunday, and the app puts a warning
+  bar in front of the owner when it stops. A backup system that fails silently
+  is worse than none, because it manufactures confidence.
 - **The activity log is kept, and stays queryable.** Nothing in the app or the
   deploy removes an entry: the Activity page pages back through all of it and
   filters by date, person and record type, because an archive nothing can query

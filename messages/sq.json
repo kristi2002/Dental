@@ -1225,6 +1225,44 @@
     "warning": "Nëse vendosni një fjalëkalim dhe e harroni, kopja nuk mund të rikuperohet. PIN-et e stafit dhe skedarët e ngarkuar nuk përfshihen.",
     "download": "Shkarko kopjen"
   },
+  "backupStatus": {
+    "title": "Rezervimi automatik",
+    "notConfigured": "Shërbimi i rezervimit nuk ka raportuar ende. Asgjë në këtë server nuk po kopjon bazën e të dhënave dhe skedarët e pacientëve sipas një orari.",
+    "notConfiguredHint": "Derisa të nisë, e vetmja kopje është ajo që shkarkohet me dorë më poshtë. Shih docs/RESTORE.md.",
+    "state": {
+      "ok": "Në rregull",
+      "late": "Me vonesë",
+      "critical": "Po dështon",
+      "unknown": "I pakonfiguruar"
+    },
+    "lastRunFailed": "Ekzekutimi i fundit dështoi: {message}",
+    "lastSuccess": "Kopja e fundit e suksesshme",
+    "never": "Asnjëherë",
+    "databaseCopy": "Kopja e bazës së të dhënave",
+    "none": "Asnjë",
+    "patientFiles": "Skedarët e pacientëve",
+    "fileSummary": "{count} skedarë · {size}",
+    "offsite": "Kopja jashtë serverit",
+    "snapshots": "{count} kopje në cloud",
+    "localOnly": "Vetëm në këtë server — nuk është rezervim",
+    "lastDrill": "Prova e fundit e rikthimit",
+    "drill": {
+      "ok": "Kaloi",
+      "warning": "Kaloi me paralajmërime",
+      "failed": "Dështoi",
+      "never": "Kurrë e provuar"
+    },
+    "fileCheck": "Radiografitë dhe dokumentet",
+    "filesMissing": "{count} mungojnë në rezervim",
+    "filesAllPresent": "Të gjitha {count} janë të pranishme",
+    "filesMissingHint": "Të dhënat i referohen skedarëve që nuk ndodhen në rezervim. Një rikthim sot do t’i linte këto dokumente të dëmtuara.",
+    "banner": {
+      "stale": "Asnjë rezervim nuk ka përfunduar prej {hours} orësh.",
+      "never": "Asnjë rezervim nuk ka përfunduar ndonjëherë.",
+      "unconfigured": "Rezervimet automatike nuk po funksionojnë.",
+      "action": "Shiko gjendjen e rezervimit"
+    }
+  },
   "settings": {
     "title": "Orari i punës",
     "subtitle": "Kur klinika është e hapur dhe kur është e mbyllur.",

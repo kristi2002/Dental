@@ -4,9 +4,11 @@ import type { ReactNode } from 'react';
 import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
 import { FollowUpList } from '@/components/follow-ups/FollowUpList';
 import type { SessionUser } from '@/lib/auth/session';
+import { getBackupStatus } from '@/lib/backup-status';
 import { toDateKey, today } from '@/lib/dates';
 import { bellCounts } from '@/lib/follow-ups';
 import { getAssignableStaff, getOpenFollowUps } from '@/lib/queries';
+import { BackupBanner } from './BackupBanner';
 import { CommandPalette } from './CommandPalette';
 import { NAV_DESTINATIONS } from './nav-destinations';
 import { Sidebar } from './Sidebar';
@@ -99,6 +101,13 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     ? await Promise.all([getOpenFollowUps(), getAssignableStaff()])
     : [[], []];
 
+  // Read here rather than on the Staff page alone, because a failure nobody
+  // visits that page to discover is a failure nobody discovers. Two small file
+  // reads, and only for the person who can act on the answer.
+  const backupStatus = user.permissions.includes('backup.export')
+    ? await getBackupStatus()
+    : null;
+
   const followUps = canSeeFollowUps
     ? {
         counts: bellCounts(openFollowUps),
@@ -142,6 +151,11 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* Above everything, including the search box: when the backups have
+            stopped, that is the most important thing on the screen. It renders
+            nothing at all in the ordinary case. */}
+        {backupStatus ? <BackupBanner status={backupStatus} /> : null}
+
         {/* One box, on every screen, that finds a person or a place. Deliberately
             thin and unpinned: the rail already costs width, and a second bar
             fixed across the top is exactly what this layout removed. It scrolls

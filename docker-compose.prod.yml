@@ -31,10 +31,14 @@ services:
       # never change casually, which is why Coolify generates and keeps it.
       AUTH_SECRET: ${SERVICE_PASSWORD_64_AUTHSECRET}
       FILE_STORAGE_DIR: /data/patient-files
+      # Where the backup sidecar writes down what it did. Read-only to the app,
+      # which only ever reports it — see src/lib/backup-status.ts.
+      BACKUP_STATUS_DIR: /status
     volumes:
       # X-rays, photos and signed consent forms. The one piece of state Postgres
       # does not hold, and the one that no backup of the database would restore.
       - patient-files:/data
+      - backup-status:/status:ro
     depends_on:
       db:
         condition: service_healthy
@@ -58,6 +62,58 @@ services:
       timeout: 5s
       retries: 10
 
+  # The thing that makes the seven-year retention decision in
+  # `src/lib/audit-retention.ts` mean something.
+  #
+  # Before this existed, a clinic keeping seven years of medical records had the
+  # backup discipline of whoever remembered to press the button on the Staff
+  # page. This container dumps the database twice a day, copies the dump and the
+  # patient files to a bucket in another country, and rehearses the restore every
+  # Sunday. It serves nothing and listens on nothing.
+  backup:
+    build:
+      context: .
+      dockerfile: docker/backup/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Same URL the app uses. The scripts strip Prisma's `?schema=`, which
+      # libpq refuses outright rather than ignoring.
+      DATABASE_URL: postgresql://dent:${SERVICE_PASSWORD_POSTGRES}@db:5432/dentorganizer?schema=public
+      FILE_STORAGE_DIR: /data/patient-files
+      BACKUP_STATUS_DIR: /status
+      BACKUP_DIR: /backups
+      # 02:00, and again over the lunch break — so the worst a bad day can cost
+      # is the half of it since the last copy, rather than all of it.
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2,13 * * *}
+      VERIFY_SCHEDULE: ${VERIFY_SCHEDULE:-30 3 * * 0}
+      TZ: ${TZ:-Europe/Tirane}
+      # The offsite copy. Unset, the container still runs and still dumps — but
+      # to the same disk as the database it protects, and it says so loudly on
+      # every boot. See docs/RESTORE.md for creating the bucket and the keys.
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_APPLICATION_KEY:-}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-14}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-8}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-24}
+    volumes:
+      # Read-only: this container copies the radiographs, it has no business
+      # changing one.
+      - patient-files:/data:ro
+      - backup-local:/backups
+      - backup-status:/status
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   db-data:
   patient-files:
+  # The dumps of the last fortnight, on the server's own disk. Fast to restore
+  # from and useless against the failure that actually kills a clinic — this
+  # volume dies with the machine, which is what the bucket is for.
+  backup-local:
+  # One small JSON file per script, so the app can put "last backed up 6 hours
+  # ago" on screen instead of the clinic finding out in a year.
+  backup-status:

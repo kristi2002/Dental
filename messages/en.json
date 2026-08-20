@@ -1225,6 +1225,44 @@
     "warning": "If you set a passphrase and forget it, the backup cannot be recovered. Staff PINs and uploaded files are not included.",
     "download": "Download backup"
   },
+  "backupStatus": {
+    "title": "Automatic backup",
+    "notConfigured": "The backup service has not reported yet. Nothing on this server is copying the database or the patient files on a schedule.",
+    "notConfiguredHint": "Until it is running, the only copy is the one somebody downloads by hand below. See docs/RESTORE.md.",
+    "state": {
+      "ok": "Healthy",
+      "late": "Late",
+      "critical": "Failing",
+      "unknown": "Not set up"
+    },
+    "lastRunFailed": "The last run failed: {message}",
+    "lastSuccess": "Last successful copy",
+    "never": "Never",
+    "databaseCopy": "Database dump",
+    "none": "None",
+    "patientFiles": "Patient files",
+    "fileSummary": "{count} files · {size}",
+    "offsite": "Offsite copy",
+    "snapshots": "{count} snapshots in the cloud",
+    "localOnly": "This server only — not a backup",
+    "lastDrill": "Last restore drill",
+    "drill": {
+      "ok": "Passed",
+      "warning": "Passed with warnings",
+      "failed": "Failed",
+      "never": "Never rehearsed"
+    },
+    "fileCheck": "X-rays and documents",
+    "filesMissing": "{count} missing from the backup",
+    "filesAllPresent": "All {count} present",
+    "filesMissingHint": "Records point at files that are not in the backup. Restoring today would leave those documents broken.",
+    "banner": {
+      "stale": "No backup has completed for {hours} hours.",
+      "never": "No backup has ever completed.",
+      "unconfigured": "Automatic backups are not running.",
+      "action": "Check backup status"
+    }
+  },
   "settings": {
     "title": "Opening hours",
     "subtitle": "When the practice is open, and when it is shut.",

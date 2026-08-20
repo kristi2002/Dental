@@ -1225,6 +1225,44 @@
     "warning": "Se imposti una passphrase e la dimentichi, il backup non è recuperabile. I PIN del personale e i file caricati non sono inclusi.",
     "download": "Scarica backup"
   },
+  "backupStatus": {
+    "title": "Backup automatico",
+    "notConfigured": "Il servizio di backup non ha ancora dato notizie. Su questo server nulla sta copiando il database e i file dei pazienti a intervalli regolari.",
+    "notConfiguredHint": "Finché non è attivo, l’unica copia è quella scaricata a mano qui sotto. Vedi docs/RESTORE.md.",
+    "state": {
+      "ok": "In regola",
+      "late": "In ritardo",
+      "critical": "Non funziona",
+      "unknown": "Non configurato"
+    },
+    "lastRunFailed": "L’ultima esecuzione è fallita: {message}",
+    "lastSuccess": "Ultima copia riuscita",
+    "never": "Mai",
+    "databaseCopy": "Dump del database",
+    "none": "Nessuno",
+    "patientFiles": "File dei pazienti",
+    "fileSummary": "{count} file · {size}",
+    "offsite": "Copia remota",
+    "snapshots": "{count} snapshot nel cloud",
+    "localOnly": "Solo su questo server — non è un backup",
+    "lastDrill": "Ultima prova di ripristino",
+    "drill": {
+      "ok": "Superata",
+      "warning": "Superata con avvisi",
+      "failed": "Fallita",
+      "never": "Mai provata"
+    },
+    "fileCheck": "Radiografie e documenti",
+    "filesMissing": "{count} mancanti nel backup",
+    "filesAllPresent": "Tutti presenti ({count})",
+    "filesMissingHint": "Le cartelle rimandano a file che non sono nel backup. Un ripristino oggi lascerebbe quei documenti danneggiati.",
+    "banner": {
+      "stale": "Nessun backup completato da {hours} ore.",
+      "never": "Nessun backup è mai stato completato.",
+      "unconfigured": "I backup automatici non sono attivi.",
+      "action": "Controlla lo stato del backup"
+    }
+  },
   "settings": {
     "title": "Orario di apertura",
     "subtitle": "Quando lo studio è aperto e quando è chiuso.",
