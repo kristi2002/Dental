@@ -1,6 +1,15 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "oxc", "react", "nextjs", "jsx-a11y", "import", "promise"],
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "nextjs",
+    "jsx-a11y",
+    "import",
+    "promise"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "warn",
@@ -11,7 +20,13 @@
     "node": true,
     "es2024": true
   },
-  "ignorePatterns": [".next/**", "node_modules/**", "public/**", "src/generated/**"],
+  "ignorePatterns": [
+    ".next/**",
+    "node_modules/**",
+    "public/**",
+    "src/generated/**",
+    ".scratch/**"
+  ],
   "rules": {
     "react/react-in-jsx-scope": "off",
     "no-underscore-dangle": "off",
@@ -23,7 +38,11 @@
   },
   "overrides": [
     {
-      "files": ["prisma/**", "scripts/**", "tests/**"],
+      "files": [
+        "prisma/**",
+        "scripts/**",
+        "tests/**"
+      ],
       "rules": {
         "unicorn/consistent-function-scoping": "off"
       }
