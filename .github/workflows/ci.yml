@@ -180,9 +180,17 @@ jobs:
           for _ in $(seq 1 60); do
             if curl -fsS http://localhost:3000/api/health 2>/dev/null | grep -q '"status":"ok"'; then
               echo "health: ok"
-              code=$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:3000/sq/login)
-              echo "login page: $code"
-              [ "$code" = "200" ] || { echo "::error::the app is up but /sq/login returned $code"; exit 1; }
+              # Follows the redirect on purpose. This database is empty, so it
+              # has no staff accounts, and `/sq/login` hands over to the
+              # first-run `/sq/setup` page — which is the app working, not
+              # failing. What is being asserted is that a page renders at all,
+              # not which one.
+              out=$(curl -fsSL -o /dev/null \
+                -w '%{http_code} %{url_effective}' http://localhost:3000/sq/login)
+              code=${out%% *}
+              url=${out#* }
+              echo "rendered $url -> $code"
+              [ "$code" = "200" ] || { echo "::error::the app is up but $url returned $code"; exit 1; }
               exit 0
             fi
             if [ -z "$(docker ps -q --filter name=dent-ci --filter status=running)" ]; then
