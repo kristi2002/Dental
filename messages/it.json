@@ -870,6 +870,9 @@
     "atRisk": "Spesso non si presenta ({missed}/{total})"
   },
   "plans": {
+    "stalledSubtitle": "Niente fatto e niente prenotato da {days} giorni o più.",
+    "archiveSubtitle": "Cure chiuse, prima le più recenti.",
+    "lastUpdated": "Aggiornato il {date}",
     "title_": "Nome del piano",
     "titleHint": "es. Restauro quadrante superiore sinistro",
     "forPatient": "Paziente",

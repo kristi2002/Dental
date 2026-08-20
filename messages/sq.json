@@ -870,6 +870,9 @@
     "atRisk": "Shpesh nuk vjen ({missed}/{total})"
   },
   "plans": {
+    "stalledSubtitle": "Asgjë e bërë dhe asgjë e rezervuar prej {days} ditësh a më shumë.",
+    "archiveSubtitle": "Trajtime të mbyllura, më të rejat të parat.",
+    "lastUpdated": "Përditësuar më {date}",
     "title_": "Emri i planit",
     "titleHint": "p.sh. Restaurim i kuadrantit të sipërm majtas",
     "forPatient": "Pacienti",

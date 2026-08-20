@@ -870,6 +870,9 @@
     "atRisk": "Often misses ({missed}/{total})"
   },
   "plans": {
+    "stalledSubtitle": "Nothing done and nothing booked for {days} days or more.",
+    "archiveSubtitle": "Closed courses of treatment, most recent first.",
+    "lastUpdated": "Updated {date}",
     "title_": "Plan name",
     "titleHint": "e.g. Upper left quadrant restoration",
     "forPatient": "Patient",

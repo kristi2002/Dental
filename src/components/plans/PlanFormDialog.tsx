@@ -35,12 +35,19 @@ export function PlanFormDialog({
   patientId,
   plan,
   titles = [],
+  variant = 'button',
 }: {
   /** Who the plan belongs to — resubmitted unchanged, as the action requires it. */
   patientId: string;
   plan: PlanDefaults;
   /** Plan names already used, so a practice's own wording keeps repeating. */
   titles?: string[];
+  /**
+   * Where the trigger is standing. On the patient's own tab it is a button in a
+   * strip; on the practice-wide list it is a row inside the overflow menu, and a
+   * row needs its label spelled out rather than hidden behind a tooltip.
+   */
+  variant?: 'button' | 'menu';
 }) {
   const t = useTranslations('plans');
   const tc = useTranslations('common');
@@ -57,12 +64,19 @@ export function PlanFormDialog({
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
       triggerTitle={t('edit')}
-      triggerClassName="btn btn-secondary btn-sm"
+      triggerClassName={variant === 'menu' ? 'menu-item' : 'btn btn-secondary btn-sm'}
       trigger={
-        <>
-          <Pencil size={17} aria-hidden />
-          <span className="sr-only">{t('edit')}</span>
-        </>
+        variant === 'menu' ? (
+          <>
+            <Pencil size={19} aria-hidden className="shrink-0" />
+            {t('edit')}
+          </>
+        ) : (
+          <>
+            <Pencil size={17} aria-hidden />
+            <span className="sr-only">{t('edit')}</span>
+          </>
+        )
       }
     >
       <input type="hidden" name="patientId" value={patientId} />

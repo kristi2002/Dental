@@ -24,6 +24,7 @@ export function StepFormDialog({
   services = [],
   charted = {},
   numbering = 'FDI',
+  triggerClassName = 'btn btn-ghost btn-sm',
 }: {
   planId: string;
   step?: StepDefaults;
@@ -31,6 +32,12 @@ export function StepFormDialog({
   services?: ServiceOption[];
   charted?: ChartedTeeth;
   numbering?: ToothNumbering;
+  /**
+   * How the trigger is dressed. Ghost inside a plan's own step list, where it
+   * sits under the steps and should not compete with them; solid on the
+   * practice-wide list, where it is one of only two controls on the card.
+   */
+  triggerClassName?: string;
 }) {
   const t = useTranslations('plans');
   const tc = useTranslations('common');
@@ -56,7 +63,7 @@ export function StepFormDialog({
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
       triggerTitle={editing ? t('editStep') : t('addStep')}
-      triggerClassName="btn btn-ghost btn-sm"
+      triggerClassName={triggerClassName}
       trigger={
         editing ? (
           <>

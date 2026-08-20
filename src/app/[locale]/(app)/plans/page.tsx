@@ -11,7 +11,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { TreatmentPlanStatus } from '@/generated/prisma/enums';
 import { requirePermission } from '@/lib/auth/guard';
 import { toDateKey, today } from '@/lib/dates';
-import { isPromisedSlot, summarisePlan, worstFirst } from '@/lib/plan-progress';
+import { isPromisedSlot, STALLED_DAYS, summarisePlan, worstFirst } from '@/lib/plan-progress';
 import { prisma } from '@/lib/prisma';
 import {
   getClinicProfile,
@@ -167,6 +167,7 @@ export default async function PlansPage({
       percent: summary.percent,
       quietDays: summary.quietDays,
       stalled: summary.stalled,
+      updatedAt: plan.updatedAt,
       nextBooked: summary.next
         ? {
             date: summary.next.appointment!.date,
@@ -218,6 +219,13 @@ export default async function PlansPage({
     return encoded ? `/plans?${encoded}` : '/plans';
   };
 
+  const subtitle =
+    filter === 'stalled'
+      ? t('stalledSubtitle', { days: STALLED_DAYS })
+      : isArchive(filter)
+        ? t('archiveSubtitle')
+        : t('allSubtitle');
+
   const emptyTitle = searching
     ? t('noMatches', { query })
     : filter === 'stalled'
@@ -243,46 +251,56 @@ export default async function PlansPage({
     <>
       <PageHeader
         title={t('allTitle')}
-        subtitle={t('allSubtitle')}
+        // What the tab in front of you is actually sorted by. "Worst-neglected
+        // first" is true of the two open tabs and a plain untruth on the
+        // archives, which are read newest-first.
+        subtitle={subtitle}
         actions={newLink}
         trail={[{ label: t('allTitle') }]}
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        <nav className="flex flex-wrap gap-2" aria-label={t('status')}>
-          {FILTERS.map((option) => (
-            <Link
-              key={option}
-              href={hrefFor(option)}
-              aria-current={option === filter ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-2 rounded-full border py-1.5 pr-2.5 pl-3.5',
-                'text-[0.92rem] font-semibold no-underline transition-colors',
-                option === filter
-                  ? 'border-brand bg-brand-soft text-brand-deep'
-                  : 'border-line-strong text-ink-soft hover:border-ink hover:text-ink',
-                // The stalled tab is the one with a consequence, so its count is
-                // coloured even when the tab is not the one being read.
-                option === 'stalled' && option !== filter && counts.stalled > 0
-                  ? 'border-warn text-warn'
-                  : '',
-              )}
-            >
-              {t(`filter_${option}`)}
-              <span
-                className={cn(
-                  'rounded-full px-1.5 py-px text-[0.82rem] font-bold tabular-nums',
-                  option === filter
-                    ? 'bg-brand text-white'
-                    : option === 'stalled' && counts.stalled > 0
-                      ? 'bg-warn-soft text-warn'
-                      : 'bg-paper text-ink-faint',
-                )}
-              >
-                {counts[option]}
-              </span>
-            </Link>
-          ))}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        {/* The app's own tab vocabulary — an enclosed box with one segment
+            chosen — rather than four loose pills, which is exactly the shape
+            `.segmented` was introduced to replace everywhere else. */}
+        <nav aria-label={t('status')}>
+          <div className="segmented">
+            {FILTERS.map((option) => {
+              const current = option === filter;
+              // The stalled tab is the one with a consequence, so its count is
+              // coloured even when the tab is not the one being read. Only that
+              // one: four coloured counts is four things shouting, which reads
+              // the same as none of them shouting.
+              const urgent = option === 'stalled' && counts.stalled > 0 && !current;
+
+              return (
+                <Link
+                  key={option}
+                  href={hrefFor(option)}
+                  aria-current={current ? 'page' : undefined}
+                  className={cn('segment gap-2', urgent && 'text-warn hover:text-warn')}
+                >
+                  {t(`filter_${option}`)}
+                  <span
+                    className={cn(
+                      'text-[0.85rem] font-bold tabular-nums',
+                      // Full white, not a transparency of it: white at 75% on
+                      // the chosen segment's teal is 3.4:1, which is a number
+                      // nobody with tired eyes should have to squint at. The gap
+                      // is what separates it from the label.
+                      current
+                        ? 'text-white'
+                        : urgent
+                          ? 'rounded-full bg-warn-soft px-1.5 text-warn'
+                          : 'text-ink-faint',
+                    )}
+                  >
+                    {counts[option]}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
         {/* A plain GET form, so a search is a real URL: it survives a reload, a
@@ -291,7 +309,11 @@ export default async function PlansPage({
         {/* `min-w-0 flex-1` on both the form and the box around the field, so the
             input gives way on a phone instead of pushing the page sideways; the
             fixed width comes back as soon as there is room for it. */}
-        <form method="get" role="search" className="flex min-w-0 flex-1 items-center gap-2">
+        <form
+          method="get"
+          role="search"
+          className="flex min-w-0 flex-1 items-center justify-end gap-2"
+        >
           {filter === 'open' ? null : <input type="hidden" name="filter" value={filter} />}
           <div className="relative min-w-0 flex-1 sm:flex-none">
             <Search
