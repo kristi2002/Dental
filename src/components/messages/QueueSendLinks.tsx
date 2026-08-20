@@ -2,7 +2,7 @@
 
 import { BellOff, Mail, MessageCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useTransition } from 'react';
+import { useTransition, type ReactNode } from 'react';
 import { sendQueuedMessage } from '@/lib/actions/messages';
 
 /**
@@ -25,6 +25,7 @@ export function QueueSendLinks({
   mail,
   body,
   consent,
+  emailAction,
 }: {
   messageId: string;
   /** Pre-composed hrefs, in the patient's language. Null when there is no number/address. */
@@ -33,6 +34,15 @@ export function QueueSendLinks({
   body: string;
   /** Tri-state, as `Patient.contactConsent`. Only an explicit `false` closes it. */
   consent: boolean | null;
+  /**
+   * The button that really sends, when a mail provider is configured. Given as a
+   * slot rather than a flag because it is a server-rendered form and this is a
+   * client component — and because passing it here rather than beside this
+   * component means the consent refusal below covers it too. A screen where the
+   * draft link honours an opt-out and the send button does not would be worse
+   * than one that honours neither.
+   */
+  emailAction?: ReactNode;
 }) {
   const t = useTranslations('appointments');
   const [, startTransition] = useTransition();
@@ -76,17 +86,22 @@ export function QueueSendLinks({
         </span>
       )}
 
-      {mail ? (
-        <a href={mail} className="btn btn-secondary btn-sm" onClick={() => record('EMAIL')}>
-          <Mail size={17} aria-hidden className="shrink-0" />
-          {t('remindEmail')}
-        </a>
-      ) : (
-        <span className="btn btn-secondary btn-sm opacity-55" title={t('noEmailForReminder')}>
-          <Mail size={17} aria-hidden className="shrink-0" />
-          {t('remindEmail')}
-        </span>
-      )}
+      {/* When the practice has a mail provider this is a button that sends;
+          when it has not, the same job is done by the draft link below, which
+          is how a clinic that never configures one keeps working exactly as it
+          does today. */}
+      {emailAction ??
+        (mail ? (
+          <a href={mail} className="btn btn-secondary btn-sm" onClick={() => record('EMAIL')}>
+            <Mail size={17} aria-hidden className="shrink-0" />
+            {t('remindEmail')}
+          </a>
+        ) : (
+          <span className="btn btn-secondary btn-sm opacity-55" title={t('noEmailForReminder')}>
+            <Mail size={17} aria-hidden className="shrink-0" />
+            {t('remindEmail')}
+          </span>
+        ))}
     </>
   );
 }

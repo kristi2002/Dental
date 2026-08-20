@@ -1,11 +1,17 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { ContactChannel, ContactPurpose, MessageStatus } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { getQueuedMessage } from '@/lib/messages/board';
+import { composeForQueued } from '@/lib/messages/compose';
+import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from '@/lib/messages/email';
+import { mailerConfig, sendMail } from '@/lib/messages/mailer';
 import { CANCEL_NOTES, SENT_NOTES } from '@/lib/messages/outbox';
 import { prisma } from '@/lib/prisma';
 import { requiredString } from '@/lib/utils';
+import { actionError, actionOk, type ActionState } from './types';
 
 /**
  * Working the send queue down.
@@ -132,6 +138,158 @@ async function resolveAsSent(id: string, rawChannel: string, body: string): Prom
   });
 
   revalidateAll();
+}
+
+/**
+ * Send one queued reminder by email, for real, over the provider's API.
+ *
+ * The first thing in this app that transmits to a patient itself, and it is
+ * still a button somebody presses on a row they have read — the approval gate
+ * moved from the mail client to the send queue, it did not disappear. Nothing
+ * calls this on a clock and nothing may.
+ *
+ * Both the recipient and the wording are read from the row, never from the
+ * request. That is the difference between a send button and an open relay
+ * wearing the practice's domain: a form field naming the address would let
+ * anybody with `recall.send` post arbitrary mail from a reputation the clinic
+ * spent months building. Only the id crosses the wire.
+ *
+ * **A failure leaves the row PENDING.** It is not marked FAILED and it does not
+ * disappear: the note records what went wrong, the row stays on the queue, and
+ * whoever pressed the button is told at once so they can reach for WhatsApp
+ * instead. A send queue that swallows a failure is worse than one that has none,
+ * because the practice believes the patient was told.
+ */
+export async function emailQueuedMessage(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('outbox');
+
+  const user = await authorize('recall.send');
+  if (!user) return actionError(t('notAllowed'));
+
+  const id = requiredString(formData.get('id'));
+  const message = await getQueuedMessage(id);
+  if (!message) return actionError(t('gone'));
+  if (message.status !== MessageStatus.PENDING) return actionError(t('alreadyHandled'));
+  if (message.patient.contactConsent === false) return actionError(t('optedOutError'));
+  if (!message.patient.email) return actionError(t('noEmailError'));
+
+  const reminder = await composeForQueued(message, await getLocale());
+  if (!reminder) return actionError(t('gone'));
+
+  // Reply-To is configuration, applied by the mailer itself — see MAIL_REPLY_TO.
+  // A patient who answers "can we move it to Thursday?" must reach a person, and
+  // a bounce into nowhere is how a reminder system quietly becomes a way of not
+  // hearing from patients.
+  const result = await sendMail({
+    to: message.patient.email,
+    toName: `${message.patient.firstName} ${message.patient.lastName}`.trim(),
+    subject: reminder.subject,
+    text: reminder.body,
+  });
+
+  if (!result.ok) {
+    // Recorded on the row so the next person to open the queue sees why it is
+    // still sitting there, and not only the person who pressed the button.
+    await prisma.scheduledMessage.updateMany({
+      where: { id, status: MessageStatus.PENDING },
+      data: { note: MAIL_FAILURE_NOTES[result.failure] },
+    });
+    revalidateAll();
+    return actionError(t(`note.mail${capitalise(result.failure)}`));
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.contact.create({
+        data: {
+          patientId: message.patient.id,
+          appointmentId: message.appointment?.id ?? null,
+          channel: ContactChannel.EMAIL,
+          purpose: ContactPurpose.REMINDER,
+          body: reminder.body.slice(0, 2000),
+          actorId: user.id,
+        },
+      }),
+      prisma.scheduledMessage.updateMany({
+        where: { id, status: MessageStatus.PENDING },
+        data: {
+          status: MessageStatus.SENT,
+          note: MAIL_SENT_NOTE,
+          resolvedAt: new Date(),
+          resolvedById: user.id,
+        },
+      }),
+    ]);
+  } catch (error) {
+    // The message is already with the patient. Failing to write that down is
+    // bad; implying it never went is worse, so this reports success and shouts
+    // into the log — the row stays PENDING and somebody may send a second one,
+    // which is a nuisance rather than a silence.
+    console.error('[messages] sent but could not record', id, error);
+  }
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'message',
+    entityId: message.patient.id,
+    summary: 'sent · EMAIL',
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+function capitalise(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * Send one message to the practice's own address, to find out whether any of
+ * this works.
+ *
+ * The recipient is `ClinicProfile.email` and cannot be anything else. That is
+ * the entire security design of this action: a settings page with a "send a test
+ * to…" box would be a way of sending mail from the clinic's verified domain to
+ * an address of the sender's choosing, which is a spam relay with a nice form
+ * around it. Here the only thing a press can do is put a message in the
+ * practice's own inbox.
+ *
+ * Worth having because SPF, DKIM and DMARC are three DNS records that are wrong
+ * in a way nothing reports: the provider accepts the message, the app says it
+ * sent, and it lands in a spam folder nobody looks at. The only way to find out
+ * is to receive one.
+ */
+export async function sendTestEmail(_prev: ActionState, _formData: FormData): Promise<ActionState> {
+  const t = await getTranslations('settings');
+
+  const user = await authorize('settings.edit');
+  if (!user) return actionError(t('mailNotAllowed'));
+
+  const config = mailerConfig();
+  if (!config) return actionError(t('mailNotConfigured'));
+
+  const result = await sendMail({
+    to: config.replyTo ?? config.fromAddress,
+    toName: config.fromName,
+    subject: t('mailTestSubject'),
+    text: t('mailTestBody'),
+  });
+
+  if (!result.ok) {
+    const to = await getTranslations('outbox');
+    return actionError(to(`note.mail${capitalise(result.failure)}`));
+  }
+
+  await recordAudit(user, {
+    action: 'create',
+    entity: 'settings',
+    summary: `test email to ${config.replyTo ?? config.fromAddress}`,
+  });
+
+  return actionOk();
 }
 
 /**

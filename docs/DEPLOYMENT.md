@@ -209,6 +209,65 @@ anything.
 After that the database is `managed`, the entrypoint stops complaining, and every
 later deploy is an ordinary `migrate deploy`.
 
+## Sending email
+
+Optional. With none of `MAIL_PROVIDER`, `MAIL_API_KEY` or `MAIL_FROM` set, the
+send queue opens a draft in whoever's mail client — the way the app has always
+worked, and a perfectly good way to run a practice. Setting all three turns the
+queue's email button into one that sends. **Nothing sends by itself either way;
+a person still presses the button on a row they have read.**
+
+Pick **Brevo** (300 messages a day, free) or **Resend** (100 a day, free). Both
+are configured the same way: verify a sending domain, take the transactional API
+key, paste it into Coolify. A practice sending thirty reminders a day will not
+reach either ceiling.
+
+The app talks to the provider's HTTPS API rather than over SMTP, deliberately:
+hosts block outbound 25, 465 and 587 far more often than they block 443, and a
+clinic whose reminders fail silently behind a firewall rule is exactly the
+outcome this should not ship with.
+
+### The three DNS records
+
+Without these, the provider accepts every message and the world's mail servers
+file them as spam. This is the step that gets skipped, and its failure is
+invisible from inside the app — which is why Settings → Sending email has a test
+button that puts a message in the practice's own inbox, so somebody can *see*
+which folder it lands in.
+
+On Cloudflare, at **DNS → Records** for the sending domain. Every value below is
+given to you by the provider; do not copy these verbatim.
+
+| Type | Name | Value | Proxy |
+| --- | --- | --- | --- |
+| `TXT` | `@` | `v=spf1 include:<provider's host> ~all` | — |
+| `TXT` | `<selector>._domainkey` | the DKIM key the provider shows | — |
+| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:postmaster@yourdomain` | — |
+
+Three notes that account for most of the failures:
+
+- **One SPF record per domain.** If the domain already has a `v=spf1` line, add
+  the `include:` to the existing one rather than creating a second — two SPF
+  records is a misconfiguration and mail servers treat it as such.
+- **Proxy status must be DNS-only** (grey cloud) for anything mail-related.
+  Cloudflare's orange cloud is for HTTP; there is nothing to proxy here.
+- **Start DMARC at `p=none`.** It reports without rejecting. Move to
+  `p=quarantine` once the reports show the practice's own mail passing, not
+  before, or a mistake in the other two records silently bins real reminders.
+
+Verification can take an hour to propagate. The provider's dashboard is the
+authority on whether it worked; the app cannot see any of it.
+
+### Replies
+
+Set `MAIL_REPLY_TO` to a mailbox somebody actually reads. It is optional and it
+is the one option worth setting: without it the header is omitted and an answer
+to a reminder goes back to `MAIL_FROM`, which for a `no-reply@` address is
+nowhere. A reminder system whose replies land nowhere is a way of not hearing
+from patients — "can we move it to Thursday?" is the commonest reply there is.
+
+Settings → Sending email shows which address is in use, and warns when none is.
+
 ## Backups
 
 **Full instructions, including creating the bucket and restoring from it, are in

@@ -1,4 +1,5 @@
 import { timeToMinutes } from '@/lib/dates';
+import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from './email';
 
 /**
  * What the outbox queues, and what it refuses to.
@@ -203,4 +204,12 @@ const NOTE_KEYS: Record<string, string> = {
   [SENT_NOTES.WHATSAPP]: 'sentWhatsapp',
   [SENT_NOTES.EMAIL]: 'sentEmail',
   [SENT_NOTES.PHONE]: 'sentPhone',
+  // The notes the mailer writes. Registered here rather than beside them so
+  // there is one table the screen consults, and so `tests/outbox.test.ts` can
+  // sweep every note the app is capable of storing in a single pass.
+  [MAIL_SENT_NOTE]: 'mailSent',
+  [MAIL_FAILURE_NOTES.auth]: 'mailAuth',
+  [MAIL_FAILURE_NOTES.rejected]: 'mailRejected',
+  [MAIL_FAILURE_NOTES.limit]: 'mailLimit',
+  [MAIL_FAILURE_NOTES.unreachable]: 'mailUnreachable',
 };

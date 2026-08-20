@@ -146,9 +146,33 @@ recomputed from raw rows on every render. Nothing goes stale, and there is no
 maintenance job to forget to run. The cost is that the read paths carry the
 complexity — which is why [§7](#7-the-derivation-layer) exists.
 
-**Nudge, don't send.** The app never contacts a patient itself. It composes the
-message and opens WhatsApp or the mail client; a human presses send. This is not
-a missing feature — it is the reason the practice trusts it.
+**Nudge, don't send.** The app never contacts a patient without a human pressing
+send. It composes the message and either opens WhatsApp / the mail client, or —
+if the practice has configured a mail provider — transmits it itself when
+somebody presses the button on the send queue. This is not a missing feature —
+it is the reason the practice trusts it.
+
+> **Amended, deliberately.** This rule used to say the app *never contacts a
+> patient itself*, full stop, and for a long time that was literally true: every
+> message left through a mail client or WhatsApp. `emailQueuedMessage` breaks
+> that literal reading and keeps the substance of it.
+>
+> What the rule protects is that **a person reads every message before it goes**.
+> That is untouched. Nothing sends on a clock; the only caller is a button on a
+> row somebody is looking at, and the queue that feeds it — `ScheduledMessage`,
+> filled by `queue-appointment-reminders` and worked down at `/outbox` — exists
+> precisely to be that gate. What changed is the transport, and with it three
+> things worth naming, because they are the real cost:
+>
+> - The sent copy is no longer in the dentist's own sent folder. The `Contact`
+>   log holds the wording instead.
+> - Deliverability becomes the practice's problem — SPF, DKIM and DMARC on the
+>   sending domain, and a `Reply-To` pointing at a mailbox somebody reads.
+> - A send can now fail in ways a mail client would have shown the user directly.
+>   It is reported on the spot and the row stays on the queue.
+>
+> A practice that configures no provider keeps the old behaviour exactly, which
+> is what makes this an option rather than a change of direction.
 
 ### 1.3 What "automation" means here
 

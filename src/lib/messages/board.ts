@@ -121,6 +121,18 @@ function toView(row: Row): QueuedMessage {
   };
 }
 
+/**
+ * One row, in the same shape the queue screen sees.
+ *
+ * The send action's entry point. It reads the row rather than trusting the form
+ * because that is where the recipient comes from — see `composeForQueued`.
+ */
+export async function getQueuedMessage(id: string): Promise<QueuedMessage | null> {
+  if (!id) return null;
+  const row = await prisma.scheduledMessage.findUnique({ where: { id }, select: SELECT });
+  return row ? toView(row as Row) : null;
+}
+
 export type SendQueue = {
   /** Still ahead, still worth sending. The list the screen exists for. */
   waiting: QueuedMessage[];

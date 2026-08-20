@@ -1,10 +1,11 @@
-import { Armchair, Building2, CalendarClock, CalendarOff, Plus, Power, Trash2 } from 'lucide-react';
+import { Armchair, Building2, CalendarClock, CalendarOff, Plus, Power, Send, Trash2 } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { ClinicHoursForm } from '@/components/settings/ClinicHoursForm';
 import { CalendarFeedCard } from '@/components/settings/CalendarFeedCard';
 import { ClinicProfileForm } from '@/components/settings/ClinicProfileForm';
 import { ClosureFormDialog } from '@/components/settings/ClosureFormDialog';
+import { MailerCard } from '@/components/settings/MailerCard';
 import { OperatoryFormDialog } from '@/components/settings/OperatoryFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
@@ -114,6 +115,21 @@ export default async function SettingsPage({
           />
           <CalendarFeedCard url={feedUrl} />
         </Card>
+
+        {/* Beside the feed rather than under the profile: both are "this
+            practice talks to something outside itself", and both fail in the
+            same quiet way — a link nobody subscribed to, an address nobody
+            receives. */}
+        <Card>
+          <CardHeader
+            title={t('mailTitle')}
+            subtitle={t('mailSubtitle')}
+            icon={<Send size={22} aria-hidden />}
+          />
+          <MailerCard canEdit={canEdit} />
+        </Card>
+
+
 
         <Card>
           <CardHeader

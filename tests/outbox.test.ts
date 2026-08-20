@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, it } from 'node:test';
+import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from '../src/lib/messages/email';
 import {
   CANCEL_NOTES,
   dedupeKey,
@@ -174,6 +175,8 @@ describe('noteKey — an English note on an Albanian screen', () => {
       ...Object.values(SKIP_NOTES),
       ...Object.values(CANCEL_NOTES),
       ...Object.values(SENT_NOTES),
+      ...Object.values(MAIL_FAILURE_NOTES),
+      MAIL_SENT_NOTE,
     ];
     for (const note of notes) {
       assert.ok(noteKey(note), `no translation key for "${note}"`);
@@ -185,6 +188,8 @@ describe('noteKey — an English note on an Albanian screen', () => {
       ...Object.values(SKIP_NOTES),
       ...Object.values(CANCEL_NOTES),
       ...Object.values(SENT_NOTES),
+      ...Object.values(MAIL_FAILURE_NOTES),
+      MAIL_SENT_NOTE,
     ];
     const keys = notes.map((note) => noteKey(note));
     assert.equal(
@@ -213,6 +218,8 @@ describe('noteKey — an English note on an Albanian screen', () => {
       ...Object.values(SKIP_NOTES),
       ...Object.values(CANCEL_NOTES),
       ...Object.values(SENT_NOTES),
+      ...Object.values(MAIL_FAILURE_NOTES),
+      MAIL_SENT_NOTE,
     ];
 
     for (const locale of ['en', 'it', 'sq']) {
@@ -260,6 +267,8 @@ describe('notes — every outcome can explain itself', () => {
       ...Object.values(SKIP_NOTES),
       ...Object.values(CANCEL_NOTES),
       ...Object.values(SENT_NOTES),
+      ...Object.values(MAIL_FAILURE_NOTES),
+      MAIL_SENT_NOTE,
     ];
     for (const note of notes) {
       assert.doesNotMatch(note, /^[A-Z]/, `"${note}" reads like a sentence sent to somebody`);

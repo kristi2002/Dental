@@ -1,18 +1,18 @@
-import { CalendarClock, Check, Clock3, Phone, Undo2 } from 'lucide-react';
+import { CalendarClock, Check, Clock3, Mail, Phone, Undo2 } from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { QueueSendLinks } from '@/components/messages/QueueSendLinks';
-import { ActionForm } from '@/components/ui/ActionForm';
+import { ActionForm, ReportingActionForm } from '@/components/ui/ActionForm';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Link } from '@/i18n/navigation';
 import {
+  emailQueuedMessage,
   markQueuedMessageCalled,
   reopenQueuedMessage,
   setQueuedMessageAside,
 } from '@/lib/actions/messages';
-import { confirmationToken, confirmationUrl } from '@/lib/confirmations';
 import type { QueuedMessage } from '@/lib/messages/board';
+import { composeForQueued } from '@/lib/messages/compose';
 import { noteKey } from '@/lib/messages/outbox';
-import { composeReminder } from '@/lib/reminder-messages';
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   SENT: 'ok',
@@ -39,6 +39,7 @@ export async function QueueRow({
   mode,
   locale,
   canSend,
+  canEmail,
 }: {
   message: QueuedMessage;
   /**
@@ -48,6 +49,13 @@ export async function QueueRow({
   mode: 'send' | 'passed' | 'handled';
   locale: string;
   canSend: boolean;
+  /**
+   * Whether a mail provider is configured. Worked out once for the whole page
+   * rather than per row — it is one read of `process.env` either way, but a
+   * component that answers "is this practice set up for email" for every line of
+   * a list is a component that will one day answer it differently on two of them.
+   */
+  canEmail: boolean;
 }) {
   const t = await getTranslations('outbox');
   const tc = await getTranslations('common');
@@ -59,22 +67,10 @@ export async function QueueRow({
   // Composed even for a row nobody will send: the `handled` list shows what was
   // said, and the `passed` list is easier to judge with the sentence in view
   // than without it. The cost is a translation lookup per row.
-  const reminder = appointment
-    ? await composeReminder({
-        patientName: patient.firstName,
-        phone: patient.phone,
-        email: patient.email,
-        date: appointment.date,
-        startTime: appointment.startTime,
-        patientLocale: patient.locale,
-        // Their language, not the reader's — the page the link opens should be
-        // in the same tongue as the message that carried it.
-        confirmLink: confirmationUrl(
-          patient.locale || locale,
-          await confirmationToken(appointment.id),
-        ),
-      })
-    : null;
+  //
+  // The same function the send action calls, so what is shown on the button and
+  // what actually goes out cannot drift apart.
+  const reminder = await composeForQueued(message, locale);
 
   const key = noteKey(message.note);
   // A key we recognise is translated; anything else is shown as written, which
@@ -145,6 +141,21 @@ export async function QueueRow({
               mail={reminder.mail}
               body={reminder.body}
               consent={patient.contactConsent}
+              emailAction={
+                canEmail && patient.email ? (
+                  /* Reporting rather than fire-and-forget, because this one can
+                     genuinely refuse — an unverified sender domain, a used-up
+                     daily allowance — and a button that fails silently on a
+                     screen whose whole job is telling patients things would be
+                     the worst possible place for it. */
+                  <ReportingActionForm action={emailQueuedMessage} values={{ id: message.id }}>
+                    <button type="submit" className="btn btn-secondary btn-sm" title={t('sendEmail')}>
+                      <Mail size={17} aria-hidden />
+                      {t('sendEmail')}
+                    </button>
+                  </ReportingActionForm>
+                ) : undefined
+              }
             />
 
             {/* The channel the practice actually knows arrived. A reminder

@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { requirePermission } from '@/lib/auth/guard';
 import { getSendQueue } from '@/lib/messages/board';
+import { mailerStatus } from '@/lib/messages/mailer';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +62,12 @@ export default async function OutboxPage({
   const t = await getTranslations('outbox');
   const { waiting, passed, handled } = await getSendQueue();
 
+  // Configured or not, this screen works — the difference is whether the email
+  // button sends or opens a draft. Said out loud in the subtitle rather than
+  // discovered by pressing it, because "why did that open Outlook?" is a
+  // question the practice should never have to ask twice.
+  const mailer = mailerStatus();
+
   const sections = [
     { key: 'waiting', icon: <Send size={22} aria-hidden />, rows: waiting, mode: 'send' },
     { key: 'passed', icon: <History size={22} aria-hidden />, rows: passed, mode: 'passed' },
@@ -76,7 +83,11 @@ export default async function OutboxPage({
 
   return (
     <>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} trail={[{ label: t('title') }]} />
+      <PageHeader
+        title={t('title')}
+        subtitle={mailer.configured ? t('subtitleSending', { from: mailer.from }) : t('subtitle')}
+        trail={[{ label: t('title') }]}
+      />
 
       {visible.length === 0 ? (
         <Card>
@@ -103,6 +114,7 @@ export default async function OutboxPage({
                     mode={section.mode}
                     locale={locale}
                     canSend={canSend}
+                    canEmail={mailer.configured}
                   />
                 ))}
               </ul>
