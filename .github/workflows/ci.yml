@@ -108,3 +108,132 @@ jobs:
         run: npm run build
         env:
           AUTH_SECRET: ci-placeholder-never-signs-a-real-cookie
+
+  # The artefact that actually ships.
+  #
+  # `check` above runs `migrate deploy` against the repository, where the
+  # migrations obviously exist — and passed while the image had none, because
+  # nothing imports a `.sql` file and Next's tracer left them out of the
+  # standalone output. The container started, found an empty migrations
+  # directory and exited; the deploy log said "Started" and stayed green.
+  #
+  # So this job builds the Dockerfile and boots it. Anything the image is
+  # missing shows up as a container that will not serve, which is the only
+  # question that matters about a production image.
+  image:
+    name: Production image
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dent
+          POSTGRES_PASSWORD: dent
+          POSTGRES_DB: dentorganizer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dent -d dentorganizer"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # `--network host` below, so the container reaches the service container
+      # on the runner's own localhost.
+      APP_DATABASE_URL: postgresql://dent:dent@localhost:5432/dentorganizer?schema=public
+      APP_AUTH_SECRET: ci-placeholder-never-signs-a-real-cookie
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the production image
+        run: docker build -t dentorganizer:ci .
+
+      # Named separately from the boot below so the failure says which of the
+      # two went wrong. `migrate deploy` cannot replay what is not there.
+      - name: The migration history must be in the image
+        run: |
+          # `--entrypoint sh`, because the image's own entrypoint would run the
+          # schema sync first and fail here on a missing DATABASE_URL.
+          count=$(docker run --rm --entrypoint sh dentorganizer:ci -c 'ls -1 /app/prisma/migrations 2>/dev/null | wc -l')
+          echo "migrations directory holds $count entries"
+          if [ "$count" -lt 2 ]; then
+            echo "::error::/app/prisma/migrations is missing or empty — check the COPY lines in the Dockerfile's runner stage."
+            exit 1
+          fi
+
+      - name: Boot it against an empty database
+        run: |
+          docker run -d --name dent-ci --network host \
+            -e DATABASE_URL="$APP_DATABASE_URL" \
+            -e AUTH_SECRET="$APP_AUTH_SECRET" \
+            dentorganizer:ci
+
+      # Polls rather than sleeping, and gives up the moment the container dies —
+      # an early exit is this job's whole reason for existing, and waiting two
+      # minutes to report one would bury it.
+      - name: It must actually serve
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/health 2>/dev/null | grep -q '"status":"ok"'; then
+              echo "health: ok"
+              code=$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:3000/sq/login)
+              echo "login page: $code"
+              [ "$code" = "200" ] || { echo "::error::the app is up but /sq/login returned $code"; exit 1; }
+              exit 0
+            fi
+            if [ -z "$(docker ps -q --filter name=dent-ci --filter status=running)" ]; then
+              echo "::error::the container exited before it served a request."
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "::error::timed out waiting for /api/health."
+          exit 1
+
+      # The guard that refuses a database the old `db push` workflow built —
+      # tables present, no `_prisma_migrations` to say which migrations made
+      # them. Replaying `0_init` over one would try to CREATE TABLE "Patient"
+      # on top of a table holding patients, so the entrypoint stops instead.
+      #
+      # Asserted in the negative: this boot is *supposed* to fail, and a
+      # successful start would mean the guard had quietly stopped guarding.
+      - name: It must refuse an un-baselined database
+        run: |
+          PGPASSWORD=dent psql -h localhost -U dent -d dentorganizer -c 'CREATE DATABASE pushed;'
+
+          # Build one the old way, using the CLI the image already carries.
+          docker run --rm --network host \
+            -e DATABASE_URL="postgresql://dent:dent@localhost:5432/pushed?schema=public" \
+            --entrypoint node dentorganizer:ci \
+            /opt/prisma-cli/node_modules/prisma/build/index.js db push \
+            --config=/opt/prisma-cli/prisma.config.mjs
+
+          # A working guard exits within seconds. The timeout is for the failure
+          # case, where the entrypoint sails past and `node server.js` runs for ever.
+          if timeout 120 docker run --rm --network host \
+               -e DATABASE_URL="postgresql://dent:dent@localhost:5432/pushed?schema=public" \
+               -e AUTH_SECRET="$APP_AUTH_SECRET" \
+               dentorganizer:ci > unbaselined.log 2>&1; then
+            echo "::error::the entrypoint started against an un-baselined database — the guard is gone."
+            cat unbaselined.log
+            exit 1
+          fi
+
+          if ! grep -q "_prisma_migrations table" unbaselined.log; then
+            echo "::error::it refused, but not for the baseline reason — read the log."
+            cat unbaselined.log
+            exit 1
+          fi
+          echo "refused, as it should:"
+          grep "entrypoint" unbaselined.log | tail -5
+
+      # Always, because the interesting case is the one where a step above
+      # failed — and `|| true` because a build that never produced a container
+      # should not have its real error hidden behind "no such container".
+      - name: Container logs
+        if: always()
+        run: docker logs dent-ci 2>&1 | tail -60 || true
