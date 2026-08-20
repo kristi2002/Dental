@@ -14,11 +14,18 @@
  * Errs heavily toward keeping things: a file younger than an hour is left alone,
  * because it may belong to an upload that is still in flight, and anything the
  * database still references is never touched.
+ *
+ * "Still references" means every column that can name a file — documents, stock
+ * photographs and follow-up attachments all live in this one directory. That
+ * list is `STORAGE_KEY_SOURCES` in `src/lib/storage-keys.ts`, and a test fails
+ * if the schema grows a fifth one without it being added there. A sweeper that
+ * misses a column does not under-report; it deletes that column's files.
  */
 import { readdir, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { referencedStorageKeys } from '../src/lib/storage-keys';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -52,11 +59,11 @@ async function main() {
     throw error;
   }
 
-  const referenced = new Set(
-    (await prisma.patientDocument.findMany({ select: { storageKey: true } })).map(
-      (row) => row.storageKey,
-    ),
-  );
+  // Every column in the schema that names a file, not just the documents —
+  // see `storage-keys.ts`. This asked `PatientDocument` alone until stock
+  // photographs and follow-up attachments started sharing the directory, at
+  // which point a dry run under-reported and `--apply` would have deleted them.
+  const referenced = await referencedStorageKeys(prisma);
   console.log(`${files.length} files on disk, ${referenced.size} referenced by a record.\n`);
 
   const now = Date.now();
