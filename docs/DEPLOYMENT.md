@@ -138,20 +138,76 @@ runtime and takes effect on restart.
 
 ## Schema changes
 
-The project keeps no migration history; `prisma db push` is its workflow. The
-container runs that push on every boot, so an additive schema change ships with
-an ordinary deploy.
+The schema is under migration control in `prisma/migrations`. The container runs
+`prisma migrate deploy` on every boot, so a schema change ships with an ordinary
+deploy: whatever is pending is replayed, in order, and recorded in the
+`_prisma_migrations` table.
 
-It runs **without** `--accept-data-loss` on purpose. If a change would drop a
-column or table, the push fails, the container does not start, and the deploy
-stops — with the offending change named in the logs. That is the intended
-behaviour: resolve it deliberately against a backup rather than discovering
-afterwards that a column of clinical notes is gone.
+Authoring one, against a database that already holds the previous shape:
 
-Set `AUTO_DB_PUSH=false` to skip the step entirely and manage the schema yourself.
+```bash
+npx prisma migrate diff \
+  --from-migrations prisma/migrations \
+  --to-schema prisma/schema.prisma \
+  --script -o /tmp/next.sql
+mkdir -p prisma/migrations/$(date -u +%Y%m%d%H%M%S)_short_name
+mv /tmp/next.sql prisma/migrations/$(date -u +%Y%m%d%H%M%S)_short_name/migration.sql
+```
 
-For a practice holding real records, consider moving to `prisma migrate` proper —
-`db push` has no history, no review step and no way back.
+`--from-migrations` replays the history into a scratch database first, so it
+needs `SHADOW_DATABASE_URL` set to a database the role may create and drop. The
+clinic's own role cannot, which is why that variable is optional and unset in
+production — `migrate deploy` only ever replays forward and never diffs.
+
+Read the generated SQL before committing it. It is the review step `db push`
+never had, and the place to notice that a column is about to be dropped or a
+`NOT NULL` added to a table that already has rows.
+
+CI fails the build if `prisma/migrations` and `prisma/schema.prisma` disagree, so
+a schema change committed without its migration does not reach a deploy.
+
+Set `AUTO_DB_MIGRATE=false` to skip the step entirely and manage the schema
+yourself. `AUTO_DB_PUSH=false` is still honoured under its old name.
+
+### Baselining an existing database
+
+**This applies once, to a database created before the switch to migrations, and
+to nothing else.** If the entrypoint stops with
+
+```
+[entrypoint] This database has our tables but no _prisma_migrations table.
+```
+
+then it is looking at a database the old `prisma db push` workflow built. The
+tables are all there; the record of *which migrations produced them* is not, and
+`migrate deploy` would start at `0_init` and try to create tables that already
+exist.
+
+Nothing has been changed and nothing is wrong. What is needed is a statement of
+which migrations those tables already reflect. Because `db push` always brought
+the database to the schema of the image being deployed, a database last pushed
+by the current image reflects **all** of them:
+
+```bash
+# 1. Take a backup first. This writes to _prisma_migrations, and there is no undo.
+pg_dump "$DATABASE_URL" > pre-baseline.sql
+
+# 2. Confirm the tables really do match the current schema — no output means yes.
+npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma
+
+# 3. Mark every existing migration as already applied.
+for m in prisma/migrations/*/; do
+  npx prisma migrate resolve --applied "$(basename "$m")"
+done
+```
+
+If step 2 reports differences, **stop**. The database is on an older schema than
+the current image, so only the migrations up to that point may be marked applied
+and the rest must be allowed to run. Work out where it sits before marking
+anything.
+
+After that the database is `managed`, the entrypoint stops complaining, and every
+later deploy is an ordinary `migrate deploy`.
 
 ## Backups
 
@@ -173,6 +229,7 @@ design, neither PIN hashes nor uploaded files.
 | `database not ready yet (attempt n/10)` | Postgres is still starting, or `DATABASE_URL` is wrong. It retries ten times, then gives up. |
 | Log warns `/data/patient-files is NOT a mounted volume` | No persistent storage mapped. Uploads will be lost on redeploy. |
 | Login page lists nobody | No staff accounts yet — see [First sign-in](#first-sign-in). |
+| `This database has our tables but no _prisma_migrations table` | Built by the old `db push` workflow. One-time fix: [Baselining an existing database](#baselining-an-existing-database). |
 | Confirmation links point at `localhost` | `NEXT_PUBLIC_APP_URL` was not set as a **build** variable. Rebuild. |
 | Deploy fails on a schema change | The push refused to lose data. See [Schema changes](#schema-changes). |
 | Build never starts: `non-string key in services.app.environment: 0` | An `environment:` entry was written as a bare list item with no `=`. Coolify re-serialises the compose file and such an entry comes back keyed by its list index. Keep `environment:` in mapping (`KEY: value`) form. |

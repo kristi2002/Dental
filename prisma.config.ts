@@ -39,6 +39,19 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   datasource: {
     url: env('DATABASE_URL'),
+    // A scratch database Prisma may create, replay the migrations into, and drop
+    // again. Two things need it and neither can work without it: `migrate dev`,
+    // which authors a migration by comparing the replay against the schema, and
+    // `migrate diff --from-migrations`, which is how CI asks whether the
+    // migrations still describe `schema.prisma`.
+    //
+    // Optional on purpose. The clinic's own database role cannot create
+    // databases, so this stays unset in development and in production, where
+    // nothing needs it — `migrate deploy` replays forward and never diffs.
+    // CI sets it, because CI is where the drift check runs.
+    ...(process.env.SHADOW_DATABASE_URL
+      ? { shadowDatabaseUrl: env('SHADOW_DATABASE_URL') }
+      : {}),
   },
   migrations: {
     seed: 'tsx prisma/seed.ts',
