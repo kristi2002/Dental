@@ -124,7 +124,16 @@ export function TreatmentPlans({
             <header className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="flex flex-wrap items-center gap-2 text-[1.12rem] font-bold text-ink">
-                  {plan.title}
+                  {/* The plan's own page. Reading a patient is one job and
+                      working a single course of treatment is another; this tab
+                      is the first, and the link is how you get to the second
+                      without carrying the rest of the record with you. */}
+                  <Link
+                    href={`/plans/${plan.id}`}
+                    className="text-ink no-underline hover:text-brand-deep hover:underline"
+                  >
+                    {plan.title}
+                  </Link>
                   <Badge tone={PLAN_TONES[plan.status]}>{t(`status_${plan.status}`)}</Badge>
                 </h3>
                 {plan.notes ? (

@@ -131,6 +131,10 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 # Run once after the first deploy to create the Owner account — without it there
 # is no way to sign in to a fresh database. See docs/DEPLOYMENT.md.
 COPY --chown=nextjs:nodejs docker/create-owner.mjs ./docker/create-owner.mjs
+# Read by the entrypoint before it applies migrations, to tell an empty database
+# from one the old `db push` workflow built. Like create-owner.mjs it needs only
+# `pg`, which the standalone output already traces.
+COPY --chown=nextjs:nodejs docker/check-migration-state.mjs ./docker/check-migration-state.mjs
 
 # The entrypoint is edited on Windows as often as not, and a trailing CR turns
 # the shebang into a file that does not exist.
