@@ -6,16 +6,54 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import type { Role } from '@/generated/prisma/enums';
 import { redirect } from '@/i18n/navigation';
 import { hashPin, isValidPinFormat, verifyPin } from '@/lib/auth/crypto';
-import { recordAudit, recordPatientAudit } from '@/lib/auth/guard';
+import { recordAnonymousAudit, recordAudit, recordPatientAudit } from '@/lib/auth/guard';
+import { attemptsLeft, lockoutMinutes, shouldLock } from '@/lib/auth/lockout';
 import { createSession, destroySession, getCurrentUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit } from '@/lib/rate-limit';
 import { requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
-/** A 4-digit PIN is guessable in 10 000 tries; five strikes makes that useless. */
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 5;
+/**
+ * Attempts per minute, per device, across every account.
+ *
+ * The escalating lockout in `auth/lockout.ts` is per *account*: it bounds
+ * guessing at one name, and does nothing about somebody walking the staff list
+ * trying 1234 against each of them in turn. This is the other axis.
+ * Deliberately loose enough that a real person mistyping their PIN on the number
+ * pad never meets it.
+ */
+const SIGN_IN_RATE = { limit: 10, windowMs: 60_000 } as const;
+
+/**
+ * "Try again in 20 minutes" reads fine; "try again in 1440 minutes" does not.
+ * Anything from an hour up is quoted in hours instead.
+ */
+function lockedMessage(
+  t: Awaited<ReturnType<typeof getTranslations<'auth'>>>,
+  minutes: number,
+): string {
+  return minutes >= 60
+    ? t('errorLockedHours', { hours: Math.ceil(minutes / 60) })
+    : t('errorLocked', { minutes });
+}
+
+/**
+ * The device-level throttle, shared by signing in and unlocking.
+ *
+ * Returns an error state when the caller has had enough for now, otherwise null.
+ */
+async function throttleSignIn(): Promise<ActionState | null> {
+  const t = await getTranslations('auth');
+  const limit = rateLimit(`signin:${clientKey(await headers())}`, SIGN_IN_RATE);
+  if (limit.allowed) return null;
+
+  // Not audited. Every attempt that got through the throttle already wrote its
+  // own line, so the burst is on the record; writing one more per rejected
+  // request would let anyone hammering the endpoint flood the activity page,
+  // which is the opposite of what the trail is for.
+  return actionError(t('errorThrottled', { seconds: limit.retryAfter }));
+}
 
 type CheckedUser = { id: string; firstName: string; lastName: string; role: Role };
 
@@ -34,31 +72,70 @@ async function checkPin(
 
   const user = await prisma.staffUser.findUnique({ where: { id: staffId } });
   // Same message for "no such person" as for a wrong PIN: which staff ids exist
-  // is not something a wrong guess should be able to enumerate.
-  if (!user || !user.active) return { ok: false, error: actionError(t('errorWrongPin')) };
+  // is not something a wrong guess should be able to enumerate. The trail is
+  // told the difference, because it is the one reader who should know.
+  if (!user || !user.active) {
+    await recordAnonymousAudit('—', {
+      action: 'failed',
+      entity: 'session',
+      entityId: staffId,
+      summary: user
+        ? 'Sign-in attempt on a deactivated account'
+        : 'Sign-in attempt on an account that does not exist',
+    });
+    return { ok: false, error: actionError(t('errorWrongPin')) };
+  }
+
+  // The account this line is about, for the trail. Not a session — nobody has
+  // proved who they are yet, and `permissions` is empty so nothing can mistake
+  // this for one.
+  const actor = {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    fullName: `${user.firstName} ${user.lastName}`,
+    role: user.role,
+    permissions: [],
+  };
 
   if (user.lockedUntil && user.lockedUntil > new Date()) {
     const minutes = Math.max(1, Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000));
-    return { ok: false, error: actionError(t('errorLocked', { minutes })) };
+    return { ok: false, error: actionError(lockedMessage(t, minutes)) };
   }
 
   if (!(await verifyPin(pin, user.pinHash, user.pinSalt))) {
+    // Counts across lockouts — only a correct PIN clears it.
     const failedAttempts = user.failedAttempts + 1;
-    const locked = failedAttempts >= MAX_ATTEMPTS;
+    const locked = shouldLock(failedAttempts);
+    const minutes = locked ? lockoutMinutes(failedAttempts) : 0;
 
     await prisma.staffUser.update({
       where: { id: user.id },
       data: {
-        failedAttempts: locked ? 0 : failedAttempts,
-        lockedUntil: locked ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000) : null,
+        failedAttempts,
+        lockedUntil: locked ? new Date(Date.now() + minutes * 60_000) : null,
       },
+    });
+
+    // A receptionist repeatedly trying to open the chart was always worth
+    // seeing. Somebody working through PINs at the reception tablet overnight is
+    // worth seeing rather more, and was the one thing the trail could not show.
+    await recordAudit(actor, {
+      action: locked ? 'locked' : 'failed',
+      entity: 'session',
+      entityId: user.id,
+      summary: locked
+        ? `Locked for ${minutes} minutes after ${failedAttempts} wrong PINs`
+        : `Wrong PIN (attempt ${failedAttempts})`,
     });
 
     return {
       ok: false,
       error: locked
-        ? actionError(t('errorLocked', { minutes: LOCKOUT_MINUTES }))
-        : actionError(t('errorWrongPin', { left: MAX_ATTEMPTS - failedAttempts })),
+        ? actionError(lockedMessage(t, minutes))
+        : actionError(
+            t('errorWrongPin', { left: attemptsLeft(failedAttempts) }),
+          ),
     };
   }
 
@@ -84,6 +161,11 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
   const staffId = requiredString(formData.get('staffId'));
   const pin = requiredString(formData.get('pin'));
   if (!staffId || !pin) return actionError(t('errorMissing'));
+
+  // Before the PIN is looked at, so a device working through the staff list runs
+  // out of requests rather than out of accounts.
+  const throttled = await throttleSignIn();
+  if (throttled) return throttled;
 
   const checked = await checkPin(staffId, pin);
   if (!checked.ok) return checked.error;
@@ -222,6 +304,11 @@ export async function unlockSession(
   const staffId = requiredString(formData.get('staffId'));
   const pin = requiredString(formData.get('pin'));
   if (!staffId || !pin) return actionError(t('errorMissing'));
+
+  // The same throttle as signing in, and the same bucket. Unlocking is a
+  // sign-in, and a second door with a weaker lock is not a second door.
+  const throttled = await throttleSignIn();
+  if (throttled) return throttled;
 
   const checked = await checkPin(staffId, pin);
   if (!checked.ok) return checked.error;
