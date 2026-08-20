@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { PackageMinus } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useId } from 'react';
-import { useFormStatus } from 'react-dom';
-import { takeStock } from '@/lib/actions/stock';
-import { useRecoveredForm } from '@/lib/form-recovery';
+import { PackageMinus } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useId } from "react";
+import { useFormStatus } from "react-dom";
+import { takeStock } from "@/lib/actions/stock";
+import { useRecoveredForm } from "@/lib/form-recovery";
 
 /**
  * "Six of these went today."
@@ -33,13 +33,17 @@ export function TakeOutForm({
   /** How many boxes are on the shelf. The action refuses more; so does the input. */
   max: number;
 }) {
-  const t = useTranslations('stock');
+  const t = useTranslations("stock");
   const uid = useId();
   const { state, formAction, formRef } = useRecoveredForm(takeStock);
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <form ref={formRef} action={formAction} className="flex items-center gap-1">
+    <div className="flex flex-col gap-1">
+      <form
+        ref={formRef}
+        action={formAction}
+        className="flex items-stretch gap-1.5"
+      >
         <input type="hidden" name="id" value={itemId} />
         <input
           id={`${uid}-qty`}
@@ -48,15 +52,15 @@ export function TakeOutForm({
           min={1}
           max={max}
           step={1}
-          className="field-input w-16 px-2 text-center tabular-nums"
-          placeholder={t('takeOutPlaceholder')}
-          aria-label={t('takeOutLabel')}
+          className="field-input w-16 shrink-0 px-2 py-1.5 text-center tabular-nums"
+          placeholder={t("takeOutPlaceholder")}
+          aria-label={t("takeOutLabel")}
         />
-        <TakeOutButton label={t('takeOut')} />
+        <TakeOutButton label={t("takeOut")} />
       </form>
 
-      {state.status === 'error' ? (
-        <p role="alert" className="text-[0.9rem] font-semibold text-danger">
+      {state.status === "error" ? (
+        <p role="alert" className="text-[0.88rem] font-semibold text-danger">
           {state.message}
         </p>
       ) : null}
@@ -64,13 +68,26 @@ export function TakeOutForm({
   );
 }
 
+/**
+ * Named out loud, not an icon.
+ *
+ * It used to be one of eight identical grey squares at the end of a row, where
+ * a picture was the only thing distinguishing it from "record a delivery" — the
+ * opposite verb. On the card it stands in a column of three labelled actions,
+ * and the word is what stops the wrong one being pressed.
+ */
 function TakeOutButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="btn btn-secondary btn-sm" title={label} disabled={pending}>
-      <PackageMinus size={18} aria-hidden />
-      <span className="sr-only">{label}</span>
+    <button
+      type="submit"
+      className="btn btn-secondary btn-sm flex-1 leading-tight"
+      title={label}
+      disabled={pending}
+    >
+      <PackageMinus size={17} aria-hidden />
+      {label}
     </button>
   );
 }

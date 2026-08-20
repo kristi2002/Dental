@@ -4,7 +4,12 @@
     "tagline": "Dental practice organizer",
     "palettePlaceholder": "Search a patient or a screen…",
     "paletteScreens": "Screens",
-    "paletteHint": "Type a name or a number to find a patient."
+    "paletteHint": "Type a name or a number to find a patient.",
+    "paletteSearchIn": "Search “{query}” in",
+    "paletteCount": "{count, plural, =0 {No results} one {# result} other {# results}}",
+    "paletteMove": "Move",
+    "paletteOpen": "Open",
+    "paletteClose": "Close"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -30,7 +35,9 @@
     "workProcedures": "Kinds of work",
     "stockLabels": "Labels",
     "followUps": "Follow-ups",
-    "outbox": "Send queue"
+    "outbox": "Send queue",
+    "servicesImport": "Import",
+    "stockImport": "Import"
   },
   "common": {
     "save": "Save",
@@ -69,6 +76,19 @@
     "clearFilters": "Clear",
     "breadcrumb": "Breadcrumb",
     "saveAndAddAnother": "Save and add another"
+  },
+  "calendar": {
+    "open": "Choose a date",
+    "today": "Today",
+    "clear": "Clear",
+    "close": "Close",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "changeView": "Change what the calendar shows",
+    "chooseMonth": "Choose a month",
+    "chooseYear": "Choose a year"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -191,7 +211,34 @@
     "mergeWarning": "Everything from the record you choose moves into {name}. This cannot be undone.",
     "mergeWhich": "Which record is the duplicate",
     "mergeExplain": "All appointments, visits, documents and notes move from {from} to {to}. {from} is then archived.",
-    "history": "Activity history"
+    "history": "Activity history",
+    "export": "Export",
+    "exportFileName": "patients",
+    "exportLanguage": "Language",
+    "exportArchivedOn": "Archived on",
+    "recordTitle": "Patient record",
+    "recordPrint": "Print record",
+    "recordNoAlerts": "No medical alerts recorded.",
+    "recordNoPlans": "No treatment plans.",
+    "alertsTitle": "Medical alerts",
+    "import": "Import",
+    "importTitle": "Import patients",
+    "importSubtitle": "Bring an existing list in from a spreadsheet. Nothing is saved until you have seen what it will do.",
+    "importChoose": "Choose a file",
+    "importChooseHint": "A CSV file. In Excel, use File → Save as → CSV. The first row must be the column titles; a Surname and a Phone column are required, everything else is optional.",
+    "importUnreadable": "That file could not be read. It should be a CSV saved from a spreadsheet.",
+    "importTooMany": "That file has more than {limit} rows. Split it and import it in parts.",
+    "importMissingColumns": "The file has no column for: {columns}. Add it and choose the file again.",
+    "importProblem": "Problem",
+    "importSummary": "{usable} of {total} rows will be imported",
+    "importAction": "Import {count, plural, one {# patient} other {# patients}}",
+    "importRunning": "Importing…",
+    "importDone": "{created} imported, {skipped} skipped.",
+    "importNoName": "No name",
+    "importNoPhone": "No phone number",
+    "importBadDate": "Date of birth not understood — will be left blank",
+    "importDuplicateInFile": "Same number appears earlier in this file",
+    "importAlreadyHere": "Already registered here"
   },
   "appointments": {
     "title": "Calendar",
@@ -275,6 +322,8 @@
     "moveFrom": "Currently {date} at {time}",
     "moveReason": "Why it is moving",
     "movedBadge": "Moved",
+    "pastBadge": "Past",
+    "overdueBadge": "Overdue",
     "waitingFor": "waiting {minutes} min",
     "bookAt": "Book {time}",
     "gridHint": "Drag a booking to move it to another slot. Double-click free time to book it.",
@@ -693,7 +742,8 @@
     "categoryDepth": "A category can go one level deep, no further.",
     "barcodeTaken": "This code is already linked to {name}.",
     "alreadyMoved": "This appointment has already been moved. Open the new one instead.",
-    "mergeSame": "That is the same record."
+    "mergeSame": "That is the same record.",
+    "importTooMany": "That import has more than {limit} rows. Split it and import it in parts."
   },
   "roles": {
     "OWNER": "Owner / Dentist",
@@ -1034,7 +1084,19 @@
     "fromTemplate": "From a plan you have written before",
     "fromTemplateHint": "Loads its steps as the starting point for this one. It replaces whatever is in the list below.",
     "templateLoaded": "Loaded {title} — {count} steps.",
-    "copyPlan": "Start another like this"
+    "copyPlan": "Start another like this",
+    "export": "Export",
+    "exportFileName": "treatment-plans",
+    "planTitle": "Plan",
+    "exportCreated": "Started",
+    "exportStepCount": "Steps",
+    "exportLastContacted": "Last chased",
+    "exportFollowUpOn": "Chase again on",
+    "exportStepStatus": "Step status",
+    "exportStepDate": "Done or booked",
+    "step_PENDING": "Planned",
+    "step_DONE": "Done",
+    "step_SKIPPED": "Skipped"
   },
   "works": {
     "title": "Works",
@@ -1111,7 +1173,18 @@
     "markOut": "Mark as still out",
     "exportYes": "Yes",
     "chaseTitle": "Waiting on the laboratory",
-    "chaseSubtitle": "{count, plural, one {# case} other {# cases}} due back now or within days."
+    "chaseSubtitle": "{count, plural, one {# case} other {# cases}} due back now or within days.",
+    "docketTitle": "Lab docket",
+    "docketPrint": "Print docket",
+    "docketNumber": "Case {number}",
+    "docketStart": "Start date",
+    "docketShade": "Shade",
+    "docketType": "Type of work",
+    "docketTime": "Time",
+    "docketStageFrame": "Metal frame",
+    "docketStageDentine": "Dentine try-in",
+    "docketStageFinish": "Completion",
+    "docketStageTray": "Custom tray"
   },
   "followUps": {
     "title": "Follow-ups",
@@ -1124,6 +1197,7 @@
     "fieldDue": "Come back on",
     "fieldDueHint": "The day it should surface again.",
     "fieldAssignee": "Whose job",
+    "fieldAssigneeHint": "Leave it with anyone unless it is one person's errand.",
     "anyone": "Anyone",
     "urgent": "Urgent",
     "urgentHint": "put it at the top of the list",
@@ -1296,7 +1370,28 @@
     "passphrase": "Encrypt with a passphrase",
     "passphraseHint": "Leave blank for a plain, readable JSON file.",
     "warning": "If you set a passphrase and forget it, the backup cannot be recovered. Staff PINs and uploaded files are not included.",
-    "download": "Download backup"
+    "download": "Download backup",
+    "checkTitle": "Check a backup",
+    "checkDescription": "Open a backup file to prove it still works — that it decrypts with the passphrase you think it has, and that the practice is really inside it. Nothing is written; this only reads the file.",
+    "checkFile": "Backup file",
+    "checkPassphraseHint": "Needed only if the backup was encrypted. This is the thing worth testing — a passphrase is discovered to be wrong on the one day it cannot be fixed.",
+    "checkAction": "Check the file",
+    "checkRunning": "Checking…",
+    "checkGood": "This backup opens and holds the practice.",
+    "checkTaken": "Taken",
+    "checkEncrypted": "Encrypted",
+    "checkRows": "Rows in total",
+    "checkNoFile": "Choose a backup file first.",
+    "checkTooLarge": "That file is too large to check here.",
+    "checkNeedsPassphrase": "That file is encrypted — enter the passphrase it was made with.",
+    "checkBadPassphrase": "That passphrase does not open this file. The file may also have been damaged in transit.",
+    "checkNotABackup": "That is not a backup made by this app.",
+    "checkUnreadable": "That file could not be read.",
+    "checkNoPatients": "There are no patients in this file — it is most likely a backup of an empty database rather than of this practice.",
+    "checkNewerVersion": "This file was written by a newer version of the app than the one running here.",
+    "checkAuditTruncated": "The activity trail in this file was cut short when it was written. The rest is archived beside the patient files.",
+    "checkExcludes": "Staff PINs and uploaded files are never inside a backup — the files are copied separately with the storage directory.",
+    "checkRestoreNote": "Putting a backup back is done into an empty database, not over a live one — see docs/RESTORE.md and prisma/restore-backup.ts."
   },
   "backupStatus": {
     "title": "Automatic backup",
@@ -1414,7 +1509,12 @@
     "currency": "Currency",
     "currencyHint": "Three-letter code — ALL, EUR, USD. Used everywhere a price is shown.",
     "operatoryNewSubtitle": "How many chairs there are is what decides how much can be booked at once.",
-    "operatoriesNamed": "{count, plural, =0 {none yet} one {# chair so far} other {# chairs so far}}"
+    "operatoriesNamed": "{count, plural, =0 {none yet} one {# chair so far} other {# chairs so far}}",
+    "letterheadTitle": "Letterhead",
+    "letterheadHint": "Printed under the logo on prescriptions, treatment plans and lab dockets. Left blank, a line is simply left out.",
+    "clinicPhone": "Phone",
+    "clinicEmail": "Email",
+    "clinicAddress": "Address"
   },
   "contacts": {
     "subtitle": "What was put in front of this patient, and when. Opening a message records it here — it is not proof of delivery.",
@@ -1561,5 +1661,26 @@
     "italicText": "italic",
     "hint": "**bold**, *italic*, - for a list. A pasted address becomes a link.",
     "remaining": "{count} left"
+  },
+  "imports": {
+    "servicesTitle": "Import treatments",
+    "servicesSubtitle": "Bring an existing price list in from a spreadsheet. Nothing is saved until you have seen what it will do.",
+    "stockTitle": "Import materials",
+    "stockSubtitle": "Bring the storage-room list in from a spreadsheet. What each material is — not how much of it is on the shelf; count that with a stocktake.",
+    "choose": "Choose a file",
+    "chooseServices": "A CSV file. In Excel, use File → Save as → CSV. The first row must be the column titles; a Name column is required, Category and Duration are optional.",
+    "chooseStock": "A CSV file. In Excel, use File → Save as → CSV. The first row must be the column titles; a Name column is required. Code, Category, Supplier, Unit, Minimum, Pack size and Price are all optional.",
+    "unreadable": "That file could not be read. It should be a CSV saved from a spreadsheet.",
+    "tooMany": "That file has more than {limit} rows. Split it and import it in parts.",
+    "missingColumns": "The file has no column for: {columns}. Add it and choose the file again.",
+    "problem": "Problem",
+    "summary": "{usable} of {total} rows will be imported",
+    "action": "Import {count, plural, one {# row} other {# rows}}",
+    "running": "Importing…",
+    "done": "{created} imported, {skipped} skipped.",
+    "noName": "No name",
+    "badNumber": "A number could not be read — the default was used",
+    "duplicateInFile": "Appears earlier in this file",
+    "alreadyHere": "Already on file here"
   }
 }

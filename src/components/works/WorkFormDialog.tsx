@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
+import { UrgentToggle } from '@/components/ui/UrgentToggle';
 import { WorkLinesField, type LineDraft } from '@/components/works/WorkLinesField';
 import { saveWork } from '@/lib/actions/works';
 
@@ -164,16 +165,12 @@ export function WorkFormDialog({
         />
       </div>
 
-      <label className="flex items-center gap-2.5 font-semibold text-ink">
-        <input
-          type="checkbox"
-          name="urgent"
-          defaultChecked={work.urgent}
-          className="size-5 accent-[var(--color-danger)]"
-        />
-        {t('urgent')}
-        <span className="font-normal text-ink-soft">— {t('urgentHint')}</span>
-      </label>
+      <UrgentToggle
+        name="urgent"
+        defaultChecked={work.urgent}
+        label={t('urgent')}
+        hint={t('urgentHint')}
+      />
 
       <fieldset>
         <legend className="field-label">{t('lines')}</legend>

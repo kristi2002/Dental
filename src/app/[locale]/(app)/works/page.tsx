@@ -1,4 +1,4 @@
-import { Check, Download, FlaskConical, Plus, Trash2, Undo2 } from 'lucide-react';
+import { Check, Download, FlaskConical, Plus, Printer, Trash2, Undo2 } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
@@ -27,6 +27,7 @@ import {
   resolveWorkMonth,
   totalElements,
   toWorkFilterStatus,
+  workScope,
   workStatus,
   type WorkStatus,
 } from '@/lib/works';
@@ -138,21 +139,6 @@ export default async function WorksPage({
   const tt = await getTranslations('teeth');
   const format = await getFormatter();
 
-  const [allWorks, staff, procedures] = await Promise.all([
-    prisma.work.findMany({
-      // Newest first: the row somebody is looking for is nearly always the one
-      // written this week. `number` breaks the tie so two cases sent on one day
-      // keep the order they were written in — it is still the register's own
-      // sequence, it just no longer has a column of its own.
-      orderBy: [{ sentAt: 'desc' }, { number: 'desc' }],
-      include: { lines: { orderBy: { position: 'asc' } } },
-    }),
-    canFollowUp ? getAssignableStaff() : Promise.resolve([]),
-    // What the edit dialog's `punimi` field offers. Only fetched for somebody
-    // who can open that dialog.
-    canEdit ? getProcedureOptions() : Promise.resolve([]),
-  ]);
-
   const { q, lab, month, status } = await searchParams;
   const query = (q ?? '').trim();
   const labFilter = lab ?? '';
@@ -161,21 +147,59 @@ export default async function WorksPage({
   const day = today();
   const dayKey = toDateKey(day);
 
-  const months = monthsPresent(allWorks);
+  // Four questions about the register as a whole, none of which needs the
+  // register itself. They come first because the month the page opens on is one
+  // of the answers, and the rows cannot be asked for until it is known.
+  const [days, labRows, lateCount, totalCount, staff, procedures] = await Promise.all([
+    // Every day the register has anything on, one column wide, newest first —
+    // which is what `monthsPresent` folds into months. Days rather than a
+    // `date_trunc` group, so this stays a query Prisma can write on any
+    // database; there are at most three hundred and sixty-five a year.
+    prisma.work.findMany({
+      select: { sentAt: true },
+      distinct: ['sentAt'],
+      orderBy: { sentAt: 'desc' },
+    }),
+    // Every laboratory the register has ever named, for the filter.
+    prisma.workLine.findMany({ select: { lab: true }, distinct: ['lab'] }),
+    // What the practice is still waiting on, across the whole register rather
+    // than the month on screen — the count is the reason to press the filter,
+    // so it must not be scoped by a filter nobody has pressed yet. Counted by
+    // the index on (receivedAt, dueAt) rather than by reading the rows.
+    prisma.work.count({ where: { receivedAt: null, dueAt: { lt: day } } }),
+    prisma.work.count(),
+    canFollowUp ? getAssignableStaff() : Promise.resolve([]),
+    // What the edit dialog's `punimi` field offers. Only fetched for somebody
+    // who can open that dialog.
+    canEdit ? getProcedureOptions() : Promise.resolve([]),
+  ]);
+
+  const months = monthsPresent(days);
   const monthFilter = resolveWorkMonth(months, month, statusFilter);
 
-  // Every laboratory the register has ever named, for the filter.
-  const labs = [
-    ...new Set(
-      allWorks.flatMap((work) => work.lines.map((line) => line.lab?.trim()).filter(Boolean)),
-    ),
-  ].sort((a, b) => a!.localeCompare(b!)) as string[];
+  const labs = [...new Set(labRows.map((line) => line.lab?.trim()).filter(Boolean))].sort(
+    (a, b) => a!.localeCompare(b!),
+  ) as string[];
 
-  const works = filterWorks(
-    allWorks,
-    { query, lab: labFilter, month: monthFilter, status: statusFilter },
-    day,
-  );
+  const filters = { query, lab: labFilter, month: monthFilter, status: statusFilter };
+
+  const scoped = await prisma.work.findMany({
+    // The coarse half of the filter, done where the rows are. See `workScope`:
+    // it is allowed to be wider than `filterWorks` and never narrower, so what
+    // comes back is a superset of what the screen shows.
+    where: workScope(filters, day),
+    // Newest first: the row somebody is looking for is nearly always the one
+    // written this week. `number` breaks the tie so two cases sent on one day
+    // keep the order they were written in — it is still the register's own
+    // sequence, it just no longer has a column of its own.
+    orderBy: [{ sentAt: 'desc' }, { number: 'desc' }],
+    include: { lines: { orderBy: { position: 'asc' } } },
+  });
+
+  // The fine half: the search box, and the laboratory. Both stay here because
+  // `matches()` folds accents and `ILIKE` does not — typing *puron* has to find
+  // *Purón* — and because a lab is named on the lines, not on the case.
+  const works = filterWorks(scoped, filters, day);
 
   // Whether anything is actually narrowed. The month is always set and so is
   // never evidence on its own — the register opening where it always opens is
@@ -186,11 +210,6 @@ export default async function WorksPage({
     query || labFilter || statusFilter || monthFilter !== (months[0] ?? null),
   );
   const elementTotal = totalElements(works);
-
-  // What the practice is still waiting on, across the whole register rather than
-  // the month on screen — the count is the reason to press the filter, so it
-  // must not be scoped by a filter that has not been pressed yet.
-  const lateCount = allWorks.filter((work) => workStatus(work, day) === 'overdue').length;
 
   const monthLabel = (key: string) =>
     format.dateTime(new Date(`${key}-01T00:00:00.000Z`), {
@@ -253,7 +272,7 @@ export default async function WorksPage({
           <>
             {/* A plain link, not a form: the file is a GET of what is on screen,
                 so it can be bookmarked and it works with JavaScript off. */}
-            {allWorks.length > 0 ? (
+            {totalCount > 0 ? (
               <a href={exportHref} className="btn btn-secondary" download data-print-hide>
                 <Download size={20} aria-hidden />
                 {t('export')}
@@ -264,7 +283,7 @@ export default async function WorksPage({
         }
       />
 
-      {allWorks.length > 0 ? (
+      {totalCount > 0 ? (
         <FilterBar
           basePath="/works"
           label={tc('filters')}
@@ -329,7 +348,7 @@ export default async function WorksPage({
           clearLabel={tc('clearFilters')}
           summary={t('showing', {
             count: works.length,
-            total: allWorks.length,
+            total: totalCount,
           })}
         />
       ) : null}
@@ -631,6 +650,20 @@ export default async function WorksPage({
                           ) : null}
 
                           <ActionMenu label={tc('moreActions')} floating>
+                            {/* First in the menu, and the one item here that is
+                                needed while the case is being *written* rather
+                                than chased: the box does not leave the building
+                                without a slip in it. Everything below is
+                                housekeeping on a case already sent. */}
+                            <Link
+                              href={`/works/${work.id}/print`}
+                              className="menu-item"
+                              role="menuitem"
+                            >
+                              <Printer size={17} aria-hidden />
+                              {t('docketPrint')}
+                            </Link>
+
                             {/* Only the case, never the patient behind it: a
                                 line about a crown should open the register at
                                 that crown, and `followUpLink` reads the patient

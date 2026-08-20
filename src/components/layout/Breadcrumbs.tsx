@@ -39,6 +39,11 @@ export async function Breadcrumbs({ items }: { items: Crumb[] }) {
           </Link>
         </li>
 
+        {/* The cap and the ellipsis go on an inner span, not on the crumb itself:
+            `text-overflow` only applies to block containers, so a `truncate` on
+            the flex box that centres the label is a plain clip — a long plan
+            title lost its last word and its right padding with it, and ran
+            straight into the next chevron. */}
         {items.map((crumb, index) => {
           const last = index === items.length - 1;
           return (
@@ -47,16 +52,16 @@ export async function Breadcrumbs({ items }: { items: Crumb[] }) {
               {crumb.href && !last ? (
                 <Link
                   href={crumb.href}
-                  className="flex min-h-9 max-w-[16rem] items-center truncate rounded-md px-2 font-semibold text-ink-soft no-underline transition-colors hover:bg-surface hover:text-brand-deep"
+                  className="flex min-h-9 items-center rounded-md px-2 font-semibold text-ink-soft no-underline transition-colors hover:bg-surface hover:text-brand-deep"
                 >
-                  {crumb.label}
+                  <span className="max-w-[16rem] truncate">{crumb.label}</span>
                 </Link>
               ) : (
                 <span
-                  aria-current="page"
-                  className="flex min-h-9 max-w-[20rem] items-center truncate px-2 font-bold text-ink"
+                  aria-current={last ? 'page' : undefined}
+                  className="flex min-h-9 items-center px-2 font-bold text-ink"
                 >
-                  {crumb.label}
+                  <span className="max-w-[20rem] truncate">{crumb.label}</span>
                 </span>
               )}
             </li>

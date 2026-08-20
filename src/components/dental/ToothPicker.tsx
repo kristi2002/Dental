@@ -1,7 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ToothDefs, ToothGlyph } from '@/components/dental/ToothGlyph';
+import { ToothDefs } from '@/components/dental/ToothDefsProvider';
+import { ToothGlyph } from '@/components/dental/ToothGlyph';
 import {
   PERMANENT_LOWER,
   PERMANENT_UPPER,

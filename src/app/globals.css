@@ -137,6 +137,29 @@
       disabled:cursor-not-allowed disabled:bg-paper disabled:text-ink-faint;
   }
 
+  /* --- A date field ----------------------------------------------------
+   *
+   * The control stays a plain `<input type="date">` — it posts the same
+   * `YYYY-MM-DD`, validates `required` and `min`/`max` itself, and is still
+   * typed a segment at a time. Only the calendar it opens changes.
+   *
+   * Hiding the indicator is what makes that possible: it is the one thing that
+   * summons the browser's own picker with a mouse, and that picker is the one
+   * surface in this app nothing can style. With it gone, `DateField` puts its
+   * own button in the same place and opens `Calendar` instead. The padding is
+   * the room that button occupies.
+   *
+   * Firefox has no equivalent hook and opens its picker on the field itself, so
+   * there this is a no-op and the native calendar is what appears. That is a
+   * degradation rather than a break — the field works identically either way. */
+  .field-date {
+    padding-right: 2.9rem;
+  }
+
+  .field-date::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+
   .btn {
     @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border
       px-4 py-2 text-[1rem] font-semibold transition-colors
@@ -488,6 +511,15 @@
   }
 }
 
+/* The odontogram's one column width, and the glyph height derived from it.
+ * Kept here rather than in the component because the print block below has to
+ * reach the same knob — see `DentalChart`, which reads `--tooth-col`. The 222/88
+ * is the tooth artwork's own aspect ratio. */
+.odontogram {
+  --tooth-col: 4.25rem;
+  --tooth-glyph-h: calc((var(--tooth-col) - 0.25rem) * 222 / 88);
+}
+
 /* --- Print -------------------------------------------------------------
  * Prescription sheets are printed on real paper. The app
  * chrome is navigation, not content, so it never reaches the page — anything
@@ -504,6 +536,24 @@
 
   main {
     padding: 0 !important;
+  }
+
+  /* A narrower column so a full chart fits the sheet, and no horizontal scroll
+     to clip it — a scroller prints whatever happens to be in view. */
+  .odontogram {
+    --tooth-col: 2.5rem;
+  }
+
+  .odontogram .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .odontogram svg {
+    filter: none !important;
+  }
+
+  .odontogram {
+    break-inside: avoid;
   }
 
   /* Borders survive the trip to a monochrome printer; shadows do not. */

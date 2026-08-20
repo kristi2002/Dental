@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { LoginForm } from '@/components/auth/LoginForm';
+import { ClinicLogo } from '@/components/brand/ClinicLogo';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
-import { ToothMark } from '@/components/layout/ToothMark';
 import { getCurrentUser } from '@/lib/auth/session';
 import { redirect } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
+import { clinicDisplayName, getClinicProfile } from '@/lib/queries';
 
 export async function generateMetadata({
   params,
@@ -35,6 +36,7 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
 
   const t = await getTranslations('auth');
   const tApp = await getTranslations('app');
+  const clinicName = clinicDisplayName(await getClinicProfile()) || tApp('name');
 
   const staff = await prisma.staffUser.findMany({
     where: { active: true },
@@ -46,19 +48,12 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
     <div className="flex min-h-screen flex-col bg-paper">
       <header className="app-header">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-8">
-          <span className="flex min-w-0 items-center gap-3">
-            <ToothMark className="text-white" />
-            <span className="min-w-0">
-              {/* No account button competing for room here, so the wordmark
-                  stays on phones — it just steps down a size to fit. */}
-              <span className="block truncate text-[1.1rem] leading-tight font-bold tracking-tight text-white sm:text-[1.3rem]">
-                {tApp('name')}
-              </span>
-              <span className="hidden truncate text-[0.8rem] text-white/85 lg:block">
-                {tApp('tagline')}
-              </span>
-            </span>
-          </span>
+          {/* The whole lockup, not the rail's cut-down mark: this is the front
+              door, and it is the one screen in the app with a full-width
+              masthead and nothing competing for it. No account button here, so
+              it only has to step down a size for a phone. The artwork spells the
+              practice's name, which is why nothing is written beside it. */}
+          <ClinicLogo variant="inverse" alt={clinicName} className="h-11 w-auto sm:h-14" />
           <LanguageSwitcher />
         </div>
       </header>

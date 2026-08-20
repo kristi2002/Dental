@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { PackagePlus } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useId } from 'react';
-import { TextAreaField, TextField } from '@/components/ui/Field';
-import { FormDialog } from '@/components/ui/FormDialog';
-import { saveBatch } from '@/lib/actions/stock';
+import { PackagePlus } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useId } from "react";
+import { TextAreaField, TextField } from "@/components/ui/Field";
+import { FormDialog } from "@/components/ui/FormDialog";
+import { saveBatch } from "@/lib/actions/stock";
 
 /**
  * Recording a delivery.
@@ -25,24 +25,28 @@ export function BatchFormDialog({
   /** `YYYY-MM-DD`, used to bound the date pickers and to default the purchase. */
   today: string;
 }) {
-  const t = useTranslations('stock');
-  const tc = useTranslations('common');
+  const t = useTranslations("stock");
+  const tc = useTranslations("common");
   const uid = useId();
 
   return (
     <FormDialog
       action={saveBatch}
-      title={t('batchNew', { name: itemName })}
-      submitLabel={t('batchSave')}
-      pendingLabel={tc('saving')}
-      cancelLabel={tc('cancel')}
-      closeLabel={tc('close')}
-      triggerClassName="btn btn-secondary btn-sm"
-      triggerTitle={t('batchNewShort')}
+      title={t("batchNew", { name: itemName })}
+      submitLabel={t("batchSave")}
+      pendingLabel={tc("saving")}
+      cancelLabel={tc("cancel")}
+      closeLabel={tc("close")}
+      // Labelled, and the full width of the card's action column: this is the
+      // opposite of "take out" sitting directly above it, and two unlabelled
+      // squares differing only by the direction of a small arrow is how a
+      // delivery gets recorded as a withdrawal.
+      triggerClassName="btn btn-secondary btn-sm w-full leading-tight"
+      triggerTitle={t("batchNewShort")}
       trigger={
         <>
-          <PackagePlus size={18} aria-hidden />
-          <span className="sr-only">{t('batchNewShort')}</span>
+          <PackagePlus size={17} aria-hidden />
+          {t("batchNewShort")}
         </>
       }
     >
@@ -55,7 +59,7 @@ export function BatchFormDialog({
           type="number"
           min={1}
           step={1}
-          label={t('batchQuantity')}
+          label={t("batchQuantity")}
           required
           defaultValue={1}
         />
@@ -65,8 +69,8 @@ export function BatchFormDialog({
           id={`${uid}-expiry`}
           name="expiryDate"
           type="date"
-          label={t('batchExpiry')}
-          optional={tc('optional')}
+          label={t("batchExpiry")}
+          optional={tc("optional")}
           min={today}
         />
       </div>
@@ -78,8 +82,8 @@ export function BatchFormDialog({
           id={`${uid}-purchased`}
           name="purchasedAt"
           type="date"
-          label={t('batchPurchased')}
-          hint={t('batchPurchasedHint')}
+          label={t("batchPurchased")}
+          hint={t("batchPurchasedHint")}
           max={today}
           defaultValue={today}
         />
@@ -87,8 +91,8 @@ export function BatchFormDialog({
           id={`${uid}-manufactured`}
           name="manufacturedAt"
           type="date"
-          label={t('batchManufactured')}
-          optional={tc('optional')}
+          label={t("batchManufactured")}
+          optional={tc("optional")}
           max={today}
         />
       </div>
@@ -97,16 +101,16 @@ export function BatchFormDialog({
       <TextField
         id={`${uid}-lot`}
         name="lotNumber"
-        label={t('batchLot')}
-        hint={t('batchLotHint')}
-        optional={tc('optional')}
+        label={t("batchLot")}
+        hint={t("batchLotHint")}
+        optional={tc("optional")}
       />
 
       <TextAreaField
         id={`${uid}-notes`}
         name="notes"
-        label={tc('notes')}
-        optional={tc('optional')}
+        label={tc("notes")}
+        optional={tc("optional")}
         rows={2}
       />
     </FormDialog>

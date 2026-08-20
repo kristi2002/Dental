@@ -48,11 +48,21 @@ import { cn } from '@/lib/utils';
  *    away, growth lines banding the cervical half, and a hard little specular.
  *    Flat fills with an outline look like a diagram no matter how correct.
  *
- * Because the mirror flips the drawing but not the lamp, **nothing painted into
- * a tooth may be left-right directional** — every gradient below is either
- * vertical or symmetrical about the tooth's axis, and all the sidedness comes
- * from `lt-relief`, which is applied outside the mirror. Paint a highlight on
- * one side here and half the mouth is lit from the wrong window.
+ * **Nothing painted into a tooth may be left-right directional** — every
+ * gradient below is either vertical or symmetrical about the tooth's axis, and
+ * all the sidedness comes from `lt-relief`. Paint a highlight on one side here
+ * and half the mouth is lit from the wrong window.
+ *
+ * The lamp is fixed to the *cell*, not to the tooth. `lt-relief` wraps the flip
+ * and the mirror rather than sitting inside them, so it lights whatever ends up
+ * in the top-left of the box — which means every tooth on the page is lit from
+ * one direction, the way a photograph of a mounted arch would be, and not that
+ * the crown is always the lit end. On the upper arch the roots are what is up
+ * there, so they are what catches the light. That is the intended trade: page
+ * lighting that agrees with itself, at the cost of an upper root being glossier
+ * than the enamel below it. If that ever needs to change, the fix is to make
+ * the *specular* material-aware rather than to move the lamp per quadrant —
+ * four lamps for four quadrants is four ways for them to disagree.
  *
  * The 26 silhouettes are each built once into `ToothDefs` and every tooth on the
  * page is a `<use>` of one. That is what pays for shading this deep: the layers
@@ -157,6 +167,14 @@ type Root = {
   /** Painted first, so the buccal pair overlaps it — an upper molar's palatal
    *  root is behind the other two, not beside them. */
   behind?: boolean;
+  /** How much wider than its own width the root swells where it leaves the
+   *  neck, as a fraction. Roots are widest at the cervical line and on a
+   *  multi-rooted tooth they are *confluent* there — together they fill the
+   *  neck, because for the first few millimetres they are one body. Without
+   *  this the legs of a molar leave the neck as separate sticks with daylight
+   *  between them and the tooth reads as a cactus. Zero for an implant fixture,
+   *  which is a machined screw and does no such thing. */
+  flare?: number;
 };
 
 type Anatomy = {
@@ -280,9 +298,9 @@ function anatomyOf(kind: ToothKind, upper: boolean): Anatomy {
     switch (kind) {
       case 'CENTRAL_INCISOR':
         return {
-          width: 8.5, neck: 6.4, height: 10.5,
+          width: 8.5, neck: 7, height: 10.5,
           contour: [0.55, 0.7], edge: 0.9, profile: INCISOR_EDGE,
-          roots: [{ base: 0, apex: -0.7, length: 13, width: 6.3 }],
+          roots: [{ base: 0, apex: -0.7, length: 13, width: 7 }],
           grooves: [-0.33, 0.33], ridges: [-0.64, 0, 0.64], translucent: true,
         };
       case 'LATERAL_INCISOR':
@@ -297,20 +315,25 @@ function anatomyOf(kind: ToothKind, upper: boolean): Anatomy {
         };
       case 'CANINE':
         return {
-          width: 7.6, neck: 5, height: 10,
+          width: 7.6, neck: 5.5, height: 10,
           contour: [0.45, 0.6], edge: 0.8, profile: CANINE_EDGE,
-          roots: [{ base: 0, apex: -0.6, length: 17, width: 5 }],
+          roots: [{ base: 0, apex: -0.6, length: 17, width: 5.5 }],
           grooves: [-0.5, 0.52], ridges: [0.06], translucent: true,
         };
       case 'FIRST_PREMOLAR':
-        // The one premolar with two roots. They divide in the apical third, so
-        // from the cheek it is a single trunk that splits — not a pair.
+        // The one premolar with two roots — and they divide *buccopalatally*,
+        // which is the whole point of it. Drawn as a mesial and a distal root
+        // it came out as a tuning fork, a shape no tooth in the mouth has. From
+        // the cheek the palatal root sits directly behind the buccal one and
+        // barely clears its outline, so what the chart should show is a single
+        // broad trunk that splits late and shallowly, with a second root
+        // showing *through* rather than beside.
         return {
-          width: 7.2, neck: 4.9, height: 8.6,
+          width: 7.2, neck: 5.3, height: 8.6,
           contour: [0.4, 0.46], edge: 0.86, profile: PREMOLAR_EDGE,
           roots: [
-            { base: 0.9, apex: 2, length: 13.2, width: 3.2 },
-            { base: -0.9, apex: -2.1, length: 12.8, width: 3.2 },
+            { base: 0, apex: -0.5, length: 13.5, width: 3.7, behind: true },
+            { base: 0.2, apex: 0.9, length: 14, width: 3.9 },
           ],
           grooves: [-0.46, 0.48], ridges: [-0.04],
         };
@@ -378,9 +401,9 @@ function anatomyOf(kind: ToothKind, upper: boolean): Anatomy {
       };
     case 'CANINE':
       return {
-        width: 7, neck: 4.7, height: 11,
+        width: 7, neck: 5.5, height: 11,
         contour: [0.44, 0.6], edge: 0.8, profile: CANINE_EDGE,
-        roots: [{ base: 0, apex: -0.6, length: 16, width: 4.7 }],
+        roots: [{ base: 0, apex: -0.6, length: 16, width: 5.5 }],
         grooves: [-0.5, 0.52], ridges: [0.06], translucent: true,
       };
     case 'FIRST_PREMOLAR':
@@ -439,9 +462,21 @@ function anatomyOf(kind: ToothKind, upper: boolean): Anatomy {
  * where its permanent counterpart is the other way round — with a marked bulge
  * at the neck, and its roots are slender and flare wide, around the permanent
  * tooth sitting in the bone underneath it, which is the whole reason they do.
- * Primary molars borrow the permanent molar profiles because the cusp pattern
- * genuinely is the same; everything else here is what makes them read as milk
- * teeth rather than small adult ones.
+ * The molar profiles do **not** come straight through, which was a real error
+ * rather than a simplification. Borrowed by position, the primary first molar
+ * inherited the permanent first molar's edge — including the distal cusp that
+ * makes 46 nameable from its outline alone — and the primary second molar
+ * inherited the permanent first's two-cusp edge. That is backwards twice over:
+ * the primary first molar resembles no permanent tooth and has no distal cusp,
+ * while the primary *second* molar is the near-copy of the permanent first,
+ * three buccal cusps and all. Swapped here rather than in the tables, because
+ * this is the one place that knows it is looking at a milk tooth.
+ *
+ * The cusps are scaled too. The edge profiles carry depth in absolute
+ * millimetres, so a crown squashed to 62% kept a 2.1mm cusp on a 4.5mm tooth —
+ * nearly half the crown height, against 29% on its permanent counterpart, which
+ * drew every milk molar as a spike. Primary cusps are shallower than permanent
+ * ones, not twice as deep.
  *
  * The first molar takes an extra pinch. In the permanent dentition the first
  * molar is the larger of the pair and in the primary dentition it is the
@@ -450,11 +485,22 @@ function anatomyOf(kind: ToothKind, upper: boolean): Anatomy {
  */
 function primaryFrom(base: Anatomy, kind: ToothKind): Anatomy {
   const narrow = kind === 'FIRST_MOLAR' ? 0.85 : 1;
+  const height = base.height * 0.62;
+  const profile =
+    kind === 'FIRST_MOLAR'
+      ? MOLAR_EDGE
+      : kind === 'SECOND_MOLAR'
+        ? FIVE_CUSP_EDGE
+        : base.profile;
   return {
     ...base,
     width: base.width * 0.8 * narrow,
     neck: base.neck * 0.68 * narrow,
-    height: base.height * 0.62,
+    height,
+    // Depth is in millimetres, so it has to come down with the crown it is cut
+    // into — and a little further, because a milk cusp is blunter than a
+    // permanent one as well as smaller.
+    profile: profile.map(([x, mm, sharp]) => [x, mm * 0.62 * 0.88, sharp] as Pt),
     // The contact points sit higher, which is what the cervical bulge does to
     // the outline.
     contour: [base.contour[0] * 0.88, base.contour[1] * 0.88],
@@ -477,14 +523,35 @@ function primaryFrom(base: Anatomy, kind: ToothKind): Anatomy {
  * From anatomy to paths
  * ------------------------------------------------------------------ */
 
+const smoothstep = (t: number) => t * t * (3 - 2 * t);
+
 function rootAxisAt(root: Root, cej: number, t: number): [number, number] {
   // Smoothstep, so both the divergence of a molar's roots and the distal lean
-  // of a single one gather in the apical half. A molar stands on a solid root
-  // trunk for the first third and only parts company above it — spread the
-  // roots from the neck instead and the tooth turns into a cactus.
-  const bend = t * t * (3 - 2 * t);
+  // of a single one gather in the apical half.
+  const bend = smoothstep(t);
+
+  // And the trunk. `base` is where a root's axis *ends up* once the legs have
+  // parted, not where it leaves the neck — every one of them leaves the neck on
+  // the tooth's own axis, because for the first few millimetres there is only
+  // one root there.
+  //
+  // This was the bug that made every molar on the chart a cactus. The bend
+  // above gathers the divergence apically, but it was applied to a base offset
+  // the root already sat at from t=0, so a lower first molar's two legs started
+  // 4.8mm apart at the cervical line with daylight between them — which is not
+  // a molar, it is grade-III furcation involvement drawn on every molar in the
+  // mouth. Held together for the first `TRUNK_DEPTH` of the root, they come out
+  // of one body and part where a real furcation is.
+  // Partly, not wholly. Pulling the axes all the way onto the midline at the
+  // cervical line ties the legs in a knot and they splay out of it like a
+  // bundle of sticks — worse than the gap it was fixing. Half way in is enough:
+  // it closes the millimetre of daylight between two root outlines without
+  // moving the apices, which are where the anatomy actually lives.
+  const spread = smoothstep(Math.min(1, Math.max(0, t / TRUNK_DEPTH)));
+  const emerge = TRUNK_CONVERGE + (1 - TRUNK_CONVERGE) * spread;
+
   return [
-    CENTRE + (root.base + (root.apex - root.base) * bend) * MM,
+    CENTRE + (root.base * emerge + (root.apex - root.base) * bend) * MM,
     cej - root.length * MM * t,
   ];
 }
@@ -505,8 +572,13 @@ function rootAxisAt(root: Root, cej: number, t: number): [number, number] {
  */
 function rootHalfAt(root: Root, t: number): number {
   const clamped = Math.max(t, 0);
+  // Confluent at the neck, separate below it. Ramps out over the same depth the
+  // axes are gathered across, so the swell and the convergence close the gap
+  // between two roots at the same rate and the join has no step in it.
+  const flare = 1 + (root.flare ?? 0) * (1 - smoothstep(Math.min(1, clamped / TRUNK_DEPTH)));
   return (
     ((root.width * MM) / 2) *
+    flare *
     (1 - (root.taper ?? 0.66) * clamped ** (root.curve ?? 1.35)) *
     (1 - 0.62 * clamped ** 8)
   );
@@ -596,6 +668,22 @@ type Geometry = {
  */
 const ENAMEL_STEP = 0.9;
 
+/**
+ * How far up the shorter leg the root trunk reaches, as a fraction of it.
+ *
+ * This is the furcation, and it is a real landmark rather than a drawing
+ * convenience: it is where a periodontist stops calling a pocket a pocket and
+ * starts calling it furcation involvement. Around a third is right for the
+ * molars this applies to. Much less and the legs part at the neck and the tooth
+ * is a cactus again; much more and the roots stop being separable at chart
+ * size, which loses the one feature that makes a molar look like a molar.
+ */
+const TRUNK_DEPTH = 0.3;
+
+/** How far in towards the tooth's axis the roots are gathered where they leave
+ *  the neck, as a fraction of the offset they end up at. */
+const TRUNK_CONVERGE = 0.45;
+
 function build(a: Anatomy): Geometry {
   const w = a.width * MM;
   const ch = a.height * MM;
@@ -604,7 +692,16 @@ function build(a: Anatomy): Geometry {
   const hn = (a.neck * MM) / 2;
   const he = (a.edge * w) / 2;
   const [distal, mesial] = a.contour;
-  const roots = a.roots.map((root) => ({ ...root, width: root.width * ENAMEL_STEP }));
+  // Only the multi-rooted teeth swell at the neck, and only they need to: a
+  // single root already leaves the cervical line at the full width of it, so
+  // flaring one puts a shoulder on the tooth wider than its own crown — which
+  // is not an anatomical feature, it is a mistake with a bevel on it.
+  const confluent = a.roots.filter((root) => !root.behind).length > 1;
+  const roots = a.roots.map((root) => ({
+    ...root,
+    width: root.width * ENAMEL_STEP,
+    flare: root.flare ?? (confluent ? (a.roots.length > 2 ? 0.46 : 0.34) : 0),
+  }));
 
   const edge: Pt[] = a.profile.map(([x, mm, sharp]) => [
     CENTRE + x * he,
@@ -647,7 +744,10 @@ function build(a: Anatomy): Geometry {
     const gap = Math.abs(front[i].base - front[i + 1].base) * MM;
     furcations.push([
       CENTRE + ((front[i].base + front[i + 1].base) / 2) * MM,
-      cej - Math.min(front[i].length, front[i + 1].length) * MM * 0.14,
+      // Sat at the neck before, which is a third of a root too low now that the
+      // trunk is drawn: the shadow has to pool where the legs actually divide,
+      // or it reads as a smudge on the trunk rather than as depth behind it.
+      cej - Math.min(front[i].length, front[i + 1].length) * MM * TRUNK_DEPTH,
       Math.max(gap * 0.42, 5),
     ]);
   }
@@ -743,6 +843,7 @@ function implantOf(a: Anatomy, cej: number, hn: number): Geometry['implant'] {
     // even a stout root has thinned by half before it gets there.
     taper: 0.24,
     curve: 2.4,
+    flare: 0,
   };
 
   const half = (t: number) => rootHalfAt(fixture, t);
@@ -1101,7 +1202,7 @@ export function ToothGlyph({
  */
 function ToothForm({ variant }: { variant: Variant }) {
   const g = GEOMETRY.get(variant.key)!;
-  const { crown, cervical, cej, height: ch, halfWidth: hw } = g;
+  const { crown, cervical, height: ch, halfWidth: hw } = g;
 
   return (
     <g id={`lt-form-${variant.key}`}>
@@ -1109,9 +1210,29 @@ function ToothForm({ variant }: { variant: Variant }) {
           enamel, flat but for their own gradients. Nothing here tries to make
           them look round; that is the light's job, one level up, and painting
           the form twice only muddies it. */}
-      {g.roots.map((root) => (
-        <path key={root.d} d={root.d} fill={root.behind ? 'url(#lt-root-deep)' : 'url(#lt-root)'} />
-      ))}
+      {/* Behind first — an upper molar's palatal root is *behind* the buccal
+          pair, not beside them, and the trunk has to cover its join too. */}
+      {g.roots
+        .filter((root) => root.behind)
+        .map((root) => (
+          <g key={root.d}>
+            <path d={root.d} fill="url(#lt-root-deep)" />
+            <path d={root.d} fill="url(#lt-across-root)" />
+          </g>
+        ))}
+
+      {g.roots
+        .filter((root) => !root.behind)
+        .map((root) => (
+          <g key={root.d}>
+            <path d={root.d} fill="url(#lt-root)" />
+            {/* Its own barrel. Painted per root rather than over the group so a
+                molar's three legs each round off separately — one gradient
+                stretched across all three shades the *cluster* like a single
+                fat cylinder, which is exactly the reading to avoid. */}
+            <path d={root.d} fill="url(#lt-across-root)" />
+          </g>
+        ))}
 
       <g clipPath={`url(#lt-root-clip-${variant.key})`}>
         {/* Down the middle of each root, so a tapering outline reads as a
@@ -1162,6 +1283,11 @@ function ToothForm({ variant }: { variant: Variant }) {
       </g>
 
       <path d={crown} fill="url(#lt-enamel)" />
+      {/* And the crown's own barrel, over the enamel and under everything the
+          light does to it. Softer than the root's: the facial surface of a
+          crown really is flattened across the middle third, which is why a
+          tooth catches a broad band of light where a root catches a stripe. */}
+      <path d={crown} fill="url(#lt-across)" />
 
       <g clipPath={`url(#lt-crown-clip-${variant.key})`}>
         {/* Dentin, warmer and duller, glowing up through the enamel — the one
@@ -1171,7 +1297,7 @@ function ToothForm({ variant }: { variant: Variant }) {
 
         <g filter="url(#lt-soft)">
           {/* The cervical third, sunk into the gum's shade. */}
-          <path d={cervical} fill="none" stroke="#5e4718" strokeWidth={ch * 0.34} opacity="0.32" />
+          <path d={cervical} fill="none" stroke="#5e4718" strokeWidth={ch * 0.22} opacity="0.42" />
 
           {/* Enamel with no dentin behind it: the biting edge of a front tooth
               goes cool and slightly grey, with a warm band of scattered light
@@ -1217,7 +1343,7 @@ function ToothForm({ variant }: { variant: Variant }) {
 
           {/* The contact areas, polished flat by the teeth either side. */}
           {g.contacts.map(([cx, cy, r]) => (
-            <circle key={cx} cx={cx} cy={cy} r={r} fill="#ffffff" opacity="0.3" />
+            <circle key={cx} cx={cx} cy={cy} r={r} fill="#6b5836" opacity="0.26" />
           ))}
 
           {/* And the enamel margin itself, which is a real edge: enamel stops
@@ -1230,16 +1356,16 @@ function ToothForm({ variant }: { variant: Variant }) {
             fingernail, and at chart size the whole of it should read as
             *texture* — turn any of it up far enough to pick out and the crown
             goes corduroy. */}
-        <g filter="url(#lt-crisp)">
+        <g filter="url(#lt-haze)">
           {g.ridges.map((d) => (
             <path
               key={d}
               d={d}
               fill="none"
               stroke="#fffdf2"
-              strokeWidth={hw * 0.26}
+              strokeWidth={hw * 0.3}
               strokeLinecap="round"
-              opacity="0.16"
+              opacity="0.1"
             />
           ))}
 
@@ -1247,13 +1373,13 @@ function ToothForm({ variant }: { variant: Variant }) {
               between enamel and a painted panel. */}
           {g.perikymata.map((d) => (
             <g key={d}>
-              <path d={d} fill="none" stroke="#8a6f38" strokeWidth="1" opacity="0.09" />
+              <path d={d} fill="none" stroke="#8a6f38" strokeWidth="1" opacity="0.05" />
               <path
                 d={d}
                 fill="none"
                 stroke="#fffef8"
                 strokeWidth="1"
-                opacity="0.16"
+                opacity="0.08"
                 transform="translate(0 -1.6)"
               />
             </g>
@@ -1374,14 +1500,49 @@ const DEFS = (
           percentage of each element's own box. A percentage region is a trap
           here: the gum line is a wide, almost flat path, so its box is a few
           units tall and 150% of nothing still clips the blur — which shows up
-          as a hard-edged rectangle straight across the neck. */}
-      <filter id="lt-soft" filterUnits="userSpaceOnUse" x="-30" y="-20" width="160" height="300">
+          as a hard-edged rectangle straight across the neck.
+
+          Sized off `VIEW` plus a margin of a few blur radii rather than the
+          hand-picked `-30 -20 160x300` these carried, which was 2.5x the area
+          of the band itself. Filters cost per pixel of region, four of them run
+          per tooth, and the teeth just got four times the area — so the slack
+          was about to be paid for thirty-two times over on every repaint.
+
+          `sRGB` on all three, to match `lt-relief` below. The SVG default is
+          linearRGB, and running the shading overlays in one space and the
+          lighting in the other is the kind of disagreement that gets tuned
+          around by eye and then never makes sense again. */}
+      <filter
+        id="lt-soft"
+        filterUnits="userSpaceOnUse"
+        x={VIEW.x - 12}
+        y={VIEW.y - 12}
+        width={VIEW.w + 24}
+        height={VIEW.h + 24}
+        colorInterpolationFilters="sRGB"
+      >
         <feGaussianBlur stdDeviation="5" />
       </filter>
-      <filter id="lt-haze" filterUnits="userSpaceOnUse" x="-30" y="-20" width="160" height="300">
+      <filter
+        id="lt-haze"
+        filterUnits="userSpaceOnUse"
+        x={VIEW.x - 8}
+        y={VIEW.y - 8}
+        width={VIEW.w + 16}
+        height={VIEW.h + 16}
+        colorInterpolationFilters="sRGB"
+      >
         <feGaussianBlur stdDeviation="2.6" />
       </filter>
-      <filter id="lt-crisp" filterUnits="userSpaceOnUse" x="-30" y="-20" width="160" height="300">
+      <filter
+        id="lt-crisp"
+        filterUnits="userSpaceOnUse"
+        x={VIEW.x - 4}
+        y={VIEW.y - 4}
+        width={VIEW.w + 8}
+        height={VIEW.h + 8}
+        colorInterpolationFilters="sRGB"
+      >
         <feGaussianBlur stdDeviation="1" />
       </filter>
 
@@ -1422,17 +1583,64 @@ const DEFS = (
         {/* Tighter than the shading blurs: the height map has to resolve a cusp
             and the gap between two roots, and at a wider radius both dissolve
             into the same dome. */}
-        <feGaussianBlur in="SourceAlpha" stdDeviation="3.4" result="lt-bump" />
+        {/*
+          The height map, and where it comes from is the whole argument.
+
+          It used to be `SourceAlpha` — the silhouette's own coverage, blurred.
+          That is a mesa: flat right across the interior and sloping only in the
+          few pixels at the rim, so the *only* thing the lamp could ever model
+          was the outline. Every measurement above it — the cusp ridges, the
+          lobes standing proud between the developmental grooves, the swell at
+          the height of contour, the dip into a furcation — was painted into a
+          surface the light had already decided was perfectly flat, and so none
+          of it lit. That is why a tooth with this much anatomy in it still came
+          out looking like a sticker.
+
+          Taking luminance off the painted graphic instead makes the paint the
+          relief: what was painted light stands up, what was painted dark sinks,
+          and the lamp finally has something to catch. It costs nothing extra —
+          the same one lighting pass, one cheap matrix in front of it — and it
+          means the modelling and the shading can no longer disagree, because
+          they are now the same data.
+
+          Outside the silhouette the graphic is transparent black, so luminance
+          is zero there and the rim ramp comes back for free after the blur.
+        */}
+        <feColorMatrix
+          in="SourceGraphic"
+          type="matrix"
+          values="0 0 0 0 0
+                  0 0 0 0 0
+                  0 0 0 0 0
+                  0.33 0.5 0.17 0 0"
+          result="lt-height"
+        />
+        <feGaussianBlur in="lt-height" stdDeviation="3.4" result="lt-bump" />
 
         {/* The body turning away from the light. `diffuseConstant` is set to
             1/sin(elevation) so a surface facing straight at the viewer comes
             back at exactly white and multiplies to nothing — anything less and
-            the whole tooth is dimmed rather than modelled. */}
+            the whole tooth is dimmed rather than modelled.
+
+            `surfaceScale` is the tuning that matters and it wants to be *low*.
+            A height map made by blurring an alpha channel is flat across the
+            middle and ramps at every edge, so the scale controls how steeply
+            that rim turns away from the lamp — and at 6 it turned far enough
+            to go frankly dark, which drew a grey halo round the silhouette of
+            every tooth on the chart. Halved, with a wider blur under it, the
+            edge now rolls instead of falling off a cliff. */}
+        {/* `diffuseConstant` was set to 1/sin(elevation) = 1.2208, which is
+            exactly the value that makes a surface facing the viewer come back
+            at 1.0 and multiply to nothing. Against a mesa height map that was
+            deliberate — it kept the flat interior from being dimmed. Against a
+            height map that now has the anatomy in it, it is the one thing
+            stopping any of that anatomy from showing, so it comes down: a
+            little under unity is what lets a lit face read as lit. */}
         <feDiffuseLighting
           in="lt-bump"
-          surfaceScale="6"
-          diffuseConstant="1.22"
-          lightingColor="#fffaf0"
+          surfaceScale="2.4"
+          diffuseConstant="1.17"
+          lightingColor="#fffdf7"
           result="lt-diffuse"
         >
           <feDistantLight azimuth="228" elevation="55" />
@@ -1451,10 +1659,10 @@ const DEFS = (
             up, which is where enamel actually shines. */}
         <feSpecularLighting
           in="lt-bump"
-          surfaceScale="6"
-          specularConstant="0.66"
-          specularExponent="26"
-          lightingColor="#ffffff"
+          surfaceScale="3.6"
+          specularConstant="0.34"
+          specularExponent="34"
+          lightingColor="#fffdf8"
           result="lt-spec"
         >
           <fePointLight x="-30" y="70" z="110" />
@@ -1468,7 +1676,15 @@ const DEFS = (
           k2="1"
           k3="1"
           k4="0"
+          result="lt-lit"
         />
+
+        {/* And back inside the silhouette. `arithmetic` adds *premultiplied*
+            RGBA, alpha included, so every antialiased pixel on the rim came out
+            of that sum at about twice the coverage it went in with and clamped
+            — a hard, faintly direction-dependent edge on a drawing whose whole
+            argument is that enamel has no drawn outline. Costs one composite. */}
+        <feComposite in="lt-lit" in2="SourceAlpha" operator="in" />
       </filter>
 
       {/*
@@ -1483,32 +1699,86 @@ const DEFS = (
           the belly, cooling to grey at the biting edge where the enamel has no
           dentin behind it — the way a real crown grades from top to bottom. */}
       <linearGradient id="lt-enamel" x1="0.5" y1="0" x2="0.5" y2="1">
-        <stop offset="0%" stopColor="#d5c8a6" />
-        <stop offset="12%" stopColor="#eee5d1" />
-        <stop offset="38%" stopColor="#fffdf7" />
-        <stop offset="62%" stopColor="#fdfaf2" />
-        <stop offset="84%" stopColor="#eeeade" />
-        <stop offset="100%" stopColor="#d5dbdd" />
+        <stop offset="0%" stopColor="#e9dfc7" />
+        <stop offset="10%" stopColor="#faf5ea" />
+        <stop offset="34%" stopColor="#ffffff" />
+        <stop offset="64%" stopColor="#fffefc" />
+        <stop offset="86%" stopColor="#f7f6f1" />
+        <stop offset="100%" stopColor="#dee4e6" />
       </linearGradient>
 
       {/* y=0 is the apex, y=1 where it meets the crown: dull at the tip,
           blending into enamel at the neck — but never *past* it. Taking the
           root lighter than the crown puts a bright strip across the neck,
-          because the crown's cervical edge dips and leaves root showing. */}
+          because the crown's cervical edge dips and leaves root showing.
+
+          Kept a clear step warmer and darker than the enamel above it. Crown
+          and root being near the same value is what made the old drawing read
+          as one carved beige object: on a real tooth the cementum is the one
+          frankly *tan* thing on the page, and that contrast is most of what
+          tells the eye where the gum line would sit. */}
       <linearGradient id="lt-root" x1="0.5" y1="0" x2="0.5" y2="1">
-        <stop offset="0%" stopColor="#bfad88" />
-        <stop offset="30%" stopColor="#d4c5a0" />
-        <stop offset="65%" stopColor="#e8dcbf" />
-        <stop offset="100%" stopColor="#f3ecda" />
+        <stop offset="0%" stopColor="#b3a684" />
+        <stop offset="32%" stopColor="#c7bb9b" />
+        <stop offset="68%" stopColor="#d8ceb2" />
+        <stop offset="100%" stopColor="#e9e1cb" />
       </linearGradient>
 
       {/* The same cementum with the light off it: an upper molar's palatal root
           is behind the buccal pair, and depth here is a value difference. */}
       <linearGradient id="lt-root-deep" x1="0.5" y1="0" x2="0.5" y2="1">
-        <stop offset="0%" stopColor="#9d8c69" />
-        <stop offset="30%" stopColor="#b3a380" />
-        <stop offset="65%" stopColor="#c6b795" />
-        <stop offset="100%" stopColor="#d3c5a3" />
+        <stop offset="0%" stopColor="#92886a" />
+        <stop offset="32%" stopColor="#a39877" />
+        <stop offset="68%" stopColor="#b4a988" />
+        <stop offset="100%" stopColor="#c3b99a" />
+      </linearGradient>
+
+      {/*
+        Across the tooth rather than down it — the one thing the drawing had no
+        answer for, and the reason every tooth read as a flat panel with a
+        gradient on it.
+
+        A tooth is a barrel. The facial surface faces the reader only along the
+        middle; towards each proximal edge it rolls away and goes into shade,
+        and *that* is what the eye reads as roundness. Every gradient here used
+        to run neck-to-edge only, so the form was shaded along its length and
+        not at all across it — a cylinder lit like a plank.
+
+        Symmetric about the axis, which is what makes it safe: half the mouth is
+        drawn mirrored, and a highlight painted nearer one edge than the other
+        would light sixteen teeth from the wrong window. A dark-light-dark ramp
+        is its own mirror image, so it survives the flip. All the *sidedness*
+        still belongs to `lt-relief`, which sits outside the mirror.
+      */}
+      {/* Cool, not brown. Enamel is a near-colourless glass over yellow
+          dentine, so a crown's warmth belongs in the middle of it where the
+          dentine shows through — shading the rim brown as well left the crown
+          the same tan as the root beneath it, and lost the value step that is
+          most of how a chart says where one ends and the other begins. */}
+      <linearGradient id="lt-across" x1="0" y1="0.5" x2="1" y2="0.5">
+        <stop offset="0%" stopColor="#4f5052" stopOpacity="0.44" />
+        <stop offset="8%" stopColor="#65645f" stopOpacity="0.26" />
+        <stop offset="20%" stopColor="#847f70" stopOpacity="0.11" />
+        <stop offset="34%" stopColor="#ffffff" stopOpacity="0.04" />
+        <stop offset="50%" stopColor="#ffffff" stopOpacity="0.2" />
+        <stop offset="66%" stopColor="#ffffff" stopOpacity="0.04" />
+        <stop offset="80%" stopColor="#847f70" stopOpacity="0.11" />
+        <stop offset="92%" stopColor="#65645f" stopOpacity="0.26" />
+        <stop offset="100%" stopColor="#4f5052" stopOpacity="0.44" />
+      </linearGradient>
+
+      {/* The same barrel, harder — a root is a much rounder thing than a crown
+          and has no flattened facial surface to hold the light. Applied per
+          root rather than to the group, so each leg of a molar gets its own
+          cylinder instead of the three of them sharing one. */}
+      <linearGradient id="lt-across-root" x1="0" y1="0.5" x2="1" y2="0.5">
+        <stop offset="0%" stopColor="#4e4636" stopOpacity="0.46" />
+        <stop offset="15%" stopColor="#6f6650" stopOpacity="0.2" />
+        <stop offset="37%" stopColor="#fbf7ec" stopOpacity="0.1" />
+        <stop offset="50%" stopColor="#fffdf6" stopOpacity="0.22" />
+        <stop offset="63%" stopColor="#fbf7ec" stopOpacity="0.1" />
+        <stop offset="85%" stopColor="#6f6650" stopOpacity="0.2" />
+        <stop offset="100%" stopColor="#4e4636" stopOpacity="0.46" />
       </linearGradient>
 
       {/* Gold, as metal: several bands rather than two stops, because what makes
@@ -1622,9 +1892,28 @@ const DEFS = (
 );
 
 /**
- * Rendered once by each chart — every `ToothGlyph` on the page points into this
- * by id, which browsers resolve document-wide, the same way an icon sprite does.
+ * The shared drawings, and the one place on the page that should hold them.
+ *
+ * Every `ToothGlyph` points into this by id, which browsers resolve
+ * document-wide, the same way an icon sprite does — so one copy is all a page
+ * can use. It costs **2,162 elements and about 450KB of markup**, which is
+ * affordable exactly once and not twice.
+ *
+ * Three components mount it, because each has to work on its own: the chart,
+ * the visit timeline, and the tooth picker. On the patient page all three are
+ * on screen at the same time, so the page was shipping three copies — six and a
+ * half thousand redundant nodes, and duplicate ids on every one of them, with
+ * `url(#…)` quietly resolving to whichever came first.
+ *
+ * The deduping lives in `ToothDefsProvider.tsx` rather than here, and has to:
+ * this module is imported by `VisitTimeline`, which is a server component, and
+ * a `useContext` in here would make the whole of it — every gradient, filter
+ * and modelled tooth — a client component and drag it into the bundle. So this
+ * export stays hook-free and server-safe, and the context-aware wrapper next
+ * door is what the client components use.
  */
+export const TOOTH_DEFS = DEFS;
+
 export function ToothDefs() {
   return DEFS;
 }

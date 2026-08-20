@@ -1,5 +1,6 @@
 import { SlidersHorizontal, X } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
+import { TextField } from './Field';
 
 export type FilterOption = { value: string; label: string };
 
@@ -120,6 +121,26 @@ export function FilterBar({
     return queryString ? `${basePath}?${queryString}` : basePath;
   };
 
+  /**
+   * A remount token: the committed query string, so the fields are rebuilt from
+   * scratch whenever it changes.
+   *
+   * The two halves of this panel navigate differently, and only one of them
+   * survives being uncontrolled. Submitting is a real browser GET — no `action`,
+   * so nothing intercepts it — and a full page load hands every field its
+   * committed value on mount. The chips and Clear are `Link`s, so they navigate
+   * on the client: React re-renders these same DOM nodes, and a `defaultValue`
+   * is only ever read on mount. A `<select>` is the plain case — React does not
+   * touch its selection on update at all — so Clear used to leave the dropdown
+   * showing a name the URL had already dropped, and the next submit would post
+   * it straight back.
+   *
+   * Keyed on the whole query rather than just this form's keys, because a chip
+   * drops uncommitted typing from the URL too, and a box still showing a word
+   * that is filtering nothing is the same lie in a quieter font.
+   */
+  const committed = hrefWith({});
+
   // Keys the form itself posts. Everything else in the query string has to ride
   // along as a hidden input or submitting would drop it — the dates included,
   // which is why they are named here rather than only where they are rendered.
@@ -154,7 +175,7 @@ export function FilterBar({
         </nav>
       ) : null}
 
-      <form method="get" role="search" className="flex flex-wrap items-end gap-3">
+      <form key={committed} method="get" role="search" className="flex flex-wrap items-end gap-3">
         {carried.map(([key, value]) => (
           <input key={key} type="hidden" name={key} value={value} />
         ))}
@@ -199,30 +220,26 @@ export function FilterBar({
         {dates ? (
           <fieldset className="flex min-w-64 flex-1 items-end gap-2 border-0 p-0">
             <legend className="sr-only">{dates.label}</legend>
-            <div className="min-w-32 flex-1">
-              <label className="field-label" htmlFor={`filter-${dates.fromName}`}>
-                {dates.fromLabel}
-              </label>
-              <input
-                id={`filter-${dates.fromName}`}
-                type="date"
-                name={dates.fromName}
-                defaultValue={values[dates.fromName] ?? ''}
-                className="field-input"
-              />
-            </div>
-            <div className="min-w-32 flex-1">
-              <label className="field-label" htmlFor={`filter-${dates.toName}`}>
-                {dates.toLabel}
-              </label>
-              <input
-                id={`filter-${dates.toName}`}
-                type="date"
-                name={dates.toName}
-                defaultValue={values[dates.toName] ?? ''}
-                className="field-input"
-              />
-            </div>
+            {/* `TextField` rather than a bare input, for the calendar it
+                carries — a range is the one place in the app where two dates
+                are picked one after the other, and the browser's own popup was
+                the only thing on this panel that did not look like the app. */}
+            <TextField
+              id={`filter-${dates.fromName}`}
+              type="date"
+              name={dates.fromName}
+              label={dates.fromLabel}
+              defaultValue={values[dates.fromName] ?? ''}
+              className="min-w-32 flex-1"
+            />
+            <TextField
+              id={`filter-${dates.toName}`}
+              type="date"
+              name={dates.toName}
+              label={dates.toLabel}
+              defaultValue={values[dates.toName] ?? ''}
+              className="min-w-32 flex-1"
+            />
           </fieldset>
         ) : null}
 

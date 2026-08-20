@@ -74,6 +74,10 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     children: [
       { href: '/services', key: 'services', permission: 'service.view', exact: true },
       { href: '/services/categories', key: 'serviceCategories', permission: 'service.edit' },
+      // Filed here rather than beside "new treatment" on the list: a catalogue
+      // is imported once, when the practice adopts the app, and a header that
+      // carries a setup screen for ever is a header with a dead button on it.
+      { href: '/services/import', key: 'servicesImport', permission: 'service.edit' },
     ],
   },
   // Beside the catalogue rather than filed under it. A template is pinned to the
@@ -97,7 +101,34 @@ export const NAV_DESTINATIONS: ReadonlyArray<
       { href: '/stock/labels', key: 'stockLabels', permission: 'stock.view' },
       { href: '/stock/categories', key: 'stockCategories', permission: 'stock.edit' },
       { href: '/stock/suppliers', key: 'suppliers', permission: 'stock.edit' },
+      // Same reasoning as the catalogue's own import, and the same section rule:
+      // the header on the stock list already carries four verbs that are pressed
+      // weekly, and this one is pressed once.
+      { href: '/stock/import', key: 'stockImport', permission: 'stock.edit' },
     ],
   },
   { href: '/analytics', key: 'analytics', permission: 'analytics.view' },
+];
+
+/**
+ * The lists that search their own contents, and the order to offer them in.
+ *
+ * The search box at the top of the app finds two things: a screen, and a person.
+ * Everything else the practice looks up by name — a material, a treatment, a
+ * plan — lives behind the search box of one particular list, which you have to
+ * be standing on to use. So a query that finds nobody used to end there, when
+ * the answer was one screen away and the words had already been typed.
+ *
+ * Each `href` here is a page that reads `?q=` and filters itself with it. The
+ * palette appends the query and offers the row; nothing else is needed, which
+ * is the point — this is a handover, not a second search engine.
+ *
+ * Patients are on the list despite the palette searching them directly: it
+ * shows the first twenty, and "all of them" is a fair thing to want next.
+ */
+export const SEARCHABLE_LISTS: ReadonlyArray<Destination> = [
+  { href: '/patients', key: 'patients', permission: 'patient.view' },
+  { href: '/plans', key: 'plans', permission: 'plan.view' },
+  { href: '/services', key: 'services', permission: 'service.view' },
+  { href: '/stock', key: 'stock', permission: 'stock.view' },
 ];

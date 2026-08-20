@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
+import { UrgentToggle } from '@/components/ui/UrgentToggle';
 import { saveFollowUp } from '@/lib/actions/follow-ups';
 import { MAX_TITLE_LENGTH } from '@/lib/follow-ups';
 
@@ -75,6 +76,11 @@ export function FollowUpFormDialog({
       // A new line clears itself so the next one starts blank; an edit keeps
       // what was typed, because the dialog is the record.
       resetOnSuccess={!editing}
+      // The same width as the booking dialog. A follow-up is written mid-task,
+      // usually over the top of something half-finished, and the narrow box put
+      // the title — the one field that is a whole sentence — on a line barely
+      // wider than the sentence itself.
+      wide
       title={label}
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
@@ -107,7 +113,10 @@ export function FollowUpFormDialog({
         defaultValue={followUp?.title ?? ''}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* `items-end` rather than the default stretch: the two halves are a pair
+          and have to read as one row, so the inputs sit on a common baseline
+          even when one hint wraps to a second line and the other does not. */}
+      <div className="grid items-end gap-4 sm:grid-cols-2">
         <TextField
           id={`${uid}-dueAt`}
           name="dueAt"
@@ -122,6 +131,7 @@ export function FollowUpFormDialog({
           id={`${uid}-assignedToId`}
           name="assignedToId"
           label={t('fieldAssignee')}
+          hint={t('fieldAssigneeHint')}
           optional={tc('optional')}
           defaultValue={followUp?.assignedToId ?? ''}
         >
@@ -141,17 +151,13 @@ export function FollowUpFormDialog({
       {/* A flag, not a scale — see `FollowUpPriority` in the schema. Posting the
           enum's own value means an unticked box sends nothing and the action
           reads that as normal. */}
-      <label className="flex items-center gap-2.5 font-semibold text-ink">
-        <input
-          type="checkbox"
-          name="priority"
-          value="URGENT"
-          defaultChecked={followUp?.urgent ?? false}
-          className="size-5 accent-[var(--color-danger)]"
-        />
-        {t('urgent')}
-        <span className="font-normal text-ink-soft">— {t('urgentHint')}</span>
-      </label>
+      <UrgentToggle
+        name="priority"
+        value="URGENT"
+        defaultChecked={followUp?.urgent ?? false}
+        label={t('urgent')}
+        hint={t('urgentHint')}
+      />
 
       <TextAreaField
         id={`${uid}-notes`}

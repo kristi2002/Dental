@@ -4,7 +4,12 @@
     "tagline": "Organizuesi i klinikës dentare",
     "palettePlaceholder": "Kërko një pacient ose një faqe…",
     "paletteScreens": "Faqet",
-    "paletteHint": "Shkruaj një emër ose një numër për të gjetur një pacient."
+    "paletteHint": "Shkruaj një emër ose një numër për të gjetur një pacient.",
+    "paletteSearchIn": "Kërko “{query}” te",
+    "paletteCount": "{count, plural, =0 {Asnjë rezultat} one {# rezultat} other {# rezultate}}",
+    "paletteMove": "Lëviz",
+    "paletteOpen": "Hap",
+    "paletteClose": "Mbyll"
   },
   "nav": {
     "dashboard": "Paneli",
@@ -30,7 +35,9 @@
     "workProcedures": "Llojet e punimeve",
     "stockLabels": "Etiketa",
     "followUps": "Detyrat",
-    "outbox": "Radha e dërgimit"
+    "outbox": "Radha e dërgimit",
+    "servicesImport": "Importo",
+    "stockImport": "Importo"
   },
   "common": {
     "save": "Ruaj",
@@ -69,6 +76,19 @@
     "clearFilters": "Pastro",
     "breadcrumb": "Shtegu",
     "saveAndAddAnother": "Ruaj dhe shto një tjetër"
+  },
+  "calendar": {
+    "open": "Zgjidh një datë",
+    "today": "Sot",
+    "clear": "Pastro",
+    "close": "Mbyll",
+    "previousMonth": "Muaji i mëparshëm",
+    "nextMonth": "Muaji i ardhshëm",
+    "previousPage": "I mëparshëm",
+    "nextPage": "I ardhshëm",
+    "changeView": "Ndrysho pamjen e kalendarit",
+    "chooseMonth": "Zgjidh një muaj",
+    "chooseYear": "Zgjidh një vit"
   },
   "dashboard": {
     "title": "Paneli",
@@ -191,7 +211,34 @@
     "mergeWarning": "Gjithçka nga kartela që zgjedh kalon te {name}. Kjo nuk kthehet mbrapsht.",
     "mergeWhich": "Cila kartelë është dublikata",
     "mergeExplain": "Takimet, vizitat, dokumentet dhe shënimet kalojnë nga {from} te {to}. Pastaj {from} arkivohet.",
-    "history": "Historiku i aktivitetit"
+    "history": "Historiku i aktivitetit",
+    "export": "Eksporto",
+    "exportFileName": "pacientet",
+    "exportLanguage": "Gjuha",
+    "exportArchivedOn": "Arkivuar më",
+    "recordTitle": "Kartela e pacientit",
+    "recordPrint": "Shtyp kartelën",
+    "recordNoAlerts": "Asnjë alarm mjekësor i regjistruar.",
+    "recordNoPlans": "Asnjë plan trajtimi.",
+    "alertsTitle": "Alarme mjekësore",
+    "import": "Importo",
+    "importTitle": "Importo pacientët",
+    "importSubtitle": "Sill një listë ekzistuese nga një fletë llogaritëse. Asgjë nuk ruhet derisa të shohësh çfarë do të ndodhë.",
+    "importChoose": "Zgjidh një skedar",
+    "importChooseHint": "Një skedar CSV. Në Excel: Skedari → Ruaj si → CSV. Rreshti i parë duhet të jenë titujt e kolonave; kolonat Mbiemri dhe Telefoni janë të detyrueshme, pjesa tjetër është opsionale.",
+    "importUnreadable": "Ky skedar nuk mund të lexohej. Duhet të jetë një CSV i ruajtur nga një fletë llogaritëse.",
+    "importTooMany": "Ky skedar ka më shumë se {limit} rreshta. Ndaje dhe importoje në pjesë.",
+    "importMissingColumns": "Skedari nuk ka kolonë për: {columns}. Shtoje dhe zgjidh sërish skedarin.",
+    "importProblem": "Problemi",
+    "importSummary": "Do të importohen {usable} nga {total} rreshta",
+    "importAction": "Importo {count, plural, one {# pacient} other {# pacientë}}",
+    "importRunning": "Duke importuar…",
+    "importDone": "{created} u importuan, {skipped} u anashkaluan.",
+    "importNoName": "Pa emër",
+    "importNoPhone": "Pa numër telefoni",
+    "importBadDate": "Datëlindja nuk u kuptua — do të mbetet bosh",
+    "importDuplicateInFile": "I njëjti numër shfaqet më parë në këtë skedar",
+    "importAlreadyHere": "Tashmë i regjistruar këtu"
   },
   "appointments": {
     "title": "Kalendari",
@@ -275,6 +322,8 @@
     "moveFrom": "Aktualisht {date} në {time}",
     "moveReason": "Pse po zhvendoset",
     "movedBadge": "I zhvendosur",
+    "pastBadge": "I kaluar",
+    "overdueBadge": "I skaduar",
     "waitingFor": "pret prej {minutes} min",
     "bookAt": "Rezervo {time}",
     "gridHint": "Tërhiqe një takim për ta zhvendosur në një orar tjetër. Kliko dy herë mbi një orar të lirë për ta rezervuar.",
@@ -693,7 +742,8 @@
     "categoryDepth": "Një kategori mund të ketë vetëm një nivel poshtë, jo më shumë.",
     "barcodeTaken": "Ky kod është tashmë i lidhur me {name}.",
     "alreadyMoved": "Ky takim është zhvendosur tashmë. Hap atë të riun.",
-    "mergeSame": "Është e njëjta kartelë."
+    "mergeSame": "Është e njëjta kartelë.",
+    "importTooMany": "Ky import ka më shumë se {limit} rreshta. Ndaje dhe importoje në pjesë."
   },
   "roles": {
     "OWNER": "Pronar / Dentist",
@@ -1034,7 +1084,19 @@
     "fromTemplate": "Nga një plan i shkruar më parë",
     "fromTemplateHint": "Ngarkon hapat e tij si pikënisje. Zëvendëson çfarë ndodhet në listën më poshtë.",
     "templateLoaded": "U ngarkua {title} — {count} hapa.",
-    "copyPlan": "Nis një tjetër si ky"
+    "copyPlan": "Nis një tjetër si ky",
+    "export": "Eksporto",
+    "exportFileName": "planet-e-trajtimit",
+    "planTitle": "Plani",
+    "exportCreated": "Filluar",
+    "exportStepCount": "Hapat",
+    "exportLastContacted": "Kontakti i fundit",
+    "exportFollowUpOn": "Rikontakto më",
+    "exportStepStatus": "Statusi i hapit",
+    "exportStepDate": "Kryer ose rezervuar",
+    "step_PENDING": "Për t'u bërë",
+    "step_DONE": "Kryer",
+    "step_SKIPPED": "Anashkaluar"
   },
   "works": {
     "title": "Punimet",
@@ -1111,7 +1173,18 @@
     "markOut": "Shëno si ende jashtë",
     "exportYes": "Po",
     "chaseTitle": "Në pritje nga laboratori",
-    "chaseSubtitle": "{count, plural, one {# punim duhet kthyer} other {# punime duhen kthyer}} tani ose brenda pak ditësh."
+    "chaseSubtitle": "{count, plural, one {# punim duhet kthyer} other {# punime duhen kthyer}} tani ose brenda pak ditësh.",
+    "docketTitle": "Fletë pune",
+    "docketPrint": "Shtyp fletën",
+    "docketNumber": "Rasti {number}",
+    "docketStart": "Data e fillimit",
+    "docketShade": "Kolori",
+    "docketType": "Lloji i punimit",
+    "docketTime": "Ora",
+    "docketStageFrame": "Pronë metali",
+    "docketStageDentine": "Provë dentine",
+    "docketStageFinish": "Përfundim",
+    "docketStageTray": "Lugë individuale"
   },
   "followUps": {
     "title": "Detyrat",
@@ -1124,6 +1197,7 @@
     "fieldDue": "Kthehu më",
     "fieldDueHint": "Dita kur duhet të shfaqet sërish.",
     "fieldAssignee": "E kujt është",
+    "fieldAssigneeHint": "Lëre për këdo, nëse nuk është punë e një personi të vetëm.",
     "anyone": "Kushdo",
     "urgent": "Urgjent",
     "urgentHint": "vendose në krye të listës",
@@ -1296,7 +1370,28 @@
     "passphrase": "Enkripto me një fjalëkalim",
     "passphraseHint": "Lëreni bosh për një skedar JSON të lexueshëm.",
     "warning": "Nëse vendosni një fjalëkalim dhe e harroni, kopja nuk mund të rikuperohet. PIN-et e stafit dhe skedarët e ngarkuar nuk përfshihen.",
-    "download": "Shkarko kopjen"
+    "download": "Shkarko kopjen",
+    "checkTitle": "Kontrollo një kopje rezervë",
+    "checkDescription": "Hap një skedar kopje rezervë për të provuar se ende funksionon — se deshifrohet me fjalëkalimin që mendon dhe se klinika është vërtet brenda tij. Asgjë nuk shkruhet; skedari vetëm lexohet.",
+    "checkFile": "Skedari i kopjes rezervë",
+    "checkPassphraseHint": "Nevojitet vetëm nëse kopja është e enkriptuar. Pikërisht kjo ia vlen të provohet — një fjalëkalim zbulohet i gabuar pikërisht ditën kur nuk mund të ndreqet më.",
+    "checkAction": "Kontrollo skedarin",
+    "checkRunning": "Duke kontrolluar…",
+    "checkGood": "Kjo kopje rezervë hapet dhe përmban klinikën.",
+    "checkTaken": "Marrë më",
+    "checkEncrypted": "I enkriptuar",
+    "checkRows": "Rreshta gjithsej",
+    "checkNoFile": "Zgjidh më parë një skedar kopje rezervë.",
+    "checkTooLarge": "Ky skedar është shumë i madh për t'u kontrolluar këtu.",
+    "checkNeedsPassphrase": "Ky skedar është i enkriptuar — shkruaj fjalëkalimin me të cilin u krijua.",
+    "checkBadPassphrase": "Ky fjalëkalim nuk e hap këtë skedar. Skedari mund të jetë dëmtuar gjatë transferimit.",
+    "checkNotABackup": "Ky nuk është një kopje rezervë e krijuar nga ky aplikacion.",
+    "checkUnreadable": "Ky skedar nuk mund të lexohej.",
+    "checkNoPatients": "Në këtë skedar nuk ka pacientë — ka shumë të ngjarë të jetë kopje e një baze të dhënash bosh dhe jo e kësaj klinike.",
+    "checkNewerVersion": "Ky skedar u shkrua nga një version më i ri i aplikacionit se ai që po ekzekutohet këtu.",
+    "checkAuditTruncated": "Gjurma e aktivitetit në këtë skedar u shkurtua kur u shkrua. Pjesa tjetër arkivohet pranë skedarëve të pacientëve.",
+    "checkExcludes": "PIN-et e stafit dhe skedarët e ngarkuar nuk janë kurrë brenda një kopjeje rezervë — skedarët kopjohen veçmas bashkë me dosjen e ruajtjes.",
+    "checkRestoreNote": "Rikthimi i një kopjeje rezervë bëhet në një bazë të dhënash bosh, jo mbi një bazë në përdorim — shih docs/RESTORE.md dhe prisma/restore-backup.ts."
   },
   "backupStatus": {
     "title": "Rezervimi automatik",
@@ -1414,7 +1509,12 @@
     "currency": "Monedha",
     "currencyHint": "Kod me tre shkronja — ALL, EUR, USD. Përdoret kudo ku shfaqet një çmim.",
     "operatoryNewSubtitle": "Sa karrige ka është ajo që vendos sa mund të rezervohet njëkohësisht.",
-    "operatoriesNamed": "{count, plural, =0 {ende asnjë} one {deri tani # karrige} other {deri tani # karrige}}"
+    "operatoriesNamed": "{count, plural, =0 {ende asnjë} one {deri tani # karrige} other {deri tani # karrige}}",
+    "letterheadTitle": "Koka e letrës",
+    "letterheadHint": "Shtypet nën logo në recetat, planet e trajtimit dhe fletët e laboratorit. Nëse lihet bosh, rreshti thjesht nuk shfaqet.",
+    "clinicPhone": "Telefoni",
+    "clinicEmail": "Email",
+    "clinicAddress": "Adresa"
   },
   "contacts": {
     "subtitle": "Çfarë iu paraqit pacientit dhe kur. Hapja e një mesazhi regjistrohet këtu — nuk është provë dërgimi.",
@@ -1561,5 +1661,26 @@
     "italicText": "të pjerrëta",
     "hint": "**të trasha**, *të pjerrëta*, - për listë. Një adresë e ngjitur bëhet lidhje.",
     "remaining": "{count} të mbetura"
+  },
+  "imports": {
+    "servicesTitle": "Importo trajtimet",
+    "servicesSubtitle": "Sill një listë çmimesh ekzistuese nga një fletë llogaritëse. Asgjë nuk ruhet derisa të shohësh çfarë do të ndodhë.",
+    "stockTitle": "Importo materialet",
+    "stockSubtitle": "Sill listën e magazinës nga një fletë llogaritëse. Çfarë është secili material — jo sa ka në raft; atë numëroje me një inventar.",
+    "choose": "Zgjidh një skedar",
+    "chooseServices": "Një skedar CSV. Në Excel: Skedari → Ruaj si → CSV. Rreshti i parë duhet të jenë titujt e kolonave; kolona Emri është e detyrueshme, Kategoria dhe Kohëzgjatja janë opsionale.",
+    "chooseStock": "Një skedar CSV. Në Excel: Skedari → Ruaj si → CSV. Rreshti i parë duhet të jenë titujt e kolonave; kolona Emri është e detyrueshme. Kodi, Kategoria, Furnitori, Njësia, Minimumi, Paketa dhe Çmimi janë opsionale.",
+    "unreadable": "Ky skedar nuk mund të lexohej. Duhet të jetë një CSV i ruajtur nga një fletë llogaritëse.",
+    "tooMany": "Ky skedar ka më shumë se {limit} rreshta. Ndaje dhe importoje në pjesë.",
+    "missingColumns": "Skedari nuk ka kolonë për: {columns}. Shtoje dhe zgjidh sërish skedarin.",
+    "problem": "Problemi",
+    "summary": "Do të importohen {usable} nga {total} rreshta",
+    "action": "Importo {count, plural, one {# rresht} other {# rreshta}}",
+    "running": "Duke importuar…",
+    "done": "{created} u importuan, {skipped} u anashkaluan.",
+    "noName": "Pa emër",
+    "badNumber": "Një numër nuk u lexua — u përdor vlera e parazgjedhur",
+    "duplicateInFile": "Shfaqet më parë në këtë skedar",
+    "alreadyHere": "Tashmë ekziston këtu"
   }
 }

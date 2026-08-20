@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { ClinicLogo } from '@/components/brand/ClinicLogo';
 import { poppins } from './fonts';
 import { routing } from '@/i18n/routing';
 import './globals.css';
@@ -35,7 +36,11 @@ export default function GlobalError({
       <body>
         <div className="flex min-h-screen items-center justify-center p-8">
           <div className="card max-w-lg p-8 text-center">
-            <h1 className="text-3xl font-bold text-ink">DentOrganizer</h1>
+            {/* The one screen that cannot read a name out of anywhere — no
+                locale, no provider, and quite possibly no database. A static
+                file the server can still hand over is exactly the right thing
+                to be recognised by. */}
+            <ClinicLogo variant="brand" alt="" className="mx-auto mb-6 h-14 w-auto max-w-full" />
             <p className="mt-2 text-[1.05rem] text-ink-soft">
               Diçka shkoi keq · Something went wrong · Qualcosa è andato storto
             </p>

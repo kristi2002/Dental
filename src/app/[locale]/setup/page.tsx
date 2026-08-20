@@ -2,8 +2,8 @@ import { KeyRound } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SetupForm } from '@/components/auth/SetupForm';
+import { ClinicLogo } from '@/components/brand/ClinicLogo';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
-import { ToothMark } from '@/components/layout/ToothMark';
 import { redirect } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
 
@@ -54,17 +54,11 @@ export default async function SetupPage({
     <div className="flex min-h-screen flex-col bg-paper">
       <header className="app-header">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-8">
-          <span className="flex min-w-0 items-center gap-3">
-            <ToothMark className="text-white" />
-            <span className="min-w-0">
-              <span className="block truncate text-[1.1rem] leading-tight font-bold tracking-tight text-white sm:text-[1.3rem]">
-                {tApp('name')}
-              </span>
-              <span className="hidden truncate text-[0.8rem] text-white/85 lg:block">
-                {tApp('tagline')}
-              </span>
-            </span>
-          </span>
+          {/* The same masthead the sign-in screen wears. Nothing is read out of
+              the database here — this page exists precisely because there is not
+              yet anybody to have filled it in — so the lockup is captioned with
+              the product's name. */}
+          <ClinicLogo variant="inverse" alt={tApp('name')} className="h-11 w-auto sm:h-14" />
           <LanguageSwitcher />
         </div>
       </header>

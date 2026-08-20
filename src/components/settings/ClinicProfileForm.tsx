@@ -19,12 +19,19 @@ export function ClinicProfileForm({
   name,
   toothNumbering,
   currency,
+  phone,
+  email,
+  address,
   canEdit,
 }: {
   name: string;
   toothNumbering: string;
   /** ISO 4217 code every price in the app is written in. */
   currency: string;
+  /** The letterhead — printed under the logo on every sheet. See `SheetHead`. */
+  phone: string;
+  email: string;
+  address: string;
   canEdit: boolean;
 }) {
   const t = useTranslations('settings');
@@ -72,6 +79,48 @@ export function ClinicProfileForm({
           maxLength={3}
           disabled={!canEdit}
         />
+      </div>
+
+      {/* The letterhead, kept apart from the three settings above by a rule and
+          a heading. Those change how the *app* behaves — how teeth are numbered,
+          what a price is denominated in. These change nothing on any screen and
+          only ever appear on paper that leaves the building, which is worth
+          saying before somebody wonders why filling them in did nothing
+          visible. */}
+      <div className="border-t border-line px-5 py-5">
+        <h3 className="text-[1.05rem] font-bold text-ink">{t('letterheadTitle')}</h3>
+        <p className="mt-1 text-[0.95rem] text-ink-soft">{t('letterheadHint')}</p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <TextField
+            id={`${uid}-phone`}
+            name="phone"
+            label={t('clinicPhone')}
+            optional={tc('optional')}
+            defaultValue={phone}
+            disabled={!canEdit}
+          />
+
+          <TextField
+            id={`${uid}-email`}
+            name="email"
+            type="email"
+            label={t('clinicEmail')}
+            optional={tc('optional')}
+            defaultValue={email}
+            disabled={!canEdit}
+          />
+
+          <TextField
+            id={`${uid}-address`}
+            name="address"
+            label={t('clinicAddress')}
+            optional={tc('optional')}
+            defaultValue={address}
+            disabled={!canEdit}
+            className="sm:col-span-2"
+          />
+        </div>
       </div>
 
       {canEdit ? (

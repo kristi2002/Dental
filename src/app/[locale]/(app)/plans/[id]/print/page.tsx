@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { SheetHead } from '@/components/brand/SheetHead';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PrintButton } from '@/components/prescriptions/PrintButton';
 import { TreatmentStepStatus } from '@/generated/prisma/enums';
@@ -89,9 +90,13 @@ export default async function PlanPrintPage({
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3" data-print-hide>
+        {/* The plan itself sits in the trail, not just the list it came from:
+            the sheet opens over the record you were reading, and a way back to
+            "all plans" is not a way back to that one. */}
         <Breadcrumbs
           items={[
             { href: '/plans', label: t('allTitle') },
+            { href: `/plans/${id}`, label: plan.title },
             { label: t('printTitle') },
           ]}
         />
@@ -99,27 +104,31 @@ export default async function PlanPrintPage({
       </div>
 
       <article className="card p-8 print:border-0 print:p-0 print:shadow-none">
-        <header className="mb-5 border-b-2 border-line pb-4">
-          <p className="text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
-            {profile.name || 'DentOrganizer'}
-          </p>
+        <SheetHead
+          profile={profile}
+          title={t('printTitle')}
+          meta={format.dateTime(plan.createdAt, {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}
+        />
+
+        {/* Below the letterhead rather than inside it: the letterhead says who
+            printed this, and this says what it is about. Two different
+            questions, and folding the second into the first is what had the
+            plan's own title competing with the practice's name for the top of
+            the page. */}
+        <div className="mb-5">
           <h1 className="text-2xl font-bold text-ink">{plan.title}</h1>
-          <p className="mt-1 text-[1.05rem] text-ink-soft">
-            {patientName}
-            {' · '}
-            {format.dateTime(plan.createdAt, {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </p>
+          <p className="mt-1 text-[1.05rem] text-ink-soft">{patientName}</p>
           <p className="mt-1 text-[1rem] font-semibold text-ink-soft tabular-nums">
             {/* Against the steps that still count — a skipped one is not work
                 left to do, and counting it would tell the patient they are
                 further behind than they are. */}
             {t('progress', { done: progress.done, total: progress.relevant })}
           </p>
-        </header>
+        </div>
 
         {plan.notes ? (
           <p className="mb-5 whitespace-pre-wrap text-[1.02rem] text-ink-soft">{plan.notes}</p>

@@ -4,7 +4,12 @@
     "tagline": "Organizzatore dello studio dentistico",
     "palettePlaceholder": "Cerca un paziente o una schermata…",
     "paletteScreens": "Schermate",
-    "paletteHint": "Digita un nome o un numero per trovare un paziente."
+    "paletteHint": "Digita un nome o un numero per trovare un paziente.",
+    "paletteSearchIn": "Cerca “{query}” in",
+    "paletteCount": "{count, plural, =0 {Nessun risultato} one {# risultato} other {# risultati}}",
+    "paletteMove": "Naviga",
+    "paletteOpen": "Apri",
+    "paletteClose": "Chiudi"
   },
   "nav": {
     "dashboard": "Pannello",
@@ -30,7 +35,9 @@
     "workProcedures": "Tipi di lavorazione",
     "stockLabels": "Etichette",
     "followUps": "Da fare",
-    "outbox": "Coda di invio"
+    "outbox": "Coda di invio",
+    "servicesImport": "Importa",
+    "stockImport": "Importa"
   },
   "common": {
     "save": "Salva",
@@ -69,6 +76,19 @@
     "clearFilters": "Azzera",
     "breadcrumb": "Percorso",
     "saveAndAddAnother": "Salva e aggiungine un altro"
+  },
+  "calendar": {
+    "open": "Scegli una data",
+    "today": "Oggi",
+    "clear": "Azzera",
+    "close": "Chiudi",
+    "previousMonth": "Mese precedente",
+    "nextMonth": "Mese successivo",
+    "previousPage": "Precedente",
+    "nextPage": "Successivo",
+    "changeView": "Cambia la vista del calendario",
+    "chooseMonth": "Scegli un mese",
+    "chooseYear": "Scegli un anno"
   },
   "dashboard": {
     "title": "Pannello",
@@ -191,7 +211,34 @@
     "mergeWarning": "Tutto ciò che appartiene alla scheda scelta passa a {name}. Non si può annullare.",
     "mergeWhich": "Quale scheda è il doppione",
     "mergeExplain": "Appuntamenti, visite, documenti e note passano da {from} a {to}. {from} viene poi archiviata.",
-    "history": "Cronologia attività"
+    "history": "Cronologia attività",
+    "export": "Esporta",
+    "exportFileName": "pazienti",
+    "exportLanguage": "Lingua",
+    "exportArchivedOn": "Archiviato il",
+    "recordTitle": "Cartella del paziente",
+    "recordPrint": "Stampa cartella",
+    "recordNoAlerts": "Nessun allerta medica registrata.",
+    "recordNoPlans": "Nessun piano di cura.",
+    "alertsTitle": "Allerte mediche",
+    "import": "Importa",
+    "importTitle": "Importa pazienti",
+    "importSubtitle": "Porta dentro un elenco esistente da un foglio di calcolo. Nulla viene salvato finché non hai visto cosa farà.",
+    "importChoose": "Scegli un file",
+    "importChooseHint": "Un file CSV. In Excel: File → Salva con nome → CSV. La prima riga deve contenere i titoli delle colonne; sono obbligatorie una colonna Cognome e una Telefono, il resto è facoltativo.",
+    "importUnreadable": "Impossibile leggere quel file. Deve essere un CSV salvato da un foglio di calcolo.",
+    "importTooMany": "Quel file ha più di {limit} righe. Dividilo e importalo in parti.",
+    "importMissingColumns": "Il file non ha una colonna per: {columns}. Aggiungila e riseleziona il file.",
+    "importProblem": "Problema",
+    "importSummary": "Verranno importate {usable} righe su {total}",
+    "importAction": "Importa {count, plural, one {# paziente} other {# pazienti}}",
+    "importRunning": "Importazione…",
+    "importDone": "{created} importati, {skipped} saltati.",
+    "importNoName": "Manca il nome",
+    "importNoPhone": "Manca il telefono",
+    "importBadDate": "Data di nascita non compresa — resterà vuota",
+    "importDuplicateInFile": "Lo stesso numero compare prima in questo file",
+    "importAlreadyHere": "Già registrato qui"
   },
   "appointments": {
     "title": "Calendario",
@@ -275,6 +322,8 @@
     "moveFrom": "Attualmente {date} alle {time}",
     "moveReason": "Perché viene spostato",
     "movedBadge": "Spostato",
+    "pastBadge": "Passato",
+    "overdueBadge": "Scaduto",
     "waitingFor": "attende da {minutes} min",
     "bookAt": "Prenota {time}",
     "gridHint": "Trascina un appuntamento per spostarlo in un altro orario. Fai doppio clic su un orario libero per prenotarlo.",
@@ -693,7 +742,8 @@
     "categoryDepth": "Una categoria può avere un solo livello sotto, non di più.",
     "barcodeTaken": "Questo codice è già collegato a {name}.",
     "alreadyMoved": "Questo appuntamento è già stato spostato. Apri quello nuovo.",
-    "mergeSame": "È la stessa scheda."
+    "mergeSame": "È la stessa scheda.",
+    "importTooMany": "Quell'importazione ha più di {limit} righe. Dividila e importala in parti."
   },
   "roles": {
     "OWNER": "Titolare / Dentista",
@@ -1034,7 +1084,19 @@
     "fromTemplate": "Da un piano già scritto",
     "fromTemplateHint": "Carica le sue fasi come punto di partenza. Sostituisce quanto è già nell'elenco qui sotto.",
     "templateLoaded": "Caricato {title} — {count} fasi.",
-    "copyPlan": "Ricomincia uguale"
+    "copyPlan": "Ricomincia uguale",
+    "export": "Esporta",
+    "exportFileName": "piani-di-cura",
+    "planTitle": "Piano",
+    "exportCreated": "Iniziato",
+    "exportStepCount": "Fasi",
+    "exportLastContacted": "Ultimo contatto",
+    "exportFollowUpOn": "Ricontattare il",
+    "exportStepStatus": "Stato della fase",
+    "exportStepDate": "Eseguita o prenotata",
+    "step_PENDING": "Da fare",
+    "step_DONE": "Eseguita",
+    "step_SKIPPED": "Saltata"
   },
   "works": {
     "title": "Lavorazioni",
@@ -1111,7 +1173,18 @@
     "markOut": "Segna come ancora fuori",
     "exportYes": "Sì",
     "chaseTitle": "In attesa dal laboratorio",
-    "chaseSubtitle": "{count, plural, one {# lavorazione} other {# lavorazioni}} da rientrare ora o entro pochi giorni."
+    "chaseSubtitle": "{count, plural, one {# lavorazione} other {# lavorazioni}} da rientrare ora o entro pochi giorni.",
+    "docketTitle": "Scheda di laboratorio",
+    "docketPrint": "Stampa scheda",
+    "docketNumber": "Caso {number}",
+    "docketStart": "Data di inizio",
+    "docketShade": "Colore",
+    "docketType": "Tipo di lavoro",
+    "docketTime": "Ora",
+    "docketStageFrame": "Prova metallo",
+    "docketStageDentine": "Prova dentina",
+    "docketStageFinish": "Consegna",
+    "docketStageTray": "Portaimpronta individuale"
   },
   "followUps": {
     "title": "Da fare",
@@ -1124,6 +1197,7 @@
     "fieldDue": "Riprendere il",
     "fieldDueHint": "Il giorno in cui deve ricomparire.",
     "fieldAssignee": "Di chi è",
+    "fieldAssigneeHint": "Lascialo a chiunque, se non è la commissione di una persona sola.",
     "anyone": "Chiunque",
     "urgent": "Urgente",
     "urgentHint": "in cima alla lista",
@@ -1296,7 +1370,28 @@
     "passphrase": "Cifra con una passphrase",
     "passphraseHint": "Lascia vuoto per un file JSON leggibile.",
     "warning": "Se imposti una passphrase e la dimentichi, il backup non è recuperabile. I PIN del personale e i file caricati non sono inclusi.",
-    "download": "Scarica backup"
+    "download": "Scarica backup",
+    "checkTitle": "Verifica un backup",
+    "checkDescription": "Apri un file di backup per dimostrare che funziona ancora — che si decifra con la passphrase che credi abbia e che lo studio ci sia davvero dentro. Non viene scritto nulla; il file viene solo letto.",
+    "checkFile": "File di backup",
+    "checkPassphraseHint": "Serve solo se il backup è cifrato. È proprio questo che vale la pena verificare: una passphrase si scopre sbagliata l'unico giorno in cui non si può più rimediare.",
+    "checkAction": "Verifica il file",
+    "checkRunning": "Verifica in corso…",
+    "checkGood": "Questo backup si apre e contiene lo studio.",
+    "checkTaken": "Eseguito",
+    "checkEncrypted": "Cifrato",
+    "checkRows": "Righe in totale",
+    "checkNoFile": "Scegli prima un file di backup.",
+    "checkTooLarge": "Quel file è troppo grande per essere verificato qui.",
+    "checkNeedsPassphrase": "Quel file è cifrato — inserisci la passphrase con cui è stato creato.",
+    "checkBadPassphrase": "Quella passphrase non apre questo file. Il file potrebbe anche essersi danneggiato durante il trasferimento.",
+    "checkNotABackup": "Quello non è un backup creato da questa applicazione.",
+    "checkUnreadable": "Impossibile leggere quel file.",
+    "checkNoPatients": "In questo file non ci sono pazienti — è molto probabile che sia il backup di un database vuoto e non di questo studio.",
+    "checkNewerVersion": "Questo file è stato scritto da una versione dell'applicazione più recente di quella in esecuzione qui.",
+    "checkAuditTruncated": "Il registro delle attività in questo file è stato troncato al momento della scrittura. Il resto è archiviato accanto ai file dei pazienti.",
+    "checkExcludes": "I PIN del personale e i file caricati non sono mai dentro un backup — i file si copiano a parte insieme alla cartella di archiviazione.",
+    "checkRestoreNote": "Il ripristino di un backup si fa su un database vuoto, non sopra uno in uso — vedi docs/RESTORE.md e prisma/restore-backup.ts."
   },
   "backupStatus": {
     "title": "Backup automatico",
@@ -1414,7 +1509,12 @@
     "currency": "Valuta",
     "currencyHint": "Codice di tre lettere — ALL, EUR, USD. Usato ovunque compaia un prezzo.",
     "operatoryNewSubtitle": "Quante poltrone ci sono decide quanto si può prenotare in contemporanea.",
-    "operatoriesNamed": "{count, plural, =0 {ancora nessuna} one {finora # poltrona} other {finora # poltrone}}"
+    "operatoriesNamed": "{count, plural, =0 {ancora nessuna} one {finora # poltrona} other {finora # poltrone}}",
+    "letterheadTitle": "Carta intestata",
+    "letterheadHint": "Stampata sotto il logo su ricette, piani di cura e schede di laboratorio. Se lasciata vuota, la riga viene semplicemente omessa.",
+    "clinicPhone": "Telefono",
+    "clinicEmail": "Email",
+    "clinicAddress": "Indirizzo"
   },
   "contacts": {
     "subtitle": "Cosa è stato mostrato al paziente e quando. Aprire un messaggio lo registra qui — non è prova di consegna.",
@@ -1561,5 +1661,26 @@
     "italicText": "corsivo",
     "hint": "**grassetto**, *corsivo*, - per un elenco. Un indirizzo incollato diventa un collegamento.",
     "remaining": "{count} rimasti"
+  },
+  "imports": {
+    "servicesTitle": "Importa prestazioni",
+    "servicesSubtitle": "Porta dentro un listino esistente da un foglio di calcolo. Nulla viene salvato finché non hai visto cosa farà.",
+    "stockTitle": "Importa materiali",
+    "stockSubtitle": "Porta dentro l'elenco del magazzino da un foglio di calcolo. Che cosa è ogni materiale — non quanto ce n'è; quello si conta con un inventario.",
+    "choose": "Scegli un file",
+    "chooseServices": "Un file CSV. In Excel: File → Salva con nome → CSV. La prima riga deve contenere i titoli delle colonne; è obbligatoria una colonna Nome, Categoria e Durata sono facoltative.",
+    "chooseStock": "Un file CSV. In Excel: File → Salva con nome → CSV. La prima riga deve contenere i titoli delle colonne; è obbligatoria una colonna Nome. Codice, Categoria, Fornitore, Unità, Minimo, Confezione e Prezzo sono facoltativi.",
+    "unreadable": "Impossibile leggere quel file. Deve essere un CSV salvato da un foglio di calcolo.",
+    "tooMany": "Quel file ha più di {limit} righe. Dividilo e importalo in parti.",
+    "missingColumns": "Il file non ha una colonna per: {columns}. Aggiungila e riseleziona il file.",
+    "problem": "Problema",
+    "summary": "Verranno importate {usable} righe su {total}",
+    "action": "Importa {count, plural, one {# riga} other {# righe}}",
+    "running": "Importazione…",
+    "done": "{created} importati, {skipped} saltati.",
+    "noName": "Manca il nome",
+    "badNumber": "Un numero non è stato compreso — è stato usato il valore predefinito",
+    "duplicateInFile": "Compare prima in questo file",
+    "alreadyHere": "Già presente qui"
   }
 }

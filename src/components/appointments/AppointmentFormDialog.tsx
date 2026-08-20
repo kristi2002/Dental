@@ -180,6 +180,7 @@ export function AppointmentFormDialog({
       action={saveAppointment}
       resetOnSuccess={!editing}
       openOnMount={openOnMount}
+      wide
       onClose={() => {
         setDuration(initialDuration);
         setDate(initialDate);
@@ -472,7 +473,7 @@ export function AppointmentFormDialog({
               time. Hidden behind a select set to "no" so the ordinary single
               booking is unchanged by its existence. */}
           {editing ? null : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className={repeat > 0 ? 'grid gap-4 sm:grid-cols-2' : undefined}>
               <SelectField
                 id={`${uid}-repeat`}
                 name="repeatEveryDays"

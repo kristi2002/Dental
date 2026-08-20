@@ -83,17 +83,55 @@ export const getProviderOptions = cache(async (): Promise<StaffOption[]> => {
  * Practice-wide preferences. A single row, created on first read so no install
  * step is needed and every screen can assume it exists.
  */
-export const getClinicProfile = cache(
-  async (): Promise<{ name: string; toothNumbering: ToothNumbering; currency: string }> => {
-    const profile = await prisma.clinicProfile.upsert({
-      where: { id: 'clinic' },
-      create: {},
-      update: {},
-      select: { name: true, toothNumbering: true, currency: true },
-    });
-    return profile;
-  },
-);
+export type ClinicProfile = {
+  name: string;
+  toothNumbering: ToothNumbering;
+  currency: string;
+  /** The letterhead — see the model. Null where nobody has filled it in. */
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+};
+
+export const getClinicProfile = cache(async (): Promise<ClinicProfile> => {
+  const profile = await prisma.clinicProfile.upsert({
+    where: { id: 'clinic' },
+    create: {},
+    update: {},
+    select: {
+      name: true,
+      toothNumbering: true,
+      currency: true,
+      phone: true,
+      email: true,
+      address: true,
+    },
+  });
+  return profile;
+});
+
+/**
+ * What this practice is called, wherever the app has to write it down.
+ *
+ * Settings first, the deploy's own variable behind it. The two answers exist for
+ * different moments and neither is right on its own: `NEXT_PUBLIC_CLINIC_NAME`
+ * is what `docs/DEPLOYMENT` asks an installer to set before anybody has signed
+ * in to fill a form, and Settings is where a practice changes its own name
+ * afterwards without a redeploy. So the saved answer wins and the deploy's
+ * answer is the floor.
+ *
+ * Empty when neither has been filled in, which is a real state on a fresh
+ * install — the caller decides what to do about it, because the answers differ.
+ * A letterhead prints no name at all rather than a placeholder; the navigation
+ * rail cannot be blank, so it falls back to the product's own name.
+ *
+ * Resolved here rather than in `getClinicProfile`, which also backs the Settings
+ * form: a fallback there would show the deploy's name sitting in the edit box as
+ * though somebody had typed it.
+ */
+export function clinicDisplayName(profile: Pick<ClinicProfile, 'name'>): string {
+  return profile.name.trim() || process.env.NEXT_PUBLIC_CLINIC_NAME?.trim() || '';
+}
 
 export const getOperatoryOptions = cache(async (): Promise<OperatoryOption[]> => {
   return prisma.operatory.findMany({

@@ -1,13 +1,14 @@
 import { CalendarCheck } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
+import { ClinicLogo } from '@/components/brand/ClinicLogo';
 import { ConfirmForm } from '@/components/confirm/ConfirmForm';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
-import { ToothMark } from '@/components/layout/ToothMark';
 import { AppointmentStatus } from '@/generated/prisma/enums';
 import { verifyConfirmationToken } from '@/lib/confirmations';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { clinicDisplayName, getClinicProfile } from '@/lib/queries';
 import { clientKey, rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
@@ -73,18 +74,19 @@ export default async function ConfirmPage({
       })
     : null;
 
-  const clinicName = process.env.NEXT_PUBLIC_CLINIC_NAME ?? tApp('name');
+  // Settings before the deploy variable, like everywhere else the practice
+  // names itself — a patient reading this should see the name on the door, and
+  // that is the one somebody typed into Settings.
+  const clinicName = clinicDisplayName(await getClinicProfile()) || tApp('name');
 
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <header className="app-header">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-8">
-          <span className="flex items-center gap-3">
-            <ToothMark className="text-white" />
-            <span className="text-[1.3rem] leading-tight font-bold tracking-tight text-white">
-              {clinicName}
-            </span>
-          </span>
+          {/* A patient opens this from a text message, on a phone, having been
+              sent it by a practice they know by its sign and not by its
+              database row. The lockup is what they recognise. */}
+          <ClinicLogo variant="inverse" alt={clinicName} className="h-11 w-auto sm:h-14" />
           <LanguageSwitcher />
         </div>
       </header>

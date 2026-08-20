@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { RoleBadge } from '@/components/auth/RoleBadge';
 import { BackupCard } from '@/components/staff/BackupCard';
+import { BackupCheckCard } from '@/components/staff/BackupCheckCard';
 import { BackupStatusCard } from '@/components/staff/BackupStatusCard';
 import { StaffFormDialog } from '@/components/staff/StaffFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -216,6 +217,12 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
           <>
             <BackupStatusCard status={await getBackupStatus()} />
             <BackupCard />
+            {/* Directly under the card that makes them, because it answers the
+                question that card leaves hanging: the file downloaded, and then
+                what? An untested backup is a hope — the Sunday drill proves the
+                automatic copies, and until now nothing proved the one an owner
+                keeps on a memory stick. */}
+            <BackupCheckCard />
           </>
         ) : null}
       </div>

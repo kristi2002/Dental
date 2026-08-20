@@ -7,7 +7,7 @@
  * everything exported from one of those has to be an async action.
  */
 
-import { addDays, startOfMonth, toDay, today, toMonthKey } from './dates';
+import { addDays, addMonths, startOfMonth, toDay, today, toMonthKey } from './dates';
 import { formatToothSpan, parseToothSpan, spanCodes, spanElements } from './tooth-span';
 import { matches } from './utils';
 
@@ -284,6 +284,53 @@ export function filterWorks<T extends FilterableWork>(
     ];
     return haystack.some((field) => field && matches(field, filters.query));
   });
+}
+
+/**
+ * The half of that filter a database can answer on its own.
+ *
+ * The register used to read itself into memory in full — every case ever
+ * written, with its lines — and then narrow it. That is fine at forty cases and
+ * is the sort of thing that stays fine right up until it is not, because the
+ * register only ever grows and a month is the unit anybody reads it in.
+ *
+ * So the coarse half moves into the query: which month, and whether the case is
+ * still out. What stays behind is what SQL cannot do — `matches()` folds accents
+ * and `ILIKE` does not, so typing *puron* has to find *Purón*.
+ *
+ * This is a second copy of rules `filterWorks` owns, which is the thing that
+ * function's comment warns about, so it is held to one rule: **the scope may be
+ * wider than the filter and must never be narrower.** A row this leaves out is a
+ * row the register will never show, and nothing downstream can notice. The two
+ * are kept adjacent for the reading, and a test pins the invariant.
+ */
+export type WorkScope = {
+  sentAt?: { gte: Date; lt: Date };
+  receivedAt?: null | { not: null };
+  dueAt?: { lt: Date };
+};
+
+export function workScope(
+  filters: Pick<WorkFilters, 'month' | 'status'>,
+  on: Date = today(),
+): WorkScope {
+  const scope: WorkScope = {};
+
+  // Half-open, so a case sent on the last day of the month is in it and one
+  // sent on the first of the next is not.
+  const start = fromMonthKey(filters.month);
+  if (start) scope.sentAt = { gte: start, lt: addMonths(start, 1) };
+
+  // Both of these mean the box has not come back yet; `late` only adds *when*.
+  if (filters.status === 'out' || filters.status === 'late') scope.receivedAt = null;
+  if (filters.status === 'back') scope.receivedAt = { not: null };
+
+  // `dueAt` is stored at UTC midnight, so "before today" is the comparison
+  // `workStatus` already makes — and in SQL it drops the null promises too,
+  // which is right: nothing about a case with no promised date says it is late.
+  if (filters.status === 'late') scope.dueAt = { lt: toDay(on) };
+
+  return scope;
 }
 
 /**

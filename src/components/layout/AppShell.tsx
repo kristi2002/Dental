@@ -1,16 +1,22 @@
 import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { ClinicMark } from '@/components/brand/ClinicLogo';
 import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
 import { FollowUpList } from '@/components/follow-ups/FollowUpList';
 import type { SessionUser } from '@/lib/auth/session';
 import { getBackupStatus } from '@/lib/backup-status';
 import { toDateKey, today } from '@/lib/dates';
 import { bellCounts } from '@/lib/follow-ups';
-import { getAssignableStaff, getOpenFollowUps } from '@/lib/queries';
+import {
+  clinicDisplayName,
+  getAssignableStaff,
+  getClinicProfile,
+  getOpenFollowUps,
+} from '@/lib/queries';
 import { BackupBanner } from './BackupBanner';
 import { CommandPalette } from './CommandPalette';
-import { NAV_DESTINATIONS } from './nav-destinations';
+import { NAV_DESTINATIONS, SEARCHABLE_LISTS } from './nav-destinations';
 import { Sidebar } from './Sidebar';
 
 /**
@@ -29,12 +35,23 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   const tc = await getTranslations('common');
   // The three screens that live in the user menu keep their labels there.
   const ta = await getTranslations('auth');
+  // The working screens the rail does not carry are named on their own pages,
+  // and the palette calls them what those pages call themselves.
+  const ts = await getTranslations('stock');
+  const tscan = await getTranslations('scan');
+  const tday = await getTranslations('daySheet');
 
   // Which shape the rail is in is read on the server, so a pinched rail does not
   // flash open before hydration. The layout is already dynamic — the session is
   // itself a cookie — so this costs nothing.
   const store = await cookies();
   const railCollapsed = store.get('rail')?.value === 'collapsed';
+
+  // Whose practice this is. The rail and the footer both write it, and it is the
+  // one thing on every screen that says this install belongs to somebody — so
+  // unlike the letterhead, which prints nothing rather than a placeholder, the
+  // chrome falls back to the product's own name rather than going blank.
+  const clinicName = clinicDisplayName(await getClinicProfile()) || t('name');
 
   const allowed = (permission: (typeof NAV_DESTINATIONS)[number]['permission']) =>
     permission === null || user.permissions.includes(permission);
@@ -77,7 +94,30 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     ...(user.permissions.includes('settings.view')
       ? [{ href: '/settings', label: ta('settings') }]
       : []),
+    // Screens with no row of their own anywhere: each is opened by a button on
+    // the list it belongs to, and is therefore unreachable from any other screen
+    // in the building. The rail is a short list on purpose and they do not
+    // belong in it — but "where is the stocktake" is a question, and this is the
+    // box people ask questions in.
+    ...(user.permissions.includes('appointment.view')
+      ? [{ href: '/day-sheet', label: tday('title') }]
+      : []),
+    ...(user.permissions.includes('stock.edit')
+      ? [
+          { href: '/stock/scan', label: `${tn('stock')} · ${tscan('title')}` },
+          { href: '/stock/stocktake', label: `${tn('stock')} · ${ts('stocktakeTitle')}` },
+          { href: '/stock/expiry', label: `${tn('stock')} · ${ts('expiryTitle')}` },
+        ]
+      : []),
   ];
+
+  // Where the same words can be asked again, when the palette itself has no
+  // answer to them. Each of these pages searches its own contents on `?q=`, and
+  // a front desk holding a box of composite is looking for a material, not for
+  // somebody called Composite. Permission-filtered on the server like the rest.
+  const searches = SEARCHABLE_LISTS.filter(({ permission }) => allowed(permission)).map(
+    ({ href, key }) => ({ href, label: tn(key) }),
+  );
 
   // Which sections are folded shut, by key — same reasoning, same first paint.
   //
@@ -137,6 +177,7 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     <div className="flex min-h-screen flex-col lg:flex-row">
       <Sidebar
         items={items}
+        clinicName={clinicName}
         followUps={followUps}
         defaultCollapsed={railCollapsed}
         defaultClosedSections={closedSections}
@@ -170,6 +211,7 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
           <div className="mx-auto w-full max-w-6xl">
             <CommandPalette
               destinations={destinations}
+              searches={searches}
               label={tc('search')}
               placeholder={t('palettePlaceholder')}
               screensLabel={t('paletteScreens')}
@@ -184,8 +226,15 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
         </main>
 
         <footer className="border-t border-line bg-surface">
-          <div className="mx-auto w-full max-w-6xl px-4 py-4 text-[0.9rem] text-ink-soft sm:px-8">
-            {t('name')} · {t('tagline')}
+          {/* The mark again, in the app's teal and small — the rail's is white on
+              teal and scrolls away with nothing, while this one closes the page
+              the way the letterhead opens the paper. Decorative: the practice's
+              name is written right beside it. */}
+          <div className="mx-auto flex w-full max-w-6xl items-center gap-2.5 px-4 py-4 text-[0.9rem] text-ink-soft sm:px-8">
+            <ClinicMark variant="brand" alt="" className="h-5 w-auto shrink-0 opacity-80" />
+            <span className="min-w-0 truncate">
+              {clinicName} · {t('tagline')}
+            </span>
           </div>
         </footer>
       </div>

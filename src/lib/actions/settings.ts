@@ -328,11 +328,20 @@ export async function saveClinicProfile(
   if (rawCurrency && !/^[A-Z]{3}$/.test(rawCurrency)) return actionError(t('invalidCurrency'));
   const currency = rawCurrency || 'ALL';
 
+  // The letterhead. Unvalidated on purpose beyond being trimmed to null: this is
+  // what the practice wants printed at the top of its own paper, and a phone
+  // number in this country is written half a dozen defensible ways. `null`
+  // rather than `''` so a cleared field is omitted from the header rather than
+  // printing an empty separator — see `SheetHead`.
+  const phone = optionalString(formData.get('phone')) ?? null;
+  const email = optionalString(formData.get('email')) ?? null;
+  const address = optionalString(formData.get('address')) ?? null;
+
   try {
     await prisma.clinicProfile.upsert({
       where: { id: 'clinic' },
-      create: { name, toothNumbering, currency },
-      update: { name, toothNumbering, currency },
+      create: { name, toothNumbering, currency, phone, email, address },
+      update: { name, toothNumbering, currency, phone, email, address },
     });
   } catch {
     return actionError(t('generic'));

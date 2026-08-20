@@ -24,13 +24,13 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { ClinicMark } from '@/components/brand/ClinicLogo';
 import { FollowUpBell } from '@/components/follow-ups/FollowUpBell';
 import type { Role } from '@/generated/prisma/enums';
 import { Link, usePathname } from '@/i18n/navigation';
 import type { BellCounts } from '@/lib/follow-ups';
 import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from './LanguageSwitcher';
-import { ToothMark } from './ToothMark';
 import { UserMenu } from './UserMenu';
 
 /** Every destination the rail can show, in order. What a given person sees is
@@ -206,11 +206,19 @@ function RailRow({
 export function Sidebar({
   items,
   user,
+  clinicName,
   followUps,
   defaultCollapsed,
   defaultClosedSections,
 }: {
   items: Item[];
+  /**
+   * Whose practice this is, resolved on the server — see `clinicDisplayName`.
+   * Written beside the mark rather than left to it: the drawing is what makes
+   * the rail recognisable at a glance, and the name is what a locum reads on
+   * their first morning to be sure which practice they are logged into.
+   */
+  clinicName: string;
   /**
    * The board and its counts, already rendered on the server. Null for anyone
    * without `followup.view`, which takes the bell off the chrome entirely.
@@ -424,14 +432,14 @@ export function Sidebar({
         <Link
           href="/"
           className="flex min-w-0 flex-1 items-center gap-2 no-underline"
-          aria-label={tApp('name')}
+          aria-label={clinicName}
         >
-          <ToothMark size={28} className="text-white" />
-          {/* The tagline is gone from the phone bar and the wordmark truncates:
+          <ClinicMark variant="inverse" alt="" className="h-6 w-auto shrink-0" />
+          {/* The tagline is gone from the phone bar and the name truncates:
               between the menu button and the account button there is only so
               much room, and the two buttons are the ones that get tapped. */}
           <span className="truncate text-[1.05rem] leading-tight font-bold tracking-tight text-white">
-            {tApp('name')}
+            {clinicName}
           </span>
         </Link>
 
@@ -468,16 +476,20 @@ export function Sidebar({
         >
           <Link
             href="/"
-            aria-label={tApp('name')}
+            aria-label={clinicName}
             className={cn(
               'flex min-w-0 flex-1 items-center gap-2.5 no-underline focus-visible:outline-white',
               collapsed && 'lg:flex-none lg:justify-center',
             )}
           >
-            <ToothMark className="text-white" />
+            {/* Sized by height, like the letterhead it was cut from. h-7 is
+                what leaves the practice's name room to be read beside it in a
+                15rem rail — and is still the largest the drawing can be in a
+                pinched one, where 4.5rem less the padding is all there is. */}
+            <ClinicMark variant="inverse" alt="" className="h-7 w-auto shrink-0" />
             <span className={cn('min-w-0', collapsed && 'lg:sr-only')}>
-              <span className="block truncate text-[1.12rem] leading-tight font-bold tracking-tight text-white">
-                {tApp('name')}
+              <span className="block truncate text-[1rem] leading-tight font-bold tracking-tight text-white">
+                {clinicName}
               </span>
               <span className="block truncate text-[0.76rem] text-white/85">
                 {tApp('tagline')}

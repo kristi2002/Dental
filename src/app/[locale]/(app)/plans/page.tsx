@@ -1,4 +1,4 @@
-import { ListChecks, Search, X } from 'lucide-react';
+import { Download, ListChecks, Search, X } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
@@ -12,6 +12,13 @@ import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enu
 import { requirePermission } from '@/lib/auth/guard';
 import { toDateKey, today } from '@/lib/dates';
 import { isPromisedSlot, STALLED_DAYS, summarisePlan, worstFirst } from '@/lib/plan-progress';
+import {
+  isArchive,
+  PLAN_FILTERS,
+  planWhere,
+  toPlanFilter,
+  type PlanFilter,
+} from '@/lib/plan-filter';
 import { prisma } from '@/lib/prisma';
 import {
   getClinicProfile,
@@ -22,12 +29,6 @@ import {
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
-
-type Filter = 'open' | 'stalled' | 'completed' | 'cancelled';
-const FILTERS: Filter[] = ['open', 'stalled', 'completed', 'cancelled'];
-
-/** The two tabs that hold history rather than work. */
-const isArchive = (filter: Filter) => filter === 'completed' || filter === 'cancelled';
 
 /**
  * Closed plans are history and grow without bound, so the archive tabs are
@@ -48,39 +49,6 @@ const PLAN_INCLUDE = {
 } as const;
 
 type LoadedPlan = Prisma.TreatmentPlanGetPayload<{ include: typeof PLAN_INCLUDE }>;
-
-/**
- * One box, three things somebody might remember: whose plan it is, what the plan
- * was called, or the treatment itself.
- *
- * Asked of the database rather than of an array. Every open plan in the practice
- * used to be loaded with all of its steps and then filtered in JavaScript, which
- * is a scan of the whole table to answer a question Postgres was already holding
- * an index for — and, unlike the archives beside it, was not even capped. The
- * cost of that is invisible for a year and then the page is the slow one.
- *
- * `mode: 'insensitive'` is case-folding, not accent-folding: Postgres will match
- * "MARIA" for "maria" but not "Kelmendi" for "Kelmëndi". The patient half of the
- * search therefore also goes through `searchKey`, which is the accent-stripped
- * column the patient list already searches on, so a plan is findable by its
- * owner exactly as its owner is.
- */
-function planWhere(status: TreatmentPlanStatus, query: string): Prisma.TreatmentPlanWhereInput {
-  if (!query) return { status };
-
-  const folded = query.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase();
-
-  return {
-    status,
-    OR: [
-      { title: { contains: query, mode: 'insensitive' } },
-      { steps: { some: { title: { contains: query, mode: 'insensitive' } } } },
-      { patient: { searchKey: { contains: folded } } },
-      { patient: { firstName: { contains: query, mode: 'insensitive' } } },
-      { patient: { lastName: { contains: query, mode: 'insensitive' } } },
-    ],
-  };
-}
 
 export async function generateMetadata({
   params,
@@ -127,7 +95,7 @@ export default async function PlansPage({
   const tc = await getTranslations('common');
 
   const { filter: rawFilter, q } = await searchParams;
-  const filter: Filter = FILTERS.includes(rawFilter as Filter) ? (rawFilter as Filter) : 'open';
+  const filter: PlanFilter = toPlanFilter(rawFilter);
   const query = (q ?? '').trim();
   const searching = query.length > 0;
 
@@ -222,7 +190,7 @@ export default async function PlansPage({
   const completedRows = completed.map(toRow);
   const cancelledRows = cancelled.map(toRow);
 
-  const counts: Record<Filter, number> = {
+  const counts: Record<PlanFilter, number> = {
     open: activeTotal,
     // Stalled is derived per plan, so this one can only be counted from the rows
     // that were loaded. It is exact until the cap bites, and the line at the
@@ -257,6 +225,11 @@ export default async function PlansPage({
         if (step.status !== TreatmentStepStatus.PENDING || step.linked) continue;
         bookSlots[step.id] = (
           <AppointmentFormDialog
+            // Keyed although nothing here maps: the row drops this element into
+            // a list of buttons on the client, and an element built on the
+            // server never passes through the JSX call that would otherwise
+            // vouch for it — so React reaches the array with a keyless child.
+            key={step.id}
             services={services}
             staff={staff}
             operatories={operatories}
@@ -275,7 +248,7 @@ export default async function PlansPage({
   }
 
   /** Every link on this screen keeps the other half of the state it is not about. */
-  const hrefFor = (option: Filter, text = query) => {
+  const hrefFor = (option: PlanFilter, text = query) => {
     const search = new URLSearchParams();
     if (option !== 'open') search.set('filter', option);
     if (text) search.set('q', text);
@@ -311,6 +284,16 @@ export default async function PlansPage({
     </Link>
   ) : null;
 
+  // The export carries whatever the screen is showing — the tab and the search
+  // box both travel with it, the same promise the works register and the patient
+  // list make. Uncapped, unlike the screen; see the route.
+  const exportQuery = new URLSearchParams();
+  if (query) exportQuery.set('q', query);
+  exportQuery.set('filter', filter);
+  // No locale segment on an API route, so the column titles are asked for by name.
+  exportQuery.set('locale', locale);
+  const exportHref = `/api/plans/export?${exportQuery}`;
+
   return (
     <>
       <PageHeader
@@ -319,7 +302,17 @@ export default async function PlansPage({
         // first" is true of the two open tabs and a plain untruth on the
         // archives, which are read newest-first.
         subtitle={subtitle}
-        actions={newLink}
+        actions={
+          <>
+            {counts[filter] > 0 ? (
+              <a href={exportHref} className="btn btn-secondary" download data-print-hide>
+                <Download size={20} aria-hidden />
+                {t('export')}
+              </a>
+            ) : null}
+            {newLink}
+          </>
+        }
         trail={[{ label: t('allTitle') }]}
       />
 
@@ -329,7 +322,7 @@ export default async function PlansPage({
             `.segmented` was introduced to replace everywhere else. */}
         <nav aria-label={t('status')}>
           <div className="segmented">
-            {FILTERS.map((option) => {
+            {PLAN_FILTERS.map((option) => {
               const current = option === filter;
               // The stalled tab is the one with a consequence, so its count is
               // coloured even when the tab is not the one being read. Only that

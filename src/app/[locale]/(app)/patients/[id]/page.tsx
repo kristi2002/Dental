@@ -12,6 +12,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  Printer,
   ScrollText,
   ShieldAlert,
   Sparkles,
@@ -26,6 +27,7 @@ import { AppointmentRow } from '@/components/appointments/AppointmentRow';
 import { DocumentGallery } from '@/components/documents/DocumentGallery';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { DentalChart, type ToothRecordMap } from '@/components/dental/DentalChart';
+import { ToothDefsProvider } from '@/components/dental/ToothDefsProvider';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { ReliabilityBadge } from '@/components/patients/ReliabilityBadge';
@@ -39,6 +41,7 @@ import { TreatmentPlans } from '@/components/plans/TreatmentPlans';
 import { PrescriptionDialog } from '@/components/prescriptions/PrescriptionDialog';
 import { PrescriptionList } from '@/components/prescriptions/PrescriptionList';
 import { ActionForm } from '@/components/ui/ActionForm';
+import { ActionMenu } from '@/components/ui/ActionMenu';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -365,6 +368,9 @@ export default async function PatientDetailPage({
           continue;
         planBookSlots[step.id] = (
           <AppointmentFormDialog
+            // See the practice-wide list: a server-built element lands in the
+            // step row's button list without a key of its own.
+            key={step.id}
             services={services}
             staff={staff}
             operatories={operatories}
@@ -380,7 +386,10 @@ export default async function PatientDetailPage({
   }
 
   return (
-    <>
+    // One copy of the tooth drawings for the page, rather than one each from
+    // the chart, the visit timeline and the picker inside the treatment plans —
+    // which is three, and 2,162 elements apiece.
+    <ToothDefsProvider>
       {/* The tab is part of the address, so it is part of the trail: leaving the
           prescriptions tab for a printed sheet and coming back must not land on
           Details. */}
@@ -512,62 +521,85 @@ export default async function PatientDetailPage({
               }}
             />
           ) : null}
-          {/* Everything the trail has ever recorded about this person, which
-              until now could only be reached by filtering the whole practice's
-              log by entity *type* and reading for a name. Owner-only, because
-              `audit.view` is. */}
-          {canSeeAudit ? (
-            <Link
-              href={`/activity?patient=${patient.id}`}
-              className="btn btn-secondary"
-              title={t('history')}
-            >
-              <ScrollText size={19} aria-hidden />
-              <span className="sr-only">{t('history')}</span>
-            </Link>
-          ) : null}
+          {/* Out here rather than in the overflow below, because the overflow is
+              gated on being able to edit, merge or read the trail — and the
+              whole record on one sheet is the one thing on this page that
+              somebody with nothing but `patient.view` has a real errand for.
+              What the sheet does and does not carry for such a reader is in the
+              page itself. */}
+          <Link href={`/patients/${patient.id}/print`} className="btn btn-secondary">
+            <Printer size={20} aria-hidden />
+            {t('recordPrint')}
+          </Link>
 
-          {/* Folding a duplicate in. Owner-only, beside the delete it exists to
-              make unnecessary — the front desk's two bad options were leaving
-              both records or erasing one. */}
-          {canDelete ? <MergeDialog keepId={patient.id} keepName={fullName} /> : null}
+          {/* The record-level verbs: pressed far less often than booking or
+              editing, so they sit behind one button rather than four —
+              matching the overflow the plan and appointment rows already
+              use. */}
+          {canSeeAudit || canDelete || canEdit ? (
+            <ActionMenu label={tc('moreActions')} triggerClassName="btn btn-secondary">
+              {/* Everything the trail has ever recorded about this person, which
+                  until now could only be reached by filtering the whole practice's
+                  log by entity *type* and reading for a name. Owner-only, because
+                  `audit.view` is. */}
+              {canSeeAudit ? (
+                <Link
+                  href={`/activity?patient=${patient.id}`}
+                  className="menu-item"
+                  role="menuitem"
+                >
+                  <ScrollText size={18} aria-hidden className="shrink-0" />
+                  {t('history')}
+                </Link>
+              ) : null}
 
-          {/* The ordinary way to get somebody out of the lists, and the one that
-              keeps their record. Sits before the delete deliberately. */}
-          {canEdit ? (
-            <ActionForm
-              action={archivePatient}
-              values={{ id: patient.id, archived: patient.archivedAt ? '0' : '1' }}
-              confirmMessage={patient.archivedAt ? undefined : t('archiveWarning')}
-            >
-              <button
-                type="submit"
-                className="btn btn-secondary"
-                title={patient.archivedAt ? t('restore') : t('archive')}
-              >
-                {patient.archivedAt ? (
-                  <ArchiveRestore size={19} aria-hidden />
-                ) : (
-                  <Archive size={19} aria-hidden />
-                )}
-                <span className="sr-only">
-                  {patient.archivedAt ? t('restore') : t('archive')}
-                </span>
-              </button>
-            </ActionForm>
-          ) : null}
+              {/* Folding a duplicate in. Owner-only, beside the delete it exists
+                  to make unnecessary — the front desk's two bad options were
+                  leaving both records or erasing one. */}
+              {canDelete ? (
+                <div className={canSeeAudit ? 'border-t border-line' : undefined}>
+                  <MergeDialog
+                    keepId={patient.id}
+                    keepName={fullName}
+                    triggerClassName="menu-item"
+                  />
+                </div>
+              ) : null}
 
-          {canDelete ? (
-            <ActionForm
-              action={deletePatient}
-              values={{ id: patient.id }}
-              confirmMessage={`${t('deleteWarning')}\n\n${tc('confirmDelete')}`}
-            >
-              <button type="submit" className="btn btn-danger" title={tc('delete')}>
-                <Trash2 size={19} aria-hidden />
-                <span className="sr-only">{tc('delete')}</span>
-              </button>
-            </ActionForm>
+              {/* The ordinary way to get somebody out of the lists, and the one
+                  that keeps their record. Sits before the delete deliberately. */}
+              {canEdit ? (
+                <ActionForm
+                  action={archivePatient}
+                  values={{ id: patient.id, archived: patient.archivedAt ? '0' : '1' }}
+                  confirmMessage={patient.archivedAt ? undefined : t('archiveWarning')}
+                  className="block border-t border-line"
+                >
+                  <button type="submit" role="menuitem" className="menu-item">
+                    {patient.archivedAt ? (
+                      <ArchiveRestore size={18} aria-hidden className="shrink-0" />
+                    ) : (
+                      <Archive size={18} aria-hidden className="shrink-0" />
+                    )}
+                    {patient.archivedAt ? t('restore') : t('archive')}
+                  </button>
+                </ActionForm>
+              ) : null}
+
+              {canDelete ? (
+                <ActionForm
+                  action={deletePatient}
+                  values={{ id: patient.id }}
+                  confirmMessage={`${t('deleteWarning')}\n\n${tc('confirmDelete')}`}
+                  className="block border-t border-line"
+                >
+                  <button type="submit" role="menuitem" className="menu-item menu-item-danger">
+                    <Trash2 size={18} aria-hidden className="shrink-0" />
+                    {tc('delete')}
+                  </button>
+                </ActionForm>
+              ) : null}
+            </ActionMenu>
           ) : null}
         </div>
       </header>
@@ -1116,7 +1148,7 @@ export default async function PatientDetailPage({
           />
         </Card>
       ) : null}
-    </>
+    </ToothDefsProvider>
   );
 }
 

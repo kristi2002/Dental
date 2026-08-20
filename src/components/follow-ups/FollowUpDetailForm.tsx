@@ -6,6 +6,7 @@ import { useId } from 'react';
 import { SelectField, TextField } from '@/components/ui/Field';
 import { FormActions, FormSection } from '@/components/ui/FormPage';
 import { NoteEditor } from '@/components/ui/NoteEditor';
+import { UrgentToggle } from '@/components/ui/UrgentToggle';
 import { useRecoveredForm } from '@/lib/form-recovery';
 import { saveFollowUp } from '@/lib/actions/follow-ups';
 import { MAX_NOTES_LENGTH, MAX_TITLE_LENGTH } from '@/lib/follow-ups';
@@ -95,18 +96,14 @@ export function FollowUpDetailForm({
           </SelectField>
         </div>
 
-        <label className="flex items-center gap-2.5 font-semibold text-ink">
-          <input
-            type="checkbox"
-            name="priority"
-            value="URGENT"
-            defaultChecked={followUp.urgent}
-            disabled={!canEdit}
-            className="size-5 accent-[var(--color-danger)]"
-          />
-          {t('urgent')}
-          <span className="font-normal text-ink-soft">— {t('urgentHint')}</span>
-        </label>
+        <UrgentToggle
+          name="priority"
+          value="URGENT"
+          defaultChecked={followUp.urgent}
+          disabled={!canEdit}
+          label={t('urgent')}
+          hint={t('urgentHint')}
+        />
 
         {/* `key` on the note, not on the form: the editor holds its text in
             state, so a note edited on another machine and pulled in by a

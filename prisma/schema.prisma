@@ -634,6 +634,26 @@ model ClinicProfile {
   /// in one currency, so this is a setting rather than a column on every price.
   currency String @default("ALL")
 
+  /// The letterhead: how the practice identifies itself on paper it hands out.
+  ///
+  /// Every printed sheet in the app — a prescription, a treatment plan, a lab
+  /// docket — is a document that leaves the building, and until now each one
+  /// headed itself with the practice's *name* and nothing else. The pads this
+  /// clinic actually uses carry a phone number and an email under the mark,
+  /// because the whole point of the header is that whoever is holding the paper
+  /// can get back in touch without having to already know how.
+  ///
+  /// Three separate columns rather than one free-text block: the lab docket
+  /// wants the phone and not the address, the prescription wants both, and a
+  /// blob would force every sheet to print all of it or parse it apart.
+  ///
+  /// All optional, and every sheet omits what is blank. A practice that has not
+  /// filled these in gets the header it has today rather than a line of empty
+  /// separators.
+  phone   String?
+  email   String?
+  address String?
+
   updatedAt      DateTime      @updatedAt
 }
 

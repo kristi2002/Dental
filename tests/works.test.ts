@@ -19,9 +19,11 @@ import {
   toElementCount,
   totalElements,
   toWorkFilterStatus,
+  workScope,
   workStatus,
   worksToRows,
   type ExportableWork,
+  type WorkScope,
 } from '../src/lib/works';
 
 const HEADERS = {
@@ -468,6 +470,101 @@ describe('filterWorks — the one copy of the register’s filter', () => {
   it('finds the cases with no laboratory named', () => {
     assert.deepEqual(run({ lab: NO_LAB }), [1]);
     assert.deepEqual(run({ lab: 'Smile Lab' }), [3]);
+  });
+});
+
+describe('workScope — the half of that filter the database answers', () => {
+  /**
+   * What Postgres will do with the scope, in the small amount of JavaScript it
+   * takes to say it. The point of the tests below is that this and
+   * `filterWorks` cannot disagree about which rows exist.
+   */
+  const inScope = (entry: ExportableWork, scope: WorkScope): boolean => {
+    if (scope.sentAt && !(entry.sentAt >= scope.sentAt.gte && entry.sentAt < scope.sentAt.lt)) {
+      return false;
+    }
+    if (scope.receivedAt === null && entry.receivedAt !== null) return false;
+    if (scope.receivedAt && 'not' in scope.receivedAt && entry.receivedAt === null) return false;
+    if (scope.dueAt && !(entry.dueAt !== null && entry.dueAt < scope.dueAt.lt)) return false;
+    return true;
+  };
+
+  const register = [
+    work({ number: 1, patientName: 'Arta Krasniqi', sentAt: day('2026-08-14') }),
+    work({
+      number: 2,
+      patientName: 'Blerim Purón',
+      sentAt: day('2026-07-02'),
+      dueAt: day('2026-08-01'),
+      lines: [line(1, 'Kurorë', 'Dental Art')],
+    }),
+    work({
+      number: 3,
+      patientName: 'Dritan Hoxha',
+      sentAt: day('2026-08-05'),
+      dueAt: day('2026-08-12'),
+      receivedAt: day('2026-08-13'),
+      lines: [line(2, 'Protezë', 'Smile Lab')],
+    }),
+    // Due today, which is the edge `late` must not claim.
+    work({ number: 4, sentAt: day('2026-08-15'), dueAt: TODAY }),
+    // The last day of a month and the first of the next, either side of the
+    // boundary the range is drawn on.
+    work({ number: 5, sentAt: day('2026-07-31') }),
+    work({ number: 6, sentAt: day('2026-08-01') }),
+    // Out for months with nothing promised: never late, always still out.
+    work({ number: 7, sentAt: day('2026-06-09'), dueAt: null }),
+  ];
+
+  it('is a date range on the month, half-open at the far end', () => {
+    assert.deepEqual(workScope({ month: '2026-07', status: '' }, TODAY), {
+      sentAt: { gte: day('2026-07-01'), lt: day('2026-08-01') },
+    });
+  });
+
+  it('asks for nothing at all when the register is opened on every month', () => {
+    // The one query still unbounded, and the only one somebody has to choose.
+    assert.deepEqual(workScope({ month: null, status: '' }, TODAY), {});
+  });
+
+  it('reads late as a promise that has passed on a case still out', () => {
+    assert.deepEqual(workScope({ month: null, status: 'late' }, TODAY), {
+      receivedAt: null,
+      dueAt: { lt: TODAY },
+    });
+    assert.deepEqual(workScope({ month: null, status: 'out' }, TODAY), { receivedAt: null });
+    assert.deepEqual(workScope({ month: null, status: 'back' }, TODAY), {
+      receivedAt: { not: null },
+    });
+  });
+
+  it('never drops a row the register would have shown', () => {
+    const months = [null, '2026-08', '2026-07', '2026-06', '2026-05'];
+    const statuses = ['', 'out', 'late', 'back'] as const;
+
+    for (const month of months) {
+      for (const status of statuses) {
+        const filters = { query: '', lab: '', month, status };
+        const where = workScope(filters, TODAY);
+        const fetched = register.filter((entry) => inScope(entry, where));
+        const shown = filterWorks(register, filters, TODAY);
+
+        for (const entry of shown) {
+          assert.ok(
+            fetched.includes(entry),
+            `case ${entry.number} is shown for month=${month} status=${status} but was never fetched`,
+          );
+        }
+
+        // The whole promise, in one line: narrowing in SQL first changes
+        // nothing about what ends up on screen.
+        assert.deepEqual(
+          filterWorks(fetched, filters, TODAY).map((entry) => entry.number),
+          shown.map((entry) => entry.number),
+          `month=${month} status=${status}`,
+        );
+      }
+    }
   });
 });
 

@@ -2,10 +2,12 @@ import {
   Cake,
   ChevronLeft,
   ChevronRight,
+  Download,
   Mail,
   Phone,
   Search,
   TriangleAlert,
+  Upload,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -63,6 +65,20 @@ export default async function PatientsPage({
     </Link>
   );
 
+  // The export carries whatever the screen is showing — the search box and the
+  // archived/active view both travel with it, for the reason the works register
+  // does the same: a filtered list is a deliberate selection, and handing over
+  // the whole directory instead would be a quiet and expensive surprise.
+  //
+  // Not paginated, unlike the screen. See the route.
+  const exportQuery = new URLSearchParams();
+  if (query) exportQuery.set('q', query);
+  if (archived) exportQuery.set('show', 'archived');
+  // No locale segment on an API route, so the column titles are asked for by
+  // name — same handover as the works export.
+  exportQuery.set('locale', locale);
+  const exportHref = `/api/patients/export?${exportQuery}`;
+
   // One folded column, one comparison — the same answer the in-memory `matches()`
   // helper gives, so typing the same thing into any box in the app finds the
   // same people. Digits are matched against the phone directly, because folding
@@ -112,7 +128,33 @@ export default async function PatientsPage({
         // 24 that is actually page one of eighty is a lie the old list could not
         // tell because it always showed everybody.
         subtitle={t('count', { count: total })}
-        actions={canEdit ? addButton : null}
+        actions={
+          <>
+            {/* Offered whenever the list can be read at all: `patient.view` is
+                what puts these names on the screen, and a person who may read
+                them one page at a time is not stopped from reading them by
+                being handed the same names in a file. The medical column is the
+                one thing that is gated, and it is not in the file — see
+                `patients-export.ts`. */}
+            {total > 0 ? (
+              <a href={exportHref} className="btn btn-secondary" download data-print-hide>
+                <Download size={20} aria-hidden />
+                {t('export')}
+              </a>
+            ) : null}
+            {/* Beside the export rather than behind a menu, and only on the
+                active view: importing into the archive is not a thing anybody
+                means. Both verbs live on the list they act on, which is the one
+                place somebody holding a spreadsheet will look. */}
+            {canEdit && !archived ? (
+              <Link href="/patients/import" className="btn btn-secondary">
+                <Upload size={20} aria-hidden />
+                {t('import')}
+              </Link>
+            ) : null}
+            {canEdit ? addButton : null}
+          </>
+        }
         trail={[{ label: t('title') }]}
       />
 

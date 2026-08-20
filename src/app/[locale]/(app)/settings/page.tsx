@@ -103,6 +103,9 @@ export default async function SettingsPage({
             name={profile.name}
             toothNumbering={profile.toothNumbering}
             currency={profile.currency}
+            phone={profile.phone ?? ''}
+            email={profile.email ?? ''}
+            address={profile.address ?? ''}
             canEdit={canEdit}
           />
         </Card>
@@ -128,8 +131,6 @@ export default async function SettingsPage({
           />
           <MailerCard canEdit={canEdit} />
         </Card>
-
-
 
         <Card>
           <CardHeader

@@ -20,6 +20,21 @@ import { cn } from '@/lib/utils';
  * The target is a pointing shortcut, not the accessible control: it is hidden
  * from assistive technology, and both charts offer the same five surfaces as
  * real checkboxes for whichever tooth is open.
+ *
+ * Five separate targets, and it has to *look* like five. The clicks were always
+ * per-segment — each wedge and the centre carry their own handler — but the
+ * whole svg grew on hover and each wedge only dropped to 80% opacity, which on
+ * an unmarked slate wedge is a change of about two values. So the entire wheel
+ * reacted as one object and nothing said which of the five faces the pointer
+ * was actually on: it read, and therefore behaved, like a single button that
+ * happened to be drawn in pieces. Now nothing moves, and the wedge under the
+ * pointer is the only thing that changes — darkened, and lifted away from its
+ * neighbours by a heavier white margin.
+ *
+ * Darkened with a filter rather than a fill, because the fill belongs to the
+ * caller: `fillOf` is slate for an unmarked face here, red for a marked one,
+ * orange in the lab chart. `brightness` is the one hover that works over all of
+ * them without this component having to know which palette it is wearing.
  */
 
 const CENTRE = 18;
@@ -62,6 +77,7 @@ function sector([from, to]: [number, number]): string {
 export function SurfaceTarget({
   toothNum,
   fillOf,
+  labelOf,
   onSurfaceClick,
   readOnly = false,
   ring = true,
@@ -70,6 +86,17 @@ export function SurfaceTarget({
   toothNum: number;
   /** The colour for one surface. Called five times, once per face. */
   fillOf: (surface: ToothSurface) => string;
+  /**
+   * What to call one surface, for the tooltip on the wedge.
+   *
+   * Which wedge is which depends on the arch and the side of the mouth, so the
+   * one thing a pointing shortcut cannot do is let you learn the layout — and
+   * clicking the wrong face of the right tooth is a quiet mistake. Naming it on
+   * hover is what makes five targets legible as five. Optional: the target is
+   * `aria-hidden` and the checkboxes remain the accessible control, so a caller
+   * with no translations to hand simply gets no tooltip.
+   */
+  labelOf?: (surface: ToothSurface) => string;
   onSurfaceClick?: (surface: ToothSurface) => void;
   readOnly?: boolean;
   /** The outer grey circle. Off where the target sits inside another outline. */
@@ -80,17 +107,16 @@ export function SurfaceTarget({
   const press = (surface: ToothSurface) =>
     interactive ? () => onSurfaceClick(surface) : undefined;
 
-  const segment = cn('transition-[fill,opacity]', interactive && 'hover:opacity-80');
+  const segment = cn(
+    'transition-[fill,filter,stroke-width] duration-100',
+    interactive && 'cursor-pointer hover:brightness-90 hover:[stroke-width:2.2]',
+  );
 
   return (
     <svg
       viewBox="0 0 36 36"
       aria-hidden
-      className={cn(
-        'h-full w-full transition-transform',
-        interactive && 'cursor-pointer hover:scale-105',
-        className,
-      )}
+      className={cn('h-full w-full', className)}
     >
       {ring ? (
         <circle
@@ -114,7 +140,9 @@ export function SurfaceTarget({
             strokeWidth="1.3"
             onClick={press(surface)}
             className={segment}
-          />
+          >
+            {labelOf ? <title>{labelOf(surface)}</title> : null}
+          </path>
         );
       })}
 
@@ -127,7 +155,9 @@ export function SurfaceTarget({
         strokeWidth="1.3"
         onClick={press('O')}
         className={segment}
-      />
+      >
+        {labelOf ? <title>{labelOf('O')}</title> : null}
+      </circle>
     </svg>
   );
 }

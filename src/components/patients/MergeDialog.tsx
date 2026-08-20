@@ -19,10 +19,13 @@ import type { PatientOption } from '@/components/appointments/AppointmentFormDia
 export function MergeDialog({
   keepId,
   keepName,
+  triggerClassName = 'btn btn-secondary',
 }: {
   keepId: string;
   /** The survivor, named in the warning so the direction is unmistakable. */
   keepName: string;
+  /** Full class list for the trigger — `menu-item` when it sits in an overflow. */
+  triggerClassName?: string;
 }) {
   const t = useTranslations('patients');
   const tc = useTranslations('common');
@@ -39,11 +42,11 @@ export function MergeDialog({
       cancelLabel={tc('cancel')}
       closeLabel={tc('close')}
       triggerTitle={t('merge')}
-      triggerClassName="btn btn-secondary"
+      triggerClassName={triggerClassName}
       trigger={
         <>
-          <Merge size={19} aria-hidden />
-          <span className="sr-only">{t('merge')}</span>
+          <Merge size={18} aria-hidden className="shrink-0" />
+          <span className={triggerClassName === 'menu-item' ? '' : 'sr-only'}>{t('merge')}</span>
         </>
       }
     >

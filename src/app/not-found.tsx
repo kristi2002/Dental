@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ClinicLogo } from '@/components/brand/ClinicLogo';
 import { routing } from '@/i18n/routing';
 import { poppins } from './fonts';
 import './globals.css';
@@ -13,6 +14,10 @@ export default function RootNotFound() {
       <body>
         <div className="flex min-h-screen items-center justify-center p-8">
           <div className="card max-w-lg p-8 text-center">
+            {/* Reached before any locale is known, so there is no name to write
+                and three languages to write it in. The mark says whose building
+                this is without picking one of them. */}
+            <ClinicLogo variant="brand" alt="" className="mx-auto mb-6 h-14 w-auto max-w-full" />
             <h1 className="text-3xl font-bold text-ink">404</h1>
             <p className="mt-2 text-[1.05rem] text-ink-soft">
               Kjo faqe nuk ekziston · This page does not exist · Questa pagina non esiste

@@ -7,7 +7,8 @@ import { ConditionPalette } from '@/components/dental/ConditionPalette';
 import { PerioFields } from '@/components/dental/PerioFields';
 import { PerioStrip } from '@/components/dental/PerioStrip';
 import { SurfaceTarget, SURFACE_UNMARKED } from '@/components/dental/SurfaceTarget';
-import { ToothDefs, ToothGlyph } from '@/components/dental/ToothGlyph';
+import { ToothDefs } from '@/components/dental/ToothDefsProvider';
+import { ToothGlyph } from '@/components/dental/ToothGlyph';
 import { SubmitButton } from '@/components/ui/SubmitButton';
 import { saveToothPerio, saveToothRecord, setToothCondition } from '@/lib/actions/patients';
 import { planStepForTooth } from '@/lib/actions/plans';
@@ -136,11 +137,32 @@ const STATUS_HUE: Record<ToothStatus, string> = {
  *  the legend has to show is legible on it. */
 const LEGEND_TOOTH = 16;
 
-/** One tooth is one cell wide on every row, so the arches stay in column. */
-const CELL = 'w-12 shrink-0';
+/**
+ * One tooth is one cell wide on every row, so the arches stay in column.
+ *
+ * The width itself lives in `--tooth-col` (`globals.css`, on `.odontogram`),
+ * and everything the arch is made of is derived from it: the quadrant is eight
+ * of these, the glyph box is one of these over the drawing's own aspect ratio.
+ * Three numbers that must agree, expressed once.
+ *
+ * That is not tidiness. `HALF` used to be a second hand-written constant that
+ * happened to equal eight cells, and nothing enforced it or could show it
+ * broken: both halves are `shrink-0` inside a `w-max` wrapper, so a `HALF`
+ * narrower than its cells overflows the *inline-start* edge — which a scroll
+ * container cannot scroll to — and the far molars are simply gone. Deriving it
+ * also gives print somewhere to stand: one variable to turn down, and the whole
+ * arch comes with it.
+ *
+ * The value is a good deal wider than it was. The drawing is modelled down to
+ * growth lines in the enamel and the shadow in a molar's furcation, and at the
+ * old size none of that survived — a tooth came out about thirty pixels across,
+ * and every bit of the modelling collapsed into a beige smudge. Detail that
+ * cannot be seen is not detail, it is cost.
+ */
+const CELL = 'w-(--tooth-col) shrink-0';
 /** Eight cells — a full permanent quadrant, and the width the shorter primary
  *  quadrants are padded to so every midline on the page lines up. */
-const HALF = 'w-96 shrink-0';
+const HALF = 'w-[calc(var(--tooth-col)*8)] shrink-0';
 
 /** Deep enough that one wrong click never costs an examination, short enough
  *  that the stack is not a second copy of the chart's history. */
@@ -516,6 +538,13 @@ export function DentalChart({
     onSelect: touch,
     highlight,
     numberLabel: label,
+    // The biting surface is the occlusal one on a tooth that grinds and the
+    // incisal one on a tooth that cuts, which is the same wedge with two names
+    // depending on where in the mouth it is.
+    surfaceLabel: (toothNum: number, surface: ToothSurface) =>
+      surface === 'O'
+        ? t(isAnterior(toothNum) ? 'surface_I' : 'surface_O')
+        : t(`surface_${surface}`),
     toothLabel: announce,
   };
 
@@ -524,7 +553,7 @@ export function DentalChart({
     // actually has depends on the sidebar and on the shell's padding, both of
     // which change at their own breakpoints, so a viewport width is the wrong
     // question to ask.
-    <div className="@container space-y-5">
+    <div className="odontogram @container space-y-5">
       <ToothDefs />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -566,18 +595,25 @@ export function DentalChart({
         </div>
       </div>
 
-      {/* The arches and the written record of them, side by side — but only
-          past the width where both fit whole. A permanent chart is two 24rem
-          quadrants and cannot shrink; with this panel at 18rem and a 1.5rem
-          gap the pair needs 68rem, and under that the panel goes beneath the
-          chart instead — the same information in one column. In rem, not
-          pixels, because the chart is measured in rem too: at a larger root
-          size both grow and the threshold has to grow with them.
+      {/* The arches, and the written record of them underneath.
+          
+          This used to be a two-column split above 68rem, with the panel beside
+          the chart. It cannot be any more, and the reason is arithmetic rather
+          than taste: the arch is two 34rem quadrants, and 68rem of arch plus an
+          18rem panel plus the gap needs 87.5rem of container, where the shell's
+          `max-w-6xl` can supply about 69rem. There is no viewport wide enough —
+          the cap binds before the window does.
 
-          Splitting sooner would buy the panel its place by turning the
-          odontogram into something you scroll, which is a bad trade — on this
-          screen the drawing is the interface. */}
-      <div className="grid gap-6 @min-[68rem]:grid-cols-[minmax(0,1fr)_18rem] @min-[68rem]:items-start">
+          It was left as a breakpoint at 88rem for a while, which was worse than
+          either answer: a condition that cannot fire reads like a layout that
+          exists, and the next person to touch it has to redo this arithmetic to
+          find out it does not. One column, stated plainly.
+
+          The alternative, if the panel is wanted back alongside, is to let the
+          chart page out of the shared measure rather than to shrink the teeth —
+          the drawing is the interface on this screen, and squeezing the
+          odontogram to buy a side panel its place is the wrong way round. */}
+      <div className="grid gap-6">
         <div className="min-w-0 space-y-5">
           {markError !== null ? (
             <p
@@ -601,7 +637,7 @@ export function DentalChart({
               {/* The upper arch's bottom edge and the midline are the same cyan,
                   and cross at the centre of the mouth — the reference point every
                   other tooth on the chart is read against. */}
-              <div className="border-b-2 border-cyan-400 pb-2">
+              <div className="border-b-4 border-cyan-400 pb-2">
                 <ArchRow upper right={PERMANENT_UPPER_RIGHT} left={PERMANENT_UPPER_LEFT} {...rowProps} />
                 {showPrimary ? (
                   <ArchRow upper primary right={PRIMARY_UPPER_RIGHT} left={PRIMARY_UPPER_LEFT} {...rowProps} />
@@ -1167,8 +1203,11 @@ function ChartFindings({
     .map((status) => ({ status, count: flagged.filter((f) => f.status === status).length }))
     .filter((row) => row.count > 0);
 
+  // Not sticky any more: it sits under the chart rather than beside it, and a
+  // panel that pins itself to the top of a column it is the only thing in just
+  // floats away from the arch it belongs to.
   return (
-    <aside className="overflow-hidden rounded-lg border border-line bg-paper @min-[68rem]:sticky @min-[68rem]:top-4">
+    <aside className="overflow-hidden rounded-lg border border-line bg-paper">
       <div className="border-b border-line px-4 py-3">
         <p className="flex items-center gap-2 text-[0.9rem] font-bold text-ink-faint uppercase">
           {perio ? <Activity size={17} aria-hidden /> : <Stethoscope size={17} aria-hidden />}
@@ -1411,7 +1450,7 @@ function ArchRow({
         ))}
       </div>
 
-      <div className="w-0.5 shrink-0 bg-cyan-400" role="presentation" />
+      <div className="w-1 shrink-0 bg-cyan-400" role="presentation" />
 
       <div className={cn(HALF, 'flex justify-start')}>
         {left.map((toothNum) => (
@@ -1443,6 +1482,8 @@ type ToothCellProps = {
   /** FDI or Universal, whichever the practice reads. */
   numberLabel: (toothNum: number) => string;
   toothLabel: (toothNum: number) => string;
+  /** What one wedge of the surface target is called, for its tooltip. */
+  surfaceLabel: (toothNum: number, surface: ToothSurface) => string;
 };
 
 function ToothCell({
@@ -1459,6 +1500,7 @@ function ToothCell({
   highlight = null,
   numberLabel,
   toothLabel,
+  surfaceLabel,
 }: ToothCellProps) {
   const condition = conditionOf(toothNum);
   const status = condition.status;
@@ -1474,8 +1516,15 @@ function ToothCell({
       className={cn(
         // A tooth is a long thin thing, so the glyph is given height rather
         // than width — it is the only dimension that makes the drawing bigger.
+        //
+        // Derived from the cell width over the drawing's own aspect, so the box
+        // is exactly the size of what lands in it. Any more is letterbox:
+        // `preserveAspectRatio` defaults to `meet`, so the surplus is split
+        // above and below and pushes the surface wheel and the tooth number
+        // away from the crown they belong to. `--tooth-glyph-h` carries the
+        // arithmetic; a milk tooth gets seven tenths of it, as it always did.
         'relative block w-full rounded-md transition-colors hover:bg-brand-soft/60',
-        primary ? 'h-14' : 'h-20',
+        primary ? 'h-[calc(var(--tooth-glyph-h)*0.7)]' : 'h-(--tooth-glyph-h)',
       )}
     >
       <ToothGlyph toothNum={toothNum} status={status} surfaces={marked} />
@@ -1503,11 +1552,12 @@ function ToothCell({
         <PerioStrip toothNum={toothNum} summary={perio} />
       </button>
     ) : (
-      <div className="mx-auto h-9 w-9">
+      <div className="mx-auto h-11 w-11">
         <SurfaceTarget
           toothNum={toothNum}
           readOnly={readOnly}
           fillOf={(surface) => surfaceFill(status, condition.surfaces, surface)}
+          labelOf={(surface) => surfaceLabel(toothNum, surface)}
           onSurfaceClick={(surface) => onSelect(toothNum, surface)}
         />
       </div>

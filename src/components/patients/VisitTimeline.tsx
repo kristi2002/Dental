@@ -1,6 +1,7 @@
 import { NotebookPen, Package, Pill, Stethoscope, Trash2 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { ToothDefs, ToothGlyph } from '@/components/dental/ToothGlyph';
+import { ToothDefs } from '@/components/dental/ToothDefsProvider';
+import { ToothGlyph } from '@/components/dental/ToothGlyph';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ActionForm } from '@/components/ui/ActionForm';

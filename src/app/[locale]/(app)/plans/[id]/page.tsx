@@ -144,6 +144,9 @@ export default async function PlanDetailPage({
       if (step.linked) continue;
       bookSlots[step.id] = (
         <AppointmentFormDialog
+          // See the practice-wide list: a server-built element lands in the
+          // step row's button list without a key of its own.
+          key={step.id}
           services={services}
           staff={staff}
           operatories={operatories}

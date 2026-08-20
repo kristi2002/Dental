@@ -1,10 +1,12 @@
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { SheetHead } from '@/components/brand/SheetHead';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PrintButton } from '@/components/prescriptions/PrintButton';
 import { recordView, requirePermission } from '@/lib/auth/guard';
 import { age } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
+import { getClinicProfile } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,13 +31,16 @@ export default async function PrescriptionSheet({
   const tp = await getTranslations('patients');
   const format = await getFormatter();
 
-  const prescription = await prisma.prescription.findUnique({
-    where: { id },
-    include: {
-      patient: { select: { firstName: true, lastName: true, dateOfBirth: true } },
-      issuedBy: { select: { firstName: true, lastName: true } },
-    },
-  });
+  const [prescription, profile] = await Promise.all([
+    prisma.prescription.findUnique({
+      where: { id },
+      include: {
+        patient: { select: { firstName: true, lastName: true, dateOfBirth: true } },
+        issuedBy: { select: { firstName: true, lastName: true } },
+      },
+    }),
+    getClinicProfile(),
+  ]);
   if (!prescription) notFound();
 
   await recordView(user, {
@@ -43,8 +48,6 @@ export default async function PrescriptionSheet({
     entityId: prescription.id,
     summary: `Opened a prescription for ${prescription.patient.firstName} ${prescription.patient.lastName}`,
   });
-
-  const clinicName = process.env.NEXT_PUBLIC_CLINIC_NAME ?? 'DentOrganizer';
 
   return (
     <div className="mx-auto max-w-[46rem]">
@@ -68,19 +71,15 @@ export default async function PrescriptionSheet({
       </div>
 
       <article className="card p-8 print:border-0 print:shadow-none">
-        <header className="flex items-start justify-between gap-6 border-b-2 border-line pb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-ink">{clinicName}</h1>
-            <p className="text-[1rem] text-ink-soft">{t('sheetTitle')}</p>
-          </div>
-          <p className="text-right text-[0.95rem] text-ink-soft">
-            {format.dateTime(prescription.createdAt, {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </p>
-        </header>
+        <SheetHead
+          profile={profile}
+          title={t('sheetTitle')}
+          meta={format.dateTime(prescription.createdAt, {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}
+        />
 
         <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[1.05rem]">
           <dt className="font-bold text-ink-faint">{t('sheetPatient')}</dt>
