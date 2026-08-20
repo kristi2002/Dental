@@ -331,10 +331,25 @@ model TreatmentPlan {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
+  /// When somebody last chased this course of treatment, and the day they said
+  /// they would chase it again.
+  ///
+  /// Stalled is derived — sixty quiet days and nothing booked — and it had
+  /// exactly two exits: do the work, or cancel the plan. Neither is what
+  /// actually happens when a patient is rung and says "after the summer", so
+  /// the list was worked by ticking off treatment nobody gave. `followUpOn`
+  /// is the third exit and the honest one: the plan stays open, stops
+  /// shouting, and comes back on the day it was promised for. See
+  /// `summarisePlan`.
+  lastContactedAt DateTime?
+  followUpOn      DateTime?
+
   steps TreatmentStep[]
 
   @@index([patientId])
   @@index([status])
+  /// The stalled tab reads this to find the plans whose promised day has come.
+  @@index([followUpOn])
 }
 
 enum TreatmentPlanStatus {
@@ -355,11 +370,23 @@ model TreatmentStep {
   status      TreatmentStepStatus @default(PENDING)
   completedAt DateTime?
 
+  /// The catalogue entry this step plans, when it came from one.
+  ///
+  /// The title alone is a snapshot of what somebody tapped, and it stays the
+  /// thing the row prints — renaming a treatment must not rewrite a plan
+  /// written months ago, for the same reason `Appointment.serviceName` is kept
+  /// beside `Appointment.serviceId`. What the id buys is the half a string
+  /// cannot answer: how long to leave in the diary when this step is booked,
+  /// and which planned treatments were actually delivered.
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
   /// Booking the step links it here, so "3 of 5 done" and the calendar agree.
   appointmentId String?      @unique
   appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@index([planId])
+  @@index([serviceId])
 }
 
 enum TreatmentStepStatus {
@@ -1033,6 +1060,9 @@ model Service {
   visits       VisitService[]
   appointments Appointment[]
   waitlist     WaitlistEntry[]
+  /// Steps that plan this treatment. Declared because Prisma requires both
+  /// sides; the plan reads its own `serviceId`, never this list.
+  planSteps    TreatmentStep[]
   /// Standard prescription wording written after this treatment.
   prescriptionTemplates PrescriptionTemplateService[]
 

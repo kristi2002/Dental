@@ -93,7 +93,14 @@ export function nextBooking<T extends ScheduledStep>(steps: readonly T[], now: D
  * not be tested and would drift from the copy of itself in the patient tab.
  */
 export function summarisePlan<T extends ScheduledStep>(
-  plan: { status: TreatmentPlanStatus; createdAt: Date; steps: readonly T[] },
+  plan: {
+    status: TreatmentPlanStatus;
+    createdAt: Date;
+    steps: readonly T[];
+    /** The day somebody promised to ring back. See `chasePlan`. */
+    followUpOn?: Date | null;
+    lastContactedAt?: Date | null;
+  },
   now: Date,
 ): {
   done: number;
@@ -102,6 +109,11 @@ export function summarisePlan<T extends ScheduledStep>(
   next: T | null;
   quietDays: number;
   stalled: boolean;
+  /** Parked until a promised day that has not arrived yet. */
+  snoozed: boolean;
+  followUpOn: Date | null;
+  /** Days until the promised day; negative once it has gone by. */
+  followUpDays: number | null;
 } {
   const { done, relevant, percent } = planProgress(plan.steps);
   const next = nextBooking(plan.steps, now);
@@ -125,24 +137,53 @@ export function summarisePlan<T extends ScheduledStep>(
     Math.floor((now.getTime() - lastActivity.getTime()) / MS_PER_DAY),
   );
 
+  // A promise to ring back on a given day, while that day is still ahead.
+  //
+  // This is the third state the list needed. Stalled asks "has anybody done
+  // anything", and a phone call is not something anybody can do *to a plan* —
+  // so a course of treatment chased this morning shouted exactly as loudly this
+  // afternoon, and the only ways to quieten it were to tick off treatment
+  // nobody gave or to cancel a plan the patient still means to finish. A parked
+  // plan stays open, stays counted, and comes back by itself on the day it was
+  // parked until.
+  const followUpOn = plan.followUpOn ?? null;
+  const followUpDays = followUpOn
+    ? Math.round((followUpOn.getTime() - now.getTime()) / MS_PER_DAY)
+    : null;
+  const snoozed = followUpOn !== null && followUpOn > now;
+
   return {
     done,
     relevant,
     percent,
     next,
     quietDays,
-    stalled: plan.status === TreatmentPlanStatus.ACTIVE && !next && quietDays >= STALLED_DAYS,
+    stalled:
+      plan.status === TreatmentPlanStatus.ACTIVE &&
+      !next &&
+      !snoozed &&
+      quietDays >= STALLED_DAYS,
+    snoozed,
+    followUpOn,
+    followUpDays,
   };
 }
 
 /**
  * Worst first: stalled before merely open, then longest-quiet first. A list that
  * opens on the plan least likely to be chased is the point of having one.
+ *
+ * A plan parked until a day still ahead goes to the bottom whatever its quiet
+ * count says — somebody has already dealt with it, and the promise they made is
+ * the reason it is quiet. It sorts *below* an ordinary open plan rather than
+ * merely below the stalled ones, because the one thing nobody needs to look at
+ * today is the plan with a note saying "September".
  */
 export function worstFirst(
-  a: { stalled: boolean; quietDays: number },
-  b: { stalled: boolean; quietDays: number },
+  a: { stalled: boolean; quietDays: number; snoozed?: boolean },
+  b: { stalled: boolean; quietDays: number; snoozed?: boolean },
 ): number {
   if (a.stalled !== b.stalled) return a.stalled ? -1 : 1;
+  if (Boolean(a.snoozed) !== Boolean(b.snoozed)) return a.snoozed ? 1 : -1;
   return b.quietDays - a.quietDays;
 }
