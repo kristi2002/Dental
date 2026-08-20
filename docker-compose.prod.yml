@@ -30,6 +30,14 @@ services:
       # Signs the staff session cookie. Rotating it logs everyone out; it must
       # never change casually, which is why Coolify generates and keeps it.
       AUTH_SECRET: ${SERVICE_PASSWORD_64_AUTHSECRET}
+      # What the jobs sidecar proves itself with. `/api/jobs/*` is reachable on
+      # the practice's domain like every other route, so this is the whole of
+      # the authority — and the app refuses every trigger when it is unset,
+      # rather than running them for anybody.
+      JOBS_SECRET: ${SERVICE_PASSWORD_64_JOBSSECRET}
+      # The sweep reports what it would delete and deletes nothing until this
+      # says otherwise. See `src/lib/jobs/registry.ts` for why it ships off.
+      JOBS_SWEEP_APPLY: ${JOBS_SWEEP_APPLY:-false}
       FILE_STORAGE_DIR: /data/patient-files
       # Where the backup sidecar writes down what it did. Read-only to the app,
       # which only ever reports it — see src/lib/backup-status.ts.
@@ -70,6 +78,23 @@ services:
   # page. This container dumps the database twice a day, copies the dump and the
   # patient files to a bucket in another country, and rehearses the restore every
   # Sunday. It serves nothing and listens on nothing.
+  # The clock. Holds no credential that reaches the database and no copy of the
+  # app — it waits, then asks the app to do the work. See `docker/jobs/`.
+  jobs:
+    build:
+      context: .
+      dockerfile: docker/jobs/Dockerfile
+    restart: unless-stopped
+    environment:
+      JOBS_SECRET: ${SERVICE_PASSWORD_64_JOBSSECRET}
+      JOBS_APP_URL: http://app:3000
+      # Sunday, a quarter past three — after the backup's own verify at 03:30
+      # would be worse, so it sits before it and competes with nothing.
+      SWEEP_SCHEDULE: ${SWEEP_SCHEDULE:-15 3 * * 0}
+      TZ: ${TZ:-Europe/Tirane}
+    depends_on:
+      - app
+
   backup:
     build:
       context: .

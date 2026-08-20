@@ -26,6 +26,13 @@ const SCHEMA = path.join(process.cwd(), 'prisma', 'schema.prisma');
 const NOT_EXPORTED = new Set([
   // Carried nested inside `plans` — see `NESTED` in the restore script.
   'TreatmentStep',
+  // When the weekly sweep last ran and what it found. Operational history of
+  // *this deployment*, not of the practice: a database restored onto a new
+  // server has a new clock, and carrying the old one's run log across would
+  // describe a machine that no longer exists. The rows are also worthless
+  // without the container that wrote them, which the backup does not carry
+  // either. See `src/lib/jobs/run.ts`.
+  'JobRun',
 ]);
 
 function block(source: string, name: string): string[] {

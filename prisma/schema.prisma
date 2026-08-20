@@ -1594,6 +1594,44 @@ model FollowUp {
   @@index([stockItemId])
 }
 
+/// One run of one scheduled job, whether it worked, and what it did.
+///
+/// The app is overwhelmingly "pull": almost everything it knows is derived at
+/// read time, which is why it needed no scheduler for so long. The few things
+/// that genuinely need a clock — see §6.4 of the blueprint — had nowhere to
+/// record that they had happened, and a job nobody can see the result of is a
+/// job nobody notices has been failing since March.
+///
+/// A table rather than the status file the backup sidecar writes, and
+/// deliberately: that container has no database driver and its whole subject is
+/// the filesystem, whereas these run inside the app, against this database,
+/// and are read by the same pages everything else is.
+model JobRun {
+  id String @id @default(uuid())
+
+  /// Which job — a key in `JOBS`, see `src/lib/jobs/registry.ts`. Not an enum:
+  /// a job removed from the registry should leave its history readable rather
+  /// than fail to load, which is the one thing an enum here would guarantee.
+  name String
+
+  startedAt  DateTime  @default(now())
+  /// Null while it is running, which is also how a crashed run is recognised:
+  /// nothing ever sets this except the runner's own `finally`.
+  finishedAt DateTime?
+
+  /// Null while running, then true or false. Tri-state on purpose — "did not
+  /// finish" is a different thing from "finished badly".
+  ok Boolean?
+
+  /// One line, for the log and for the screen: "9 orphans, 765 B".
+  summary String?
+  /// The failure, when there was one. Truncated by the runner.
+  error String?
+
+  /// Newest run of a given job is the question every reader asks.
+  @@index([name, startedAt])
+}
+
 /// A photograph, a scan or a PDF pinned to one follow-up.
 ///
 /// Deliberately its own table rather than a `PatientDocument` with a nullable
