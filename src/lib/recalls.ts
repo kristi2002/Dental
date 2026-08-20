@@ -61,7 +61,7 @@ function monthsBetween(from: Date, to: Date): number {
   return Math.max(0, to.getUTCDate() < from.getUTCDate() ? months - 1 : months);
 }
 
-type PatientForRecall = {
+export type PatientForRecall = {
   id: string;
   firstName: string;
   lastName: string;
@@ -125,9 +125,20 @@ const loadCandidates = cache(async (): Promise<PatientForRecall[]> => {
 });
 
 export async function getRecalls(): Promise<RecallRow[]> {
-  const now = today();
-  const patients = await loadCandidates();
+  return selectRecalls(await loadCandidates(), today());
+}
 
+/**
+ * Who is overdue, out of the people the query returned — the whole of the recall
+ * decision, with the database left outside.
+ *
+ * Split from `getRecalls` so it can be tested. Everything that makes this list
+ * wrong is a date comparison or an off-by-one at a boundary: the day a recall
+ * falls due, the day a cooldown lapses, the patient with no visits at all. None
+ * of that needs Postgres to be interesting, and none of it was covered while the
+ * only way in was an async function that opened a connection.
+ */
+export function selectRecalls(patients: PatientForRecall[], now: Date): RecallRow[] {
   const rows: RecallRow[] = [];
   for (const patient of patients) {
     // Opted out of being reminded that a check-up is due. Only this list.
@@ -166,9 +177,11 @@ export async function getRecalls(): Promise<RecallRow[]> {
 }
 
 export async function getFollowUps(): Promise<FollowUpRow[]> {
-  const now = today();
-  const patients = await loadCandidates();
+  return selectFollowUps(await loadCandidates(), today());
+}
 
+/** The follow-up decision, likewise without the database. See `selectRecalls`. */
+export function selectFollowUps(patients: PatientForRecall[], now: Date): FollowUpRow[] {
   const rows: FollowUpRow[] = [];
   for (const patient of patients) {
     const visit = patient.visitRecords[0];
