@@ -42,6 +42,45 @@ services:
       # Where the backup sidecar writes down what it did. Read-only to the app,
       # which only ever reports it — see src/lib/backup-status.ts.
       BACKUP_STATUS_DIR: /status
+
+      # --- Settings the practice makes, rather than this file ----------------
+      # Everything above is decided here. Everything below is decided in
+      # Coolify's environment editor — and has to be *named* here anyway,
+      # because a variable set there is handed to Compose, and Compose passes a
+      # service only what that service asks for. Left out, `MAIL_API_KEY` in
+      # Coolify is a value the app never sees, and the settings card goes on
+      # reporting "not configured" with nothing to say why.
+      #
+      # Each default below is what the app already does when nobody has set it,
+      # so an untouched deployment behaves exactly as it did.
+
+      # Sending email: all of MAIL_PROVIDER, MAIL_API_KEY and MAIL_FROM, or
+      # none of them. Unset, the send queue keeps opening a draft in whoever's
+      # mail client, which is a perfectly good way to run a practice. See
+      # src/lib/messages/email.ts and "Sending email" in docs/DEPLOYMENT.md.
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-}
+      MAIL_API_KEY: ${MAIL_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      # Optional, and the one option worth setting: without it a patient's
+      # answer to a reminder goes back to the no-reply address it came from.
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+
+      # The clinic's own wall clock. Every appointment day is stored at UTC
+      # midnight and read back against this — see src/lib/dates.ts. Its default
+      # matches the sidecars' TZ below, so the schedule and the calendar cannot
+      # disagree about which day it is; change both or neither.
+      CLINIC_TIME_ZONE: ${CLINIC_TIME_ZONE:-Europe/Tirane}
+      TZ: ${TZ:-Europe/Tirane}
+
+      # How long a reception machine may sit unattended before the session ends.
+      # See src/lib/auth/token.ts.
+      SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-15}
+
+      # The off switch for the schema sync the entrypoint runs at boot. Worth
+      # having reachable: holding a deploy back from a migration is exactly the
+      # decision somebody needs to make at short notice, from the UI, without
+      # editing this file. See docker/entrypoint.sh.
+      AUTO_DB_MIGRATE: ${AUTO_DB_MIGRATE:-true}
     volumes:
       # X-rays, photos and signed consent forms. The one piece of state Postgres
       # does not hold, and the one that no backup of the database would restore.
@@ -114,6 +153,12 @@ services:
       # is the half of it since the last copy, rather than all of it.
       BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2,13 * * *}
       VERIFY_SCHEDULE: ${VERIFY_SCHEDULE:-30 3 * * 0}
+      # Whether to take one copy immediately at boot rather than waiting for the
+      # first tick. On by default, because a stack that comes up at 14:00 would
+      # otherwise sit unprotected until 02:00 and nobody would learn until then
+      # whether any of this is configured right. Named here so it can be turned
+      # off — CI does, because that first run races the app's migrations.
+      BACKUP_ON_START: ${BACKUP_ON_START:-true}
       TZ: ${TZ:-Europe/Tirane}
       # The offsite copy. Unset, the container still runs and still dumps — but
       # to the same disk as the database it protects, and it says so loudly on

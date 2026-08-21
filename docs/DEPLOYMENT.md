@@ -51,6 +51,13 @@ which matters for `AUTH_SECRET`, because changing it signs every user out.
 Both volumes (`db-data`, `patient-files`) are declared in the compose file, so
 persistence is handled.
 
+Everything optional — the mail provider, the clinic's time zone, how long a
+session may idle — goes in Coolify's ordinary **Environment Variables**, and
+`docker-compose.prod.yml` names each one so it reaches the container. That
+naming is the part that matters: Compose hands a service only the variables the
+file asks for, so a variable set in Coolify but absent from the compose file is
+one the app never sees. If you add a setting the app reads, add it there too.
+
 ---
 
 ## Path B — Dockerfile plus Coolify's managed Postgres
@@ -66,6 +73,7 @@ Slightly more clicking, but you get Coolify's database backup UI.
    | --- | --- |
    | `DATABASE_URL` | the internal URL from step 1, with `?schema=public` |
    | `AUTH_SECRET` | 32+ random characters (see below) |
+   | `JOBS_SECRET` | 32+ random characters, different from the one above (see step 8) |
 
    ```bash
    node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
@@ -82,6 +90,48 @@ Slightly more clicking, but you get Coolify's database backup UI.
    check the first boot log if you are unsure.
 
 7. Deploy.
+
+8. **The schedule** — the step it is easiest not to notice is missing.
+
+   Path A deploys four containers; this one deploys the app on its own. The
+   `jobs` sidecar that asks the app to queue tomorrow's reminders, and the
+   `backup` sidecar that dumps the database, exist only in
+   `docker-compose.prod.yml`. Nothing here replaces them, and nothing on screen
+   says so: the app fails closed, so an unset `JOBS_SECRET` means every trigger
+   is refused, no reminders are ever queued, and the Messages page simply stays
+   empty as though the practice had a quiet week.
+
+   So set `JOBS_SECRET` above, then add two **Scheduled Tasks** to the
+   application in Coolify, both running in the `app` container:
+
+   | Frequency | Job |
+   | --- | --- |
+   | `0 18 * * *` | `queue-appointment-reminders` |
+   | `15 3 * * 0` | `sweep-orphan-files` |
+
+   The command, with the job name substituted in:
+
+   ```bash
+   node -e "fetch('http://127.0.0.1:3000/api/jobs/JOB_NAME',{method:'POST',headers:{'x-jobs-secret':process.env.JOBS_SECRET}}).then(async r=>{console.log(r.status,await r.text());process.exitCode=r.ok?0:1}).catch(e=>{console.error(e.message);process.exitCode=1})"
+   ```
+
+   `node`, not `curl`: the runtime image is Alpine and carries neither `curl`
+   nor a `wget` that can POST. The `.catch` is not decoration — without it an
+   app that is still starting produces an unhandled rejection and a stack trace
+   instead of one line saying it could not connect, and `process.exitCode`
+   rather than `process.exit()` lets the response finish being read first.
+
+   A 404 means the secret does not match. The route answers identically for an
+   unknown job and a wrong secret, on purpose, so a caller who cannot prove
+   itself learns nothing from the difference — which also means you cannot tell
+   the two apart from here. Check the secret first; it is almost always that.
+
+   Backups are the other half of what the sidecars did. Coolify's own database
+   backup covers Postgres; it does not copy `/data`, which is where the X-rays
+   are. [RESTORE.md](RESTORE.md) says what to do about that.
+
+   If both of these read as work you would rather not own, that is the honest
+   argument for Path A.
 
 ---
 

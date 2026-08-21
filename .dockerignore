@@ -28,9 +28,17 @@ next-env.d.ts
 .vscode/
 .idea/
 
-# Docs and local-only compose — not needed to build the app
+# Docs, tests and local-only compose — not needed to build the app.
+#
+# `tests/` is here for a reason beyond tidiness: patient files are read by a
+# path computed at runtime (src/lib/files.ts), so Next's tracer gives up on
+# working out what the server needs and copies the project root into the
+# standalone output. Anything left in the build context therefore ships inside
+# the image. Nothing here runs in production — `npm test` needs tsx, which the
+# runtime deliberately does not carry.
 README.md
 docs/
+tests/
 docker-compose.yml
 docker-compose.prod.yml
 

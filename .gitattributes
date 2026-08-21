@@ -5,3 +5,11 @@
 *.sh text eol=lf
 docker/* text eol=lf
 Dockerfile text eol=lf
+
+# And the ignore file, for a related reason with a worse ending. A CRLF
+# checkout on Windows leaves every pattern carrying a trailing carriage return,
+# so `storage/` matches nothing and the practice's radiographs go into the build
+# context — the one thing the first line of that file exists to prevent. The
+# Linux server checks out LF either way; this is for whoever builds the image on
+# their own machine to test it.
+.dockerignore text eol=lf

@@ -245,3 +245,153 @@ jobs:
       - name: Container logs
         if: always()
         run: docker logs dent-ci 2>&1 | tail -60 || true
+
+  # The stack, rather than the app on its own.
+  #
+  # `image` above proves the thing Coolify builds; this proves the thing Coolify
+  # *runs*. Until now neither `docker/jobs/Dockerfile` nor
+  # `docker/backup/Dockerfile` was built by anything, and `docker-compose.prod.yml`
+  # — the file the deployment is actually described by — was never brought up.
+  #
+  # The three assertions below are the ones that cannot be made against a single
+  # container: that a setting made outside the compose file reaches the process
+  # that reads it, that the clock and the app agree about a shared secret, and
+  # that the backup writes something the app can read back.
+  stack:
+    name: Compose stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Coolify generates the three SERVICE_* secrets, stores them, and injects
+      # them. A `.env` file stands in for that — and a file rather than exported
+      # shell variables on purpose, for two reasons: it is the form Coolify
+      # uses, and `docker compose` ignores `TZ` from the process environment
+      # while honouring it from here.
+      #
+      # `.env` is in `.dockerignore`, so none of this reaches a build context.
+      - name: Stand in for Coolify's generated secrets
+        run: |
+          cat > .env <<'ENV'
+          SERVICE_PASSWORD_POSTGRES=ci-postgres-password-guards-nothing
+          SERVICE_PASSWORD_64_AUTHSECRET=ci-auth-secret-never-signs-a-real-cookie
+          SERVICE_PASSWORD_64_JOBSSECRET=ci-jobs-secret-never-guards-a-real-clinic
+          MAIL_PROVIDER=brevo
+          MAIL_API_KEY=ci-not-a-real-key
+          MAIL_FROM="CI <no-reply@example.invalid>"
+          CLINIC_TIME_ZONE=Europe/Rome
+          ENV
+          echo "wrote .env with $(grep -c . .env) settings"
+
+      - name: Build every image in the stack
+        run: docker compose -f docker-compose.prod.yml build
+
+      # `--wait` returns when `db` and `app` report healthy and the two sidecars
+      # are up; a container that dies on the way takes this step down with it.
+      # The app's own health check has a 60s start period, hence the timeout.
+      - name: Bring the stack up
+        run: docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 300
+
+      # The check that would have caught a `MAIL_API_KEY` set in Coolify,
+      # accepted without complaint, and never seen by the process that reads it.
+      # Compose hands a service only the variables the file names, so this is
+      # really asking whether `services.app.environment` is still complete.
+      - name: Settings made outside the compose file must reach the app
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T app node -e '
+            const want = {
+              MAIL_PROVIDER: "brevo",
+              MAIL_API_KEY: "ci-not-a-real-key",
+              MAIL_FROM: "CI <no-reply@example.invalid>",
+              CLINIC_TIME_ZONE: "Europe/Rome",
+            };
+            let bad = 0;
+            for (const [key, expected] of Object.entries(want)) {
+              const got = process.env[key];
+              if (got === expected) { console.log(key + ": ok"); continue; }
+              console.error("::error::" + key + " did not reach the app container. Expected " +
+                JSON.stringify(expected) + ", got " + JSON.stringify(got) +
+                " — name it in services.app.environment in docker-compose.prod.yml.");
+              bad += 1;
+            }
+            process.exitCode = bad ? 1 : 0;
+          '
+
+      # The sidecar's whole authority is a shared secret, and the app answers
+      # 404 for one that does not match — deliberately indistinguishable from an
+      # unknown job name, which means nothing short of a real call can tell you
+      # the two halves agree. So this runs the real script, from the real
+      # container, over the real network.
+      - name: The jobs sidecar must be able to trigger a job
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T jobs \
+            /usr/local/bin/run-job.sh queue-appointment-reminders
+
+      # A dump nothing has read back is a file, not a backup. `run-backup.sh`
+      # makes that distinction itself, walking the archive's table of contents
+      # before accepting the dump, so what is asserted here is only that it
+      # said so in the form the app parses.
+      #
+      # Deliberately the copy taken at boot rather than one triggered by hand
+      # once everything has conveniently settled: `BACKUP_ON_START` is left at
+      # its default, so this is the run a real deployment gets. That makes it
+      # the regression test for the wait in `run-backup.sh` — this container
+      # waits for Postgres and not for the app, and without that wait the boot
+      # copy dumps a database mid-migration, finds no tables, and writes a
+      # failure. `up --wait` does not catch it, because that failure is
+      # deliberately non-fatal, so the status file is the only witness.
+      - name: The backup taken at boot must succeed
+        run: |
+          for _ in $(seq 1 40); do
+            if docker compose -f docker-compose.prod.yml exec -T backup \
+                 jq -e '.state == "ok" and .dump.bytes > 0' /status/backup.json >/dev/null 2>&1; then
+              docker compose -f docker-compose.prod.yml exec -T backup \
+                jq -c '{state, message, dump}' /status/backup.json
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::the backup taken at boot did not report success within 120s."
+          docker compose -f docker-compose.prod.yml exec -T backup \
+            sh -c 'cat /status/backup.json 2>/dev/null || echo "no status file"'
+          exit 1
+
+      # `backup-status` is mounted read-only into the app, and that mount is the
+      # only reason the Backups card can say anything at all. Written by root in
+      # one container and read by uid 1001 in another, which is exactly the kind
+      # of arrangement that works until somebody tidies a volume declaration.
+      - name: The app must be able to read the backup status back
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T app node -e '
+            const { readFileSync } = require("node:fs");
+            const status = JSON.parse(readFileSync(process.env.BACKUP_STATUS_DIR + "/backup.json", "utf8"));
+            console.log("state:", status.state, "-", status.dump.bytes, "bytes");
+            if (status.state !== "ok") {
+              console.error("::error::the app read the status file but it does not say ok.");
+              process.exitCode = 1;
+            }
+          '
+
+      # The entrypoint warns rather than fails when patient files are not on a
+      # mount, because a smoke test legitimately has no volume. Production is
+      # not a smoke test, and the warning is the only sign — so here the absence
+      # of it is the assertion.
+      - name: Patient files must be on a mounted volume
+        run: |
+          if docker compose -f docker-compose.prod.yml logs app | grep -q "NOT a mounted volume"; then
+            echo "::error::the app warned that its storage directory is not a mount — check the patient-files volume in docker-compose.prod.yml."
+            exit 1
+          fi
+          echo "no warning in the app log"
+
+      - name: Stack logs
+        if: always()
+        run: docker compose -f docker-compose.prod.yml logs --tail 100 || true
+
+      # `-v` because the volumes are this job's own and a runner that keeps them
+      # is a runner whose next run is not testing a fresh stack.
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v || true

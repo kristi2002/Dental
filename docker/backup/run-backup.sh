@@ -3,8 +3,10 @@
 # One backup run.
 #
 # Four steps, in this order, because each one is only worth doing if the one
-# before it worked:
+# before it worked — preceded by a wait, because none of them is worth doing
+# against a database the app has not finished building yet:
 #
+#   0. Wait until there is a schema to dump.
 #   1. Dump the database to a file.
 #   2. Prove the file is readable before anything relies on it.
 #   3. Copy both halves of the practice — the dump and the uploaded files —
@@ -155,6 +157,83 @@ libpq_url() {
 # rewriting above is skipped entirely.
 DB_URL="$(libpq_url "${BACKUP_DATABASE_URL:-${DATABASE_URL:-}}")"
 [ -n "$DB_URL" ] || fail "DATABASE_URL is not set."
+
+# --- 0. Wait until there is something to back up ----------------------------
+# This container waits for Postgres to accept connections. It does not wait for
+# the *app*, which is what actually creates the schema — and with
+# BACKUP_ON_START the first run of a new stack therefore happens seconds after
+# Postgres comes up, while the app is still replaying its migrations.
+#
+# Dumping then works perfectly and produces a valid dump of an empty database.
+# The readability check below counts tables, finds none, and reports "the dump
+# was written but pg_restore cannot read it" — which sounds like corruption, is
+# not, and lands the practice on `severity: critical` (see `assess()` in
+# src/lib/backup-status.ts: a run with no `lastSuccessAt` is the loudest state
+# the app has) until whichever scheduled run comes next quietly clears it.
+#
+# On a fresh deployment this is not a race that might be lost. It is one that
+# reliably is: the migrations take seconds and the dump takes none. So wait for
+# the schema instead of racing it.
+#
+# If it never arrives, that is worth the alarm — but it must be reported as
+# itself, which is the whole point of the change. An empty database after five
+# minutes means the app never got its schema, and the place to look is the app
+# container's log, not this one.
+
+# stdout: the number of the app's own tables. Returns non-zero if the database
+# could not be asked at all, so "not answering" and "answering, but empty" stay
+# distinguishable — telling somebody the app has no schema when really the
+# database is down would repeat the mistake this section exists to fix.
+SCHEMA_SQL="SELECT count(*) FROM pg_tables
+             WHERE schemaname = current_schema()
+               AND tablename <> '_prisma_migrations';"
+
+schema_probe() {
+  probe_output="$(psql "$DB_URL" -Atqc "$SCHEMA_SQL" 2>/dev/null)" || return 1
+
+  case "$probe_output" in
+    '' | *[!0-9]*) return 1 ;;
+  esac
+
+  printf '%s' "$probe_output"
+}
+
+SCHEMA_WAIT="${BACKUP_SCHEMA_WAIT_SECONDS:-300}"
+waited=0
+
+# Each branch carries its own remedy as well as its own reason. Naming the
+# wrong one is how this section's predecessor went wrong: "pg_restore cannot
+# read it" sent people looking for a corrupt file when the database was simply
+# empty, and telling somebody to read the app's migration log when the database
+# is unreachable would be the identical mistake wearing new words.
+while :; do
+  if probe="$(schema_probe)"; then
+    if [ "$probe" -gt 0 ]; then
+      if [ "$waited" -gt 0 ]; then
+        log "the schema appeared after ${waited}s — $probe tables"
+      fi
+      break
+    fi
+    reason="the database is up but has none of the app's tables"
+    waiting_for="the app to finish migrating"
+    remedy="If the app container is running, its log will say why its migrations did not apply."
+  else
+    reason="the database is not answering"
+    waiting_for="it to accept connections"
+    remedy="Check the db container: it is either still starting, or DATABASE_URL does not point at it."
+  fi
+
+  if [ "$waited" -ge "$SCHEMA_WAIT" ]; then
+    fail "$reason, and it has been ${SCHEMA_WAIT}s. Nothing was dumped, because there was nothing to dump. $remedy"
+  fi
+
+  if [ "$waited" -eq 0 ]; then
+    log "$reason — waiting up to ${SCHEMA_WAIT}s for $waiting_for"
+  fi
+
+  sleep 5
+  waited=$((waited + 5))
+done
 
 # --- 1. Dump ----------------------------------------------------------------
 # Custom format, not plain SQL: it is compressed, and `pg_restore` can rebuild
