@@ -194,15 +194,39 @@ if [ -n "${RESTIC_REPOSITORY:-}" ] && [ -n "${RESTIC_PASSWORD:-}" ]; then
   restic restore "$SNAPSHOT_ID" --target "$WORK_DIR" --include "$DUMP_DIR" \
     || fail "could not restore the dump from the repository."
 
-  DUMP_PATH="$(find "$WORK_DIR" -name '*.dump' -type f 2>/dev/null | LC_ALL=C sort | tail -1)"
+  DUMP_PATH="$(find "$WORK_DIR" \( -name '*.dump' -o -name '*.dump.age' \) -type f 2>/dev/null | LC_ALL=C sort | tail -1)"
 else
   log "no offsite repository configured — drilling against the local dump instead."
-  DUMP_PATH="$(find "$DUMP_DIR" -name '*.dump' -type f 2>/dev/null | LC_ALL=C sort | tail -1)"
+  DUMP_PATH="$(find "$DUMP_DIR" \( -name '*.dump' -o -name '*.dump.age' \) -type f 2>/dev/null | LC_ALL=C sort | tail -1)"
 fi
 
 [ -n "${DUMP_PATH:-}" ] || fail "no dump file to restore."
 DUMP_FILE="$(basename "$DUMP_PATH")"
 log "drilling with $DUMP_FILE"
+
+# An encrypted dump has to be opened before `pg_restore` can be pointed at it,
+# and opening it here is the point: this drill is the only thing that ever
+# proves BACKUP_LOCAL_KEY still matches the files it is supposed to open. A key
+# rotated without re-encrypting, or lost from the password manager, otherwise
+# surfaces on the worst possible day.
+#
+# The plaintext lands in $WORK_DIR, which the cleanup trap removes on every exit
+# path — the same place the restic restore already puts one.
+case "$DUMP_PATH" in
+  *.age)
+    [ -n "${BACKUP_LOCAL_KEY:-}" ] \
+      || fail "the newest dump is encrypted and BACKUP_LOCAL_KEY is not set — nothing here can open it."
+    log "decrypting"
+    mkdir -p "$WORK_DIR"
+    identity="$WORK_DIR/age.key"
+    ( umask 077; printf '%s\n' "$BACKUP_LOCAL_KEY" > "$identity" )
+    opened="$WORK_DIR/$(basename "${DUMP_PATH%.age}")"
+    age -d -i "$identity" -o "$opened" "$DUMP_PATH" \
+      || fail "could not decrypt $DUMP_FILE — BACKUP_LOCAL_KEY does not open it."
+    rm -f "$identity"
+    DUMP_PATH="$opened"
+    ;;
+esac
 
 # --- 2. Does it restore? ----------------------------------------------------
 

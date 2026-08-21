@@ -50,15 +50,25 @@ Twice a day rather than nightly because it costs almost nothing — restic
 deduplicates, so the second run of the day uploads only what changed — and it
 halves the worst case. A total loss at noon costs the morning, not the day.
 
+Alongside the dumps, the `db` service archives its write-ahead log continuously
+and each run takes a `pg_basebackup`. That is what closes the gap the schedule
+above still leaves: restoring a dump puts the practice back to 02:00 or 13:00,
+while replaying WAL onto a base backup puts it back to any minute you choose.
+The worst case falls from about eleven hours to about five —
+`archive_timeout` on the `db` service — and, more usefully day to day, it is
+the only thing that answers "undo the last twenty minutes". See
+[Rewinding the clock](#rewinding-the-clock).
+
 ---
 
-## The three secrets that must not live only on the server
+## The four secrets that must not live only on the server
 
 This is the single most important paragraph in this file.
 
 | Secret | Without it |
 | --- | --- |
 | `RESTIC_PASSWORD` | **The offsite backup is undecryptable noise.** Not "hard to read" — mathematically gone. |
+| `BACKUP_LOCAL_KEY` | The dumps on the server's own disk cannot be opened. The offsite copy still can. |
 | `AUTH_SECRET` | The restored app refuses to start. |
 | The Postgres password | The restored app cannot reach its own database. |
 
@@ -74,6 +84,31 @@ secret you do not have a copy of.
 ```bash
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
 ```
+
+`BACKUP_LOCAL_KEY` is an [age](https://age-encryption.org) identity and is
+generated the same way — once, kept off the server, then pasted into Coolify:
+
+```bash
+age-keygen
+```
+
+Paste the `AGE-SECRET-KEY-1…` line. The sidecar derives the public half itself,
+so there is only ever one string to look after.
+
+It seals the fortnight of dumps kept on the server's own disk. Those exist so a
+restore can be fast, and until this key existed they were compressed and nothing
+more — every patient record in the practice, in one file, readable by anyone who
+took the disk out of the machine or sent it away for repair. It is *not* a
+defence against somebody who already has root on the running server, since the
+key is in the sidecar's environment; full-disk encryption on the host is what
+covers that, and the two belong together.
+
+Losing this one is survivable in a way losing `RESTIC_PASSWORD` is not: the
+offsite copy is encrypted by restic with its own password and opens without it.
+You would lose only the fast local path. The Sunday drill opens a local dump
+every week, so a key that has been rotated without re-encrypting, or quietly
+lost, shows up as a failed drill on the Staff page rather than on the morning it
+is needed.
 
 ---
 
@@ -275,6 +310,20 @@ pg_restore --dbname="postgresql://dent:<password>@localhost:5432/dentorganizer_y
   --no-owner --no-privileges /tmp/r/backups/db/dentorganizer-<the one you want>.dump
 ```
 
+If the file ends in `.age` it is sealed with `BACKUP_LOCAL_KEY` and has to be
+opened first. Write the key to a file rather than passing it on the command
+line, where it would sit in the shell history:
+
+```bash
+( umask 077; printf '%s\n' "$BACKUP_LOCAL_KEY" > /tmp/age.key )
+age -d -i /tmp/age.key -o /tmp/r/opened.dump \
+  /tmp/r/backups/db/dentorganizer-<the one you want>.dump.age
+rm -f /tmp/age.key
+```
+
+Then point `pg_restore` at `/tmp/r/opened.dump` instead, and delete it when you
+are done — it is the practice in the clear.
+
 Then read what you need out of `dentorganizer_yesterday`, put it back by hand,
 and `dropdb` it. The application's own delete rules exist for a reason and a
 bulk copy would drive straight through them.
@@ -285,6 +334,78 @@ To reach further back than the local dumps, list what the repository holds:
 restic snapshots --host dentorganizer
 restic restore <snapshot-id> --target /tmp/r --include /backups/db
 ```
+
+### Rewinding the clock
+
+Use this when the problem is not a dead disk but a *mistake*: the wrong patient
+merged at 14:40, a bulk edit that went wrong, something noticed twenty minutes
+later. Restoring a dump would put the practice back to 02:00 and throw away the
+morning as well as the mistake.
+
+Two pieces make this possible, and they are different from the dump:
+
+| | What it is |
+| --- | --- |
+| `/backups/base/base-<stamp>` | A block-for-block copy of the cluster, taken with `pg_basebackup`. |
+| `/wal/*.gz` | Every write since, one gzipped segment at a time. |
+
+**A `pg_dump` cannot be rewound.** WAL replays onto the physical base backup
+only — that is why both exist.
+
+Resolution is `archive_timeout` on the `db` service, five minutes by default.
+Check the *Rewind* row on the Staff page before relying on it; if it says
+archiving has stopped, there is nothing to replay.
+
+```bash
+# 1. The newest base backup taken BEFORE the mistake. Not the newest overall —
+#    if a base ran after the damage, replaying onto it starts after it too.
+ls -la /backups/base/
+
+# 2. Unpack it somewhere new. Never over the live cluster.
+mkdir -p /tmp/rewind && chmod 700 /tmp/rewind
+tar xzf /backups/base/base-<the one you want>/base.tar.gz -C /tmp/rewind
+
+# 3. Tell it where the WAL is and when to stop. The time is the last moment you
+#    want to KEEP — a second before the mistake, not after it.
+cat >> /tmp/rewind/postgresql.conf <<'CONF'
+restore_command = 'gunzip -c /wal/%f.gz > %p'
+recovery_target_time = '2026-08-21 14:39:00+02'
+recovery_target_action = 'promote'
+CONF
+touch /tmp/rewind/recovery.signal
+
+# 4. Start it on a spare port and look before you leap.
+pg_ctl -D /tmp/rewind -o "-p 5434" start
+psql "postgresql://dent@localhost:5434/dentorganizer" -c 'SELECT count(*) FROM "Patient"'
+```
+
+Then copy what you need across by hand, exactly as in the section above, and
+`rm -rf /tmp/rewind` when you are done — it is a second complete copy of the
+practice sitting in `/tmp`.
+
+Recovery stops at the target and promotes, so the rewound cluster is writable
+and independent. It is a place to read from, not a replacement for the live
+database: swapping it in would discard every legitimate change made since the
+target, which is usually most of a working day.
+
+To rewind after the server itself is gone, restore the snapshot first — it
+carries `/backups/base` and `/wal` alongside the dumps — and point
+`restore_command` at wherever `restic restore` put the WAL.
+
+**If the disk starts filling.** Postgres keeps every WAL segment it has not
+managed to archive, for ever, by design. If `archive_command` is failing — a
+full `wal-archive` volume, a permissions change — that retention is what
+eventually stops the database. The immediate lever is to turn archiving off and
+get the practice running again:
+
+```bash
+docker compose exec db psql -U dent -c "ALTER SYSTEM SET archive_mode = off"
+docker compose restart db
+```
+
+That ends point-in-time recovery until it is fixed, and the dumps carry on
+regardless. Fix the underlying cause, then remove the override with
+`ALTER SYSTEM RESET archive_mode` and restart.
 
 ### A document will not open / files are missing
 

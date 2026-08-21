@@ -37,13 +37,13 @@ export function LanguageSwitcher({
       <Languages
         size={18}
         aria-hidden
-        className={cn('text-white/85', stacked ? 'hidden' : 'hidden sm:block')}
+        className={cn('text-white', stacked ? 'hidden' : 'hidden sm:block')}
       />
       <div
         role="group"
         aria-label={t('language')}
         className={cn(
-          'flex gap-0.5 rounded-lg border border-white/35 p-0.5',
+          'flex gap-0.5 rounded-lg border border-white/55 p-0.5',
           stacked ? 'flex-col' : 'w-full',
         )}
       >
@@ -62,7 +62,7 @@ export function LanguageSwitcher({
               compact ? 'flex-1' : 'md:px-2.5',
               locale === active
                 ? 'bg-white text-brand-deep'
-                : 'text-white/85 hover:bg-white/15 hover:text-white',
+                : 'text-white hover:bg-black/15',
             )}
           >
             {/* Three endonyms are ~230px wide — more than a phone masthead or a

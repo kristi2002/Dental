@@ -1,4 +1,12 @@
-import { CloudOff, CloudUpload, HardDrive, ShieldAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
+import {
+  CloudOff,
+  CloudUpload,
+  HardDrive,
+  History,
+  ShieldAlert,
+  ShieldCheck,
+  TriangleAlert,
+} from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -112,6 +120,31 @@ export async function BackupStatusCard({ status }: { status: BackupStatus }) {
 
           <Row label={t('patientFiles')}>
             {t('fileSummary', { count: run.files.count, size: formatBytes(run.files.bytes) })}
+          </Row>
+
+          {/* How far back the clock goes, as opposed to how recent the last
+              copy is. The row above answers "we can put the practice back to
+              02:00"; this one answers "we can put it back to 14:38", which is
+              the question asked after somebody deletes the wrong chart.
+
+              Three states, and the middle one is the point: a base backup with
+              no WAL beside it means archiving has stopped — there is no rewind
+              any more, and unarchived segments are accumulating on the
+              database's own disk. */}
+          <Row label={t('pointInTime')}>
+            {!run.pointInTime.base ? (
+              <span className="text-ink-faint">{t('pitNone')}</span>
+            ) : run.pointInTime.walSegments === 0 ? (
+              <span className="text-danger">{t('pitStalled')}</span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <History size={18} className="text-ok" aria-hidden />
+                {t('pitReady', {
+                  count: run.pointInTime.walSegments,
+                  size: formatBytes(run.pointInTime.walBytes + run.pointInTime.baseBytes),
+                })}
+              </span>
+            )}
           </Row>
 
           {/* The distinction the whole system turns on. A copy on the server's

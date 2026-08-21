@@ -261,7 +261,7 @@
    * densest part of the gradient and stays legible. Still worn by the signed-out
    * screens (login, setup, confirm) and by the phone top bar. */
   .app-header {
-    background-image: linear-gradient(100deg, #0b8f86 0%, #16a89d 46%, #3cc4b8 100%);
+    background-image: linear-gradient(100deg, #05534e 0%, #076c65 46%, #0a7d76 100%);
   }
 
   /* The rail is that same masthead stood on end: deep at the top, so the
@@ -269,9 +269,27 @@
    * thinned out by the time it reaches the account button at the foot.
    *
    * All of the app's colour is spent here, on the one column that is chrome.
-   * That is what buys the workspace beside it the right to stay white. */
+   * That is what buys the workspace beside it the right to stay white.
+   *
+   * **Both ramps were darkened, and the reason is worth keeping.** Every ink,
+   * brand and status token in this file was measured against the surface it
+   * actually sits on — `ink-faint` is 4.93:1 on white and 4.54:1 on `paper`,
+   * `brand-dark` is 4.73:1 for white button text. The teal chrome was the one
+   * thing nobody put a meter on, and it was the worst offender in the app: the
+   * old ramp ran #0b8f86 → #16a89d → #34bdb2, and since it gets *lighter*
+   * downward, white label text fell to 2.32:1 at the foot — where the account
+   * button is. With the `/85` those labels carried, 2.05:1. Every inactive nav
+   * row failed AA at every point on the rail, on the one column a receptionist
+   * reads all day, in an app whose whole brief is large type and high contrast.
+   *
+   * The ramp now runs 8.92:1 → 6.28:1 → 4.99:1 for pure white, so the *worst*
+   * point clears AA with margin, and the top-to-foot lightening the design is
+   * built around survives. Two things go with it and must stay: the labels are
+   * `text-white`, not `text-white/85`, and the hover and avatar washes are
+   * black rather than white — a white wash lightens the row it is meant to
+   * highlight and pushed it back under 4.5:1 no matter how dark the base got. */
   .app-rail {
-    background-image: linear-gradient(168deg, #0b8f86 0%, #16a89d 55%, #34bdb2 100%);
+    background-image: linear-gradient(168deg, #05534e 0%, #076c65 55%, #0a7d76 100%);
   }
 
   /* A flat spectrum rule under the masthead, teal walking round to peach.

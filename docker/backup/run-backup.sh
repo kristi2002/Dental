@@ -24,6 +24,22 @@ STATUS_DIR="${BACKUP_STATUS_DIR:-/status}"
 STATUS_FILE="$STATUS_DIR/backup.json"
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
 DUMP_DIR="$BACKUP_DIR/db"
+# The physical half, and the reason it exists.
+#
+# A `pg_dump` is a logical snapshot: it restores the practice as it stood at the
+# moment it ran, and nothing else. WAL cannot be replayed onto one — replay
+# needs the block-for-block copy `pg_basebackup` takes. So without this
+# directory, the archived WAL beside it would be a pile of files that look like
+# point-in-time recovery and are not.
+#
+# Together they answer different questions. The dump answers "put the practice
+# back"; the base plus the WAL answers "put the practice back to ten minutes
+# before somebody deleted the wrong chart", which is the failure a clinic
+# actually has.
+BASE_DIR="$BACKUP_DIR/base"
+# Where `archive_command` on the db container drops each finished WAL segment,
+# gzipped. Shared volume; this container only reads and prunes.
+WAL_DIR="${BACKUP_WAL_DIR:-/wal}"
 FILES_DIR="${FILE_STORAGE_DIR:-/data/patient-files}"
 
 KEEP_LOCAL_DAYS="${BACKUP_KEEP_LOCAL_DAYS:-14}"
@@ -51,6 +67,11 @@ FILE_BYTES=0
 OFFSITE=false
 SNAPSHOT_ID=""
 SNAPSHOT_COUNT=0
+BASE_NAME=""
+BASE_BYTES=0
+WAL_COUNT=0
+WAL_BYTES=0
+WAL_LATEST=""
 
 log() { echo "[backup] $*"; }
 
@@ -96,6 +117,11 @@ write_status() {
     --arg repository "${RESTIC_REPOSITORY:-}" \
     --arg snapshotId "$SNAPSHOT_ID" \
     --argjson snapshotCount "$SNAPSHOT_COUNT" \
+    --arg baseName "$BASE_NAME" \
+    --argjson baseBytes "$BASE_BYTES" \
+    --argjson walCount "$WAL_COUNT" \
+    --argjson walBytes "$WAL_BYTES" \
+    --arg walLatest "$WAL_LATEST" \
     '{
       state: $state,
       message: $message,
@@ -105,6 +131,13 @@ write_status() {
       durationSeconds: $durationSeconds,
       dump: { file: $dumpFile, bytes: $dumpBytes },
       files: { count: $fileCount, bytes: $fileBytes },
+      pointInTime: {
+        base: (if $baseName == "" then null else $baseName end),
+        baseBytes: $baseBytes,
+        walSegments: $walCount,
+        walBytes: $walBytes,
+        newestSegment: (if $walLatest == "" then null else $walLatest end)
+      },
       offsite: {
         configured: $offsiteConfigured,
         repository: $repository,
@@ -191,15 +224,127 @@ log "checking the dump is readable"
 entries="$(pg_restore --list "$dump_partial" 2>/dev/null | grep -c 'TABLE DATA' || true)"
 [ "${entries:-0}" -gt 0 ] || fail "the dump was written but pg_restore cannot read it."
 
-mv -f "$dump_partial" "$dump_path"
+# --- 3. Encrypt what stays on this disk -------------------------------------
+# The check above had to run on the plaintext — `pg_restore --list` cannot read
+# a sealed file, and proving the dump is readable is the whole difference
+# between a backup and a file. So the order is: dump, prove, seal, and the
+# plaintext never exists under its final name.
+#
+# `age` with a public recipient. The identity that opens it is derived from
+# BACKUP_LOCAL_KEY at boot (see entrypoint.sh); without that key these files are
+# bytes, which is the point when the disk leaves the building.
+if [ -n "${BACKUP_LOCAL_RECIPIENT:-}" ]; then
+  log "encrypting the dump"
+  age -r "$BACKUP_LOCAL_RECIPIENT" -o "$dump_partial.age" "$dump_partial" \
+    || fail "could not encrypt the dump — refusing to keep it in the clear."
+  # Only once the sealed copy exists. A crash between these two lines leaves a
+  # .partial and a .partial.age, both swept below, and no plaintext under a name
+  # the retention pass would faithfully keep for a fortnight.
+  rm -f "$dump_partial"
+  DUMP_NAME="$DUMP_NAME.age"
+  dump_path="$DUMP_DIR/$DUMP_NAME"
+  mv -f "$dump_partial.age" "$dump_path"
+else
+  mv -f "$dump_partial" "$dump_path"
+fi
+
 DUMP_BYTES="$(stat -c %s "$dump_path")"
 log "wrote $DUMP_NAME ($DUMP_BYTES bytes, $entries tables)"
 
 # --- Local retention --------------------------------------------------------
-find "$DUMP_DIR" -name '*.dump' -type f -mtime "+$KEEP_LOCAL_DAYS" -delete 2>/dev/null || true
+# Both shapes: a practice that turns encryption on still has a fortnight of
+# plaintext dumps behind it, and those must age out rather than live forever
+# because the glob stopped matching them.
+find "$DUMP_DIR" \( -name '*.dump' -o -name '*.dump.age' \) -type f -mtime "+$KEEP_LOCAL_DAYS" -delete 2>/dev/null || true
 # A run interrupted before the rename leaves one of these behind. Nothing else
 # would ever clean it up, and it is a whole dump's worth of disk.
-find "$DUMP_DIR" -name '.*.partial' -type f -mtime +1 -delete 2>/dev/null || true
+# `.partial.age` as well as `.partial` — the sealing step above writes one of
+# each and a crash between them leaves either behind. The plaintext one is the
+# reason this is not merely tidiness: it is a whole dump of the practice, under
+# a name nothing else would ever look at.
+find "$DUMP_DIR" \( -name '.*.partial' -o -name '.*.partial.age' \) -type f -mtime +1 -delete 2>/dev/null || true
+
+# --- 4. The base backup, and the WAL that turns it into a clock --------------
+#
+# Everything above restores the practice to 02:00, or to 13:00. That is a
+# recovery point objective of up to eleven hours, and eleven hours of a working
+# surgery is a morning of appointments, notes and payments typed in twice —
+# assuming anybody can remember them.
+#
+# This is the other half. `pg_basebackup` takes a block-for-block copy; the db
+# container's `archive_command` drops every finished WAL segment into $WAL_DIR
+# as it is completed. Restoring the base and replaying WAL up to a chosen
+# instant is point-in-time recovery, and it moves the worst case from eleven
+# hours to about five minutes — `archive_timeout` on the db service.
+#
+# It is also the only thing that answers "undo the last twenty minutes", which
+# is a far more common disaster in a clinic than a dead disk: somebody deletes
+# the wrong patient at 14:40 and it is noticed at 15:00.
+#
+# Skipped, with a warning rather than a failure, when the WAL directory is not
+# mounted — a stack deployed before this existed still backs up exactly as well
+# as it did before, it simply cannot rewind.
+
+if [ -d "$WAL_DIR" ]; then
+  mkdir -p "$BASE_DIR"
+  BASE_NAME="base-$stamp"
+  base_partial="$BASE_DIR/.$BASE_NAME.partial"
+  base_path="$BASE_DIR/$BASE_NAME"
+
+  log "taking a base backup"
+  rm -rf "$base_partial"
+  # `-Xnone`: do not bundle WAL into the base. The archive is the source of
+  # truth for WAL and bundling it as well would store every segment twice.
+  # `-Ft -z`: one compressed tarball per tablespace, which is what makes a
+  # 36 MB cluster a 4 MB file.
+  if pg_basebackup --dbname="$DB_URL" --pgdata="$base_partial" \
+       --format=tar --gzip --wal-method=none --no-password 2>&1 | tail -2; then
+    mv -f "$base_partial" "$base_path"
+    BASE_BYTES="$(du -sb "$base_path" 2>/dev/null | cut -f1)"
+    BASE_BYTES="${BASE_BYTES:-0}"
+    log "wrote $BASE_NAME ($BASE_BYTES bytes)"
+  else
+    rm -rf "$base_partial"
+    BASE_NAME=""
+    # A warning, not a `fail`. The dump above already succeeded and is the copy
+    # that puts the practice back; losing the ability to rewind is worse than
+    # nothing and much better than discarding a good dump over it.
+    log "WARNING: pg_basebackup failed — this run has a dump but no rewind point."
+  fi
+
+  # Retention. WAL older than the oldest base backup we still keep can never be
+  # replayed onto anything and is pure disk. The margin is deliberate: two days
+  # beyond the base retention, because deleting a segment that some base still
+  # needs turns that base into a coaster, and disk is cheaper than that mistake.
+  #
+  # (`pg_archivecleanup` would cut this exactly, keyed off the oldest base's
+  # start segment. By age is coarser, safer to reason about, and — at roughly
+  # 16 KB per idle segment — costs a few tens of megabytes.)
+  find "$BASE_DIR" -maxdepth 1 -name 'base-*' -type d -mtime "+$KEEP_LOCAL_DAYS" -exec rm -rf {} + 2>/dev/null || true
+  find "$BASE_DIR" -maxdepth 1 -name '.*.partial' -type d -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+  find "$WAL_DIR" -name '*.gz' -type f -mtime "+$(( KEEP_LOCAL_DAYS + 2 ))" -delete 2>/dev/null || true
+  # A segment whose archive_command died between gzip and mv.
+  find "$WAL_DIR" -name '*.tmp' -type f -mtime +1 -delete 2>/dev/null || true
+
+  WAL_COUNT="$(find "$WAL_DIR" -name '*.gz' -type f 2>/dev/null | wc -l | tr -d ' \n')"
+  WAL_BYTES="$(( $(du -sk "$WAL_DIR" 2>/dev/null | cut -f1 || echo 0) * 1024 ))"
+  WAL_LATEST="$(find "$WAL_DIR" -name '*.gz' -type f 2>/dev/null | LC_ALL=C sort | tail -1 | xargs -r basename 2>/dev/null || echo '')"
+  log "wal archive: $WAL_COUNT segments, $WAL_BYTES bytes, newest ${WAL_LATEST:-none}"
+
+  # The one number worth shouting about. If `archive_command` starts failing,
+  # Postgres keeps every segment it has not archived — for ever, by design — and
+  # the disk the live database sits on fills. That is the failure mode this
+  # feature brings with it, and it deserves to be visible before it is fatal.
+  if [ "${WAL_COUNT:-0}" -eq 0 ]; then
+    log "WARNING: the WAL archive is empty. Either archive_mode is off on the db"
+    log "         service, or archive_command cannot write to $WAL_DIR. There is"
+    log "         no point-in-time recovery until that is fixed, and unarchived"
+    log "         WAL accumulates on the database's own disk."
+  fi
+else
+  log "no WAL archive at $WAL_DIR — point-in-time recovery is not configured."
+  log "See 'Rewinding the clock' in docs/RESTORE.md."
+fi
 
 # --- The other half ---------------------------------------------------------
 # X-rays, clinical photographs and signed consent forms. No dump of the database
@@ -232,13 +377,20 @@ if [ -n "${RESTIC_REPOSITORY:-}" ] && [ -n "${RESTIC_PASSWORD:-}" ]; then
   # this database *and* the files it refers to. Splitting them across two
   # snapshots invites a restore that pairs Tuesday's records with Monday's
   # radiographs, which is a subtler kind of data loss and a harder one to spot.
-  if [ -d "$FILES_DIR" ]; then
-    restic backup --host "$BACKUP_HOST" --tag dentorganizer "$DUMP_DIR" "$FILES_DIR" \
-      || fail "restic backup failed — see the log above."
-  else
-    restic backup --host "$BACKUP_HOST" --tag dentorganizer "$DUMP_DIR" \
-      || fail "restic backup failed — see the log above."
-  fi
+  # Built as a list so the base backup and the WAL archive join the snapshot
+  # only when they exist. A snapshot that names a missing path is a failed
+  # backup, and a stack deployed before point-in-time recovery existed still
+  # has neither.
+  set -- "$DUMP_DIR"
+  [ -d "$BASE_DIR" ] && set -- "$@" "$BASE_DIR"
+  # The WAL goes offsite too. Without it the bucket holds a base backup that can
+  # only ever be restored to the instant it was taken — the rewind would work on
+  # this server and not after the fire, which is the one case it is for.
+  [ -d "$WAL_DIR" ] && set -- "$@" "$WAL_DIR"
+  [ -d "$FILES_DIR" ] && set -- "$@" "$FILES_DIR"
+
+  restic backup --host "$BACKUP_HOST" --tag dentorganizer "$@" \
+    || fail "restic backup failed — see the log above."
 
   SNAPSHOT_ID="$(restic snapshots --host "$BACKUP_HOST" --latest 1 --json 2>/dev/null | jq -r '.[0].short_id // ""')"
   SNAPSHOT_COUNT="$(restic snapshots --host "$BACKUP_HOST" --json 2>/dev/null | jq 'length')"

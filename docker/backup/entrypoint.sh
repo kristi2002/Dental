@@ -50,6 +50,37 @@ else
   log "==============================================================="
 fi
 
+# --- The local copy, at rest ------------------------------------------------
+# The offsite copy is encrypted by restic before it leaves the building. The
+# fortnight of dumps in $BACKUP_DIR/db was not encrypted at all — compressed,
+# which is not the same thing — and each one holds every patient record, every
+# visit, every prescription and the staff PIN hashes.
+#
+# What this protects against is honest to state: a disk pulled out of a clinic
+# mini-PC, a volume copied off, a machine sent away for repair or sold. It is
+# not a defence against somebody who already has root on the running host, since
+# the key is in this container's environment; that is what full-disk encryption
+# on the host is for, and the two are worth having together.
+if [ -n "${BACKUP_LOCAL_KEY:-}" ]; then
+  case "$BACKUP_LOCAL_KEY" in
+    AGE-SECRET-KEY-1*) ;;
+    *) fail "BACKUP_LOCAL_KEY does not look like an age identity (AGE-SECRET-KEY-1...). Generate one with 'age-keygen' — see docs/RESTORE.md." ;;
+  esac
+  # Derived rather than configured separately: one secret to store, and the
+  # recipient can never drift from the identity that has to open it.
+  BACKUP_LOCAL_RECIPIENT="$(printf '%s\n' "$BACKUP_LOCAL_KEY" | age-keygen -y 2>/dev/null)" \
+    || fail "BACKUP_LOCAL_KEY is not a usable age identity."
+  export BACKUP_LOCAL_RECIPIENT
+  log "local dumps: encrypted to ${BACKUP_LOCAL_RECIPIENT}"
+else
+  log "=========================== WARNING ==========================="
+  log "BACKUP_LOCAL_KEY is not set. The dumps kept in $BACKUP_DIR/db"
+  log "are written in the clear: every patient record, in one file,"
+  log "readable by anyone who takes the disk. Generate a key with"
+  log "'age-keygen' and set it. See docs/RESTORE.md."
+  log "==============================================================="
+fi
+
 # --- Environment for the cron jobs -----------------------------------------
 # busybox crond hands a job a near-empty environment: no DATABASE_URL, no
 # credentials, nothing. Snapshotting it here and sourcing it in each job is the

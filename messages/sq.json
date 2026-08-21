@@ -1440,7 +1440,11 @@
       "action": "Shiko gjendjen e rezervimit",
       "localOnly": "Rezervimet po qëndrojnë në këtë server. Asgjë nuk po kopjohet jashtë tij.",
       "failing": "Ekzekutimi i fundit i rezervimit dështoi."
-    }
+    },
+    "pointInTime": "Kthim në një çast",
+    "pitNone": "I pakonfiguruar",
+    "pitStalled": "Arkivimi është ndalur",
+    "pitReady": "{count, plural, one {# segment} other {# segmente}} · {size}"
   },
   "jobStatus": {
     "title": "Detyrat e planifikuara",

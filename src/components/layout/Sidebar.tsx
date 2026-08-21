@@ -119,7 +119,7 @@ function RailRow({
     // A solid white tab, not tinted text — the current screen has to be
     // findable without relying on colour alone, and white is what ties the
     // rail to the page beside it.
-    active ? 'bg-surface text-brand-deep' : 'text-white/85 hover:bg-white/15 hover:text-white',
+    active ? 'bg-surface text-brand-deep' : 'text-white hover:bg-black/15',
   );
 
   const content = (
@@ -491,7 +491,7 @@ export function Sidebar({
               <span className="block truncate text-[1rem] leading-tight font-bold tracking-tight text-white">
                 {clinicName}
               </span>
-              <span className="block truncate text-[0.76rem] text-white/85">
+              <span className="block truncate text-[0.76rem] text-white">
                 {tApp('tagline')}
               </span>
             </span>

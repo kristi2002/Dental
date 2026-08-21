@@ -1440,7 +1440,11 @@
       "action": "Check backup status",
       "localOnly": "Backups are staying on this server. Nothing is being copied offsite.",
       "failing": "The last backup run failed."
-    }
+    },
+    "pointInTime": "Rewind",
+    "pitNone": "Not configured",
+    "pitStalled": "Archiving has stopped",
+    "pitReady": "{count, plural, one {# segment} other {# segments}} · {size}"
   },
   "jobStatus": {
     "title": "Scheduled jobs",

@@ -75,7 +75,7 @@ export function UserMenu({
       >
         <span
           aria-hidden
-          className="grid size-8 shrink-0 place-items-center rounded-full bg-white/20 text-[0.85rem] font-bold text-white"
+          className="grid size-8 shrink-0 place-items-center rounded-full bg-black/20 text-[0.85rem] font-bold text-white"
         >
           {initials(firstName, lastName)}
         </span>
@@ -87,11 +87,11 @@ export function UserMenu({
               <span className="block truncate text-[0.92rem] leading-tight font-bold text-white">
                 {firstName} {lastName}
               </span>
-              <span className="block truncate text-[0.78rem] leading-tight text-white/85">
+              <span className="block truncate text-[0.78rem] leading-tight text-white">
                 {tr(role)}
               </span>
             </span>
-            <ChevronDown size={16} aria-hidden className="shrink-0 text-white/85" />
+            <ChevronDown size={16} aria-hidden className="shrink-0 text-white" />
           </>
         )}
       </button>

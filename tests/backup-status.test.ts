@@ -38,6 +38,13 @@ function run(overrides: Partial<BackupRun> = {}): BackupRun {
     durationSeconds: 12,
     dump: { file: 'dentorganizer-20260820-020000.dump', bytes: 1024 },
     files: { count: 10, bytes: 2048 },
+    pointInTime: {
+      base: 'base-20260820-020000',
+      baseBytes: 4096,
+      walSegments: 7,
+      walBytes: 163_840,
+      newestSegment: '000000010000000000000008.gz',
+    },
     offsite: { configured: true, repository: 's3:example/bucket', snapshotId: 'ab12cd34', snapshotCount: 30 },
     ...overrides,
   };
@@ -161,6 +168,31 @@ describe('assess — which sentence to say', () => {
 describe('parseRun', () => {
   it('is null when there is no file', () => {
     assert.equal(parseRun(null), null);
+  });
+
+  it('reads the point-in-time block', () => {
+    const parsed = parseRun({
+      state: 'ok',
+      pointInTime: {
+        base: 'base-20260820-020000',
+        baseBytes: 4_612_645,
+        walSegments: 7,
+        walBytes: 163_840,
+        newestSegment: '000000010000000000000008.gz',
+      },
+    });
+    assert.equal(parsed?.pointInTime.base, 'base-20260820-020000');
+    assert.equal(parsed?.pointInTime.walSegments, 7);
+    assert.equal(parsed?.pointInTime.newestSegment, '000000010000000000000008.gz');
+  });
+
+  it('reports a stack with no rewind as absent rather than broken', () => {
+    // A status file written before point-in-time recovery existed has no
+    // `pointInTime` at all, and must not read as "archiving has failed".
+    const parsed = parseRun({ state: 'ok' });
+    assert.equal(parsed?.pointInTime.base, null);
+    assert.equal(parsed?.pointInTime.walSegments, 0);
+    assert.equal(parsed?.pointInTime.newestSegment, null);
   });
 
   /**

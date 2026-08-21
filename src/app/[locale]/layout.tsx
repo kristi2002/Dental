@@ -20,7 +20,7 @@ export function generateStaticParams() {
  * hand a browser a CSS variable here.
  */
 export const viewport: Viewport = {
-  themeColor: '#0b8f86',
+  themeColor: '#05534e',
 };
 
 export async function generateMetadata({

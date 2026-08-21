@@ -19,7 +19,11 @@ FROM postgres:17-alpine
 #          concatenation in a shell script is how a status file ends up
 #          unparseable on exactly the run that failed.
 # tzdata — the schedule is written in the clinic's hours, not UTC.
-RUN apk add --no-cache restic jq ca-certificates tzdata
+# age    — seals the dumps that stay on this disk. restic protects the copy that
+#          leaves the building; until this was added the fortnight kept locally
+#          was compressed and nothing more, and each file is every patient
+#          record in the practice.
+RUN apk add --no-cache restic jq ca-certificates tzdata age
 
 COPY docker/backup/entrypoint.sh /usr/local/bin/backup-entrypoint.sh
 COPY docker/backup/run-backup.sh /usr/local/bin/run-backup.sh

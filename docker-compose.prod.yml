@@ -153,6 +153,41 @@ services:
       POSTGRES_DB: dentorganizer
     volumes:
       - db-data:/var/lib/postgresql/data
+      # Finished WAL segments, written here as they complete. The backup sidecar
+      # reads and prunes them; nothing else touches this.
+      - wal-archive:/wal
+    # Continuous archiving, which is what turns "restore to 02:00" into "restore
+    # to 14:38".
+    #
+    # The `sh -c` wrapper exists for one reason: a named volume mounted at a path
+    # the image does not contain is created root-owned, and `archive_command`
+    # runs as the `postgres` user. So the directory is claimed while this is
+    # still root, and `docker-entrypoint.sh` drops privileges as usual.
+    #
+    # `archive_command` gzips: an idle clinic still switches a segment every
+    # `archive_timeout`, and a 16 MB segment holding nothing compresses to about
+    # 16 KB. That is the difference between ~4.6 GB and ~4.6 MB a day, and it is
+    # what makes a five-minute recovery point affordable on a mini-PC.
+    #
+    # It writes to `.tmp` and renames, so a segment interrupted half-written is
+    # never mistaken for an archived one — and it refuses to overwrite a segment
+    # already archived, which is what Postgres requires of a correct
+    # `archive_command`.
+    #
+    # **The failure mode to know about**: if archiving keeps failing, Postgres
+    # retains every unarchived segment on `db-data` — by design, for ever — and
+    # eventually fills the disk. The sidecar reports the archive's size and
+    # shouts when it is empty; see 'Rewinding the clock' in docs/RESTORE.md for
+    # the lever if it ever comes to that.
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /wal && chown postgres:postgres /wal
+        exec docker-entrypoint.sh postgres \
+          -c archive_mode=on \
+          -c archive_command='test ! -f /wal/%f.gz && gzip -c %p > /wal/%f.gz.tmp && mv /wal/%f.gz.tmp /wal/%f.gz' \
+          -c archive_timeout=300
     healthcheck:
       # The app's entrypoint pushes the schema before serving, so it must not
       # start until Postgres is actually accepting connections.
@@ -212,6 +247,11 @@ services:
       # every boot. See docs/RESTORE.md for creating the bucket and the keys.
       RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
       RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      # Seals the dumps kept on this server's own disk — the copy restic never
+      # sees. An age identity, generated once with `age-keygen`; the container
+      # derives the public half itself. Unset, the local dumps are written in
+      # the clear and the sidecar says so on every boot. See docs/RESTORE.md.
+      BACKUP_LOCAL_KEY: ${BACKUP_LOCAL_KEY:-}
       AWS_ACCESS_KEY_ID: ${BACKUP_S3_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_APPLICATION_KEY:-}
       BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-14}
@@ -231,6 +271,10 @@ services:
       - patient-files:/data:ro
       - backup-local:/backups
       - backup-status:/status
+      # Read-write, because pruning is this container's job: WAL older than the
+      # oldest base backup can never be replayed onto anything, and left alone
+      # it is the thing that fills the disk.
+      - wal-archive:/wal
     depends_on:
       db:
         condition: service_healthy
@@ -250,3 +294,7 @@ volumes:
   # One small JSON file per script, so the app can put "last backed up 6 hours
   # ago" on screen instead of the clinic finding out in a year.
   backup-status:
+  # Every finished WAL segment, gzipped. With the base backups in `backup-local`
+  # this is what makes recovery to a chosen minute possible rather than recovery
+  # to whenever the last dump happened to run.
+  wal-archive:

@@ -64,6 +64,25 @@ export type BackupRun = {
   durationSeconds: number;
   dump: { file: string; bytes: number };
   files: { count: number; bytes: number };
+  /**
+   * The rewind, when the stack has one.
+   *
+   * `base` is the physical copy WAL is replayed *onto* — a `pg_dump` cannot be
+   * replayed onto, which is why this is separate from `dump` above rather than
+   * a field on it. `walSegments` at zero with a base present is the state worth
+   * noticing: archiving has stopped, there is no point-in-time recovery, and
+   * unarchived WAL is piling up on the database's own disk.
+   *
+   * Null throughout on a stack deployed before this existed, which reports as
+   * "not configured" rather than as a fault.
+   */
+  pointInTime: {
+    base: string | null;
+    baseBytes: number;
+    walSegments: number;
+    walBytes: number;
+    newestSegment: string | null;
+  };
   offsite: {
     configured: boolean;
     repository: string;
@@ -139,6 +158,7 @@ export function parseRun(raw: Record<string, unknown> | null): BackupRun | null 
   const dump = (raw.dump ?? {}) as Record<string, unknown>;
   const files = (raw.files ?? {}) as Record<string, unknown>;
   const offsite = (raw.offsite ?? {}) as Record<string, unknown>;
+  const pointInTime = (raw.pointInTime ?? {}) as Record<string, unknown>;
 
   return {
     // Anything that is not literally "ok" is treated as a failure. A status
@@ -150,6 +170,13 @@ export function parseRun(raw: Record<string, unknown> | null): BackupRun | null 
     durationSeconds: asNumber(raw.durationSeconds),
     dump: { file: asString(dump.file), bytes: asNumber(dump.bytes) },
     files: { count: asNumber(files.count), bytes: asNumber(files.bytes) },
+    pointInTime: {
+      base: asString(pointInTime.base) || null,
+      baseBytes: asNumber(pointInTime.baseBytes),
+      walSegments: asNumber(pointInTime.walSegments),
+      walBytes: asNumber(pointInTime.walBytes),
+      newestSegment: asString(pointInTime.newestSegment) || null,
+    },
     offsite: {
       configured: offsite.configured === true,
       repository: asString(offsite.repository),

@@ -1440,7 +1440,11 @@
       "action": "Controlla lo stato del backup",
       "localOnly": "I backup restano su questo server. Nulla viene copiato fuori sede.",
       "failing": "L’ultima esecuzione del backup è fallita."
-    }
+    },
+    "pointInTime": "Ripristino a un istante",
+    "pitNone": "Non configurato",
+    "pitStalled": "L'archiviazione si è fermata",
+    "pitReady": "{count, plural, one {# segmento} other {# segmenti}} · {size}"
   },
   "jobStatus": {
     "title": "Attività pianificate",
