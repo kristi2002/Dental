@@ -129,5 +129,7 @@ fi
 # working directory, so this has to be /app.
 cd /app
 
+# shellcheck disable=SC3028  # HOSTNAME is not POSIX, but Docker always sets it
+# in the container environment, and the `:-` covers the case where it does not.
 echo "[entrypoint] starting DentOrganizer on ${HOSTNAME:-0.0.0.0}:${PORT:-3000}"
 exec "$@"

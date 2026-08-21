@@ -7,6 +7,21 @@
 # For local dev use `docker-compose.yml` instead — it starts only Postgres and
 # leaves the app to `npm run dev`.
 
+# Docker's default `json-file` driver has no size cap, and this stack is loud:
+# two `crond -f -l 8` sidecars, restic narrating every backup, and the app
+# logging every request-level error. Uncapped, those files grow for a year on
+# the same disk as `db-data` and `patient-files` — so the way this deployment
+# runs out of room is not the radiographs, it is the log of having copied them.
+#
+# 30 MB per service, which is days of this stack's output and not enough to
+# matter beside a database.
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
+
 services:
   app:
     build:
@@ -72,10 +87,66 @@ services:
         condition: service_healthy
     expose:
       - '3000'
+    <<: *logging
+    # The image already carries this (see the Dockerfile's HEALTHCHECK), but an
+    # image-level check is invisible to `docker compose ps` and to anything
+    # watching the stack. Declared here, `unhealthy` becomes a state the
+    # autoheal container below can act on.
+    #
+    # `/api/health` is deliberately unauthenticated and really does reach
+    # Postgres — see src/app/api/health/route.ts — so this is a check of the
+    # thing that matters rather than of whether a port is open.
+    #
+    # `start_period` is generous because the entrypoint replays migrations
+    # before serving, and a long migration must not read as a sick container.
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    # What opts this container in to the autoheal watcher below. Nothing else
+    # in the stack carries it.
+    labels:
+      autoheal: 'true'
+    # A ceiling, so a large export or the Sunday restore drill cannot squeeze
+    # Postgres on a clinic mini-PC. Node is happy inside this; the point is that
+    # the database keeps its headroom no matter what the app is doing.
+    mem_limit: 1g
+
+  # Restarts a container the moment its healthcheck gives up.
+  #
+  # `restart: unless-stopped` does *not* do this: it restarts a container that
+  # **exits**, and an app that has wedged — pool exhausted, an unhandled
+  # rejection, Postgres restarted underneath it — does not exit. It sits there,
+  # marked unhealthy, serving nothing. That is the failure this stack had no
+  # answer to, and the one most likely to happen at five on a Friday.
+  #
+  # This is the local half. It cannot help if the machine itself is off, so it
+  # does not replace pointing an outside monitor at
+  # `https://<the practice's domain>/api/health` — see docs/DEPLOYMENT.md.
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    restart: unless-stopped
+    environment:
+      # Only containers that opt in by label, so this can never restart the
+      # database out from under a running transaction.
+      AUTOHEAL_CONTAINER_LABEL: autoheal
+      AUTOHEAL_INTERVAL: 30
+      # Time for a wedged process to finish whatever it is doing before SIGKILL.
+      AUTOHEAL_DEFAULT_STOP_TIMEOUT: 30
+      TZ: ${TZ:-Europe/Tirane}
+    volumes:
+      # Read-only: it needs to see container health and issue a restart, and
+      # nothing else. This is a real grant of authority over the host's Docker —
+      # the label filter above is what keeps it to the one container.
+      - /var/run/docker.sock:/var/run/docker.sock
+    <<: *logging
 
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    <<: *logging
     environment:
       POSTGRES_USER: dent
       POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
@@ -117,6 +188,7 @@ services:
       TZ: ${TZ:-Europe/Tirane}
     depends_on:
       - app
+    <<: *logging
 
   backup:
     build:
@@ -144,7 +216,15 @@ services:
       AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_APPLICATION_KEY:-}
       BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-14}
       BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-8}
-      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-24}
+      # Seven years of monthlies, because that is the retention the practice is
+      # actually held to — `src/lib/audit-retention.ts` decides seven years and
+      # nothing prunes the live database, so the live copy was compliant while
+      # the backups reached back two. A corruption or a wrongful deletion found
+      # in year three was unrecoverable.
+      #
+      # Nearly free: restic deduplicates, and a monthly snapshot of a clinic's
+      # database is mostly blocks the previous one already holds.
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-84}
     volumes:
       # Read-only: this container copies the radiographs, it has no business
       # changing one.
@@ -154,6 +234,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    <<: *logging
+    # `pg_restore` during the Sunday drill is the most memory-hungry thing this
+    # stack does, and it runs against the live database. Capped, so it competes
+    # with the surgery's own Postgres rather than starving it.
+    mem_limit: 768m
 
 volumes:
   db-data:

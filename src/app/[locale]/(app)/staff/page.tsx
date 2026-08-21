@@ -5,6 +5,7 @@ import { RoleBadge } from '@/components/auth/RoleBadge';
 import { BackupCard } from '@/components/staff/BackupCard';
 import { BackupCheckCard } from '@/components/staff/BackupCheckCard';
 import { BackupStatusCard } from '@/components/staff/BackupStatusCard';
+import { JobStatusCard } from '@/components/staff/JobStatusCard';
 import { StaffFormDialog } from '@/components/staff/StaffFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
@@ -16,6 +17,7 @@ import { setStaffActive, unlockStaff } from '@/lib/actions/staff';
 import { requirePermission } from '@/lib/auth/guard';
 import { ROLE_ORDER, ROLE_PERMISSIONS } from '@/lib/auth/permissions';
 import { getBackupStatus } from '@/lib/backup-status';
+import { getJobsStatus } from '@/lib/jobs/job-status';
 import { prisma } from '@/lib/prisma';
 import { cn, initials } from '@/lib/utils';
 
@@ -238,6 +240,12 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
                 automatic copies, and until now nothing proved the one an owner
                 keeps on a memory stick. */}
             <BackupCheckCard />
+            {/* And the other thing that runs on a clock nobody watches. The
+                backup cards above answer "is the copy being taken"; this one
+                answers "is anything else the schedule promised still
+                happening" — a question the app could not answer at all until
+                something read the rows `run.ts` had been writing all along. */}
+            <JobStatusCard status={await getJobsStatus()} />
           </>
         ) : null}
       </div>

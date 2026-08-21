@@ -1,0 +1,16 @@
+-- What makes signing out actually sign somebody out.
+--
+-- The session cookie is an HMAC with no stored row, so `signOut` could only
+-- delete the cookie — and the token that cookie carried stayed valid for the
+-- rest of its twelve hours. Anyone who had read the value once kept a working
+-- session straight through the person pressing Sign out, through the idle lock,
+-- and through their PIN being changed.
+--
+-- The number is signed into the token and compared on every request. Bumping it
+-- invalidates every token issued before the bump, for one person, without
+-- touching anybody else's.
+--
+-- `DEFAULT 0` is what lets this land on a table that already has rows: existing
+-- sessions carry no epoch, are read as 0, match, and keep working until they
+-- expire on their own. Nobody is signed out by the deploy.
+ALTER TABLE "StaffUser" ADD COLUMN "sessionEpoch" INTEGER NOT NULL DEFAULT 0;

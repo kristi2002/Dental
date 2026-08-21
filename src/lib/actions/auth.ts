@@ -8,7 +8,12 @@ import { redirect } from '@/i18n/navigation';
 import { hashPin, isValidPinFormat, verifyPin } from '@/lib/auth/crypto';
 import { recordAnonymousAudit, recordAudit, recordPatientAudit } from '@/lib/auth/guard';
 import { attemptsLeft, lockoutMinutes, shouldLock } from '@/lib/auth/lockout';
-import { createSession, destroySession, getCurrentUser } from '@/lib/auth/session';
+import {
+  createSession,
+  destroySession,
+  getCurrentUser,
+  revokeSessions,
+} from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit } from '@/lib/rate-limit';
 import { requiredString } from '@/lib/utils';
@@ -279,6 +284,11 @@ export async function signOut(): Promise<void> {
     });
   }
 
+  // Both halves. Deleting the cookie signs out *this* browser; bumping the
+  // epoch invalidates the token itself, so a copy of that cookie value taken
+  // from the shared reception tablet stops working here rather than staying
+  // good for the rest of its twelve hours.
+  if (user) await revokeSessions(user.id);
   await destroySession();
   redirect({ href: '/login', locale: await getLocale() });
 }

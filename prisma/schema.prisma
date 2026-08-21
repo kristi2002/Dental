@@ -45,6 +45,23 @@ model StaffUser {
   /// it land on a table that already has rows.
   calendarFeedVersion Int @default(1)
 
+  /// What makes a signed-in session revocable — the same trick as
+  /// `calendarFeedVersion` above, applied to the thing that opens the charts.
+  ///
+  /// The session cookie is an HMAC with no stored row, which is why signing out
+  /// used to mean only `cookies().delete()`: the token itself stayed valid for
+  /// the rest of its twelve hours. Anyone who had read that cookie value once —
+  /// a colleague at the shared reception tablet, a copied browser profile, a
+  /// devtools pane left open — kept a working session straight through the
+  /// person pressing *Sign out*, through the idle lock, and through their PIN
+  /// being changed.
+  ///
+  /// Signing this number into the token and checking it on every request buys
+  /// real revocation for one column. Bumped on sign-out, on a PIN change and on
+  /// deactivation, so each of those now actually ends the sessions it appears
+  /// to end.
+  sessionEpoch Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1699,6 +1716,16 @@ enum MessageKind {
 enum MessageStatus {
   /// Waiting for somebody to send it.
   PENDING
+  /// Claimed by an email send that is in flight.
+  ///
+  /// Exists because `emailQueuedMessage` really transmits, and it used to read
+  /// the row, send the mail, and only then mark it — so two clicks on a laggy
+  /// tablet both passed the PENDING check and the patient got two identical
+  /// reminders. Claiming the row first closes that, and it has to be its own
+  /// state rather than an early flip to SENT: if the container dies mid-send,
+  /// a row left here is visibly stuck and asks to be looked at, where one left
+  /// SENT would be the queue quietly claiming it had told somebody it had not.
+  SENDING
   /// Put in front of the patient. A `Contact` row records what was said.
   SENT
   /// The reason went away — the slot was cancelled, moved, or already answered.

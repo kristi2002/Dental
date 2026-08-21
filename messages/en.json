@@ -797,7 +797,10 @@
       "view": "See treatment plans",
       "edit": "Create and update treatment plans"
     },
-    "followup": { "view": "See the follow-ups board", "edit": "Add and close follow-ups" },
+    "followup": {
+      "view": "See the follow-ups board",
+      "edit": "Add and close follow-ups"
+    },
     "work": {
       "view": "See the works register",
       "edit": "Add and edit works",
@@ -1437,6 +1440,29 @@
       "action": "Check backup status",
       "localOnly": "Backups are staying on this server. Nothing is being copied offsite.",
       "failing": "The last backup run failed."
+    }
+  },
+  "jobStatus": {
+    "title": "Scheduled jobs",
+    "lastRun": "Last run",
+    "lastSuccess": "Last success",
+    "neverRan": "Never",
+    "badge": {
+      "ok": "Running",
+      "late": "Needs a look",
+      "critical": "Not running",
+      "unknown": "Unknown"
+    },
+    "reason": {
+      "ok": "Fine",
+      "failing": "Failing",
+      "overdue": "Overdue",
+      "stalled": "Did not finish",
+      "never": "Never run"
+    },
+    "name": {
+      "queue-appointment-reminders": "Appointment reminders",
+      "sweep-orphan-files": "Orphaned file sweep"
     }
   },
   "settings": {

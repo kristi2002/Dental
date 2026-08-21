@@ -160,14 +160,24 @@ export async function getSendQueue(): Promise<SendQueue> {
 
   const [pending, resolved] = await Promise.all([
     prisma.scheduledMessage.findMany({
-      where: { status: MessageStatus.PENDING },
+      // SENDING as well as PENDING. A claimed row is normally in that state for
+      // the length of one API call, but if the container dies mid-send it stays
+      // there — and a row that is neither on the queue nor in the day's resolved
+      // list would be invisible, which is the opposite of the point. Still
+      // unsent, so it still belongs on the queue somebody works down.
+      where: { status: { in: [MessageStatus.PENDING, MessageStatus.SENDING] } },
       select: SELECT,
       // Soonest first: the queue is worked from the top, and the top should be
       // whoever is due back first.
       orderBy: [{ appointment: { date: 'asc' } }, { sendAfter: 'asc' }],
     }),
     prisma.scheduledMessage.findMany({
-      where: { status: { not: MessageStatus.PENDING }, resolvedAt: { gte: day } },
+      // `resolvedAt` is what actually scopes this — a SENDING row has none, so
+      // it cannot appear here as well as on the queue above.
+      where: {
+        status: { notIn: [MessageStatus.PENDING, MessageStatus.SENDING] },
+        resolvedAt: { gte: day },
+      },
       select: SELECT,
       orderBy: { resolvedAt: 'desc' },
     }),

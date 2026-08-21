@@ -797,7 +797,10 @@
       "view": "Sheh planet e trajtimit",
       "edit": "Krijon dhe përditëson plane trajtimi"
     },
-    "followup": { "view": "Sheh tabelën Detyrat", "edit": "Shton dhe mbyll detyra" },
+    "followup": {
+      "view": "Sheh tabelën Detyrat",
+      "edit": "Shton dhe mbyll detyra"
+    },
     "work": {
       "view": "Sheh regjistrin e punimeve",
       "edit": "Shton dhe ndryshon punime",
@@ -1437,6 +1440,29 @@
       "action": "Shiko gjendjen e rezervimit",
       "localOnly": "Rezervimet po qëndrojnë në këtë server. Asgjë nuk po kopjohet jashtë tij.",
       "failing": "Ekzekutimi i fundit i rezervimit dështoi."
+    }
+  },
+  "jobStatus": {
+    "title": "Detyrat e planifikuara",
+    "lastRun": "Ekzekutimi i fundit",
+    "lastSuccess": "Suksesi i fundit",
+    "neverRan": "Kurrë",
+    "badge": {
+      "ok": "Në punë",
+      "late": "Duhet parë",
+      "critical": "Nuk po punon",
+      "unknown": "E panjohur"
+    },
+    "reason": {
+      "ok": "Në rregull",
+      "failing": "Me gabim",
+      "overdue": "Me vonesë",
+      "stalled": "Nuk përfundoi",
+      "never": "Kurrë e ekzekutuar"
+    },
+    "name": {
+      "queue-appointment-reminders": "Kujtesat e takimeve",
+      "sweep-orphan-files": "Pastrimi i skedarëve pa lidhje"
     }
   },
   "settings": {

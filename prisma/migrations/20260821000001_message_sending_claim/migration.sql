@@ -1,0 +1,16 @@
+-- The state that stops a reminder being emailed to the same patient twice.
+--
+-- `emailQueuedMessage` read the row, sent the mail, and only then marked it —
+-- so two clicks on a laggy tablet, or two people working the queue at once,
+-- both passed the PENDING check and both transmitted. This is the one action in
+-- the app that really puts mail in front of a patient, which is what made it
+-- worth a schema change rather than a tighter guard.
+--
+-- Its own state rather than an early flip to SENT: a container that dies
+-- mid-send leaves a row here, which is visibly stuck and asks to be looked at.
+-- Left SENT, the queue would be quietly claiming it had told somebody it had
+-- not — the exact failure the module's own comments call worse than having no
+-- queue at all.
+--
+-- Additive, so nothing already in the table changes and no row needs rewriting.
+ALTER TYPE "MessageStatus" ADD VALUE 'SENDING';

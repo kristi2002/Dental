@@ -21,6 +21,7 @@ import { PhotoTile } from "@/components/stock/PhotoTile";
 import { StockAlerts } from "@/components/stock/StockAlerts";
 import { TakeOutForm } from "@/components/stock/TakeOutForm";
 import { ActionForm } from "@/components/ui/ActionForm";
+import { InlineSubmit } from "@/components/ui/InlineSubmit";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterBar } from "@/components/ui/FilterBar";
@@ -514,15 +515,17 @@ export default async function StockPage({
                         values={{ id: item.id, delta: -1 }}
                         className="contents"
                       >
-                        <button
-                          type="submit"
+                        {/* `adjustStock` applies a *relative* delta, so a
+                            double-tap on a slow tablet takes two boxes off the
+                            shelf and nobody is told. */}
+                        <InlineSubmit
                           className="flex w-12 shrink-0 items-center justify-center border-r border-line-strong text-ink-soft transition-colors hover:bg-paper hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
                           title={t("use")}
+                          srLabel={t("use")}
                           disabled={isEmpty}
                         >
                           <Minus size={18} aria-hidden />
-                          <span className="sr-only">{t("use")}</span>
-                        </button>
+                        </InlineSubmit>
                       </ActionForm>
                     ) : null}
 
@@ -546,14 +549,13 @@ export default async function StockPage({
                         values={{ id: item.id, delta: 1 }}
                         className="contents"
                       >
-                        <button
-                          type="submit"
-                          className="flex w-12 shrink-0 items-center justify-center border-l border-line-strong text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+                        <InlineSubmit
+                          className="flex w-12 shrink-0 items-center justify-center border-l border-line-strong text-ink-soft transition-colors hover:bg-paper hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
                           title={t("restock")}
+                          srLabel={t("restock")}
                         >
                           <Plus size={18} aria-hidden />
-                          <span className="sr-only">{t("restock")}</span>
-                        </button>
+                        </InlineSubmit>
                       </ActionForm>
                     ) : null}
                   </div>

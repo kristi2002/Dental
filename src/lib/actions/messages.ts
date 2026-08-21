@@ -179,24 +179,57 @@ export async function emailQueuedMessage(
   const reminder = await composeForQueued(message, await getLocale());
   if (!reminder) return actionError(t('gone'));
 
+  // Claim the row *before* transmitting.
+  //
+  // The check above reads; this writes, and the guard is inside the write, so
+  // exactly one caller can move a row out of PENDING no matter how many arrive
+  // together. Without it the sequence was read → send → mark, and two clicks on
+  // a slow tablet — or two people working the queue at once — both passed the
+  // read and both sent. `resolveAsSent` beside this already guards inside its
+  // write and says so; this is the same rule applied to the one action that
+  // actually puts mail in front of a patient.
+  const claimed = await prisma.scheduledMessage.updateMany({
+    where: { id, status: MessageStatus.PENDING },
+    data: { status: MessageStatus.SENDING },
+  });
+  if (claimed.count === 0) return actionError(t('alreadyHandled'));
+
+  /** Put the row back on the queue — nothing was sent, so nothing is recorded. */
+  const releaseClaim = async (note?: string) => {
+    await prisma.scheduledMessage.updateMany({
+      where: { id, status: MessageStatus.SENDING },
+      data: { status: MessageStatus.PENDING, ...(note ? { note } : {}) },
+    });
+  };
+
   // Reply-To is configuration, applied by the mailer itself — see MAIL_REPLY_TO.
   // A patient who answers "can we move it to Thursday?" must reach a person, and
   // a bounce into nowhere is how a reminder system quietly becomes a way of not
   // hearing from patients.
-  const result = await sendMail({
-    to: message.patient.email,
-    toName: `${message.patient.firstName} ${message.patient.lastName}`.trim(),
-    subject: reminder.subject,
-    text: reminder.body,
-  });
+  let result: Awaited<ReturnType<typeof sendMail>>;
+  try {
+    result = await sendMail({
+      to: message.patient.email,
+      toName: `${message.patient.firstName} ${message.patient.lastName}`.trim(),
+      subject: reminder.subject,
+      text: reminder.body,
+    });
+  } catch (error) {
+    // A throw rather than a returned failure — the row must not be left claimed
+    // by a send that is definitively over.
+    // `sendMail` catches its own transport errors and returns a failure, so
+    // reaching here means something unforeseen. Reported as unreachable — the
+    // honest reading, since nothing got as far as a provider's answer.
+    console.error('[messages] send threw', id, error);
+    await releaseClaim(MAIL_FAILURE_NOTES.unreachable);
+    revalidateAll();
+    return actionError(t('note.mailUnreachable'));
+  }
 
   if (!result.ok) {
-    // Recorded on the row so the next person to open the queue sees why it is
-    // still sitting there, and not only the person who pressed the button.
-    await prisma.scheduledMessage.updateMany({
-      where: { id, status: MessageStatus.PENDING },
-      data: { note: MAIL_FAILURE_NOTES[result.failure] },
-    });
+    // Back on the queue, with the reason recorded so the next person to open it
+    // sees why it is still sitting there — not only whoever pressed the button.
+    await releaseClaim(MAIL_FAILURE_NOTES[result.failure]);
     revalidateAll();
     return actionError(t(`note.mail${capitalise(result.failure)}`));
   }
@@ -214,7 +247,8 @@ export async function emailQueuedMessage(
         },
       }),
       prisma.scheduledMessage.updateMany({
-        where: { id, status: MessageStatus.PENDING },
+        // SENDING, because this call is the one holding the claim.
+        where: { id, status: MessageStatus.SENDING },
         data: {
           status: MessageStatus.SENT,
           note: MAIL_SENT_NOTE,
@@ -226,8 +260,9 @@ export async function emailQueuedMessage(
   } catch (error) {
     // The message is already with the patient. Failing to write that down is
     // bad; implying it never went is worse, so this reports success and shouts
-    // into the log — the row stays PENDING and somebody may send a second one,
-    // which is a nuisance rather than a silence.
+    // into the log. The row stays SENDING — stuck rather than silently pending,
+    // which is the state that asks somebody to look at it instead of quietly
+    // inviting a second send to the same person.
     console.error('[messages] sent but could not record', id, error);
   }
 

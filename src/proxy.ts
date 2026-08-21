@@ -2,6 +2,7 @@ import createMiddleware from 'next-intl/middleware';
 import type { NextRequest } from 'next/server';
 import { routing } from './i18n/routing';
 import {
+  isIdle,
   refreshSession,
   SESSION_COOKIE,
   SESSION_COOKIE_OPTIONS,
@@ -31,7 +32,16 @@ export default async function proxy(request: NextRequest) {
   const response = handleLocale(request);
 
   const payload = await verifySession(request.cookies.get(SESSION_COOKIE)?.value);
-  if (payload) {
+
+  // Only a session that is still inside the idle window may be extended.
+  //
+  // Without the `isIdle` half, this refresh *resurrects*: it stamps a fresh
+  // `seen` on whatever it is handed, so a token that had been sitting unused
+  // since yesterday became current again simply by being presented, and the
+  // server-side idle check downstream never saw a stale one. The cookie's own
+  // `maxAge` hid this in a browser — the browser would have dropped it — which
+  // is exactly the case the server-side check exists to cover.
+  if (payload && !isIdle(payload)) {
     response.cookies.set(SESSION_COOKIE, await refreshSession(payload), SESSION_COOKIE_OPTIONS);
   }
 

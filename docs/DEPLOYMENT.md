@@ -324,6 +324,44 @@ Health endpoint: `GET /api/health` — reports whether the app can reach its
 database, and nothing about the practice. Coolify uses it to judge whether a
 deploy came up.
 
+## Knowing when it breaks
+
+Three layers, and only two of them are inside the box.
+
+**The container watches itself.** `app` declares a healthcheck against
+`/api/health`, and the `autoheal` service restarts it when that check gives up.
+This is not what `restart: unless-stopped` does: that restarts a container which
+**exits**, and an app that has wedged — connection pool exhausted, an unhandled
+rejection, Postgres restarted underneath it — does not exit. It sits there
+serving nothing. `autoheal` only touches containers labelled `autoheal: "true"`,
+which is `app` and nothing else, so it can never restart the database out from
+under a running transaction.
+
+**The app watches its own scheduled work.** Staff → *Scheduled jobs* shows when
+each job last ran, whether it succeeded, and what it reported. A job that has
+stopped being triggered shows as overdue rather than simply being absent — the
+failure this closes is the silent one, where reminders stop going out in
+September and nobody connects it to anything until the no-shows are noticed.
+
+**Something outside watches the machine.** Neither of the above helps if the
+mini-PC is off, the disk is full, or the domain stops resolving — so this part
+is not optional and cannot be shipped in the compose file. Point a free external
+monitor at:
+
+```
+https://<the practice's domain>/api/health
+```
+
+[healthchecks.io](https://healthchecks.io) or an Uptime Kuma instance on any
+other machine both do this on a free tier. Set it to alert by email **and** SMS
+to whoever opens the practice, and set the interval to five minutes. The
+endpoint is deliberately unauthenticated and returns nothing about any patient,
+which is what makes it safe to hand to a third party.
+
+Without that last layer the realistic failure is: the app wedges at five on a
+Friday, the health check goes red into a void, and the clinic finds out at eight
+on Monday with a waiting room.
+
 ## Running the production image locally
 
 ```bash

@@ -14,6 +14,32 @@ export type SessionPayload = {
   /** Seconds since epoch. */
   iat: number;
   exp: number;
+  /**
+   * `StaffUser.sessionEpoch` as it stood when this token was issued.
+   *
+   * Checked in `getCurrentUser` against the column, which is what makes a
+   * session revocable at all: without it, signing out deleted a cookie and left
+   * the token that cookie carried valid for the rest of its twelve hours.
+   *
+   * Optional only so a token issued before this existed verifies rather than
+   * throwing. Those are treated as epoch 0 — which is the default every existing
+   * row gets, so they keep working until they expire on their own.
+   */
+  epoch?: number;
+  /**
+   * When the session was last seen doing something, in seconds since epoch.
+   *
+   * The idle window used to live *only* in the cookie's `maxAge`, which means it
+   * was enforced by the browser. A copied cookie value replayed by anything that
+   * is not a browser — curl, a script, a rebuilt request — ignored it completely,
+   * so the "15-minute idle lock" bounded nothing an attacker was obliged to
+   * respect. Carrying the last-seen time inside the signed payload moves that
+   * decision to the server, where it holds regardless of who is asking.
+   *
+   * Refreshed by the proxy on navigation and by `/api/session/touch`, both of
+   * which already re-sign the cookie on activity.
+   */
+  seen?: number;
 };
 
 /**
@@ -116,22 +142,41 @@ async function sign(payload: SessionPayload): Promise<string> {
   return `${body}.${base64UrlEncode(new Uint8Array(signature))}`;
 }
 
-export async function signSession(userId: string): Promise<string> {
+export async function signSession(userId: string, epoch: number): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  return sign({ sub: userId, iat: now, exp: now + SESSION_MAX_AGE_SECONDS });
+  return sign({ sub: userId, iat: now, exp: now + SESSION_MAX_AGE_SECONDS, epoch, seen: now });
 }
 
 /**
  * Re-sign an existing session without moving its expiry.
  *
- * The idle window lives in the cookie's `maxAge`, so keeping someone signed in
- * means handing the browser the same token again with a fresh `maxAge`. The
- * payload is copied verbatim on purpose: `exp` is the absolute bound, and a
- * refresh that extended it would turn a 12-hour cap into an unbounded one for
- * anyone who keeps clicking.
+ * Keeping someone signed in means handing the browser the same token again with
+ * a fresh `maxAge` — and now also with a fresh `seen`, which is what moves the
+ * idle decision from the browser to the server. `iat`, `exp` and `epoch` are
+ * copied verbatim: `exp` is the absolute bound, and a refresh that extended it
+ * would turn a 12-hour cap into an unbounded one for anyone who keeps clicking.
  */
 export async function refreshSession(payload: SessionPayload): Promise<string> {
-  return sign({ sub: payload.sub, iat: payload.iat, exp: payload.exp });
+  return sign({
+    sub: payload.sub,
+    iat: payload.iat,
+    exp: payload.exp,
+    epoch: payload.epoch,
+    seen: Math.floor(Date.now() / 1000),
+  });
+}
+
+/**
+ * Whether this session has gone quiet for longer than the idle window allows.
+ *
+ * Read the `seen` note on `SessionPayload` for why this is checked here rather
+ * than left to the cookie. A token from before `seen` existed has none, and is
+ * allowed through on its age alone — those expire within twelve hours anyway,
+ * and refusing them would sign out the whole practice on deploy.
+ */
+export function isIdle(payload: SessionPayload, now: Date = new Date()): boolean {
+  if (typeof payload.seen !== 'number') return false;
+  return Math.floor(now.getTime() / 1000) - payload.seen > SESSION_IDLE_SECONDS;
 }
 
 /** Returns the payload only when the signature checks out and it has not expired. */

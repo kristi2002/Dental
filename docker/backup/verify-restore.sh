@@ -86,6 +86,7 @@ write_status() {
   jq -n \
     --arg state "$state" \
     --arg message "$message" \
+    --arg startedAt "$started_at" \
     --arg checkedAt "$finished_at" \
     --arg lastPassedAt "$last_passed" \
     --argjson durationSeconds "$duration" \
@@ -101,6 +102,7 @@ write_status() {
     '{
       state: $state,
       message: $message,
+      startedAt: $startedAt,
       checkedAt: $checkedAt,
       lastPassedAt: (if $lastPassedAt == "" then null else $lastPassedAt end),
       durationSeconds: $durationSeconds,
@@ -203,6 +205,52 @@ DUMP_FILE="$(basename "$DUMP_PATH")"
 log "drilling with $DUMP_FILE"
 
 # --- 2. Does it restore? ----------------------------------------------------
+
+# Before creating a second copy of the practice, check there is room for one.
+#
+# This drill restores the whole database into `dentorganizer_verify` **on the
+# live Postgres instance**, which for the length of the drill roughly doubles
+# what `db-data` occupies. Unchecked, that turns a healthy 55%-full disk into a
+# full one at 03:30 on a Sunday: Postgres stops accepting writes, and the
+# practice opens on Monday to a database that will not take a booking. The
+# backup that is supposed to be the safety net becomes the outage.
+#
+# So: refuse rather than risk it. A skipped drill is a warning on the Staff
+# page and a thing somebody fixes on Monday. A full disk is the clinic shut.
+#
+# 2.5× the live database rather than 2×, because `pg_restore` needs room for
+# indexes it is still building and for the WAL the restore generates.
+verify_headroom() {
+  live_bytes="$(psql "$DB_URL" -Atc "SELECT pg_database_size(current_database())" 2>/dev/null || echo "")"
+  case "$live_bytes" in
+    '' | *[!0-9]*)
+      log "could not measure the live database — proceeding without a space check."
+      return 0
+      ;;
+  esac
+
+  # `df` on the data directory, in kibibytes, portable across coreutils and
+  # busybox. The awk picks the "available" column of the last line.
+  free_kb="$(psql "$DB_URL" -Atc "SHOW data_directory" 2>/dev/null \
+    | { read -r dir; df -Pk "$dir" 2>/dev/null || df -Pk / ; } \
+    | awk 'END { print $4 }')"
+  case "$free_kb" in
+    '' | *[!0-9]*)
+      log "could not measure free space — proceeding without a space check."
+      return 0
+      ;;
+  esac
+
+  free_bytes=$(( free_kb * 1024 ))
+  needed_bytes=$(( live_bytes * 5 / 2 ))
+
+  log "live database $(( live_bytes / 1048576 )) MiB · free $(( free_bytes / 1048576 )) MiB · drill needs ~$(( needed_bytes / 1048576 )) MiB"
+
+  if [ "$free_bytes" -lt "$needed_bytes" ]; then
+    fail "not enough free disk to restore a second copy safely — need about $(( needed_bytes / 1048576 )) MiB, have $(( free_bytes / 1048576 )) MiB. The drill was skipped rather than risk filling the disk the live database is on."
+  fi
+}
+verify_headroom
 
 log "creating $VERIFY_DB"
 psql "$DB_URL" -q -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"$VERIFY_DB\" WITH (FORCE)" \

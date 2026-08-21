@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import {
+  isIdle,
   refreshSession,
   SESSION_COOKIE,
   SESSION_COOKIE_OPTIONS,
@@ -24,6 +25,12 @@ export async function POST() {
 
   const payload = await verifySession(store.get(SESSION_COOKIE)?.value);
   if (!payload) return new NextResponse(null, { status: 401 });
+
+  // A session already past the idle window cannot be revived by saying it is
+  // present. `IdleLock` only calls this on real activity, so in the browser
+  // this branch means the tab was left alone and has come back — which is the
+  // moment the PIN is supposed to be asked for, not the moment to skip it.
+  if (isIdle(payload)) return new NextResponse(null, { status: 401 });
 
   store.set(SESSION_COOKIE, await refreshSession(payload), SESSION_COOKIE_OPTIONS);
   return new NextResponse(null, { status: 204 });

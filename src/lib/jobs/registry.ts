@@ -34,6 +34,18 @@ export type Job = {
   description: string;
   /** Returns the summary to record. Throwing is how a job fails. */
   run: () => Promise<string>;
+  /**
+   * How often this job is expected to run, in hours.
+   *
+   * The clock lives in the jobs sidecar and the app never sees its crontab, so
+   * this is the app's own expectation rather than a reading of the schedule.
+   * It exists so "has not run at all" is detectable: a job that stops being
+   * triggered writes no failure row, and without an expected cadence there is
+   * nothing to compare silence against. Kept deliberately loose — see
+   * `OVERDUE_FACTOR` in `job-status.ts` — because a late run is normal and a
+   * missing week is not.
+   */
+  everyHours: number;
 };
 
 /** An upload in flight is not an orphan — the same hour `sweep-orphan-files.ts` waits. */
@@ -115,11 +127,15 @@ export const JOBS: Record<string, Job> = {
   'queue-appointment-reminders': {
     description: "Queue tomorrow's appointment reminders for somebody to send.",
     run: queueAppointmentReminders,
+    // Every evening — `REMINDERS_SCHEDULE` defaults to 18:00 daily.
+    everyHours: 24,
   },
 
   'sweep-orphan-files': {
     description: 'Remove uploaded files that no record points at any more.',
     run: sweepOrphanFiles,
+    // Sunday morning — `SWEEP_SCHEDULE` defaults to 03:15 on Sundays.
+    everyHours: 24 * 7,
   },
 };
 

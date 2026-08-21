@@ -797,7 +797,10 @@
       "view": "Vede i piani di cura",
       "edit": "Crea e aggiorna piani di cura"
     },
-    "followup": { "view": "Vede la bacheca Da fare", "edit": "Aggiunge e chiude voci Da fare" },
+    "followup": {
+      "view": "Vede la bacheca Da fare",
+      "edit": "Aggiunge e chiude voci Da fare"
+    },
     "work": {
       "view": "Vede il registro delle lavorazioni",
       "edit": "Aggiunge e modifica lavorazioni",
@@ -1437,6 +1440,29 @@
       "action": "Controlla lo stato del backup",
       "localOnly": "I backup restano su questo server. Nulla viene copiato fuori sede.",
       "failing": "L’ultima esecuzione del backup è fallita."
+    }
+  },
+  "jobStatus": {
+    "title": "Attività pianificate",
+    "lastRun": "Ultima esecuzione",
+    "lastSuccess": "Ultimo successo",
+    "neverRan": "Mai",
+    "badge": {
+      "ok": "In esecuzione",
+      "late": "Da controllare",
+      "critical": "Non in esecuzione",
+      "unknown": "Sconosciuto"
+    },
+    "reason": {
+      "ok": "Regolare",
+      "failing": "In errore",
+      "overdue": "In ritardo",
+      "stalled": "Non completata",
+      "never": "Mai eseguita"
+    },
+    "name": {
+      "queue-appointment-reminders": "Promemoria appuntamenti",
+      "sweep-orphan-files": "Pulizia file orfani"
     }
   },
   "settings": {

@@ -71,6 +71,10 @@ export async function saveStaff(_prev: ActionState, formData: FormData): Promise
                 // A fresh PIN clears an active lockout — that is the point of it.
                 failedAttempts: 0,
                 lockedUntil: null,
+                // And ends whatever the old PIN opened. A PIN is changed
+                // because the old one is not trusted any more; leaving the
+                // sessions it issued alive would answer the wrong half of that.
+                sessionEpoch: { increment: 1 },
               }
             : {}),
         },
@@ -129,7 +133,16 @@ export async function setStaffActive(formData: FormData): Promise<void> {
 
   const staff = await prisma.staffUser.update({
     where: { id },
-    data: { active, failedAttempts: 0, lockedUntil: null },
+    data: {
+      active,
+      failedAttempts: 0,
+      lockedUntil: null,
+      // Deactivating somebody now also ends the sessions they are holding.
+      // `getCurrentUser` already refused an inactive account on the next
+      // request, so this is belt-and-braces there — but it means the same
+      // column tells the whole story, and it costs one increment.
+      ...(active ? {} : { sessionEpoch: { increment: 1 } }),
+    },
     select: { firstName: true, lastName: true },
   });
 

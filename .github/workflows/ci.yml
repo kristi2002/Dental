@@ -54,7 +54,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Must match `NODE_VERSION` in the Dockerfile. CI on 22 while the
+          # image ran 24 meant every check in this job proved something about a
+          # runtime the practice does not use, and a regression that only shows
+          # up on 24 would have shipped green.
+          node-version: 24
           cache: npm
 
       # `npm ci`, not `npm install`. The difference is the entire point: `ci`
@@ -68,6 +72,25 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      # The backup and restore scripts are the most consequential code in this
+      # repository — they are what stands between the practice and losing seven
+      # years of records — and until now nothing checked them at all. `oxlint`
+      # reads TypeScript; these are ~700 lines of shell that only ever ran in
+      # production, on a Sunday, unattended.
+      - name: Shellcheck the backup and jobs scripts
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck docker/*.sh docker/*/*.sh
+
+      # A compose file that does not parse takes the whole stack down, and it is
+      # the one file here that no other step reads.
+      - name: Compose file must be valid
+        run: docker compose -f docker-compose.prod.yml config -q
+        env:
+          SERVICE_PASSWORD_POSTGRES: ci-placeholder
+          SERVICE_PASSWORD_64_AUTHSECRET: ci-placeholder
+          SERVICE_PASSWORD_64_JOBSSECRET: ci-placeholder
 
       - name: Test
         run: npm test
