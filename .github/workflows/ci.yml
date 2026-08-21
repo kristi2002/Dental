@@ -50,9 +50,9 @@ jobs:
       SHADOW_DATABASE_URL: postgresql://dent:dent@localhost:5432/shadow?schema=public
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -147,7 +147,7 @@ jobs:
       APP_AUTH_SECRET: ci-placeholder-never-signs-a-real-cookie
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build the production image
         run: docker build -t dentorganizer:ci .
@@ -263,7 +263,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Coolify generates the three SERVICE_* secrets, stores them, and injects
       # them. A `.env` file stands in for that — and a file rather than exported
