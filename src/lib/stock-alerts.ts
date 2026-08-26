@@ -126,6 +126,20 @@ export type StockAlert = {
   orderLateDays: number;
   /** What the supplier promised, when they promised anything. For the row's wording. */
   expectedAt: Date | null;
+  /**
+   * When somebody said "not now", on a row that is being listed *because* they
+   * did. Null on everything the board is actively asking about.
+   */
+  dismissedAt: Date | null;
+  /** Who said it. Empty when the account has since been removed. */
+  dismissedByName: string;
+};
+
+/** The board's two halves: what it is asking, and what it has been told to drop. */
+export type StockAlertBoard = {
+  active: StockAlert[];
+  /** Low, and waved away. The undo list — see `alertQuietened`. */
+  quietened: StockAlert[];
 };
 
 /**
@@ -190,9 +204,43 @@ export function alertVisible(
   dismissal: DismissalLike | null,
   on: Date,
 ): boolean {
-  if (!isLow(item)) return false;
-  if (item.orderedAt !== null && !orderOverdue(item, on)) return false;
+  if (!worthSaying(item, on)) return false;
   return !dismissalHolds(item.usable, dismissal);
+}
+
+/**
+ * Is this material one the board is *deliberately* not asking about?
+ *
+ * The other half of `alertVisible`, and the reason it exists as its own
+ * function: a dismissal was the one press in this app with no way back.
+ * `restoreStockAlert` was written the day dismissal was — guarded, audited,
+ * race-safe, and documented as "the counterpart to every dismissal in this app
+ * being reversible without a database client" — and nothing ever called it,
+ * because nothing anywhere listed what had been waved away for a button to sit
+ * beside.
+ *
+ * The only other way out was the shelf getting *worse* (`dismissalHolds`). For a
+ * material bought once a year, that is the difference between a mis-aimed press
+ * and running out.
+ *
+ * Deliberately the same first test as `alertVisible`: something that is not low,
+ * or is on order and still within its promise, is not being quietened — it has
+ * nothing to say in the first place, and listing it as suppressed would invent a
+ * decision nobody took.
+ */
+export function alertQuietened(
+  item: StockAlertLike,
+  dismissal: DismissalLike | null,
+  on: Date,
+): boolean {
+  if (!worthSaying(item, on)) return false;
+  return dismissalHolds(item.usable, dismissal);
+}
+
+/** Whether the shelf has anything to say at all, before anyone's answer to it. */
+function worthSaying(item: StockAlertLike, on: Date): boolean {
+  if (!isLow(item)) return false;
+  return item.orderedAt === null || orderOverdue(item, on);
 }
 
 /**

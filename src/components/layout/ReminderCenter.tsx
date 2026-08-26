@@ -42,6 +42,7 @@ export function ReminderCenter({
   stock,
   followUpList,
   stockList,
+  quietenedList,
   newButton,
   tone: buttonTone = 'surface',
 }: {
@@ -58,6 +59,17 @@ export function ReminderCenter({
   followUpList: ReactNode;
   /** The server-rendered `StockAlertList`, or null when the shelf is fine. */
   stockList: ReactNode;
+  /**
+   * The server-rendered `QuietenedAlerts`, or null when nothing is waved away.
+   *
+   * Rendered outside the section machinery below, and outside the empty state,
+   * because it is the one thing here that has to be reachable *when the board
+   * looks clear*. A board reading "nothing needs you" with three materials
+   * quietened underneath it is telling the truth about what it was asked and a
+   * lie about the storage room, and the morning somebody wants this list is
+   * exactly the morning the board went quiet without them noticing.
+   */
+  quietenedList?: ReactNode;
   /** The server-rendered "new follow-up" trigger, or null for a reader. */
   newButton?: ReactNode;
 }) {
@@ -272,6 +284,9 @@ export function ReminderCenter({
                 ) : null}
               </>
             )}
+
+            {/* Last, folded, and outside the branch above — see `quietenedList`. */}
+            {quietenedList}
           </div>
         </div>
       </dialog>

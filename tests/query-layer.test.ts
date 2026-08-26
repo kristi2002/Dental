@@ -325,9 +325,9 @@ describe('the query layer — filters that only a database can settle', { skip: 
       },
     });
 
-    const alerts = await getStockAlerts();
+    const { active } = await getStockAlerts();
     assert.ok(
-      !alerts.some((alert) => alert.id === item.id),
+      !active.some((alert) => alert.id === item.id),
       'the box is genuinely coming — asking again is what makes people skim the board',
     );
   });
@@ -346,8 +346,8 @@ describe('the query layer — filters that only a database can settle', { skip: 
       },
     });
 
-    const alerts = await getStockAlerts();
-    const row = alerts.find((alert) => alert.id === item.id);
+    const { active } = await getStockAlerts();
+    const row = active.find((alert) => alert.id === item.id);
 
     // The regression, stated plainly: this row did not exist. Marking a
     // material ordered switched its alarm off permanently, so a supplier who

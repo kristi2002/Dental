@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   alertHref,
   alertLabel,
+  alertQuietened,
   alertVisible,
   dismissalHolds,
   isLow,
@@ -36,6 +37,8 @@ function alert(over: Partial<StockAlert> = {}): StockAlert {
     orderQty: null,
     orderLateDays: 0,
     expectedAt: null,
+    dismissedAt: null,
+    dismissedByName: '',
     ...over,
   };
 }
@@ -239,6 +242,67 @@ describe('alertVisible — the different silences', () => {
       ),
       false,
     );
+  });
+});
+
+describe('alertQuietened — the undo list, and what may not be on it', () => {
+  const shelf = { usable: 2, minLimit: 10, orderedAt: null, expectedAt: null };
+
+  it('lists a low material somebody waved away', () => {
+    assert.equal(alertQuietened({ ...shelf, usable: 3 }, { atQuantity: 3 }, NOW), true);
+  });
+
+  it('is the exact complement of alertVisible on a shelf that has something to say', () => {
+    // The two halves must partition the low shelves and never overlap: a
+    // material listed as both asked-about and quietened would be the board
+    // arguing with itself, and one listed as neither would vanish.
+    const cases = [
+      [{ ...shelf, usable: 3 }, { atQuantity: 3 }],
+      [{ ...shelf, usable: 1 }, { atQuantity: 3 }],
+      [shelf, null],
+      [{ ...shelf, usable: 0 }, null],
+      [{ ...shelf, orderedAt: daysBefore(20), expectedAt: daysBefore(9) }, { atQuantity: 3 }],
+      [{ ...shelf, orderedAt: daysBefore(ORDER_GRACE_DAYS + 1) }, null],
+    ] as const;
+
+    for (const [item, dismissal] of cases) {
+      assert.notEqual(
+        alertVisible(item, dismissal, NOW),
+        alertQuietened(item, dismissal, NOW),
+        `exactly one half must claim ${JSON.stringify(item)}`,
+      );
+    }
+  });
+
+  it('leaves out a material that is not low at all', () => {
+    // A stale dismissal on a restocked shelf is not a suppressed warning, it is
+    // a row `getStockAlerts` is about to delete. Listing it would offer an undo
+    // for a decision that has already lapsed.
+    assert.equal(alertQuietened({ ...shelf, usable: 40 }, { atQuantity: 3 }, NOW), false);
+  });
+
+  it('leaves out one that is quiet because it is on order, not because of a dismissal', () => {
+    // Silenced by the order, which has its own way back (`clearOrdered`). The
+    // undo list is for dismissals; putting an on-order material on it would
+    // offer the wrong undo for the right complaint.
+    assert.equal(
+      alertQuietened(
+        { ...shelf, usable: 0, orderedAt: daysBefore(2), expectedAt: daysBefore(-5) },
+        null,
+        NOW,
+      ),
+      false,
+    );
+  });
+
+  it('leaves out a dismissal the shelf has already outrun', () => {
+    // Below what was waved away, so the board is asking again — it is on the
+    // active half, and appearing on both would be the same row twice.
+    assert.equal(alertQuietened({ ...shelf, usable: 1 }, { atQuantity: 3 }, NOW), false);
+  });
+
+  it('has nothing to list when nobody has waved anything away', () => {
+    assert.equal(alertQuietened(shelf, null, NOW), false);
   });
 });
 

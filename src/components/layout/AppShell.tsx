@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { ClinicMark } from '@/components/brand/ClinicLogo';
 import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
 import { FollowUpList } from '@/components/follow-ups/FollowUpList';
+import { QuietenedAlerts } from '@/components/stock/QuietenedAlerts';
 import { StockAlertList } from '@/components/stock/StockAlertList';
 import type { SessionUser } from '@/lib/auth/session';
 import { getBackupStatus } from '@/lib/backup-status';
@@ -158,7 +159,12 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
 
   const canSeeStock = user.permissions.includes('stock.view');
   const canEditStock = user.permissions.includes('stock.edit');
-  const alerts = canSeeStock ? await getStockAlerts() : [];
+  // Two halves: what the board is asking about, and what somebody has told it
+  // to drop. The second is only ever an undo list — it is not counted, badged
+  // or sorted with the first.
+  const { active: alerts, quietened } = canSeeStock
+    ? await getStockAlerts()
+    : { active: [], quietened: [] };
 
   // Read here rather than on the Staff page alone, because a failure nobody
   // visits that page to discover is a failure nobody discovers. Two small file
@@ -197,6 +203,12 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
         }
         stockList={
           canSeeStock ? <StockAlertList alerts={alerts} canEdit={canEditStock} /> : null
+        }
+        // Only for somebody who could have made the dismissal in the first
+        // place. A reader shown an undo they may not press is being offered a
+        // dead button.
+        quietenedList={
+          canSeeStock && canEditStock ? <QuietenedAlerts alerts={quietened} /> : null
         }
         // A reader gets the board without the pen. `followup.edit` is what the
         // action checks anyway; this is only so the button is not advertised.

@@ -21,11 +21,14 @@ import {
 import { departmentOf } from '@/lib/catalog';
 import { usableQuantity } from '@/lib/expiry';
 import {
+  alertQuietened,
   alertVisible,
   orderLateBy,
   severityOf,
   sortStockAlerts,
   type StockAlert,
+  type StockAlertBoard,
+  type StockAlertLike,
 } from '@/lib/stock-alerts';
 import { ACTIVE_PATIENTS, phoneKey } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
@@ -702,7 +705,26 @@ export async function getLowStockItems() {
  * `getStockCategories` above, and the same reason — it costs one empty query
  * once the room is in a steady state.
  */
-export const getStockAlerts = cache(async (): Promise<StockAlert[]> => {
+/**
+ * The shelf as both alert predicates read it.
+ *
+ * One function rather than two object literals, so `alertVisible` and
+ * `alertQuietened` cannot be handed subtly different facts about one material —
+ * which is the whole basis of them partitioning the low shelves between them.
+ */
+function alertShape(row: {
+  usable: number;
+  item: { minLimit: number; orderedAt: Date | null; expectedAt: Date | null };
+}): StockAlertLike {
+  return {
+    usable: row.usable,
+    minLimit: row.item.minLimit,
+    orderedAt: row.item.orderedAt,
+    expectedAt: row.item.expectedAt,
+  };
+}
+
+export const getStockAlerts = cache(async (): Promise<StockAlertBoard> => {
   const items = await prisma.stockItem.findMany({
     where: ACTIVE_STOCK,
     orderBy: { name: 'asc' },
@@ -720,7 +742,16 @@ export const getStockAlerts = cache(async (): Promise<StockAlert[]> => {
       expectedAt: true,
       supplier: { select: { name: true } },
       batches: { select: { expiryDate: true, quantity: true, usedQuantity: true } },
-      alertDismissal: { select: { atQuantity: true } },
+      // `dismissedAt` and who, as well as the count it was waved away at: the
+      // board can now undo a dismissal, and "not now, Blerina, Tuesday" is what
+      // makes somebody confident it is theirs to undo.
+      alertDismissal: {
+        select: {
+          atQuantity: true,
+          dismissedAt: true,
+          dismissedBy: { select: { firstName: true, lastName: true } },
+        },
+      },
     },
   });
 
@@ -742,37 +773,36 @@ export const getStockAlerts = cache(async (): Promise<StockAlert[]> => {
 
   const now = today();
 
-  const alerts = scored
-    .filter(({ item, usable }) =>
-      alertVisible(
-        {
-          usable,
-          minLimit: item.minLimit,
-          orderedAt: item.orderedAt,
-          expectedAt: item.expectedAt,
-        },
-        item.alertDismissal,
-        now,
-      ),
-    )
-    .map(({ item, usable }) => ({
-      id: item.id,
-      name: item.name,
-      variantName: item.variantName ?? '',
-      usable,
-      quantity: item.quantity,
-      minLimit: item.minLimit,
-      severity: severityOf({ usable, minLimit: item.minLimit }),
-      supplierName: item.supplier?.name ?? '',
-      orderQty: item.orderQty,
-      orderLateDays: orderLateBy(
-        { orderedAt: item.orderedAt, expectedAt: item.expectedAt },
-        now,
-      ),
-      expectedAt: item.expectedAt,
-    }));
+  /** The row as the board reads it, whichever half it lands in. */
+  const toAlert = ({ item, usable }: (typeof scored)[number]): StockAlert => ({
+    id: item.id,
+    name: item.name,
+    variantName: item.variantName ?? '',
+    usable,
+    quantity: item.quantity,
+    minLimit: item.minLimit,
+    severity: severityOf({ usable, minLimit: item.minLimit }),
+    supplierName: item.supplier?.name ?? '',
+    orderQty: item.orderQty,
+    orderLateDays: orderLateBy({ orderedAt: item.orderedAt, expectedAt: item.expectedAt }, now),
+    expectedAt: item.expectedAt,
+    dismissedAt: item.alertDismissal?.dismissedAt ?? null,
+    dismissedByName: item.alertDismissal?.dismissedBy
+      ? `${item.alertDismissal.dismissedBy.firstName} ${item.alertDismissal.dismissedBy.lastName}`
+      : '',
+  });
 
-  return sortStockAlerts(alerts);
+  const active = scored
+    .filter((row) => alertVisible(alertShape(row), row.item.alertDismissal, now))
+    .map(toAlert);
+
+  // The undo list. Same shelf, same arithmetic, opposite answer — so a material
+  // is in exactly one of the two and neither can be reached by accident.
+  const quietened = scored
+    .filter((row) => alertQuietened(alertShape(row), row.item.alertDismissal, now))
+    .map(toAlert);
+
+  return { active: sortStockAlerts(active), quietened: sortStockAlerts(quietened) };
 });
 
 /**
