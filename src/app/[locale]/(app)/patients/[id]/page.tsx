@@ -6,6 +6,7 @@ import {
   Cake,
   CalendarDays,
   CreditCard,
+  FlaskConical,
   IdCard,
   LifeBuoy,
   ListChecks,
@@ -46,6 +47,7 @@ import { PrescriptionList } from '@/components/prescriptions/PrescriptionList';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { ActionMenu } from '@/components/ui/ActionMenu';
 import { Badge } from '@/components/ui/Badge';
+import { PatientWorks } from '@/components/works/PatientWorks';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -80,6 +82,13 @@ const TABS = [
   'chart',
   'history',
   'plans',
+  // Between the plans and the paperwork, which is where it belongs in time: a
+  // case at the laboratory is a plan step that has left the building and has not
+  // come back. `Work.patientId` has been a real relation the whole time and this
+  // screen read none of it, so "is my crown back yet" — asked at the desk with
+  // the patient's record already open — meant leaving the record, opening the
+  // register, and searching for a name that was on screen a moment ago.
+  'works',
   'documents',
   'prescriptions',
   'appointments',
@@ -92,6 +101,7 @@ const TAB_LABEL: Record<Tab, string> = {
   chart: 'tabChart',
   history: 'tabHistory',
   plans: 'tabPlans',
+  works: 'tabWorks',
   documents: 'tabDocuments',
   prescriptions: 'tabPrescriptions',
   appointments: 'tabAppointments',
@@ -104,6 +114,7 @@ const TAB_LABEL: Record<Tab, string> = {
  * exists at all.
  */
 const TAB_PERMISSION: Partial<Record<Tab, Permission>> = {
+  works: 'work.view',
   chart: 'patient.medical.view',
   history: 'patient.medical.view',
   plans: 'plan.view',
@@ -140,6 +151,7 @@ export default async function PatientDetailPage({
   const tcontacts = await getTranslations('contacts');
   const ta = await getTranslations('alerts');
   const tdoc = await getTranslations('documents');
+  const twk = await getTranslations('works');
   const tPlans = await getTranslations('plans');
   const format = await getFormatter();
 
@@ -196,6 +208,18 @@ export default async function PatientDetailPage({
             include: {
               appointment: { select: { date: true, startTime: true, status: true } },
             },
+          },
+        },
+      },
+      // What is at the laboratory for this person, and what came back. Newest
+      // first, uncapped: a patient has a handful of these over a lifetime, and
+      // the one somebody is looking for is nearly always the newest.
+      works: {
+        orderBy: [{ sentAt: 'desc' }, { number: 'desc' }],
+        include: {
+          lines: {
+            orderBy: { position: 'asc' },
+            include: { labRef: { select: { id: true, name: true, phone: true, email: true } } },
           },
         },
       },
@@ -1090,6 +1114,24 @@ export default async function PatientDetailPage({
               })),
             }))}
           />
+        </Card>
+      ) : null}
+
+      {tab === 'works' ? (
+        <Card>
+          <CardHeader
+            title={t('tabWorks')}
+            subtitle={twk('patientSubtitle')}
+            icon={<FlaskConical size={22} aria-hidden />}
+            action={
+              can('work.edit') ? (
+                <Link href="/works/new" className="btn btn-secondary btn-sm">
+                  {twk('new')}
+                </Link>
+              ) : null
+            }
+          />
+          <PatientWorks works={patient.works} canSeeLabs={can('work.edit')} />
         </Card>
       ) : null}
 
