@@ -24,7 +24,21 @@ const FIELD_LIMIT = 200;
  */
 export const MAX_ELEMENTS = 99;
 
-export type DraftLine = { elements: number; procedure: string; lab: string; teeth: string };
+export type DraftLine = {
+  elements: number;
+  procedure: string;
+  /** The laboratory's name, snapshotted onto the line. */
+  lab: string;
+  /**
+   * Which `Lab` row was picked, when one was.
+   *
+   * Empty on a case written before laboratories were rows, and on a line whose
+   * laboratory has since been retired out of the picker — both of which keep
+   * their `lab` text and are readable exactly as before.
+   */
+  labId: string;
+  teeth: string;
+};
 
 /** A count of elements, clamped to something a docket could actually say. */
 export function toElementCount(value: unknown, fallback = 1): number {
@@ -55,7 +69,7 @@ export function parseDraftLines(raw: string): DraftLine[] {
   const lines: DraftLine[] = [];
   for (const entry of parsed) {
     if (typeof entry !== 'object' || entry === null) continue;
-    const { elements, procedure, lab, teeth } = entry as Record<string, unknown>;
+    const { elements, procedure, lab, labId, teeth } = entry as Record<string, unknown>;
 
     // Re-read rather than trusted: what arrives is whatever the chart last put
     // in a hidden field, and it comes back canonical — chart order, one entry
@@ -70,6 +84,11 @@ export function parseDraftLines(raw: string): DraftLine[] {
       elements: span ? spanElements(span) : toElementCount(elements),
       procedure: typeof procedure === 'string' ? procedure.trim().slice(0, FIELD_LIMIT) : '',
       lab: typeof lab === 'string' ? lab.trim().slice(0, FIELD_LIMIT) : '',
+      // Read back like everything else here, and checked against the catalogue
+      // by `saveWork` rather than trusted: this arrives in a hidden field, and a
+      // foreign key taken on faith from one is a foreign key somebody can point
+      // anywhere.
+      labId: typeof labId === 'string' ? labId.trim().slice(0, FIELD_LIMIT) : '',
       teeth: span,
     };
     // A row with nothing on it is not a piece of work — it is a blank somebody
@@ -200,6 +219,20 @@ export function daysLate(work: DatedWork, on: Date = today()): number {
 export const NO_LAB = '__none__';
 
 /**
+ * One laboratory's name, folded the way the filter compares it.
+ *
+ * Trimmed and lower-cased, matching the backfill in
+ * `20260826000001_laboratories` exactly — and it has to. The filter is driven
+ * from the `Lab` catalogue, whose name is the *most-used* spelling, while every
+ * line keeps the spelling its own docket carried. An exact comparison would
+ * therefore hide every case written "dentaltech" the moment the catalogue
+ * settled on "DentalTech", which is the register losing rows to a tidy-up.
+ */
+function foldLab(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+/**
  * Which cases the register is showing: any, still out, late, or back.
  *
  * `''` is "don't ask", not a fourth state — it is what the filter posts when
@@ -256,7 +289,7 @@ export function filterWorks<T extends FilterableWork>(
       if (work.lines.some((line) => line.lab?.trim())) return false;
     } else if (
       filters.lab &&
-      !work.lines.some((line) => line.lab?.trim() === filters.lab)
+      !work.lines.some((line) => foldLab(line.lab) === foldLab(filters.lab))
     ) {
       return false;
     }

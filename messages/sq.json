@@ -38,7 +38,10 @@
     "outbox": "Kujtesa për t'u dërguar",
     "servicesImport": "Importo",
     "stockImport": "Importo",
-    "inbox": "Të ardhurat"
+    "inbox": "Të ardhurat",
+    "labs": "Laboratorët",
+    "prescriptionsIssued": "Të lëshuara",
+    "prescriptionTemplates": "Formulime standarde"
   },
   "common": {
     "save": "Ruaj",
@@ -243,7 +246,8 @@
     "importDuplicateInFile": "I njëjti numër shfaqet më parë në këtë skedar",
     "importAlreadyHere": "Tashmë i regjistruar këtu",
     "message": "Mesazh",
-    "messagePatient": "Shkruaji këtij pacienti"
+    "messagePatient": "Shkruaji këtij pacienti",
+    "tabWorks": "Laboratori"
   },
   "appointments": {
     "title": "Kalendari",
@@ -993,7 +997,8 @@
     "entity_settings": "Cilësimet",
     "entity_stockCategory": "Kategori inventari",
     "entity_serviceCategory": "Kategori shërbimi",
-    "entity_workProcedure": "Lloj punimi"
+    "entity_workProcedure": "Lloj punimi",
+    "entity_lab": "Laborator"
   },
   "recalls": {
     "title": "Rikthimet",
@@ -1251,7 +1256,17 @@
     "docketStageFrame": "Pronë metali",
     "docketStageDentine": "Provë dentine",
     "docketStageFinish": "Përfundim",
-    "docketStageTray": "Lugë individuale"
+    "docketStageTray": "Lugë individuale",
+    "labChoose": "Zgjidhni një laborator",
+    "labNone": "Ende nuk është emërtuar asnjë laborator.",
+    "labManage": "Emërtoni një",
+    "noLabPhone": "pa numër të regjistruar",
+    "statusReceived": "Erdhi",
+    "sentOn": "Dërguar më {date}",
+    "dueOn": "premtuar për {date}",
+    "elementsCount": "{count, plural, one {# element} other {# elemente}}",
+    "patientSubtitle": "Çfarë ka shkuar te një laborator për këtë pacient.",
+    "patientEmpty": "Asgjë nuk është dërguar te një laborator për këtë pacient."
   },
   "followUps": {
     "title": "Detyrat",
@@ -1318,6 +1333,32 @@
     "suggestionsHint": "Emra që janë shkruar te rastet para se kjo listë të ekzistonte. Shto atë që do të mbash — të tjerët janë zakonisht i njëjti punim i shkruar ndryshe.",
     "adopt": "Shto në listë"
   },
+  "labs": {
+    "title": "Laboratorët",
+    "subtitle": "Ku i dërgon punimet klinika, dhe si t’i gjeni.",
+    "worksTitle": "Punimet",
+    "new": "Laborator i ri",
+    "newSubtitle": "Emërtoni një laborator dhe regjistroni numrin e tij.",
+    "edit": "Ndrysho laboratorin",
+    "empty": "Ende nuk është emërtuar asnjë laborator.",
+    "retired": "I tërhequr",
+    "retire": "Tërhiqe",
+    "restore": "Ktheje",
+    "retireConfirm": "Ky laborator ka ende {count, plural, one {# rast} other {# raste}} jashtë. Ta tërheqim gjithsesi? Rastet mbeten në regjistër.",
+    "noPhone": "Pa numër të regjistruar",
+    "missingPhone": "{count, plural, one {# laborator nuk ka} other {# laboratorë nuk kanë}} ende numër telefoni — tabela e ndjekjeve nuk mund t’i marrë në telefon.",
+    "lines": "{count, plural, one {# punim} other {# punime}}",
+    "outstanding": "{count, plural, one {# ende jashtë} other {# ende jashtë}}",
+    "sectionNaming": "Laboratori",
+    "sectionNamingHint": "Emri shkon në çdo rast që i dërgohet atij nga tani e tutje.",
+    "nameHint": "Ashtu si i referohet klinika.",
+    "phone": "Telefoni",
+    "email": "Email",
+    "namePlaceholder": "DentalTech",
+    "phoneHint": "Numri që merr tabela e ndjekjeve kur një rast vonohet.",
+    "notesHint": "Kë të kërkoni, cilat ditë vijnë, çfarëdo tjetër.",
+    "alreadyNamed": "Të emërtuar tashmë"
+  },
   "documents": {
     "new": "Shto skedar",
     "upload": "Ngarko",
@@ -1377,7 +1418,14 @@
     "sectionAfterTreatmentHint": "Përparësia që e bën këtë listë të vlefshme: pas këtij trajtimi, ofro së pari këtë tekst.",
     "sectionBodyHint": "Doza, shpeshtësia dhe çfarë të bëjë nëse përkeqësohet. Kjo është ajo që pacienti merr me vete.",
     "previewTitle": "Model i ri",
-    "afterTreatmentCount": "{count, plural, =0 {i palidhur me një trajtim} one {pas # trajtimi} other {pas # trajtimesh}}"
+    "afterTreatmentCount": "{count, plural, =0 {i palidhur me një trajtim} one {pas # trajtimi} other {pas # trajtimesh}}",
+    "issuedTitle": "Recetat e lëshuara",
+    "issuedSubtitle": "{count, plural, one {# recetë} other {# receta}} të shkruara.",
+    "issuedEmpty": "Ende nuk është lëshuar asnjë recetë.",
+    "issuedNoMatch": "Asnjë recetë nuk përputhet me atë emër.",
+    "issuedSearch": "Gjeni sipas pacientit",
+    "issuedSearchPlaceholder": "Emri, telefoni ose email-i",
+    "issuedOpen": "Hap fletën"
   },
   "reorder": {
     "title": "Porosi e sugjeruar",

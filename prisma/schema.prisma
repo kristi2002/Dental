@@ -1514,12 +1514,73 @@ model WorkLine {
   /// gets its options; this is what was chosen.
   procedure String
 
-  /// Which laboratory. Free text rather than a row of its own: this is a
-  /// register of what happened, and a practice sends to two or three labs whose
-  /// names it already knows how to spell.
+  /// Which laboratory, as it was written on the docket.
+  ///
+  /// A snapshot, and kept: this row records a case that has already left the
+  /// building, and renaming a laboratory two years later must not rewrite what
+  /// March's slip said. Exactly the relationship `procedure` has to
+  /// `WorkProcedure`, and `patientName` to `Patient`.
   lab String?
 
+  /// Which laboratory, as a row that can be rung.
+  ///
+  /// The text above used to be the only answer, on the argument that "a practice
+  /// sends to two or three labs whose names it already knows how to spell".
+  /// Directly below it in this file, `WorkProcedure` exists because the identical
+  /// argument was made for `procedure` and then reversed — a zirconia crown went
+  /// out as three different strings in one week, and "nothing could be counted,
+  /// and the register's whole job is counting".
+  ///
+  /// `lab` had the same failure mode and one consequence `procedure` did not:
+  /// the follow-up board exists more or less *because* somebody has to ring the
+  /// laboratory about a bridge on Thursday, and the board knew the errand and
+  /// could not dial it. The dashboard's own "waiting on the laboratory" panel
+  /// offered the only telephone number the register held — the **patient's** —
+  /// under a heading about chasing the lab.
+  ///
+  /// Nullable, and `SetNull`: a case written before this existed keeps its text
+  /// and has no row, and retiring a laboratory must not take the register's
+  /// history with it.
+  labId  String?
+  labRef Lab?    @relation(fields: [labId], references: [id], onDelete: SetNull)
+
   @@index([workId])
+  /// "Everything we sent to this laboratory", which is the question a quarter's
+  /// invoice is checked against and the reason this column exists.
+  @@index([labId])
+}
+
+/// A laboratory the practice sends work to.
+///
+/// The same shape as `WorkProcedure` — a short list the practice keeps, and a
+/// form that offers that list and nothing else — with the one addition that
+/// makes it worth more than tidiness: somewhere to put the telephone number.
+///
+/// Deliberately not `Supplier`. A supplier sells boxes that go on a shelf and is
+/// reached from the reorder list; a laboratory makes a crown for one named
+/// patient and is reached from the works register and the follow-up board. They
+/// share two columns and no screens, and collapsing them would put every dental
+/// laboratory in the storage room's ordering list.
+model Lab {
+  id   String @id @default(uuid())
+  name String
+
+  /// What the follow-up board dials. The whole point of the row.
+  phone String?
+  email String?
+
+  /// Anything the practice needs beside the number — a contact's name, which
+  /// days they collect, what they are slow at.
+  notes String?
+
+  /// Retired, not deleted — the same rule staff, services and materials live
+  /// under, and for the sharper reason here: the lines already pointing at this
+  /// row are the register's record of what was sent where.
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  lines WorkLine[]
 }
 
 /// The kinds of work this practice sends out, named once.

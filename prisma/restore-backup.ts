@@ -109,9 +109,12 @@ const ORDER = [
   'contacts',
   'closures',
   'waitlist',
-  // The laboratory register. `workProcedures` is a free-standing catalogue with
-  // no foreign keys; a case may name a patient, and a line needs its case.
+  // The laboratory register. `workProcedures` and `labs` are free-standing
+  // catalogues with no foreign keys; a case may name a patient, and a line needs
+  // both its case and — since laboratories became rows — the laboratory it was
+  // sent to.
   'workProcedures',
+  'labs',
   'works',
   'workLines',
   // Last of the live tables, because a line may point at a patient, a case or a
@@ -168,6 +171,7 @@ const MODEL: Record<Key, string> = {
   closures: 'closure',
   waitlist: 'waitlistEntry',
   workProcedures: 'workProcedure',
+  labs: 'lab',
   works: 'work',
   workLines: 'workLine',
   followUps: 'followUp',

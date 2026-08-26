@@ -38,7 +38,10 @@
     "outbox": "Promemoria da inviare",
     "servicesImport": "Importa",
     "stockImport": "Importa",
-    "inbox": "Posta in arrivo"
+    "inbox": "Posta in arrivo",
+    "labs": "Laboratori",
+    "prescriptionsIssued": "Emesse",
+    "prescriptionTemplates": "Testi standard"
   },
   "common": {
     "save": "Salva",
@@ -243,7 +246,8 @@
     "importDuplicateInFile": "Lo stesso numero compare prima in questo file",
     "importAlreadyHere": "Già registrato qui",
     "message": "Messaggio",
-    "messagePatient": "Scrivi a questo paziente"
+    "messagePatient": "Scrivi a questo paziente",
+    "tabWorks": "Laboratorio"
   },
   "appointments": {
     "title": "Calendario",
@@ -993,7 +997,8 @@
     "entity_settings": "Impostazioni",
     "entity_stockCategory": "Categoria magazzino",
     "entity_serviceCategory": "Categoria servizi",
-    "entity_workProcedure": "Tipo di lavorazione"
+    "entity_workProcedure": "Tipo di lavorazione",
+    "entity_lab": "Laboratorio"
   },
   "recalls": {
     "title": "Richiami",
@@ -1251,7 +1256,17 @@
     "docketStageFrame": "Prova metallo",
     "docketStageDentine": "Prova dentina",
     "docketStageFinish": "Consegna",
-    "docketStageTray": "Portaimpronta individuale"
+    "docketStageTray": "Portaimpronta individuale",
+    "labChoose": "Scegli un laboratorio",
+    "labNone": "Nessun laboratorio è ancora stato inserito.",
+    "labManage": "Inseriscine uno",
+    "noLabPhone": "nessun numero registrato",
+    "statusReceived": "Rientrato",
+    "sentOn": "Inviato il {date}",
+    "dueOn": "promesso per il {date}",
+    "elementsCount": "{count, plural, one {# elemento} other {# elementi}}",
+    "patientSubtitle": "Che cosa è andato in laboratorio per questo paziente.",
+    "patientEmpty": "Nulla è stato inviato in laboratorio per questo paziente."
   },
   "followUps": {
     "title": "Da fare",
@@ -1318,6 +1333,32 @@
     "suggestionsHint": "Nomi scritti sui casi prima che questo elenco esistesse. Aggiungi quello che vuoi tenere — gli altri sono di solito la stessa lavorazione scritta diversamente.",
     "adopt": "Aggiungi all'elenco"
   },
+  "labs": {
+    "title": "Laboratori",
+    "subtitle": "A chi lo studio manda i lavori, e come raggiungerli.",
+    "worksTitle": "Lavori",
+    "new": "Nuovo laboratorio",
+    "newSubtitle": "Inserisci un laboratorio e registra il suo numero.",
+    "edit": "Modifica laboratorio",
+    "empty": "Nessun laboratorio è ancora stato inserito.",
+    "retired": "Ritirato",
+    "retire": "Ritira",
+    "restore": "Ripristina",
+    "retireConfirm": "Questo laboratorio ha ancora {count, plural, one {# caso} other {# casi}} in sospeso. Ritirarlo comunque? I casi restano nel registro.",
+    "noPhone": "Nessun numero registrato",
+    "missingPhone": "{count, plural, one {# laboratorio non ha} other {# laboratori non hanno}} ancora un numero di telefono — la bacheca dei richiami non può chiamarli.",
+    "lines": "{count, plural, one {# lavoro} other {# lavori}}",
+    "outstanding": "{count, plural, one {# ancora fuori} other {# ancora fuori}}",
+    "sectionNaming": "Il laboratorio",
+    "sectionNamingHint": "Il nome comparirà su ogni caso inviato loro d'ora in poi.",
+    "nameHint": "Come lo chiama lo studio.",
+    "phone": "Telefono",
+    "email": "Email",
+    "namePlaceholder": "DentalTech",
+    "phoneHint": "Il numero che la bacheca dei richiami compone quando un caso è in ritardo.",
+    "notesHint": "Chi chiedere, in quali giorni ritirano, qualsiasi altra cosa.",
+    "alreadyNamed": "Già inseriti"
+  },
   "documents": {
     "new": "Aggiungi file",
     "upload": "Carica",
@@ -1377,7 +1418,14 @@
     "sectionAfterTreatmentHint": "Il vantaggio che rende utile questo elenco: dopo questo trattamento, proponi per primo questo testo.",
     "sectionBodyHint": "Dose, frequenza e cosa fare se peggiora. È questo che il paziente porta a casa.",
     "previewTitle": "Nuovo modello",
-    "afterTreatmentCount": "{count, plural, =0 {non legato a un trattamento} one {dopo # trattamento} other {dopo # trattamenti}}"
+    "afterTreatmentCount": "{count, plural, =0 {non legato a un trattamento} one {dopo # trattamento} other {dopo # trattamenti}}",
+    "issuedTitle": "Prescrizioni emesse",
+    "issuedSubtitle": "{count, plural, one {# prescrizione} other {# prescrizioni}} scritte.",
+    "issuedEmpty": "Nessuna prescrizione è ancora stata emessa.",
+    "issuedNoMatch": "Nessuna prescrizione corrisponde a quel nome.",
+    "issuedSearch": "Cerca per paziente",
+    "issuedSearchPlaceholder": "Nome, telefono o email",
+    "issuedOpen": "Apri il foglio"
   },
   "reorder": {
     "title": "Ordine suggerito",

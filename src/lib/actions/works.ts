@@ -71,6 +71,26 @@ export async function saveWork(_prev: ActionState, formData: FormData): Promise<
 
   const lines = parseDraftLines(requiredString(formData.get('lines')));
 
+  // Which of the posted laboratory ids are real, and what each is called today.
+  //
+  // Checked rather than trusted: `labId` arrives in a hidden JSON field, and a
+  // foreign key taken on faith from one of those is a foreign key somebody can
+  // point at any row they like. An id that does not resolve is dropped to null
+  // and the line keeps its text, which is exactly the state every case written
+  // before this table is already in.
+  //
+  // The name is read back here too, so the snapshot on the line is the
+  // catalogue's spelling rather than whatever the browser happened to send —
+  // the one place the two could otherwise disagree from the moment of writing.
+  const labIds = [...new Set(lines.map((line) => line.labId).filter(Boolean))];
+  const labs = labIds.length
+    ? await prisma.lab.findMany({
+        where: { id: { in: labIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const labNames = new Map(labs.map((lab) => [lab.id, lab.name]));
+
   let savedId = id;
   try {
     await prisma.$transaction(async (tx) => {
@@ -90,7 +110,11 @@ export async function saveWork(_prev: ActionState, formData: FormData): Promise<
             position: index + 1,
             elements: line.elements,
             procedure: line.procedure,
-            lab: line.lab || null,
+            // The catalogue's spelling when the line names a row, the typed
+            // text when it does not. See `WorkLine.lab` — the snapshot is what
+            // the docket said and stays put for ever after.
+            lab: labNames.get(line.labId) ?? (line.lab || null),
+            labId: labNames.has(line.labId) ? line.labId : null,
             teeth: line.teeth || null,
           })),
         });

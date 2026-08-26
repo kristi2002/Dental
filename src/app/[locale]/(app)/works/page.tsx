@@ -17,6 +17,7 @@ import { paddedDateFormat, toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { getAssignableStaff } from '@/lib/queries';
 import { cn } from '@/lib/utils';
+import { getLabs } from '@/lib/labs';
 import { getProcedureOptions } from '@/lib/work-procedures';
 import {
   daysLate,
@@ -150,7 +151,7 @@ export default async function WorksPage({
   // Four questions about the register as a whole, none of which needs the
   // register itself. They come first because the month the page opens on is one
   // of the answers, and the rows cannot be asked for until it is known.
-  const [days, labRows, lateCount, totalCount, staff, procedures] = await Promise.all([
+  const [days, labRows, lateCount, totalCount, staff, procedures, labOptions] = await Promise.all([
     // Every day the register has anything on, one column wide, newest first —
     // which is what `monthsPresent` folds into months. Days rather than a
     // `date_trunc` group, so this stays a query Prisma can write on any
@@ -160,7 +161,11 @@ export default async function WorksPage({
       distinct: ['sentAt'],
       orderBy: { sentAt: 'desc' },
     }),
-    // Every laboratory the register has ever named, for the filter.
+    // Every laboratory the register has ever named, for the filter. Still read
+    // off the lines rather than off the `Lab` catalogue: a name the catalogue has
+    // since dropped, or one folded under another spelling, is still printed on
+    // cases in this register, and a filter that could not reach them would be
+    // hiding rows from the person looking for exactly those.
     prisma.workLine.findMany({ select: { lab: true }, distinct: ['lab'] }),
     // What the practice is still waiting on, across the whole register rather
     // than the month on screen — the count is the reason to press the filter,
@@ -172,14 +177,30 @@ export default async function WorksPage({
     // What the edit dialog's `punimi` field offers. Only fetched for somebody
     // who can open that dialog.
     canEdit ? getProcedureOptions() : Promise.resolve([]),
+    // What that dialog's laboratory picker offers — the catalogue, not the
+    // register's own past spellings. Same reasoning as the procedures list
+    // beside it: one bench is one entry, and an entry can hold a phone number.
+    canEdit ? getLabs() : Promise.resolve([]),
   ]);
 
   const months = monthsPresent(days);
   const monthFilter = resolveWorkMonth(months, month, statusFilter);
 
-  const labs = [...new Set(labRows.map((line) => line.lab?.trim()).filter(Boolean))].sort(
-    (a, b) => a!.localeCompare(b!),
-  ) as string[];
+  // Folded, so a laboratory written two ways is one entry — and the spelling
+  // offered is the catalogue's when there is one, which is how this dropdown
+  // comes to agree with the picker on the form. `filterWorks` compares folded
+  // too, so choosing "DentalTech" still finds the case written "dentaltech".
+  const catalogue = new Map(
+    labOptions.map((option) => [option.name.trim().toLowerCase(), option.name]),
+  );
+  const labNames = new Map<string, string>();
+  for (const row of labRows) {
+    const text = row.lab?.trim();
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (!labNames.has(key)) labNames.set(key, catalogue.get(key) ?? text);
+  }
+  const labs = [...labNames.values()].sort((a, b) => a.localeCompare(b));
 
   const filters = { query, lab: labFilter, month: monthFilter, status: statusFilter };
 
@@ -699,7 +720,7 @@ export default async function WorksPage({
                             {canEdit ? (
                               <div className={canFollowUp ? 'border-t border-line' : undefined}>
                                 <WorkFormDialog
-                                  labs={labs}
+                                  labs={labOptions}
                                   procedures={procedures}
                                   triggerClassName="menu-item"
                                   work={{
@@ -718,6 +739,7 @@ export default async function WorksPage({
                                       elements: line.elements,
                                       procedure: line.procedure,
                                       lab: line.lab ?? '',
+                                      labId: line.labId ?? '',
                                       teeth: line.teeth ?? '',
                                     })),
                                   }}

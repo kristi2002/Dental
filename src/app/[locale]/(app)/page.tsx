@@ -410,8 +410,47 @@ export default async function DashboardPage({
                             work.patientName
                           )}
                         </span>
-                        <span className="block text-[0.9rem] text-ink-soft tabular-nums">
-                          <a href={`tel:${work.phone.replace(/\s/g, '')}`}>{work.phone}</a>
+                        {/* Who to ring, which is the laboratory and not the
+                            patient. This row printed `work.phone` — the
+                            patient's own number, snapshotted off the docket —
+                            under a heading reading "waiting on the laboratory",
+                            for as long as the panel has existed. There was
+                            nowhere else for a number to come from until `Lab`
+                            became a table.
+
+                            A case can name more than one bench, so this is a
+                            list; it is nearly always one. A laboratory carried
+                            over from the old text column has a name and no
+                            number yet, and says so rather than showing nothing —
+                            "we sent this to Fier and cannot ring them" is the
+                            more useful half of the truth, and it is a sentence
+                            somebody can act on by filling the number in. */}
+                        <span className="block text-[0.9rem] text-ink-soft">
+                          {work.labs.length === 0 ? (
+                            <span className="text-ink-faint italic">{twk('noLab')}</span>
+                          ) : (
+                            work.labs.map((lab, index) => (
+                              <span key={lab.id ?? lab.name}>
+                                {index > 0 ? ' · ' : ''}
+                                <span className="font-semibold">{lab.name}</span>{' '}
+                                {lab.phone ? (
+                                  <a
+                                    href={`tel:${lab.phone.replace(/\s/g, '')}`}
+                                    className="tabular-nums"
+                                  >
+                                    {lab.phone}
+                                  </a>
+                                ) : (
+                                  <Link
+                                    href="/works/labs"
+                                    className="text-warn underline"
+                                  >
+                                    {twk('noLabPhone')}
+                                  </Link>
+                                )}
+                              </span>
+                            ))
+                          )}
                         </span>
                       </span>
 

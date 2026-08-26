@@ -19,6 +19,7 @@ import {
   type DaySchedule,
 } from '@/lib/clinic-hours';
 import { departmentOf } from '@/lib/catalog';
+import { labsOnCase } from '@/lib/labs';
 import { usableQuantity } from '@/lib/expiry';
 import {
   alertQuietened,
@@ -902,7 +903,7 @@ export type OpenFollowUp = Awaited<ReturnType<typeof getOpenFollowUps>>[number];
  * stopped early.
  */
 export async function getWorksToChase() {
-  return prisma.work.findMany({
+  const works = await prisma.work.findMany({
     where: { receivedAt: null, dueAt: { not: null, lte: addDays(today(), DUE_SOON_DAYS) } },
     orderBy: [{ urgent: 'desc' }, { dueAt: 'asc' }],
     select: {
@@ -915,8 +916,27 @@ export async function getWorksToChase() {
       receivedAt: true,
       urgent: true,
       sentAt: true,
+      // Who to actually ring.
+      //
+      // This panel is headed "waiting on the laboratory" and the only telephone
+      // number it could offer was `Work.phone`, which the schema documents as
+      // the *patient's* number snapshotted off the docket. So the one row in the
+      // app whose entire purpose is to start a call to a laboratory handed you
+      // the one person who cannot help — for as long as the panel has existed,
+      // because until `Lab` there was nowhere for the right number to live.
+      lines: {
+        select: {
+          lab: true,
+          labRef: { select: { id: true, name: true, phone: true, email: true } },
+        },
+      },
     },
   });
+
+  // `Object.assign` rather than a spread: this runs over every case the practice
+  // is waiting on, on every dashboard load, and the rows are ours to mutate —
+  // they came out of the query a line above and nothing else has seen them.
+  return works.map((work) => Object.assign(work, { labs: labsOnCase(work.lines) }));
 }
 
 /**

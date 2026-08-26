@@ -92,6 +92,7 @@ export async function POST(request: Request) {
     clinicProfile,
     templateServices,
     workProcedures,
+    labs,
     works,
     workLines,
     followUps,
@@ -170,6 +171,9 @@ export async function POST(request: Request) {
     // from backup got its patients and its cupboard back and lost every case it
     // had ever sent out, along with the serial numbers the lab bills against.
     prisma.workProcedure.findMany(),
+    // The laboratories themselves, which is where the telephone numbers live —
+    // a restore without them leaves every line naming a bench nobody can ring.
+    prisma.lab.findMany(),
     prisma.work.findMany(),
     prisma.workLine.findMany(),
     // The practice's own board of things to come back to. Same story — a whole
@@ -265,6 +269,7 @@ export async function POST(request: Request) {
         clinicProfile,
         templateServices,
         workProcedures,
+        labs,
         works,
         workLines,
         followUps,

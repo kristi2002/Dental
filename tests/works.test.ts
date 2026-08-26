@@ -127,8 +127,8 @@ describe('parseDraftLines — the case as the builder posts it', () => {
     ]);
 
     assert.deepEqual(parseDraftLines(raw), [
-      { elements: 3, procedure: 'Urë zirkoni', lab: 'Dental Art', teeth: '' },
-      { elements: 1, procedure: 'Kurorë', lab: '', teeth: '' },
+      { elements: 3, procedure: 'Urë zirkoni', lab: 'Dental Art', labId: '', teeth: '' },
+      { elements: 1, procedure: 'Kurorë', lab: '', labId: '', teeth: '' },
     ]);
   });
 
@@ -139,7 +139,7 @@ describe('parseDraftLines — the case as the builder posts it', () => {
     ]);
 
     assert.deepEqual(parseDraftLines(raw), [
-      { elements: 2, procedure: 'Protezë', lab: '', teeth: '' },
+      { elements: 2, procedure: 'Protezë', lab: '', labId: '', teeth: '' },
     ]);
   });
 
@@ -174,6 +174,30 @@ describe('parseDraftLines — the case as the builder posts it', () => {
     const [row] = parseDraftLines(JSON.stringify([{ procedure: 'Kurorë' }]));
     assert.equal(row.elements, 1);
     assert.equal(row.lab, '');
+    assert.equal(row.labId, '');
+  });
+
+  it('carries the laboratory key beside the name it was written with', () => {
+    // Both halves travel together: the key is what the register counts by, the
+    // name is the snapshot printed on the docket. A row where those disagree is
+    // the one thing the pairing exists to prevent — `saveWork` re-reads the name
+    // off the catalogue for exactly that reason.
+    const raw = JSON.stringify([
+      { elements: 1, procedure: 'Kurorë', lab: 'DentalTech', labId: 'lab-1' },
+    ]);
+    const [row] = parseDraftLines(raw);
+    assert.equal(row.labId, 'lab-1');
+    assert.equal(row.lab, 'DentalTech');
+  });
+
+  it('reads a missing or malformed laboratory key as none', () => {
+    // A case written before laboratories were rows posts no key at all, and a
+    // hostile one may post anything. Both land on the same answer, which is the
+    // state every historic line is already in: a name, and no row.
+    for (const labId of [undefined, null, 42, { id: 'x' }]) {
+      const raw = JSON.stringify([{ elements: 1, procedure: 'Kurorë', lab: 'Fier', labId }]);
+      assert.equal(parseDraftLines(raw)[0].labId, '', `labId ${JSON.stringify(labId)}`);
+    }
   });
 
   it('caps the case rather than accepting an import', () => {

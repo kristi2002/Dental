@@ -28,6 +28,8 @@ export type WorkDefaults = {
     elements: number;
     procedure: string;
     lab: string;
+    /** Empty on a line written before laboratories were rows. */
+    labId: string;
     teeth: string;
   }>;
 };
@@ -53,7 +55,8 @@ export function WorkFormDialog({
   compact = false,
 }: {
   work: WorkDefaults;
-  labs?: string[];
+  /** The catalogue of laboratories the line picker offers. */
+  labs?: Array<{ id: string; name: string }>;
   procedures?: string[];
   triggerClassName?: string;
   /** Icon-only trigger, for a row that has no width to spare for the word. */

@@ -43,8 +43,17 @@ export function WorkLinesField({
 }: {
   value: LineDraft[];
   onChange: (lines: LineDraft[]) => void;
-  /** Laboratories already named on other cases, so the spelling repeats. */
-  labs?: string[];
+  /**
+   * The catalogue of laboratories each row picks from.
+   *
+   * A list of rows now, not the distinct spellings the register happened to
+   * contain. Typing the laboratory was the same mistake typing the work was:
+   * one bench became three strings, "what did we send them this quarter" could
+   * not be asked, and — the consequence the procedures list never had — there
+   * was nowhere to keep the telephone number, so the follow-up board knew the
+   * errand and could not dial it.
+   */
+  labs?: Array<{ id: string; name: string }>;
   /** The catalogue every row picks its work from. */
   procedures?: string[];
 }) {
@@ -63,7 +72,7 @@ export function WorkLinesField({
     // at zero would mean typing a 1 on most rows of most cases.
     onChange([
       ...value,
-      { key: `${uid}-${seq.current}`, elements: 1, procedure: '', lab: '', teeth: '' },
+      { key: `${uid}-${seq.current}`, elements: 1, procedure: '', lab: '', labId: '', teeth: '' },
     ]);
   }
 
@@ -79,7 +88,13 @@ export function WorkLinesField({
         type="hidden"
         name="lines"
         value={JSON.stringify(
-          value.map(({ elements, procedure, lab, teeth }) => ({ elements, procedure, lab, teeth })),
+          value.map(({ elements, procedure, lab, labId, teeth }) => ({
+            elements,
+            procedure,
+            lab,
+            labId,
+            teeth,
+          })),
         )}
       />
 
@@ -164,14 +179,47 @@ export function WorkLinesField({
                     <label className="field-label" htmlFor={`${line.key}-lab`}>
                       {t('lab')}
                     </label>
-                    <input
+                    <select
                       id={`${line.key}-lab`}
                       className="field-input"
-                      placeholder={t('labPlaceholder')}
-                      list={`${uid}-labs`}
-                      value={line.lab}
-                      onChange={(event) => patch(line.key, { lab: event.target.value })}
-                    />
+                      value={line.labId}
+                      onChange={(event) => {
+                        // Both halves move together. `labId` is what the
+                        // register counts by and `lab` is the snapshot printed
+                        // on the docket, and a row where those two disagree is
+                        // the one thing this pairing must never produce.
+                        const id = event.target.value;
+                        const picked = labs.find((lab) => lab.id === id);
+                        patch(line.key, { labId: id, lab: picked?.name ?? '' });
+                      }}
+                    >
+                      <option value="">{t('labChoose')}</option>
+                      {/* A line carried over from the old text box names a
+                          laboratory this list may not hold — one retired since,
+                          or one the migration folded under another spelling.
+                          Offered as its own option rather than silently reset,
+                          because clearing somebody's docket to open a form is
+                          not a correction. */}
+                      {line.lab && !labs.some((lab) => lab.name === line.lab) ? (
+                        <option value="">{line.lab}</option>
+                      ) : null}
+                      {labs.map((lab) => (
+                        <option key={lab.id} value={lab.id}>
+                          {lab.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Only when there is nothing to pick — the same dead-end
+                        rule the work catalogue follows one field to the left. */}
+                    {labs.length === 0 ? (
+                      <p className="mt-1.5 text-[0.9rem] text-ink-soft">
+                        {t('labNone')}{' '}
+                        <Link href="/works/labs" className="font-semibold underline">
+                          {t('labManage')}
+                        </Link>
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -228,12 +276,6 @@ export function WorkLinesField({
           })}
         </ul>
       )}
-
-      <datalist id={`${uid}-labs`}>
-        {labs.map((lab) => (
-          <option key={lab} value={lab} />
-        ))}
-      </datalist>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <button

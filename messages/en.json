@@ -38,7 +38,10 @@
     "outbox": "Reminders to send",
     "servicesImport": "Import",
     "stockImport": "Import",
-    "inbox": "Inbox"
+    "inbox": "Inbox",
+    "labs": "Laboratories",
+    "prescriptionsIssued": "Issued",
+    "prescriptionTemplates": "Standard wording"
   },
   "common": {
     "save": "Save",
@@ -243,7 +246,8 @@
     "importDuplicateInFile": "Same number appears earlier in this file",
     "importAlreadyHere": "Already registered here",
     "message": "Message",
-    "messagePatient": "Write to this patient"
+    "messagePatient": "Write to this patient",
+    "tabWorks": "Laboratory"
   },
   "appointments": {
     "title": "Calendar",
@@ -993,7 +997,8 @@
     "entity_settings": "Settings",
     "entity_stockCategory": "Stock category",
     "entity_serviceCategory": "Service category",
-    "entity_workProcedure": "Kind of work"
+    "entity_workProcedure": "Kind of work",
+    "entity_lab": "Laboratory"
   },
   "recalls": {
     "title": "Recalls",
@@ -1251,7 +1256,17 @@
     "docketStageFrame": "Metal frame",
     "docketStageDentine": "Dentine try-in",
     "docketStageFinish": "Completion",
-    "docketStageTray": "Custom tray"
+    "docketStageTray": "Custom tray",
+    "labChoose": "Pick a laboratory",
+    "labNone": "No laboratory has been named yet.",
+    "labManage": "Name one",
+    "noLabPhone": "no number on file",
+    "statusReceived": "Back",
+    "sentOn": "Sent {date}",
+    "dueOn": "promised {date}",
+    "elementsCount": "{count, plural, one {# element} other {# elements}}",
+    "patientSubtitle": "What has gone to a laboratory for this patient.",
+    "patientEmpty": "Nothing has been sent to a laboratory for this patient."
   },
   "followUps": {
     "title": "Follow-ups",
@@ -1318,6 +1333,32 @@
     "suggestionsHint": "Names typed onto cases before this list existed. Add the one you mean to keep — the rest are usually the same work written differently.",
     "adopt": "Add to the list"
   },
+  "labs": {
+    "title": "Laboratories",
+    "subtitle": "Who the practice sends work to, and how to reach them.",
+    "worksTitle": "Works",
+    "new": "New laboratory",
+    "newSubtitle": "Name a laboratory and put its number on file.",
+    "edit": "Edit laboratory",
+    "empty": "No laboratory has been named yet.",
+    "retired": "Retired",
+    "retire": "Retire",
+    "restore": "Bring back",
+    "retireConfirm": "This laboratory still has {count, plural, one {# case} other {# cases}} out. Retire it anyway? The cases stay on the register.",
+    "noPhone": "No number on file",
+    "missingPhone": "{count, plural, one {# laboratory has} other {# laboratories have}} no telephone number yet — the follow-up board cannot ring them.",
+    "lines": "{count, plural, one {# piece of work} other {# pieces of work}}",
+    "outstanding": "{count, plural, one {# still out} other {# still out}}",
+    "sectionNaming": "The laboratory",
+    "sectionNamingHint": "The name goes on every case sent to them from now on.",
+    "nameHint": "As the practice refers to them.",
+    "phone": "Phone",
+    "email": "Email",
+    "namePlaceholder": "DentalTech",
+    "phoneHint": "What the follow-up board dials when a case is late.",
+    "notesHint": "Whose name to ask for, which days they collect, anything else.",
+    "alreadyNamed": "Already named"
+  },
   "documents": {
     "new": "Add file",
     "upload": "Upload",
@@ -1377,7 +1418,14 @@
     "sectionAfterTreatmentHint": "The edge that makes this list worth having: after this treatment, offer this wording first.",
     "sectionBodyHint": "Dosage, frequency, and what to do if it gets worse. This is what the patient walks out with.",
     "previewTitle": "New template",
-    "afterTreatmentCount": "{count, plural, =0 {not tied to a treatment} one {after # treatment} other {after # treatments}}"
+    "afterTreatmentCount": "{count, plural, =0 {not tied to a treatment} one {after # treatment} other {after # treatments}}",
+    "issuedTitle": "Issued prescriptions",
+    "issuedSubtitle": "{count, plural, one {# prescription} other {# prescriptions}} written.",
+    "issuedEmpty": "No prescription has been issued yet.",
+    "issuedNoMatch": "No prescription matches that name.",
+    "issuedSearch": "Find by patient",
+    "issuedSearchPlaceholder": "Name, phone or email",
+    "issuedOpen": "Open the sheet"
   },
   "reorder": {
     "title": "Suggested order",

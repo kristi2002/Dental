@@ -53,6 +53,10 @@ export const NAV_DESTINATIONS: ReadonlyArray<
       // same reason the shelves are filed under stock: it is named once and then
       // picked from, which is not a place anybody starts their day.
       { href: '/works/procedures', key: 'workProcedures', permission: 'work.edit' },
+      // The other list a line is filled in from, and the one that can be rung.
+      // Same reasoning, same shelf — with the difference that this one is where
+      // the practice keeps the telephone number the follow-up board dials.
+      { href: '/works/labs', key: 'labs', permission: 'work.edit' },
     ],
   },
   { href: '/recalls', key: 'recalls', permission: 'recall.view' },
@@ -89,7 +93,20 @@ export const NAV_DESTINATIONS: ReadonlyArray<
   // Beside the catalogue rather than filed under it. A template is pinned to the
   // treatment it follows, but prescribing is its own part of the day — and the
   // prescription a patient walks out with already lives inside this section.
-  { href: '/prescriptions', key: 'prescriptions', permission: 'prescription.view' },
+  {
+    href: '/prescriptions',
+    key: 'prescriptions',
+    permission: 'prescription.view',
+    children: [
+      // What the practice has actually written, which is what somebody pressing
+      // "Prescriptions" is nearly always after. It leads, and the standard
+      // wording it is written *from* sits under it — the section used to open
+      // straight onto the template catalogue, so the one screen anybody wanted
+      // was reachable only through the patient who happened to receive it.
+      { href: '/prescriptions/issued', key: 'prescriptionsIssued', permission: 'prescription.view' },
+      { href: '/prescriptions', key: 'prescriptionTemplates', permission: 'prescription.view', exact: true },
+    ],
+  },
   {
     href: '/stock',
     key: 'stock',
@@ -145,4 +162,7 @@ export const SEARCHABLE_LISTS: ReadonlyArray<Destination> = [
   { href: '/follow-ups', key: 'followUps', permission: 'followup.view' },
   // The inbox joins them now that it has a search box of its own.
   { href: '/inbox', key: 'inbox', permission: 'message.view' },
+  // Searched by patient name, which is the only name anybody looking for a
+  // prescription has — see the note on the screen itself.
+  { href: '/prescriptions/issued', key: 'prescriptionsIssued', permission: 'prescription.view' },
 ];

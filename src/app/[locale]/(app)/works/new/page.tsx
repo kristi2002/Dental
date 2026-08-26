@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { toDateKey, today } from '@/lib/dates';
-import { prisma } from '@/lib/prisma';
+import { getLabs } from '@/lib/labs';
 import { getProcedureOptions } from '@/lib/work-procedures';
 
 export const dynamic = 'force-dynamic';
@@ -37,22 +37,12 @@ export default async function NewWorkPage({ params }: { params: Promise<{ locale
   const t = await getTranslations('works');
   const tc = await getTranslations('common');
 
-  // The laboratories this practice already uses, offered as suggestions so the
-  // same one is not entered under three spellings. Distinct at the database
-  // rather than pulled back and deduplicated here — the register grows forever
-  // and the list of labs does not.
-  const [named, procedures] = await Promise.all([
-    prisma.workLine.findMany({
-      where: { lab: { not: null } },
-      distinct: ['lab'],
-      orderBy: { lab: 'asc' },
-      select: { lab: true },
-    }),
-    // The kinds of work, which are picked rather than typed — see
-    // `getProcedureOptions` for what happens before any have been named.
-    getProcedureOptions(),
-  ]);
-  const labs = named.map((row) => row.lab!).filter(Boolean);
+  // The two catalogues each line is filled in from. Both are picked rather than
+  // typed now: the laboratory used to be a text box with the register's own past
+  // spellings offered as suggestions, which is how one bench became three
+  // strings — the same failure the work catalogue was built to end, plus one
+  // more, because a suggestion has nowhere to keep a telephone number.
+  const [labs, procedures] = await Promise.all([getLabs(), getProcedureOptions()]);
 
   return (
     <>
