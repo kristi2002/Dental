@@ -1,0 +1,292 @@
+import assert from 'node:assert/strict';
+import { after, before, describe, it, type TestContext } from 'node:test';
+import { AppointmentStatus, CancelledBy } from '../src/generated/prisma/enums';
+import { addDays, today } from '../src/lib/dates';
+import { prisma } from '../src/lib/prisma';
+import { getUnremindedTomorrow } from '../src/lib/queries';
+import { getReliability, getReliabilityMap, NOT_CLINIC_CANCELLED } from '../src/lib/reliability';
+import { findConflicts, OCCUPIES_A_SLOT } from '../src/lib/scheduling';
+
+/**
+ * The half of the app the rest of this suite cannot see.
+ *
+ * Every other test file here is a pure-function test, which is what made them
+ * cheap and fast and is also why four live bugs sat in the repository with 800
+ * tests passing over the top of them. All four lived in the same thin seam: the
+ * few lines where worked-out logic becomes a Prisma `where`. A pure test cannot
+ * reach that seam, because the seam *is* the database call.
+ *
+ * Three of the four were the same mistake — a filter written against a nullable
+ * column with no branch for null, which in SQL matches nothing rather than
+ * everything — and it fails in the worst possible direction: silently, and
+ * looking exactly like a well-behaved practice with nothing to report.
+ *
+ * So these tests run against a real Postgres, and skip themselves cleanly when
+ * there is not one. CI has a database; a fresh clone does not, and reporting
+ * three broken suites to somebody who has just typed `npm install` would teach
+ * them to ignore this file.
+ */
+
+const MARKER = '__querylayer_fixture__';
+
+/**
+ * Two gates rather than one, because the transform these tests run under has no
+ * top-level await and the connection cannot be tried before `describe` is
+ * called. The variable is checked synchronously, which covers the fresh clone;
+ * the connection is tried in `before`, which covers a `.env` pointing at a
+ * database that is not up.
+ */
+const NO_URL = process.env.DATABASE_URL ? false : 'DATABASE_URL is not set';
+let unreachable: string | null = null;
+
+/** Skips the test in hand when `before` could not reach a database. */
+function needsDatabase(t: TestContext): boolean {
+  if (unreachable) {
+    t.skip(unreachable);
+    return true;
+  }
+  return false;
+}
+
+/** Everything this file creates carries the marker, and only that is removed. */
+async function cleanUp(): Promise<void> {
+  if (unreachable) return;
+  await prisma.patient.deleteMany({ where: { lastName: MARKER } });
+}
+
+async function makePatient(consent: boolean | null): Promise<string> {
+  const patient = await prisma.patient.create({
+    data: { firstName: 'Fixture', lastName: MARKER, phone: '', contactConsent: consent },
+  });
+  return patient.id;
+}
+
+describe('the query layer — filters that only a database can settle', { skip: NO_URL }, () => {
+  before(async () => {
+    try {
+      // A real query against a real table, not `SELECT 1`: a database that is
+      // up but has never had the migrations applied answers `SELECT 1`
+      // perfectly well and then fails on every line below it. Asking for the
+      // table turns that into a clean skip.
+      await prisma.patient.count();
+    } catch (error) {
+      unreachable = `no migrated database reachable (${(error as Error).message.split('\n')[0]})`;
+    }
+  });
+
+  after(cleanUp);
+
+  it('counts a patient cancellation, which has no `cancelledBy` at all', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(null);
+    const past = addDays(today(), -7);
+
+    // The ordinary history of an ordinary patient: nothing here was called off
+    // by the clinic, so `cancelledBy` is null on all four rows — which is the
+    // exact shape that `NOT: { cancelledBy: CLINIC }` threw away wholesale.
+    await prisma.appointment.createMany({
+      data: [
+        { patientId, date: past, startTime: '09:00', status: AppointmentStatus.COMPLETED },
+        { patientId, date: past, startTime: '10:00', status: AppointmentStatus.COMPLETED },
+        { patientId, date: past, startTime: '11:00', status: AppointmentStatus.NO_SHOW },
+        { patientId, date: past, startTime: '12:00', status: AppointmentStatus.CANCELLED },
+      ],
+    });
+
+    const score = await getReliability(patientId);
+
+    // The regression, stated plainly: this was 0, so `level` was 'unknown', so
+    // the badge rendered nothing — for every patient in the practice.
+    assert.equal(score.past, 4, 'past appointments must survive the clinic-cancellation filter');
+    assert.equal(score.noShows, 1);
+    assert.equal(score.cancellations, 1);
+    assert.equal(score.level, 'watch');
+  });
+
+  it("does not count a slot the clinic called off against the patient", async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(null);
+    const past = addDays(today(), -7);
+
+    await prisma.appointment.createMany({
+      data: [
+        { patientId, date: past, startTime: '09:00', status: AppointmentStatus.COMPLETED },
+        // The clinic's doing. It must be invisible to the score — which is the
+        // thing the filter was there to achieve, and still is.
+        {
+          patientId,
+          date: past,
+          startTime: '10:00',
+          status: AppointmentStatus.CANCELLED,
+          cancelledBy: CancelledBy.CLINIC,
+        },
+      ],
+    });
+
+    const score = await getReliability(patientId);
+    assert.equal(score.past, 1, 'a clinic cancellation is not part of the patient’s history');
+    assert.equal(score.cancellations, 0);
+  });
+
+  it('gives the list badge and the record badge the same answer', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(null);
+    const past = addDays(today(), -7);
+
+    await prisma.appointment.createMany({
+      data: [
+        { patientId, date: past, startTime: '09:00', status: AppointmentStatus.COMPLETED },
+        { patientId, date: past, startTime: '10:00', status: AppointmentStatus.NO_SHOW },
+        {
+          patientId,
+          date: past,
+          startTime: '11:00',
+          status: AppointmentStatus.CANCELLED,
+          cancelledBy: CancelledBy.CLINIC,
+        },
+      ],
+    });
+
+    // These two have disagreed before, in both directions. The patient list and
+    // the patient's own screen are one claim about one person.
+    const one = await getReliability(patientId);
+    const many = (await getReliabilityMap([patientId])).get(patientId);
+    assert.deepEqual(many, one);
+  });
+
+  it('still chases a patient nobody has asked about consent', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    // Null, not false: "nobody has asked" is the state every imported patient
+    // starts in, and `{ not: false }` matched none of them.
+    const patientId = await makePatient(null);
+    const tomorrow = addDays(today(), 1);
+
+    const appointment = await prisma.appointment.create({
+      data: {
+        patientId,
+        date: tomorrow,
+        startTime: '09:00',
+        status: AppointmentStatus.SCHEDULED,
+      },
+    });
+
+    const rows = await getUnremindedTomorrow();
+    assert.ok(
+      rows.some((row) => row.id === appointment.id),
+      'an un-asked patient must still appear on the reminder list',
+    );
+  });
+
+  it('leaves out a patient who has said no', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(false);
+    const tomorrow = addDays(today(), 1);
+
+    const appointment = await prisma.appointment.create({
+      data: {
+        patientId,
+        date: tomorrow,
+        startTime: '09:00',
+        status: AppointmentStatus.SCHEDULED,
+      },
+    });
+
+    const rows = await getUnremindedTomorrow();
+    assert.ok(
+      !rows.some((row) => row.id === appointment.id),
+      'an explicit refusal still closes it',
+    );
+  });
+
+  it('warns about booking over a patient who has already arrived', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(null);
+    const day = addDays(today(), 3);
+
+    const sitting = await prisma.appointment.create({
+      data: {
+        patientId,
+        date: day,
+        startTime: '09:00',
+        durationMin: 40,
+        status: AppointmentStatus.ARRIVED,
+      },
+    });
+
+    // Neither side names a dentist or a chair, so `collides` falls back to "we
+    // cannot prove these apart" — which is a clash. The only question this asks
+    // is whether an ARRIVED row is looked at in the first place.
+    const conflicts = await findConflicts({
+      date: day,
+      startTime: '09:15',
+      durationMin: 30,
+    });
+
+    assert.ok(
+      conflicts.some((conflict) => conflict.id === sitting.id),
+      'the patient is in the chair — the slot is not free',
+    );
+  });
+
+  it('treats a cancelled slot as free, which is the point of the distinction', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(null);
+    const day = addDays(today(), 3);
+
+    await prisma.appointment.create({
+      data: {
+        patientId,
+        date: day,
+        startTime: '09:00',
+        durationMin: 40,
+        status: AppointmentStatus.CANCELLED,
+      },
+    });
+
+    const conflicts = await findConflicts({ date: day, startTime: '09:15', durationMin: 30 });
+    assert.equal(conflicts.length, 0, 'the chair really is free');
+  });
+});
+
+/**
+ * The shape of the two filters, asserted without a database.
+ *
+ * Cheap, always runs, and each one names the exact thing whose absence was the
+ * bug — so a future edit that quietly drops the null branch or the `ARRIVED`
+ * entry fails here even on a machine with no Postgres.
+ */
+describe('the filters themselves', () => {
+  it('counts a patient who is in the chair as occupying it', () => {
+    assert.ok(
+      OCCUPIES_A_SLOT.includes(AppointmentStatus.ARRIVED),
+      'ARRIVED must block — this is the one that was missing',
+    );
+    assert.ok(OCCUPIES_A_SLOT.includes(AppointmentStatus.SCHEDULED));
+    assert.ok(OCCUPIES_A_SLOT.includes(AppointmentStatus.COMPLETED));
+  });
+
+  it('leaves a freed chair free', () => {
+    const statuses: readonly AppointmentStatus[] = OCCUPIES_A_SLOT;
+    assert.ok(!statuses.includes(AppointmentStatus.CANCELLED));
+    assert.ok(!statuses.includes(AppointmentStatus.NO_SHOW));
+  });
+
+  it('spells the clinic-cancellation filter with an explicit null branch', () => {
+    // `NOT: { cancelledBy: CLINIC }` reads better and matches nothing, because
+    // SQL cannot say a null is unequal to anything. The `OR` is not a style
+    // choice; it is the fix.
+    const branches = NOT_CLINIC_CANCELLED.OR;
+    assert.ok(Array.isArray(branches), 'must be an OR, not a bare NOT');
+    assert.ok(
+      branches.some((branch) => 'cancelledBy' in branch && branch.cancelledBy === null),
+      'a null `cancelledBy` — an appointment nobody cancelled — must match',
+    );
+  });
+});

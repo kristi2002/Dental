@@ -4,17 +4,22 @@ import type { ReactNode } from 'react';
 import { ClinicMark } from '@/components/brand/ClinicLogo';
 import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
 import { FollowUpList } from '@/components/follow-ups/FollowUpList';
+import { StockAlertList } from '@/components/stock/StockAlertList';
 import type { SessionUser } from '@/lib/auth/session';
 import { getBackupStatus } from '@/lib/backup-status';
 import { toDateKey, today } from '@/lib/dates';
 import { bellCounts } from '@/lib/follow-ups';
+import { getUnreadCount } from '@/lib/messages/threads';
 import {
   clinicDisplayName,
   getAssignableStaff,
   getClinicProfile,
   getOpenFollowUps,
+  getStockAlerts,
 } from '@/lib/queries';
+import { stockAlertCounts } from '@/lib/stock-alerts';
 import { BackupBanner } from './BackupBanner';
+import { ReminderCenter } from './ReminderCenter';
 import { CommandPalette } from './CommandPalette';
 import { NAV_DESTINATIONS, SEARCHABLE_LISTS } from './nav-destinations';
 import { Sidebar } from './Sidebar';
@@ -141,6 +146,20 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     ? await Promise.all([getOpenFollowUps(), getAssignableStaff()])
     : [[], []];
 
+  // The storage room's half of the board. Read here for the same reason the
+  // follow-ups are — the bell is drawn on every screen — and gated on
+  // `stock.view`, because somebody who may not open the cupboard must not be
+  // told what is in it by a badge in the corner.
+  // The one count in the rail. Gated on the permission for the same reason the
+  // bell's are: somebody who may not open the inbox must not be told how much
+  // is in it. Counted rather than stored — see `getUnreadCount`.
+  const unreadMail = user.permissions.includes('message.view') ? await getUnreadCount() : 0;
+  const badges = unreadMail > 0 ? { inbox: unreadMail } : undefined;
+
+  const canSeeStock = user.permissions.includes('stock.view');
+  const canEditStock = user.permissions.includes('stock.edit');
+  const alerts = canSeeStock ? await getStockAlerts() : [];
+
   // Read here rather than on the Staff page alone, because a failure nobody
   // visits that page to discover is a failure nobody discovers. Two small file
   // reads, and only for the person who can act on the answer.
@@ -148,29 +167,50 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     ? await getBackupStatus()
     : null;
 
-  const followUps = canSeeFollowUps
-    ? {
-        counts: bellCounts(openFollowUps),
-        list: (
-          <FollowUpList
-            items={openFollowUps}
-            canEdit={canEditFollowUps}
-            staff={followUpStaff}
-            variant="popover"
-          />
-        ),
+  /**
+   * The board, built per corner it appears in.
+   *
+   * A function rather than one element used twice: the trigger has to be an
+   * outline on the phone bar's teal and a filled control on the pale row across
+   * the desktop, and those are the only two things that differ. Only one of the
+   * two is ever on screen — the phone bar is `lg:hidden` and the desktop copy is
+   * `hidden lg:block` — exactly as the account button has always worked.
+   *
+   * Drawn for somebody with no follow-up permission at all, because the storage
+   * room's half stands on its own, and not at all when both halves are shut.
+   */
+  const renderBoard = (tone: 'surface' | 'brand') =>
+    canSeeFollowUps || canSeeStock ? (
+      <ReminderCenter
+        tone={tone}
+        counts={bellCounts(openFollowUps)}
+        stock={stockAlertCounts(alerts)}
+        followUpList={
+          canSeeFollowUps ? (
+            <FollowUpList
+              items={openFollowUps}
+              canEdit={canEditFollowUps}
+              staff={followUpStaff}
+              variant="popover"
+            />
+          ) : null
+        }
+        stockList={
+          canSeeStock ? <StockAlertList alerts={alerts} canEdit={canEditStock} /> : null
+        }
         // A reader gets the board without the pen. `followup.edit` is what the
         // action checks anyway; this is only so the button is not advertised.
-        newButton: canEditFollowUps ? (
-          <FollowUpFormDialog
-            staff={followUpStaff}
-            today={toDateKey(today())}
-            triggerClassName="btn btn-primary btn-sm shrink-0"
-            compact
-          />
-        ) : null,
-      }
-    : null;
+        newButton={
+          canEditFollowUps ? (
+            <FollowUpFormDialog
+              staff={followUpStaff}
+              today={toDateKey(today())}
+              triggerClassName="btn btn-primary btn-sm shrink-0"
+            />
+          ) : null
+        }
+      />
+    ) : null;
 
   return (
     // Column on a phone — top bar above the page. Row on a desktop — rail beside it.
@@ -178,7 +218,8 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
       <Sidebar
         items={items}
         clinicName={clinicName}
-        followUps={followUps}
+        board={renderBoard('brand')}
+        badges={badges}
         defaultCollapsed={railCollapsed}
         defaultClosedSections={closedSections}
         user={{
@@ -208,16 +249,28 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
             sheet of shelf labels each came out with an empty search box across
             the top. */}
         <div className="px-4 pt-4 sm:px-8" data-print-hide>
-          <div className="mx-auto w-full max-w-6xl">
-            <CommandPalette
+          {/* The search box and the bell share one row across the top of the
+              work, which is what puts the board in the corner every other
+              application the practice uses keeps its notifications in. The row
+              scrolls away with the page exactly as the palette always did —
+              this layout deleted its pinned top bar on purpose, and a bell is
+              not the reason to put one back. */}
+          <div className="mx-auto flex w-full max-w-6xl items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <CommandPalette
               destinations={destinations}
-              searches={searches}
-              label={tc('search')}
-              placeholder={t('palettePlaceholder')}
-              screensLabel={t('paletteScreens')}
-              patientsLabel={tn('patients')}
-              emptyLabel={t('paletteHint')}
-            />
+                searches={searches}
+                label={tc('search')}
+                placeholder={t('palettePlaceholder')}
+                screensLabel={t('paletteScreens')}
+                patientsLabel={tn('patients')}
+                emptyLabel={t('paletteHint')}
+              />
+            </div>
+
+            {/* The desktop copy. On a phone the same board rides in the
+                sticky bar instead — see `Sidebar`. */}
+            <div className="hidden lg:block">{renderBoard('surface')}</div>
           </div>
         </div>
 

@@ -18,6 +18,7 @@ import {
 import { BatchFormDialog } from "@/components/stock/BatchFormDialog";
 import { BatchList } from "@/components/stock/BatchList";
 import { PhotoTile } from "@/components/stock/PhotoTile";
+import { ReorderPanel } from "@/components/stock/ReorderPanel";
 import { StockAlerts } from "@/components/stock/StockAlerts";
 import { TakeOutForm } from "@/components/stock/TakeOutForm";
 import { ActionForm } from "@/components/ui/ActionForm";
@@ -37,6 +38,7 @@ import { Link } from "@/i18n/navigation";
 import { toDateKey, today } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_STOCK, getStockCategories } from "@/lib/queries";
+import { getReorderSuggestions } from "@/lib/reorder";
 import { photoUrl } from "@/lib/stock-photos";
 import { summariseBatches, usableQuantity } from "@/lib/expiry";
 import { cn, matches } from "@/lib/utils";
@@ -71,7 +73,7 @@ export default async function StockPage({
   // first render of the storage room files every last box under "Uncategorized".
   const categories = await getStockCategories();
 
-  const [allItems, archived, usedRows] = await Promise.all([
+  const [allItems, archived, usedRows, reorderLines] = await Promise.all([
     prisma.stockItem.findMany({
       where: ACTIVE_STOCK,
       orderBy: [{ name: "asc" }],
@@ -107,6 +109,7 @@ export default async function StockPage({
       where: { delta: { lt: 0 } },
       _sum: { delta: true },
     }),
+    getReorderSuggestions(),
   ]);
   // What is actually *usable*, which is the figure the dashboard's low-stock
   // list has always read. This page counted raw boxes instead, so the two
@@ -267,6 +270,11 @@ export default async function StockPage({
           })}
         />
       ) : null}
+
+      {/* What to buy, before what is on the shelf: the shelf is a fact, the
+          order is the decision that needs making. Quiet on its own when
+          nothing is worth saying — see `getReorderSuggestions`. */}
+      <ReorderPanel lines={reorderLines} canEdit={canEdit} />
 
       {/* Retired materials. Folded away and last, because the point of retiring
           one is that it stops being part of the daily list — but recoverable,

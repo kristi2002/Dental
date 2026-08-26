@@ -59,6 +59,10 @@ const ACTION_TONES: Record<string, BadgeTone> = {
   login: 'neutral',
   logout: 'neutral',
   denied: 'warn',
+  // A sign-in that was refused: a wrong PIN, a deactivated account, or an
+  // account that does not exist. Same weight as `denied` — somebody tried
+  // something they could not do, and the trail is the one reader who cares.
+  failed: 'warn',
   confirmed: 'ok',
   declined: 'warn',
 };

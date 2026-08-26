@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { markSupplierOrdered } from '@/lib/actions/stock';
 import { mailtoLink, whatsappLink } from '@/lib/reminders';
 import type { ReorderLine } from '@/lib/reorder';
@@ -83,11 +84,25 @@ export async function ReorderPanel({
                   ) : null}
 
                   {mail ? (
-                    <a href={mail} className="btn btn-secondary btn-sm">
+                    <a href={mail} className="btn btn-secondary btn-sm" title={t('emailHint')}>
                       <Mail size={17} aria-hidden />
                       {t('sendEmail')}
                     </a>
                   ) : null}
+
+                  {/* The one that always works. The mail link above hands the
+                      order to whatever this workstation has registered for
+                      `mailto:` — which on a browser-only front desk is nothing
+                      at all, silently — and the WhatsApp link needs WhatsApp.
+                      A supplier reached by neither is reached by pasting this
+                      into whatever the practice does use. */}
+                  <CopyButton
+                    value={text}
+                    label={t('copyOrder')}
+                    copiedLabel={t('copiedOrder')}
+                    className="btn btn-ghost btn-sm"
+                    iconSize={17}
+                  />
 
                   {/* Answering the whole order at once. Absent when every line in
                       the group is already on its way — there is nothing left to

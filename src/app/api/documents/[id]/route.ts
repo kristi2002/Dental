@@ -11,9 +11,25 @@ import { prisma } from '@/lib/prisma';
  * bypassed by guessing a URL: no session with `document.view`, no bytes. The id
  * in the path is a database id, not a filename, so it reveals nothing about
  * where anything lives on disk.
+ *
+ * **And the file has to be the one you asked for** (G-28). The permission says
+ * somebody may read radiographs; it does not say *whose*, and for as long as
+ * this checked only the permission, anyone signed in could walk ids and be
+ * handed every image in the practice one at a time. So the caller names the
+ * patient it believes the document belongs to, and a mismatch is a 404.
+ *
+ * That is not a second permission — everyone who may open a chart may open this
+ * chart. It is the difference between reaching a file *through* a patient's
+ * record, which is the only route the app itself ever takes, and reaching it by
+ * guessing a number. A walked id now fails unless the walker already holds the
+ * patient id that goes with it, and holding that means having been on the
+ * record already.
+ *
+ * The parameter is required rather than optional-if-present: an optional check
+ * is one a caller can decline, which is no check.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await getCurrentUser();
@@ -23,11 +39,22 @@ export async function GET(
   }
 
   const { id } = await params;
+  const claimed = new URL(request.url).searchParams.get('patient');
+  if (!claimed) return new NextResponse(null, { status: 404 });
+
   const document = await prisma.patientDocument.findUnique({
     where: { id },
-    select: { fileName: true, mimeType: true, storageKey: true },
+    select: { fileName: true, mimeType: true, storageKey: true, patientId: true },
   });
   if (!document) return new NextResponse(null, { status: 404 });
+
+  // Same 404 as a missing row, and deliberately not a distinguishable error: a
+  // 403 here would confirm the id exists, which is the one bit an id-walker is
+  // actually after.
+  if (document.patientId !== claimed) {
+    console.warn('[documents] refused', id, 'claimed for the wrong patient by', user.id);
+    return new NextResponse(null, { status: 404 });
+  }
 
   // Logged before the bytes go out rather than after: if this is ever read to
   // answer "what left the building", the answer should not depend on the

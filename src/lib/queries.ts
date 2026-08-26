@@ -20,6 +20,12 @@ import {
 } from '@/lib/clinic-hours';
 import { departmentOf } from '@/lib/catalog';
 import { usableQuantity } from '@/lib/expiry';
+import {
+  alertVisible,
+  severityOf,
+  sortStockAlerts,
+  type StockAlert,
+} from '@/lib/stock-alerts';
 import { ACTIVE_PATIENTS, phoneKey } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 import { addDays, toDateKey, timeToMinutes, today } from '@/lib/dates';
@@ -679,6 +685,79 @@ export async function getLowStockItems() {
 }
 
 /**
+ * The storage room's own alarms, as rows for the reminder board.
+ *
+ * The same materials `getLowStockItems` returns — this is not a second opinion
+ * about what "low" means, and must never become one. What it adds is the part
+ * that makes a fact into a reminder: whether somebody has already dealt with it
+ * (an order has gone out) or already waved it away (a dismissal that still
+ * stands), and the supplier and order quantity the row needs to offer the verb.
+ *
+ * The one write on this read path is a cleanup, and it fires only when there is
+ * something to clean: a material that has climbed back above its minimum has a
+ * dismissal that answers a question nobody is asking any more, and leaving it
+ * would silence the *next* time it runs low. Restocking is the honest way out of
+ * a dismissal, so restocking is what clears it. Same lazy-adoption shape as
+ * `getStockCategories` above, and the same reason — it costs one empty query
+ * once the room is in a steady state.
+ */
+export const getStockAlerts = cache(async (): Promise<StockAlert[]> => {
+  const items = await prisma.stockItem.findMany({
+    where: ACTIVE_STOCK,
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      variantName: true,
+      quantity: true,
+      minLimit: true,
+      orderQty: true,
+      orderedAt: true,
+      supplier: { select: { name: true } },
+      batches: { select: { expiryDate: true, quantity: true, usedQuantity: true } },
+      alertDismissal: { select: { atQuantity: true } },
+    },
+  });
+
+  const scored = items.map((item) => ({
+    item,
+    usable: usableQuantity(item.quantity, item.batches),
+  }));
+
+  // Dismissals belonging to materials that are no longer low. Collected first
+  // and deleted in one statement, so the common case — nothing to forget — does
+  // not touch the database at all.
+  const stale = scored
+    .filter(({ item, usable }) => item.alertDismissal && usable > item.minLimit)
+    .map(({ item }) => item.id);
+
+  if (stale.length > 0) {
+    await prisma.stockAlertDismissal.deleteMany({ where: { stockItemId: { in: stale } } });
+  }
+
+  const alerts = scored
+    .filter(({ item, usable }) =>
+      alertVisible(
+        { usable, minLimit: item.minLimit, orderedAt: item.orderedAt },
+        item.alertDismissal,
+      ),
+    )
+    .map(({ item, usable }) => ({
+      id: item.id,
+      name: item.name,
+      variantName: item.variantName ?? '',
+      usable,
+      quantity: item.quantity,
+      minLimit: item.minLimit,
+      severity: severityOf({ usable, minLimit: item.minLimit }),
+      supplierName: item.supplier?.name ?? '',
+      orderQty: item.orderQty,
+    }));
+
+  return sortStockAlerts(alerts);
+});
+
+/**
  * Tomorrow's appointments that nobody has reminded yet.
  *
  * The app never sends anything on its own — that is a deliberate choice and it
@@ -703,7 +782,17 @@ export async function getUnremindedTomorrow(): Promise<AppointmentView[]> {
       // Nothing sent about this appointment, by anyone, through any channel.
       contacts: { none: { purpose: ContactPurpose.REMINDER } },
       // Asking somebody who said not to is worse than not asking at all.
-      patient: { contactConsent: { not: false } },
+      //
+      // Only an explicit `false` closes it. `contactConsent` is tri-state and
+      // null is "nobody has asked them yet", which is the state every imported
+      // patient starts in and the majority state in any real practice — those
+      // people still need reminding. Written as an `OR` because the shorter
+      // `{ not: false }` compiles to `contactConsent <> false`, and SQL cannot
+      // say that of a null: it matched only the patients somebody had
+      // explicitly ticked, so a practice that had never used the consent field
+      // saw this panel sit empty for ever and read it as "everyone has been
+      // told". Same null trap as `NOT_CLINIC_CANCELLED` in `reliability.ts`.
+      patient: { OR: [{ contactConsent: null }, { contactConsent: true }] },
     },
     select: APPOINTMENT_SELECT,
   });

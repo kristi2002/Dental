@@ -18,6 +18,7 @@ import { AppointmentRow } from '@/components/appointments/AppointmentRow';
 import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
 import { FollowUpList } from '@/components/follow-ups/FollowUpList';
 import { FreeTimeCard } from '@/components/appointments/FreeTimeCard';
+import { WaitlistFormDialog } from '@/components/appointments/WaitlistFormDialog';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -47,7 +48,7 @@ import {
 import { followUpStatus } from '@/lib/follow-ups';
 import { daysLate, workStatus } from '@/lib/works';
 import { getRecalls } from '@/lib/recalls';
-import { findFreeGaps, nextSlotTime, type FreeGap } from '@/lib/scheduling';
+import { assignGaps, findFreeGaps, nextSlotTime, type FreeGap } from '@/lib/scheduling';
 import { VisitFormDialog } from '@/components/patients/VisitFormDialog';
 
 export const dynamic = 'force-dynamic';
@@ -67,6 +68,7 @@ export default async function DashboardPage({
   const canSeeRecalls = user.permissions.includes('recall.view');
   const canSeeMedical = user.permissions.includes('patient.medical.view');
   const canSeeWaitlist = user.permissions.includes('waitlist.view');
+  const canEditWaitlist = user.permissions.includes('waitlist.edit');
   const canSeeFollowUps = user.permissions.includes('followup.view');
   const canEditFollowUps = user.permissions.includes('followup.edit');
   const canSeeWorks = user.permissions.includes('work.view');
@@ -177,13 +179,10 @@ export default async function DashboardPage({
 
   // Who the rest of today can actually hold. The matching is the useful part: a
   // 60-minute root canal is not a candidate for a 20-minute hole, and offering
-  // it as one wastes a phone call.
-  const fitsToday = waiting
-    .map((entry) => ({
-      entry,
-      gap: freeGaps.find((candidate) => candidate.minutes >= entry.durationMin),
-    }))
-    .filter((row): row is { entry: (typeof waiting)[number]; gap: FreeGap } => row.gap !== undefined)
+  // it as one wastes a phone call. Each person is given their own slice of the
+  // free time, so the count under the heading is a count of slots that exist.
+  const fitsToday = assignGaps(waiting, freeGaps)
+    .filter((row): row is { entry: (typeof waiting)[number]; gap: FreeGap } => row.gap !== null)
     .slice(0, 5);
 
   return (
@@ -322,9 +321,14 @@ export default async function DashboardPage({
           {openPast.length > 0 ? (
             <Card className="border-warn">
               <CardHeader
+                className="border-b-warn/30 bg-warn-soft"
                 title={ta('openPastTitle')}
                 subtitle={ta('openPastSubtitle', { count: openPastTotal })}
-                icon={<TriangleAlert size={22} aria-hidden className="text-warn" />}
+                icon={
+                  <span className="grid size-9 place-items-center rounded-full bg-warn text-surface">
+                    <TriangleAlert size={20} aria-hidden />
+                  </span>
+                }
               />
               <div className="space-y-3 p-3">
                 {openPast.map((appointment) => (
@@ -442,41 +446,70 @@ export default async function DashboardPage({
 
           {/* Somebody who would take a slot, and a slot going spare. The
               calendar page has always matched the two; the dashboard is where
-              anybody looks after a cancellation, and it said nothing. */}
-          {canSeeWaitlist && fitsToday.length > 0 ? (
+              anybody looks after a cancellation, and it said nothing.
+
+              Shown whenever anyone is waiting rather than only when somebody
+              fits, because a full day is exactly when the next caller joins the
+              list — and a card that vanishes on those days takes the only way
+              of adding them from here with it. */}
+          {canSeeWaitlist && waiting.length > 0 ? (
             <Card>
               <CardHeader
                 title={tw('title')}
-                subtitle={tw('fitsTodayCount', { count: fitsToday.length })}
+                subtitle={
+                  fitsToday.length > 0
+                    ? tw('fitsTodayCount', { count: fitsToday.length })
+                    : tw('subtitle', { count: waiting.length })
+                }
                 icon={<ListChecks size={22} aria-hidden />}
                 action={
-                  <Link href="/appointments" className="btn btn-secondary btn-sm">
-                    {t('openCalendar')}
-                  </Link>
+                  // Somebody phoning about a slot is the same conversation that
+                  // puts the next person on the list, and this was the one place
+                  // that showed the list without offering to add to it.
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canEditWaitlist ? <WaitlistFormDialog services={services} /> : null}
+                    <Link href="/appointments" className="btn btn-secondary btn-sm">
+                      {t('openCalendar')}
+                    </Link>
+                  </div>
                 }
               />
-              <ul className="divide-y divide-line">
-                {fitsToday.map(({ entry, gap }) => (
-                  <li
-                    key={entry.id}
-                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-3"
-                  >
-                    <span className="min-w-0">
-                      <Link
-                        href={`/patients/${entry.patient.id}`}
-                        className="text-[1.03rem] font-bold text-ink"
-                      >
-                        {entry.patient.lastName} {entry.patient.firstName}
-                      </Link>
-                      <span className="block text-[0.9rem] text-ink-soft">
-                        {entry.serviceName ? `${entry.serviceName} · ` : ''}
-                        {tw('fitsAt', { time: gap.startTime })}
+              {/* One quiet line rather than a full empty state: on a day that
+                  cannot hold anybody there is nothing here to act on, and the
+                  card is only still present so the list can be added to. */}
+              {fitsToday.length === 0 ? (
+                <p className="px-5 py-4 text-[0.95rem] text-ink-soft">{tw('noFitToday')}</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {fitsToday.map(({ entry, gap }) => (
+                    <li
+                      key={entry.id}
+                      className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-3"
+                    >
+                      <span className="min-w-0">
+                        <Link
+                          href={`/patients/${entry.patient.id}`}
+                          className="text-[1.03rem] font-bold text-ink"
+                        >
+                          {entry.patient.lastName} {entry.patient.firstName}
+                        </Link>
+                        <span className="block text-[0.9rem] text-ink-soft">
+                          {entry.serviceName ? `${entry.serviceName} · ` : ''}
+                          {tw('fitsAt', { time: gap.startTime })}
+                        </span>
+                        {/* The note is the only place a preference like "mornings
+                            only" can live, and this panel exists to start a phone
+                            call. Dropping it here made the offer above look
+                            certain when it was not. */}
+                        {entry.note ? (
+                          <span className="block text-[0.9rem] text-ink-soft">{entry.note}</span>
+                        ) : null}
                       </span>
-                    </span>
-                    {entry.urgent ? <Badge tone="danger">{tw('urgent')}</Badge> : null}
-                  </li>
-                ))}
-              </ul>
+                      {entry.urgent ? <Badge tone="danger">{tw('urgent')}</Badge> : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Card>
           ) : null}
 

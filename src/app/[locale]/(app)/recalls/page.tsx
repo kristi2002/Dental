@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { requirePermission } from '@/lib/auth/guard';
+import { mailerStatus } from '@/lib/messages/mailer';
 import { toDateKey, today } from '@/lib/dates';
 import { getOperatoryOptions, getProviderOptions, getServiceOptions } from '@/lib/queries';
 import { getFollowUps, getRecalls } from '@/lib/recalls';
@@ -33,6 +34,9 @@ export default async function RecallsPage({
 
   const user = await requirePermission('recall.view');
   const canSend = user.permissions.includes('recall.send');
+  // The provider is configured *and* this person may send — the second half
+  // matters, because `recall.send` and `message.send` are not the same grant.
+  const canEmail = user.permissions.includes('message.send') && mailerStatus().configured;
   const canBook = user.permissions.includes('appointment.edit');
 
   const t = await getTranslations('recalls');
@@ -106,6 +110,7 @@ export default async function RecallsPage({
                     emailSubject={tr('recallEmailSubject', values)}
                     emailBody={tr('recallEmailBody', values)}
                     canSend={canSend}
+                    canEmail={canEmail}
                     book={bookFor(row)}
                   />
                 );
@@ -142,6 +147,7 @@ export default async function RecallsPage({
                     emailSubject={tr('followUpEmailSubject', values)}
                     emailBody={tr('followUpEmailBody', values)}
                     canSend={canSend}
+                    canEmail={canEmail}
                     book={bookFor(row)}
                   />
                 );

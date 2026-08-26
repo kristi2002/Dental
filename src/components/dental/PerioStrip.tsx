@@ -59,7 +59,7 @@ function SiteRow({
           <span
             key={site}
             className={cn(
-              'w-[0.95rem] rounded-[3px] text-center text-[0.68rem] leading-[1.15rem] font-bold tabular-nums',
+              'w-[var(--perio-site,0.95rem)] rounded-[3px] text-center text-[0.68rem] leading-[1.15rem] font-bold tabular-nums',
               BAND_STYLE[pocketBand(depth)],
               // A bled site carries its own mark as well as its colour, so the
               // finding survives a greyscale printout and colour-blind eyes.
@@ -77,10 +77,20 @@ function SiteRow({
 export function PerioStrip({
   toothNum,
   summary,
+  showMobility = true,
   className,
 }: {
   toothNum: number;
   summary: PerioSummary;
+  /**
+   * Whether the mobility badge rides along under the depths.
+   *
+   * On the arch it always does, and always takes its space whether or not there
+   * is a grade to show — see the note below. The printed record's findings table
+   * gives mobility a column of its own, spelled out in words, and a second copy
+   * of it three millimetres to the left is the same reading said twice.
+   */
+  showMobility?: boolean;
   className?: string;
 }) {
   const { buccal, lingual, buccalFirst } = perioLayout(toothNum);
@@ -98,20 +108,22 @@ export function PerioStrip({
           makes those teeth taller than their neighbours, and the row of tooth
           numbers underneath then stops being a straight line. The space is
           reserved instead, so every cell on the arch is the same height. */}
-      <span
-        className={cn(
-          'mt-px rounded-[3px] px-1 text-[0.62rem] leading-[0.95rem] font-bold',
-          summary.mobility !== null && summary.mobility > 0
-            ? summary.mobility >= 2
-              ? 'bg-danger-soft text-danger'
-              : 'bg-warn-soft text-warn'
-            : 'text-transparent',
-        )}
-      >
-        {summary.mobility !== null && summary.mobility > 0
-          ? `M${MOBILITY_LABEL[summary.mobility]}`
-          : ' '}
-      </span>
+      {showMobility ? (
+        <span
+          className={cn(
+            'mt-px rounded-[3px] px-1 text-[0.62rem] leading-[0.95rem] font-bold',
+            summary.mobility !== null && summary.mobility > 0
+              ? summary.mobility >= 2
+                ? 'bg-danger-soft text-danger'
+                : 'bg-warn-soft text-warn'
+              : 'text-transparent',
+          )}
+        >
+          {summary.mobility !== null && summary.mobility > 0
+            ? `M${MOBILITY_LABEL[summary.mobility]}`
+            : ' '}
+        </span>
+      ) : null}
     </span>
   );
 }

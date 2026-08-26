@@ -6,7 +6,7 @@ import { useActionState, useEffect, useId, useRef, useState, useTransition } fro
 import { ConditionPalette } from '@/components/dental/ConditionPalette';
 import { PerioFields } from '@/components/dental/PerioFields';
 import { PerioStrip } from '@/components/dental/PerioStrip';
-import { SurfaceTarget, SURFACE_UNMARKED } from '@/components/dental/SurfaceTarget';
+import { SurfaceTarget } from '@/components/dental/SurfaceTarget';
 import { ToothDefs } from '@/components/dental/ToothDefsProvider';
 import { ToothGlyph } from '@/components/dental/ToothGlyph';
 import { SubmitButton } from '@/components/ui/SubmitButton';
@@ -34,10 +34,10 @@ import {
   PRIMARY_UPPER_LEFT,
   PRIMARY_UPPER_RIGHT,
   statusTakesSurfaces,
+  surfaceFill,
   TOOTH_STATUSES,
   TOOTH_STATUS_STYLE,
   TOOTH_SURFACES,
-  WHOLE_TOOTH_STATUSES,
   dentitionOf,
   isAnterior,
   parseSurfaces,
@@ -112,27 +112,6 @@ export type ToothRecordMap = Record<
 const CHART_VIEWS = ['CONDITION', 'PERIO'] as const;
 type ChartView = (typeof CHART_VIEWS)[number];
 
-/**
- * The status hues as flat colour, for the SVG target.
- *
- * A single red for everything marked would have been less code and less
- * information: the chart distinguishes eight conditions, and a technician
- * glancing at it should be able to tell a filling from a caries without opening
- * anything. These are the 500-weight of each family the legend already uses, so
- * the target and the swatch beside it agree. Caries — the one the brief named —
- * is red-500.
- */
-const STATUS_HUE: Record<ToothStatus, string> = {
-  HEALTHY: SURFACE_UNMARKED,
-  CARIES: '#EF4444', // red-500
-  FILLED: '#0EA5E9', // sky-500
-  CROWN: '#F59E0B', // amber-500
-  ROOT_CANAL: '#8B5CF6', // violet-500
-  EXTRACTED: '#475569', // slate-600
-  IMPLANT: '#14B8A6', // teal-500
-  MISSING: '#94A3B8', // slate-400
-};
-
 /** An upper first molar — three roots and a full cusp pattern, so every state
  *  the legend has to show is legible on it. */
 const LEGEND_TOOTH = 16;
@@ -182,24 +161,6 @@ function statusOf(records: ToothRecordMap, toothNum: number): ToothStatus {
 
 function storedCondition(records: ToothRecordMap, toothNum: number): ToothCondition {
   return { status: statusOf(records, toothNum), surfaces: records[toothNum]?.surfaces ?? '' };
-}
-
-/**
- * A healthy tooth's target is blank. Otherwise the recorded surfaces carry the
- * status hue — and a status that names no surface, either because it is about
- * the whole tooth or because none was recorded, fills all five rather than
- * leaving a flagged tooth looking untouched.
- */
-function surfaceFill(
-  status: ToothStatus,
-  surfaces: string | undefined,
-  surface: ToothSurface,
-): string {
-  if (status === 'HEALTHY') return SURFACE_UNMARKED;
-
-  const marked = parseSurfaces(surfaces);
-  if (WHOLE_TOOTH_STATUSES.includes(status) || marked.length === 0) return STATUS_HUE[status];
-  return marked.includes(surface) ? STATUS_HUE[status] : SURFACE_UNMARKED;
 }
 
 export function DentalChart({

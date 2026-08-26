@@ -181,3 +181,24 @@ function sortSpan(positions: readonly SpanPosition[]): SpanPosition[] {
     .map(([toothNum, pontic]) => ({ toothNum, pontic }))
     .sort((a, b) => SPAN_ORDER.get(a.toothNum)! - SPAN_ORDER.get(b.toothNum)!);
 }
+
+/**
+ * Every line's span merged into one.
+ *
+ * A case is often three pieces of work — a crown here, a bridge there — each
+ * with its own span, and a docket has one chart. Re-read through this file's own
+ * parser rather than concatenated by hand, so a position named by two lines
+ * merges the way it does everywhere else: towards the gap.
+ *
+ * Here rather than beside the chart that first needed it, because the chart is
+ * now drawn twice — once in JSX for the screen and once in PDF operators for the
+ * docket that downloads — and both have to mark the same teeth.
+ */
+export function mergeSpans(lines: ReadonlyArray<{ teeth: string | null }>): SpanPosition[] {
+  return parseToothSpan(
+    lines
+      .map((line) => line.teeth)
+      .filter((teeth): teeth is string => Boolean(teeth))
+      .join(','),
+  );
+}

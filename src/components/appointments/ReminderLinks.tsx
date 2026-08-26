@@ -2,7 +2,7 @@
 
 import { BellOff, Mail, MessageCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useTransition } from 'react';
+import { useTransition, type ReactNode } from 'react';
 import { logContact } from '@/lib/actions/contacts';
 
 /**
@@ -23,6 +23,7 @@ export function ReminderLinks({
   purpose = 'REMINDER',
   size = 'sm',
   variant = 'button',
+  emailSend,
 }: {
   patientId: string;
   appointmentId?: string;
@@ -43,6 +44,20 @@ export function ReminderLinks({
    * same logging, no box of their own. See `.menu-item`.
    */
   variant?: 'button' | 'menu';
+  /**
+   * The button that really sends, for a practice that has configured a mail
+   * provider. Replaces the `mailto:` draft rather than joining it — two email
+   * buttons side by side would be a question nobody at a desk should have to
+   * answer.
+   *
+   * A slot rather than a flag, exactly as `QueueSendLinks.emailAction` is, and
+   * for the same two reasons: the form it contains is server-rendered while
+   * this is a client component, and passing it *through* here means the consent
+   * refusal above covers it too. A screen where the draft link honours an
+   * opt-out and the send button does not is worse than one that honours
+   * neither.
+   */
+  emailSend?: ReactNode;
 }) {
   const t = useTranslations('appointments');
   const [, startTransition] = useTransition();
@@ -110,23 +125,24 @@ export function ReminderLinks({
         </span>
       )}
 
-      {mail ? (
-        <a
-          href={mail}
-          role={role}
-          className={buttonClass}
-          title={t('remind')}
-          onClick={() => record('EMAIL')}
-        >
-          <Mail size={iconSize} aria-hidden className="shrink-0" />
-          {t('remindEmail')}
-        </a>
-      ) : (
-        <span className={mutedClass} title={t('noEmailForReminder')}>
-          <Mail size={iconSize} aria-hidden className="shrink-0" />
-          {t('remindEmail')}
-        </span>
-      )}
+      {emailSend ??
+        (mail ? (
+          <a
+            href={mail}
+            role={role}
+            className={buttonClass}
+            title={t('remind')}
+            onClick={() => record('EMAIL')}
+          >
+            <Mail size={iconSize} aria-hidden className="shrink-0" />
+            {t('remindEmail')}
+          </a>
+        ) : (
+          <span className={mutedClass} title={t('noEmailForReminder')}>
+            <Mail size={iconSize} aria-hidden className="shrink-0" />
+            {t('remindEmail')}
+          </span>
+        ))}
     </div>
   );
 }

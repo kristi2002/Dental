@@ -35,6 +35,44 @@ export function whatsappLink(phone: string, message: string): string | null {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 
+/**
+ * The same chat with nothing typed into it.
+ *
+ * For "message this person", as against "send them this". A `?text=` that is
+ * empty still works, but it is a query string that says nothing, and the whole
+ * point of the distinction is that one of these two openings has wording behind
+ * it that somebody composed and the other does not.
+ *
+ * **Why this matters more than it looks.** `wa.me` is an ordinary HTTPS URL, so
+ * it opens on any machine that has a browser — WhatsApp Web, or the desktop app
+ * if one is installed. `tel:` and `mailto:` are protocol hand-offs, and whether
+ * they do anything at all depends on what the *workstation* has registered:
+ * a front desk running Chrome with no mail client registered gets nothing at
+ * all from a `mailto:`, silently. That asymmetry is why every screen in this app
+ * that offers a way to reach somebody offers this one first, and why the others
+ * are always accompanied by something that works regardless — a copy button, or
+ * a send the server performs itself.
+ */
+export function whatsappChatLink(phone: string): string | null {
+  const number = toWhatsappNumber(phone);
+  if (!number) return null;
+  return `https://wa.me/${number}`;
+}
+
+/**
+ * `tel:` with the spacing taken out.
+ *
+ * Albanian numbers are written `067 90 41 275` and a dialler handed that will
+ * usually cope, but "usually" is doing work there — the spaces are display, and
+ * a URL is not a display.
+ */
+export function telLink(phone: string): string | null {
+  const trimmed = phone.trim();
+  if (!trimmed) return null;
+  const cleaned = trimmed.replace(/[^\d+]/g, '');
+  return cleaned ? `tel:${cleaned}` : null;
+}
+
 export function mailtoLink(email: string, subject: string, body: string): string | null {
   const address = email.trim();
   if (!address) return null;

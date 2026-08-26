@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { ReportingActionForm } from '@/components/ui/ActionForm';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { sendTestEmail } from '@/lib/actions/messages';
-import { mailerStatus } from '@/lib/messages/mailer';
+import { inboundConfigured, mailerStatus } from '@/lib/messages/mailer';
 
 /**
  * Whether the practice can send email, and one button that proves it.
@@ -22,6 +22,7 @@ import { mailerStatus } from '@/lib/messages/mailer';
 export async function MailerCard({ canEdit }: { canEdit: boolean }) {
   const t = await getTranslations('settings');
   const status = mailerStatus();
+  const receiving = inboundConfigured();
 
   const tone: BadgeTone = status.configured ? 'ok' : status.problem === 'unset' ? 'neutral' : 'warn';
   const icon = status.configured ? (
@@ -57,6 +58,14 @@ export async function MailerCard({ canEdit }: { canEdit: boolean }) {
               practice never learns it was asked. */}
           <dd className={status.replyTo ? 'font-mono text-[0.88rem] break-all' : 'text-warn'}>
             {status.replyTo || t('mailReplyToUnset')}
+          </dd>
+          {/* Sending and receiving are two settings with two failure modes, and
+              only one of them announces itself. A practice that never points an
+              MX record at the provider gets an inbox that stays empty for ever
+              and no reason given — so the reason is given here. */}
+          <dt className="font-semibold text-ink-soft">{t('mailInbound')}</dt>
+          <dd className={receiving ? undefined : 'text-ink-soft'}>
+            {receiving ? t('mailInboundOn') : t('mailInboundOff')}
           </dd>
         </dl>
       ) : (

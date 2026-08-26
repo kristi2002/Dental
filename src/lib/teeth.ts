@@ -35,56 +35,73 @@ export function isToothStatus(value: string): value is ToothStatus {
   return (TOOTH_STATUSES as readonly string[]).includes(value);
 }
 
+/** Tailwind red-500 — a marked surface, where the caller has no stronger opinion. */
+export const SURFACE_MARKED = '#EF4444';
+/** Tailwind slate-300 — an unmarked one. */
+export const SURFACE_UNMARKED = '#CBD5E1';
+
 /** Pale fills carrying dark, same-hue text. This reads quieter than the saturated
  *  blocks it replaces AND lands better contrast on the tooth number, which used to
  *  be white on mid-tone red. Each status also carries a distinct letter, so the
  *  chart never depends on colour alone.
  *
  *  EXTRACTED stays the one dark chip — it is the status you want to spot from
- *  across the room. */
+ *  across the room.
+ *
+ *  `hue` is the same family at 500 weight, as a flat colour for the SVG surface
+ *  target — so the wedge under a tooth and the chip in the legend beside it are
+ *  read as the same statement. */
 export const TOOTH_STATUS_STYLE: Record<
   ToothStatus,
-  { swatch: string; button: string; short: string }
+  { swatch: string; button: string; short: string; hue: string }
 > = {
   HEALTHY: {
     swatch: 'bg-white border-slate-300 text-slate-700',
     button: 'bg-white border-slate-300 text-slate-700 hover:border-slate-500',
     short: '',
+    hue: SURFACE_UNMARKED,
   },
   CARIES: {
     swatch: 'bg-rose-100 border-rose-300 text-rose-800',
     button: 'bg-rose-100 border-rose-300 text-rose-800 hover:border-rose-500',
     short: 'C',
+    hue: '#EF4444', // red-500
   },
   FILLED: {
     swatch: 'bg-sky-100 border-sky-300 text-sky-800',
     button: 'bg-sky-100 border-sky-300 text-sky-800 hover:border-sky-500',
     short: 'F',
+    hue: '#0EA5E9', // sky-500
   },
   CROWN: {
     swatch: 'bg-amber-100 border-amber-300 text-amber-800',
     button: 'bg-amber-100 border-amber-300 text-amber-800 hover:border-amber-500',
     short: 'K',
+    hue: '#F59E0B', // amber-500
   },
   ROOT_CANAL: {
     swatch: 'bg-violet-100 border-violet-300 text-violet-800',
     button: 'bg-violet-100 border-violet-300 text-violet-800 hover:border-violet-500',
     short: 'R',
+    hue: '#8B5CF6', // violet-500
   },
   EXTRACTED: {
     swatch: 'bg-slate-600 border-slate-700 text-white',
     button: 'bg-slate-600 border-slate-700 text-white hover:border-slate-900',
     short: '×',
+    hue: '#475569', // slate-600
   },
   IMPLANT: {
     swatch: 'bg-teal-100 border-teal-300 text-teal-800',
     button: 'bg-teal-100 border-teal-300 text-teal-800 hover:border-teal-500',
     short: 'I',
+    hue: '#14B8A6', // teal-500
   },
   MISSING: {
     swatch: 'bg-slate-100 border-slate-300 text-slate-600',
     button: 'bg-slate-100 border-slate-300 text-slate-600 hover:border-slate-500',
     short: '–',
+    hue: '#94A3B8', // slate-400
   },
 };
 
@@ -289,6 +306,32 @@ export const WHOLE_TOOTH_STATUSES: readonly ToothStatus[] = [
 
 export function statusTakesSurfaces(status: ToothStatus): boolean {
   return !WHOLE_TOOTH_STATUSES.includes(status);
+}
+
+/**
+ * The colour one face of the surface target is painted.
+ *
+ * A healthy tooth's target is blank. Otherwise the recorded surfaces carry the
+ * status hue — and a status that names no surface, either because it is about
+ * the whole tooth or because none was recorded, fills all five rather than
+ * leaving a flagged tooth looking untouched.
+ *
+ * Here rather than in the chart because the chart is a client component and the
+ * printed record sheet is not: both draw the same wheel, and two copies of this
+ * rule is how the paper and the screen come to disagree about a tooth.
+ */
+export function surfaceFill(
+  status: ToothStatus,
+  surfaces: string | null | undefined,
+  surface: ToothSurface,
+): string {
+  if (status === 'HEALTHY') return SURFACE_UNMARKED;
+
+  const marked = parseSurfaces(surfaces);
+  if (WHOLE_TOOTH_STATUSES.includes(status) || marked.length === 0) {
+    return TOOTH_STATUS_STYLE[status].hue;
+  }
+  return marked.includes(surface) ? TOOTH_STATUS_STYLE[status].hue : SURFACE_UNMARKED;
 }
 
 /** What is recorded on one tooth, as the chart paints it — surfaces in the

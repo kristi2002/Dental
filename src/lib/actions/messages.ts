@@ -6,9 +6,11 @@ import { ContactChannel, ContactPurpose, MessageStatus } from '@/generated/prism
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { getQueuedMessage } from '@/lib/messages/board';
 import { composeForQueued } from '@/lib/messages/compose';
+import { recordOutbound } from '@/lib/messages/correspondence';
 import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from '@/lib/messages/email';
 import { mailerConfig, sendMail } from '@/lib/messages/mailer';
 import { CANCEL_NOTES, SENT_NOTES } from '@/lib/messages/outbox';
+import { MAX_MESSAGE_LENGTH } from '@/lib/messages/templates';
 import { prisma } from '@/lib/prisma';
 import { requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -231,6 +233,22 @@ export async function emailQueuedMessage(
     console.error('[messages] sent but could not record', id, error);
   }
 
+  // Filed as correspondence as well as logged as a contact. The two are not the
+  // same record and neither replaces the other: `Contact` is the practice's
+  // clinical log of having chased somebody, and the thread is the conversation
+  // the patient can now reply into. Deliberately last and deliberately
+  // unawaited-on-failure — see `recordOutbound`, which never throws at a caller
+  // whose message has already left.
+  await recordOutbound({
+    patientId: message.patient.id,
+    toAddress: message.patient.email,
+    fromAddress: mailerConfig()?.fromAddress ?? '',
+    subject: reminder.subject,
+    text: reminder.body,
+    messageId: result.messageId,
+    actorId: user.id,
+  });
+
   await recordAudit(user, {
     action: 'update',
     entity: 'message',
@@ -244,6 +262,109 @@ export async function emailQueuedMessage(
 
 function capitalise(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * Write to one patient, about whatever the practice needs to say.
+ *
+ * The composer's send, and the first thing in this app that transmits wording
+ * somebody typed rather than wording it composed. That is a smaller step than it
+ * sounds and the reason is the one `composeForQueued` already gives: what has to
+ * be untouchable is the **recipient**, not the text. A member of staff with a
+ * mail client could type anything to a patient today; what they could not do is
+ * make the practice's verified sending domain deliver it to an address of their
+ * choosing. So the body comes from the form and the address is read from the
+ * row, and only the patient's id crosses the wire.
+ *
+ * Everything else is the same gate as the queue: a person read it, a person
+ * pressed send, consent is honoured, and it is logged twice — once as a contact
+ * and once as correspondence.
+ */
+export async function sendPatientMessage(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('messageTemplates');
+
+  const user = await authorize('message.send');
+  if (!user) return actionError(t('notAllowed'));
+
+  const patientId = requiredString(formData.get('patientId'));
+  const subject = requiredString(formData.get('subject')).trim().slice(0, 300);
+  const body = requiredString(formData.get('body')).trim().slice(0, MAX_MESSAGE_LENGTH);
+
+  if (!patientId || !body) return actionError(t('emptyMessage'));
+
+  const patient = await prisma.patient.findUnique({
+    where: { id: patientId },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      contactConsent: true,
+    },
+  });
+
+  if (!patient) return actionError(t('patientGone'));
+  if (patient.contactConsent === false) return actionError(t('optedOutError'));
+  if (!patient.email) return actionError(t('noEmailError'));
+
+  const config = mailerConfig();
+  if (!config) return actionError(t('mailNotConfigured'));
+
+  const result = await sendMail({
+    to: patient.email,
+    toName: `${patient.firstName} ${patient.lastName}`.trim(),
+    // A blank subject line is a message that reads as spam to every filter it
+    // meets, so the practice's name is the floor rather than an empty header.
+    subject: subject || t('defaultSubject'),
+    text: body,
+  });
+
+  if (!result.ok) return actionError(t(`send.mail${capitalise(result.failure)}`));
+
+  try {
+    await prisma.contact.create({
+      data: {
+        patientId: patient.id,
+        channel: ContactChannel.EMAIL,
+        purpose: toPurpose(formData.get('purpose')),
+        body: body.slice(0, 2000),
+        actorId: user.id,
+      },
+    });
+  } catch (error) {
+    // Same reasoning as the queue's: the message is with the patient already.
+    // Saying it failed would be a lie somebody acts on by sending it again.
+    console.error('[messages] sent but could not log the contact', patient.id, error);
+  }
+
+  await recordOutbound({
+    patientId: patient.id,
+    toAddress: patient.email,
+    fromAddress: config.fromAddress,
+    subject: subject || t('defaultSubject'),
+    text: body,
+    messageId: result.messageId,
+    actorId: user.id,
+  });
+
+  await recordAudit(user, {
+    action: 'create',
+    entity: 'message',
+    entityId: patient.id,
+    summary: 'wrote · EMAIL',
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/** The composer offers five; anything else is somebody's hand-written form. */
+function toPurpose(value: FormDataEntryValue | null): ContactPurpose {
+  const name = typeof value === 'string' ? value : '';
+  return name in ContactPurpose ? (name as ContactPurpose) : ContactPurpose.OTHER;
 }
 
 /**

@@ -11,6 +11,7 @@ import {
   ListChecks,
   Mail,
   MapPin,
+  MessageSquare,
   Phone,
   Printer,
   ScrollText,
@@ -33,7 +34,9 @@ import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { ReliabilityBadge } from '@/components/patients/ReliabilityBadge';
 import { AlertFormDialog } from '@/components/patients/AlertFormDialog';
 import { IdCardPanel } from '@/components/patients/IdCardPanel';
+import { ContactActions } from '@/components/patients/ContactActions';
 import { ContactHistory } from '@/components/patients/ContactHistory';
+import { MessageDialog } from '@/components/patients/MessageDialog';
 import { PatientAlerts } from '@/components/patients/PatientAlerts';
 import { VisitFormDialog } from '@/components/patients/VisitFormDialog';
 import { VisitTimeline } from '@/components/patients/VisitTimeline';
@@ -44,6 +47,7 @@ import { ActionForm } from '@/components/ui/ActionForm';
 import { ActionMenu } from '@/components/ui/ActionMenu';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Link } from '@/i18n/navigation';
 import { archivePatient, deletePatient } from '@/lib/actions/patients';
@@ -55,6 +59,8 @@ import { addDays, addMonths, age, toDateKey, today } from '@/lib/dates';
 import { isPromisedSlot } from '@/lib/plan-progress';
 import { ID_KINDS } from '@/lib/documents';
 import { allergyLines } from '@/lib/medical';
+import { mailerStatus } from '@/lib/messages/mailer';
+import { composeTemplates } from '@/lib/messages/templates';
 import { prisma } from '@/lib/prisma';
 import { DEFAULT_TOOTH_STATUS } from '@/lib/teeth';
 import {
@@ -63,7 +69,7 @@ import {
   getProviderOptions,
   getServiceOptions,
 } from '@/lib/queries';
-import { getClinicProfile } from '@/lib/queries';
+import { clinicDisplayName, getClinicProfile } from '@/lib/queries';
 import { getReliability } from '@/lib/reliability';
 import { cn, initials, parseServiceList } from '@/lib/utils';
 
@@ -153,7 +159,10 @@ export default async function PatientDetailPage({
       contacts: {
         orderBy: { createdAt: 'desc' },
         take: 50,
-        include: { actor: { select: { firstName: true, lastName: true } } },
+        include: {
+          actor: { select: { firstName: true, lastName: true } },
+          appointment: { select: { date: true, startTime: true } },
+        },
       },
       teethRecords: true,
       visitRecords: {
@@ -258,6 +267,47 @@ export default async function PatientDetailPage({
     getProviderOptions(),
     getOperatoryOptions(),
   ]);
+
+  // The soonest booking still ahead of them, which is what two of the message
+  // templates are about. `getPatientAppointments` comes back newest first, so
+  // the last one that is still in the future is the next one to happen.
+  const todayKey = toDateKey(today());
+  const nextAppointment =
+    appointments
+      .filter(
+        (appointment) =>
+          appointment.date >= todayKey &&
+          appointment.status !== 'CANCELLED' &&
+          appointment.status !== 'NO_SHOW',
+      )
+      .at(-1) ?? null;
+
+  // Composed here rather than inside the dialog, and on the server, because
+  // this is the only side of the wire where the *patient's* language can be
+  // asked for — see `composeTemplates`. Cheap enough to do on every render of
+  // the page: six short strings out of the message catalogue.
+  const canMessage = can('message.send');
+  const { locale: messageLocale, templates: messageTemplates } = await composeTemplates({
+    patientName: patient.firstName,
+    patientLocale: patient.locale,
+    clinicName: clinicDisplayName(clinicProfile),
+    clinicPhone: clinicProfile.phone ?? '',
+    appointment: nextAppointment
+      ? { date: nextAppointment.date, startTime: nextAppointment.startTime }
+      : null,
+  });
+
+  const messageProps = {
+    patientId: patient.id,
+    patientName: `${patient.lastName} ${patient.firstName}`,
+    phone: patient.phone,
+    email: patient.email ?? '',
+    consent: patient.contactConsent,
+    templates: messageTemplates,
+    messageLocale,
+    readerLocale: locale,
+    mailerConfigured: mailerStatus().configured,
+  };
 
   const teeth: ToothRecordMap = Object.fromEntries(
     patient.teethRecords.map((record) => [
@@ -454,19 +504,16 @@ export default async function PatientDetailPage({
             <ReliabilityBadge reliability={reliability} />
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[1.02rem] text-ink-soft">
-            <a href={`tel:${patient.phone}`} className="flex items-center gap-1.5 hover:text-ink">
-              <Phone size={17} aria-hidden />
-              {patient.phone}
-            </a>
-            {patient.email ? (
-              <a
-                href={`mailto:${patient.email}`}
-                className="flex items-center gap-1.5 hover:text-ink"
-              >
-                <Mail size={17} aria-hidden />
-                {patient.email}
-              </a>
-            ) : null}
+            {/* Not links any more. A `tel:` or `mailto:` does nothing at all on
+                a workstation with no handler registered for the scheme, and
+                that is the ordinary state of a browser-only front desk — so
+                each of these is now a short menu with at least one route out
+                that works everywhere. See `ContactActions`. */}
+            <ContactActions
+              {...messageProps}
+              preferredChannel={patient.preferredChannel}
+              canMessage={canMessage}
+            />
             {patient.dateOfBirth ? (
               <span className="flex items-center gap-1.5">
                 <Cake size={17} aria-hidden />
@@ -493,6 +540,22 @@ export default async function PatientDetailPage({
               operatories={operatories}
               defaultPatient={{ id: patient.id, name: fullName, phone: patient.phone }}
               defaultDate={toDateKey(today())}
+            />
+          ) : null}
+          {/* The second thing anybody does from a patient record, and until now
+              the one thing the record could not do. Beside "New appointment"
+              rather than behind the overflow, because "book them" and "write to
+              them" are the two verbs this page exists for. */}
+          {canMessage ? (
+            <MessageDialog
+              {...messageProps}
+              triggerTitle={t('messagePatient')}
+              trigger={
+                <>
+                  <MessageSquare size={19} aria-hidden />
+                  {t('message')}
+                </>
+              }
             />
           ) : null}
           {canEdit ? (
@@ -662,6 +725,7 @@ export default async function PatientDetailPage({
                     label={t('phone')}
                     value={patient.phone}
                     href={patient.phone ? `tel:${patient.phone}` : undefined}
+                    copy={{ label: tcontacts('copyNumber'), copiedLabel: tcontacts('copied') }}
                     empty={t('noPhone')}
                   />
                   <Fact
@@ -669,6 +733,7 @@ export default async function PatientDetailPage({
                     label={t('email')}
                     value={patient.email ?? ''}
                     href={patient.email ? `mailto:${patient.email}` : undefined}
+                    copy={{ label: tcontacts('copyEmail'), copiedLabel: tcontacts('copied') }}
                     empty={t('noEmail')}
                   />
                   {/* Dosages and half the clinical judgement hang off the age, so
@@ -700,6 +765,7 @@ export default async function PatientDetailPage({
                     icon={<CreditCard size={18} aria-hidden />}
                     label={t('fiscalCode')}
                     value={patient.fiscalCode ?? ''}
+                    copy={{ label: tcontacts('copyValue'), copiedLabel: tcontacts('copied') }}
                     mono
                     empty={tc('none')}
                   />
@@ -720,6 +786,11 @@ export default async function PatientDetailPage({
                       value={patient.guardianName ?? ''}
                       note={patient.guardianPhone ?? undefined}
                       href={patient.guardianPhone ? `tel:${patient.guardianPhone}` : undefined}
+                      copy={
+                        patient.guardianPhone
+                          ? { label: tcontacts('copyNumber'), copiedLabel: tcontacts('copied') }
+                          : undefined
+                      }
                       empty={tc('none')}
                     />
                   ) : null}
@@ -1144,6 +1215,9 @@ export default async function PatientDetailPage({
               actorName: contact.actor
                 ? `${contact.actor.firstName} ${contact.actor.lastName}`
                 : '',
+              appointment: contact.appointment
+                ? { date: toDateKey(contact.appointment.date), startTime: contact.appointment.startTime }
+                : null,
             }))}
           />
         </Card>
@@ -1167,18 +1241,28 @@ function Fact({
   href,
   empty,
   mono = false,
+  copy,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   /** A second line — the age under a birthday, the phone under a guardian. */
   note?: string;
-  /** Makes the value a `tel:` / `mailto:` link. */
+  /**
+   * Makes the value a `tel:` / `mailto:` link.
+   *
+   * Kept, and no longer trusted on its own. On a tablet it is the fastest thing
+   * on this card; on a desktop with no handler registered for the scheme it is
+   * a link that does nothing and says nothing, which is why anything using this
+   * should also pass `copy`. See `ContactActions` for the long version.
+   */
   href?: string;
   /** Shown, faint, when there is no value. */
   empty: string;
   /** Fiscal codes are read character by character, so they are set in figures. */
   mono?: boolean;
+  /** The route that always works: put it on the clipboard. */
+  copy?: { label: string; copiedLabel: string };
 }) {
   const body = (
     <span className={cn('block truncate', mono && 'font-mono tracking-tight')}>
@@ -1197,17 +1281,33 @@ function Fact({
       >
         {icon}
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[0.82rem] font-bold tracking-wide text-ink-faint uppercase">{label}</p>
-        <p className={cn('text-[1.02rem] font-semibold', value ? 'text-ink' : 'text-ink-faint')}>
-          {href && value ? (
-            <a href={href} className="no-underline hover:text-brand-deep hover:underline">
-              {body}
-            </a>
-          ) : (
-            body
-          )}
-        </p>
+        <div className="flex min-w-0 items-center gap-1">
+          <p
+            className={cn(
+              'min-w-0 flex-1 text-[1.02rem] font-semibold',
+              value ? 'text-ink' : 'text-ink-faint',
+            )}
+          >
+            {href && value ? (
+              <a href={href} className="no-underline hover:text-brand-deep hover:underline">
+                {body}
+              </a>
+            ) : (
+              body
+            )}
+          </p>
+          {copy && value ? (
+            <CopyButton
+              value={value}
+              label={copy.label}
+              copiedLabel={copy.copiedLabel}
+              showLabel={false}
+              className="btn btn-ghost btn-sm shrink-0 px-2"
+            />
+          ) : null}
+        </div>
         {note ? <p className="truncate text-[0.9rem] text-ink-soft">{note}</p> : null}
       </div>
     </div>

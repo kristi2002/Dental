@@ -1,6 +1,10 @@
-'use client';
-
-import { surfaceAt, WHEEL_POSITIONS, type ToothSurface, type WheelPosition } from '@/lib/teeth';
+import {
+  surfaceAt,
+  SURFACE_UNMARKED,
+  WHEEL_POSITIONS,
+  type ToothSurface,
+  type WheelPosition,
+} from '@/lib/teeth';
 import { cn } from '@/lib/utils';
 
 /**
@@ -35,17 +39,18 @@ import { cn } from '@/lib/utils';
  * caller: `fillOf` is slate for an unmarked face here, red for a marked one,
  * orange in the lab chart. `brightness` is the one hover that works over all of
  * them without this component having to know which palette it is wearing.
+ *
+ * Not marked `'use client'`, and that is load-bearing rather than an oversight.
+ * The chart imports it into a client component, where it is bundled as usual;
+ * the printed record sheet is a server component and renders the same wheel with
+ * no handlers at all. There are no hooks here, so one file serves both — and the
+ * paper cannot draw a different target from the screen.
  */
 
 const CENTRE = 18;
 const INNER = 6.2;
 const OUTER = 14;
 const RING = 15.4;
-
-/** Tailwind red-500 — a marked surface, where the caller has no stronger opinion. */
-export const SURFACE_MARKED = '#EF4444';
-/** Tailwind slate-300 — an unmarked one. */
-export const SURFACE_UNMARKED = '#CBD5E1';
 
 /** Degrees clockwise from three o'clock, which is how SVG's y-down axis reads. */
 const SPAN: Record<WheelPosition, [number, number]> = {

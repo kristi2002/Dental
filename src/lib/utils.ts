@@ -25,17 +25,28 @@ export function initials(firstName: string, lastName: string): string {
 }
 
 /**
+ * Lowercase and strip diacritics, so "Çështje" and "cesh" are comparable and
+ * "Penicilinë" and "penicillin" are nearly so.
+ *
+ * Shared, because three different places had grown their own copy: the row
+ * filter here, the allergy cross-check in `medical.ts`, and the drug catalogue
+ * in `drugs.ts`. The last two have to fold text *the same way* or a stem stops
+ * matching the word it was written for.
+ */
+export function fold(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLocaleLowerCase()
+    .trim();
+}
+
+/**
  * Case- and accent-insensitive substring test, for filtering a list in memory.
  * Typing "cesh" has to find "Çështje" — nobody reaches for the diacritics when
  * they are hunting for a row.
  */
 export function matches(haystack: string, needle: string): boolean {
-  const fold = (value: string) =>
-    value
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '')
-      .toLocaleLowerCase();
-
   return fold(haystack).includes(fold(needle));
 }
 

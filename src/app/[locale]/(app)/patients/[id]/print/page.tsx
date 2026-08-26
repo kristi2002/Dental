@@ -3,7 +3,8 @@ import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/serve
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { SheetHead } from '@/components/brand/SheetHead';
-import { DentalChart, type ToothRecordMap } from '@/components/dental/DentalChart';
+import { ChartSheet } from '@/components/dental/ChartSheet';
+import type { ToothRecordMap } from '@/components/dental/DentalChart';
 import { ToothDefsProvider } from '@/components/dental/ToothDefsProvider';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PrintButton } from '@/components/prescriptions/PrintButton';
@@ -13,6 +14,7 @@ import { age } from '@/lib/dates';
 import { planProgress } from '@/lib/plan-progress';
 import { prisma } from '@/lib/prisma';
 import { getClinicProfile } from '@/lib/queries';
+import { dentitionOf } from '@/lib/teeth';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,6 +119,20 @@ export default async function PatientRecordPage({
     ]),
   );
 
+  /**
+   * Whether the milk teeth are drawn.
+   *
+   * The screen chart asks the patient's age, which is the right question while
+   * charting: an eight-year-old's primary teeth are what you are about to write
+   * on. A record leaving the building is read the other way round — what is on
+   * the chart, whoever it belongs to. So an extracted `65` still prints on a
+   * thirty-year-old's sheet rather than being filed out of existence by a
+   * birthday.
+   */
+  const showsPrimary =
+    (patient.dateOfBirth !== null && age(patient.dateOfBirth) < 13) ||
+    patient.teethRecords.some((record) => dentitionOf(record.toothNum) === 'PRIMARY');
+
   const day = (value: Date) =>
     format.dateTime(value, { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -158,7 +174,7 @@ export default async function PatientRecordPage({
             <Row label={t('guardianName')} value={patient.guardianName} />
             <Row label={t('guardianPhone')} value={patient.guardianPhone} />
             <Row label={t('emergencyContact')} value={patient.emergencyContact} />
-            <Row label={t('registered')} value={day(patient.createdAt)} />
+            <Row label={t('registeredLabel')} value={day(patient.createdAt)} />
           </dl>
 
           {/* Ahead of everything clinical, because it is the one thing on this
@@ -200,15 +216,16 @@ export default async function PatientRecordPage({
           ) : null}
 
           <Section title={tt('title')}>
-            {/* Read-only whatever the reader's permissions: this is a sheet of
-                paper, and the chart's editing affordances would print as dead
-                controls. */}
-            <DentalChart
-              patientId={patient.id}
+            {/* Not the chart component in a read-only mode. `readOnly` takes the
+                editing away and leaves the *shape* of a screen — a findings
+                panel that scrolls, two examinations behind a toggle, notes
+                clamped at three lines — and every one of those loses its
+                contents to a printer. `ChartSheet` is the same record stated
+                flat; see the note on it. */}
+            <ChartSheet
               records={teeth}
               numbering={profile.toothNumbering}
-              showPrimary={patient.dateOfBirth ? age(patient.dateOfBirth) < 13 : false}
-              readOnly
+              showPrimary={showsPrimary}
             />
           </Section>
 

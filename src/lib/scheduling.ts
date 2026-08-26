@@ -7,6 +7,30 @@ import { getDaySchedule } from '@/lib/queries';
 /** Slots are offered on the half hour — a clinic diary, not a calendar app. */
 export const SLOT_STEP_MINUTES = 15;
 
+/**
+ * The statuses that mean a chair is spoken for.
+ *
+ * `ARRIVED` belongs here and was missing from all three queries below, which is
+ * the worst possible one to leave out: it is set by the front desk at the exact
+ * moment the patient is most certainly in the building. The slot stopped
+ * blocking the second somebody pressed the button — its minutes merged back
+ * into the day's free time and were then offered by the slot finder, handed out
+ * by the waiting list, and booked over without a conflict warning, while the
+ * patient sat in the chair.
+ *
+ * Cancelled and no-show stay out: the chair really is free, and that is exactly
+ * the case where somebody else should be offered the time.
+ *
+ * A named constant rather than three inline arrays, because three inline arrays
+ * is how one of them came to disagree with the other twelve occupancy checks in
+ * the app — every one of which already counted `ARRIVED`.
+ */
+export const OCCUPIES_A_SLOT = [
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.ARRIVED,
+  AppointmentStatus.COMPLETED,
+] as const;
+
 export type Conflict = {
   id: string;
   startTime: string;
@@ -74,7 +98,7 @@ export async function findConflicts({
   const sameDay = await prisma.appointment.findMany({
     where: {
       date,
-      status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED] },
+      status: { in: [...OCCUPIES_A_SLOT] },
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
     select: {
@@ -226,7 +250,7 @@ export async function findFreeGaps({
     prisma.appointment.findMany({
       where: {
         date,
-        status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED] },
+        status: { in: [...OCCUPIES_A_SLOT] },
         ...(staffUserId ? { staffUserId } : {}),
       },
       select: { startTime: true, durationMin: true },
@@ -234,6 +258,61 @@ export async function findFreeGaps({
   ]);
 
   return gapsIn(schedule, booked, { minMinutes, after });
+}
+
+/**
+ * Give each waiting person their own piece of the day's free time.
+ *
+ * Answering every request against the whole gap list independently is the
+ * obvious implementation and the wrong one: one free hour then "fits" everybody
+ * on the list, every row offers the same start time, and a front desk working
+ * down those rows promises one slot to five people. Walking the list once and
+ * taking the time as it is handed out keeps the offers distinct — and keeps the
+ * count of who fits honest, which is what the dashboard states as a fact.
+ *
+ * Only the minutes actually used are taken, so a free hour holds two half-hour
+ * treatments rather than being spent whole on the first. Requests are answered
+ * in the order given, which is already the fair one: urgent first, then longest
+ * waiting.
+ *
+ * The gap handed back is the slice assigned, not the stretch it came from — the
+ * second person in a free hour is offered half past, not the hour.
+ *
+ * The pool is taken in the order given and may span days, so a fortnight of
+ * `DatedGap`s answers "when can the practice take this person" rather than only
+ * "does today hold them". Whatever else a gap carried — its day above all —
+ * rides along on the slice.
+ */
+export function assignGaps<T extends { durationMin: number }, G extends FreeGap>(
+  entries: T[],
+  gaps: G[],
+): Array<{ entry: T; gap: G | null }> {
+  const pool = gaps.map((gap) => ({
+    source: gap,
+    start: timeToMinutes(gap.startTime),
+    end: timeToMinutes(gap.endTime),
+  }));
+
+  return entries.map((entry) => {
+    const slot = pool.find((candidate) => candidate.end - candidate.start >= entry.durationMin);
+    if (!slot) return { entry, gap: null };
+
+    const start = slot.start;
+    slot.start += entry.durationMin;
+    // What is left of a stretch nobody could book is not free time worth
+    // offering to the next person down the list.
+    if (slot.end - slot.start < SLOT_STEP_MINUTES) pool.splice(pool.indexOf(slot), 1);
+
+    return {
+      entry,
+      gap: {
+        ...slot.source,
+        startTime: minutesToTime(start),
+        endTime: minutesToTime(start + entry.durationMin),
+        minutes: entry.durationMin,
+      },
+    };
+  });
 }
 
 /** A free stretch, and the day it is on. */
@@ -280,7 +359,7 @@ export async function findNextGaps({
   const booked = await prisma.appointment.findMany({
     where: {
       date: { gte: from, lte: lastDay },
-      status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED] },
+      status: { in: [...OCCUPIES_A_SLOT] },
       ...(staffUserId ? { staffUserId } : {}),
     },
     select: { date: true, startTime: true, durationMin: true },

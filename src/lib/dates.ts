@@ -190,3 +190,30 @@ export function minutesToTime(minutes: number): string {
   const m = minutes % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
+
+/**
+ * A date formatter whose fields are padded to the width they were asked for.
+ *
+ * Asking ICU for two digits is only a request. Albanian's own pattern for a day
+ * and a month is `d.M`, and it hands that back as written — so the fourth of
+ * August arrives as `4.8` and the fourteenth as `14.8`, which in a column of a
+ * register is a set of dates that do not line up and read like version numbers.
+ *
+ * Only the width is taken over. The order of the parts and the mark between them
+ * stay the locale's business, which is why this counts parts rather than writing
+ * a format of its own.
+ *
+ * UTC throughout, to match `format.dateTime` and because every day this app
+ * stores is stored at UTC midnight.
+ */
+export function paddedDateFormat(
+  locale: string,
+  style: Intl.DateTimeFormatOptions,
+): (value: Date) => string {
+  const format = new Intl.DateTimeFormat(locale, { ...style, timeZone: 'UTC' });
+  return (value) =>
+    format
+      .formatToParts(value)
+      .map((part) => (part.type === 'literal' ? part.value : part.value.padStart(2, '0')))
+      .join('');
+}

@@ -173,7 +173,7 @@ export function buildCalendar({
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//DentOrganizer//Clinic Calendar//EN',
+    'PRODID:-//Shehu Dental//Clinic Calendar//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeText(name)}`,

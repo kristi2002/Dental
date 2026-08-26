@@ -144,7 +144,7 @@ export default async function PlanPrintPage({
                 {t('stepTitle')}
               </th>
               <th className="py-2 pr-3 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
-                {tt('tooth')}
+                {tt('colTooth')}
               </th>
               <th className="py-2 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
                 {t('status')}

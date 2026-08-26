@@ -1,9 +1,10 @@
-import { CalendarClock, Check, Clock3 } from 'lucide-react';
+import { CalendarClock, Check, Clock3, Send } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { ActionForm } from '@/components/ui/ActionForm';
+import { ActionForm, ReportingActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Link } from '@/i18n/navigation';
 import { markRecallContacted, snoozeRecall } from '@/lib/actions/patients';
+import { sendPatientMessage } from '@/lib/actions/messages';
 import { ReminderLinks } from '@/components/appointments/ReminderLinks';
 import { mailtoLink, whatsappLink } from '@/lib/reminders';
 
@@ -28,6 +29,7 @@ export function RecallCard({
   emailSubject,
   emailBody,
   canSend,
+  canEmail,
   contactConsent,
   book,
 }: {
@@ -47,6 +49,13 @@ export function RecallCard({
   emailSubject: string;
   emailBody: string;
   canSend: boolean;
+  /**
+   * Whether the practice has a mail provider configured *and* this person may
+   * use it. When true the email button sends; when false it opens a `mailto:`
+   * draft, which is what every clinic did before and what one that configures
+   * nothing keeps doing.
+   */
+  canEmail: boolean;
   /**
    * The booking dialog for this person. The entire purpose of this list is to
    * turn into appointments, and until now the only route was: open the record,
@@ -99,6 +108,24 @@ export function RecallCard({
           body={message}
           consent={contactConsent}
           purpose="RECALL"
+          emailSend={
+            canEmail && email ? (
+              <ReportingActionForm
+                action={sendPatientMessage}
+                values={{
+                  patientId: id,
+                  subject: emailSubject,
+                  body: emailBody,
+                  purpose: 'RECALL',
+                }}
+              >
+                <button type="submit" className="btn btn-secondary btn-sm" title={t('sendEmail')}>
+                  <Send size={17} aria-hidden />
+                  {t('sendEmail')}
+                </button>
+              </ReportingActionForm>
+            ) : undefined
+          }
         />
 
         {/* The outcome the whole list exists to produce, so it sits with the

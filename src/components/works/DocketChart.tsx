@@ -1,5 +1,5 @@
 import { PERMANENT_LOWER, PERMANENT_UPPER } from '@/lib/teeth';
-import { parseToothSpan, spanDigit, type SpanPosition } from '@/lib/tooth-span';
+import { spanDigit, type SpanPosition } from '@/lib/tooth-span';
 import { cn } from '@/lib/utils';
 
 /**
@@ -96,22 +96,5 @@ export function DocketChart({
         {row(PERMANENT_LOWER, labels.lower)}
       </tbody>
     </table>
-  );
-}
-
-/**
- * Every line's span merged into one, for the chart above.
- *
- * A case is often three pieces of work — a crown here, a bridge there — each
- * with its own span, and the docket has one chart. Re-read through the register's
- * own parser rather than concatenated by hand, so a position named by two lines
- * merges the way it does everywhere else: towards the gap.
- */
-export function mergeSpans(lines: ReadonlyArray<{ teeth: string | null }>): SpanPosition[] {
-  return parseToothSpan(
-    lines
-      .map((line) => line.teeth)
-      .filter((teeth): teeth is string => Boolean(teeth))
-      .join(','),
   );
 }

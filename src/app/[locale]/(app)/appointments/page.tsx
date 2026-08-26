@@ -10,7 +10,7 @@ import {
   StatusFilter,
   type CalendarStatus,
 } from '@/components/appointments/StatusFilter';
-import { WaitlistPanel } from '@/components/appointments/WaitlistPanel';
+import { WaitlistPanel, type OfferGap } from '@/components/appointments/WaitlistPanel';
 import { WeekView } from '@/components/appointments/WeekView';
 import { Card } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -41,8 +41,9 @@ import {
   getProviderOptions,
   getServiceOptions,
 } from '@/lib/queries';
-import { findFreeGaps } from '@/lib/scheduling';
+import { findNextGaps, nextSlotTime, SLOT_STEP_MINUTES } from '@/lib/scheduling';
 import { cn } from '@/lib/utils';
+import { daysWaiting } from '@/lib/waitlist';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,20 @@ const VIEWS: CalendarView[] = ['day', 'week', 'month', 'list'];
  * the screen showed anything worth looking at.
  */
 const DEFAULT_VIEW: CalendarView = 'week';
+
+/**
+ * How far the waiting list looks for somewhere to put people.
+ *
+ * A fortnight, because the list is not a question about one day: somebody who
+ * has waited three months is not helped by "no gap this day", and the answer the
+ * front desk actually needs — the first time the practice can take them — is
+ * usually next week rather than this afternoon. Far enough to be useful, near
+ * enough that it is still worth a phone call.
+ */
+const WAITLIST_DAYS = 14;
+
+/** Enough stretches to seat everybody waiting; the horizon is the real bound. */
+const WAITLIST_GAP_LIMIT = 200;
 
 const VIEW_LABEL: Record<CalendarView, string> = {
   day: 'viewDay',
@@ -119,6 +134,11 @@ export default async function AppointmentsPage({
   // of the month: 42 cells, always six rows.
   const grid = monthGrid(anchor);
 
+  // Where the waiting list starts looking. The anchored day, except when the
+  // calendar is parked in the past — last Tuesday's free time is nobody's
+  // opening, and offering it would put a date already gone into a message.
+  const waitlistFrom = anchor.getTime() < today().getTime() ? today() : anchor;
+
   const range =
     view === 'day'
       ? { from: anchor, to: anchor }
@@ -133,7 +153,7 @@ export default async function AppointmentsPage({
     services,
     operatories,
     waitlist,
-    freeGaps,
+    waitlistGaps,
     schedule,
     weekSchedules,
     monthSchedules,
@@ -149,9 +169,21 @@ export default async function AppointmentsPage({
             include: { patient: { select: { firstName: true, lastName: true, phone: true } } },
           })
         : Promise.resolve([]),
-      // Gaps are computed for the anchored day whichever view is open, so the
-      // waitlist always has a concrete day to offer people.
-      canSeeWaitlist ? findFreeGaps({ date: anchor, staffUserId: staffFilter }) : [],
+      // A fortnight of free time rather than one day's, so a person the anchored
+      // day cannot hold is told when the practice can rather than just "no".
+      // On today that means the time still ahead, as the dashboard has always
+      // taken it: nine o'clock is not an opening to offer anybody at four, and
+      // `Offer the slot` would have written that hour into the message.
+      canSeeWaitlist
+        ? findNextGaps({
+            from: waitlistFrom,
+            minutes: SLOT_STEP_MINUTES,
+            days: WAITLIST_DAYS,
+            limit: WAITLIST_GAP_LIMIT,
+            staffUserId: staffFilter,
+            after: isSameDay(waitlistFrom, today()) ? nextSlotTime() : undefined,
+          })
+        : [],
       getDaySchedule(anchor, staffFilter),
       // Seven schedules for seven columns. `getClinicWeek` and `getClosures` are
       // request-cached, so this is still two queries however many days ask.
@@ -171,6 +203,25 @@ export default async function AppointmentsPage({
     : allAppointments.filter((appointment) =>
         statusFilter.includes(appointment.status as CalendarStatus),
       );
+
+  // Each free stretch carries the name of its day, written once per day rather
+  // than once per stretch: a fortnight holds fourteen days and many more gaps
+  // than that. The label is read twice — on the row, and inside the WhatsApp
+  // message — and this is the one place holding the locale's formatter.
+  const dayNames = new Map<string, string>();
+  const offerGaps: OfferGap[] = [];
+  for (const gap of waitlistGaps) {
+    let dayLabel = dayNames.get(gap.date);
+    if (!dayLabel) {
+      dayLabel = format.dateTime(fromDateKey(gap.date), {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      });
+      dayNames.set(gap.date, dayLabel);
+    }
+    offerGaps.push({ ...gap, dayLabel });
+  }
 
   // Shut days are shaded on the month grid rather than left blank, so a bank
   // holiday reads as "closed" instead of "nobody booked anything".
@@ -477,8 +528,11 @@ export default async function AppointmentsPage({
                 durationMin: entry.durationMin,
                 note: entry.note ?? '',
                 urgent: entry.urgent,
+                waitingDays: daysWaiting(entry.createdAt),
               }))}
-              freeGaps={freeGaps}
+              gaps={offerGaps}
+              anchorDate={toDateKey(anchor)}
+              windowDays={WAITLIST_DAYS}
               dayLabel={format.dateTime(anchor, {
                 weekday: 'long',
                 day: 'numeric',

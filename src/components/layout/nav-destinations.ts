@@ -61,7 +61,13 @@ export const NAV_DESTINATIONS: ReadonlyArray<
   // has already decided to write to. It sits in the top level rather than under
   // the calendar for the reason everything else here does — it is worked down
   // once a day, and a queue nobody can find is a queue nobody empties.
-  { href: '/outbox', key: 'outbox', permission: 'recall.view' },
+  { href: '/reminders', key: 'outbox', permission: 'recall.view' },
+  // And the other end of *that*: the outbox is what the practice is about to
+  // say, this is what came back. It sits in the top level and not under the
+  // outbox because it is the one list here nobody controls the size of — a
+  // patient answers when a patient answers, and a reply nobody sees for three
+  // days is worse than a recall nobody makes for three days.
+  { href: '/inbox', key: 'inbox', permission: 'message.view' },
   // Beside the recalls rather than filed anywhere: both are lists the practice
   // works down each morning, and this one is the only thing in the rail that
   // chases the practice rather than a patient. The bell keeps it from ever being
@@ -131,4 +137,12 @@ export const SEARCHABLE_LISTS: ReadonlyArray<Destination> = [
   { href: '/plans', key: 'plans', permission: 'plan.view' },
   { href: '/services', key: 'services', permission: 'service.view' },
   { href: '/stock', key: 'stock', permission: 'stock.view' },
+  // These two read `?q=` exactly as the four above do and were simply left off
+  // the list, so the palette handed a typed query to the catalogue and the
+  // cupboard but not to the register or the follow-up board — the two screens
+  // whose rows are most often looked for by a name somebody half-remembers.
+  { href: '/works', key: 'works', permission: 'work.view' },
+  { href: '/follow-ups', key: 'followUps', permission: 'followup.view' },
+  // The inbox joins them now that it has a search box of its own.
+  { href: '/inbox', key: 'inbox', permission: 'message.view' },
 ];

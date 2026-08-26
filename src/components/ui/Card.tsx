@@ -10,14 +10,21 @@ export function CardHeader({
   icon,
   action,
   subtitle,
+  className,
 }: {
   title: string;
   icon?: ReactNode;
   action?: ReactNode;
   subtitle?: string;
+  className?: string;
 }) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+    <header
+      className={cn(
+        'flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4',
+        className,
+      )}
+    >
       <div className="flex items-center gap-3">
         {icon ? <span className="text-brand">{icon}</span> : null}
         <div>

@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       consent: t('contactConsent'),
       channel: t('preferredChannel'),
       language: t('exportLanguage'),
-      registered: t('registered'),
+      registered: t('registeredLabel'),
       archived: t('exportArchivedOn'),
       yes: tc('yes'),
       no: tc('no'),

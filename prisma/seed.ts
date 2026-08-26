@@ -230,7 +230,7 @@ async function main() {
   // The demo practice keeps ordinary hours: weekdays with a lunch break,
   // Saturday mornings, Sunday shut. Seeded explicitly so the free-slot search
   // and the day grid have something realistic to disagree about.
-  await prisma.clinicProfile.create({ data: { id: 'clinic', name: 'DentOrganizer' } });
+  await prisma.clinicProfile.create({ data: { id: 'clinic', name: 'Shehu Dental' } });
 
   console.log('Seeding opening hours…');
   await prisma.clinicHours.createMany({

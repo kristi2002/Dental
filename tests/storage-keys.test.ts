@@ -112,10 +112,11 @@ describe('storage keys — every file the database still points at', () => {
   });
 });
 
-describe('referencedStorageKeys — gathering the four sources', () => {
+describe('referencedStorageKeys — gathering the five sources', () => {
   const reader = (rows: {
     documents?: string[];
     attachments?: string[];
+    mail?: string[];
     items?: Array<string | null>;
     products?: Array<string | null>;
   }): StorageKeyReader => ({
@@ -125,17 +126,34 @@ describe('referencedStorageKeys — gathering the four sources', () => {
     followUpAttachment: {
       findMany: async () => (rows.attachments ?? []).map((storageKey) => ({ storageKey })),
     },
+    emailAttachment: {
+      findMany: async () => (rows.mail ?? []).map((storageKey) => ({ storageKey })),
+    },
     stockItem: { findMany: async () => (rows.items ?? []).map((photoKey) => ({ photoKey })) },
     stockProduct: {
       findMany: async () => (rows.products ?? []).map((photoKey) => ({ photoKey })),
     },
   });
 
-  it('gathers all four into one set', async () => {
+  it('gathers all five into one set', async () => {
     const keys = await referencedStorageKeys(
-      reader({ documents: ['a.jpg'], attachments: ['b.png'], items: ['c.webp'], products: ['d.jpg'] }),
+      reader({
+        documents: ['a.jpg'],
+        attachments: ['b.png'],
+        mail: ['e.pdf'],
+        items: ['c.webp'],
+        products: ['d.jpg'],
+      }),
     );
-    assert.deepEqual([...keys].sort(), ['a.jpg', 'b.png', 'c.webp', 'd.jpg']);
+    assert.deepEqual([...keys].toSorted(), ['a.jpg', 'b.png', 'c.webp', 'd.jpg', 'e.pdf']);
+  });
+
+  it('keeps a file somebody emailed the practice', async () => {
+    // The case the coverage test above caught the day `EmailAttachment` was
+    // added: without this source the sweeper treats every inbound X-ray as an
+    // orphan and deletes it an hour after it arrives.
+    const keys = await referencedStorageKeys(reader({ mail: ['xray.jpg'] }));
+    assert.deepEqual([...keys], ['xray.jpg']);
   });
 
   it('drops the nulls, because most materials have no photograph', async () => {

@@ -91,6 +91,9 @@ const ORDER = [
   'serviceMaterials',
   'productBarcodes',
   'batches',
+  // After the material it is about, and far after the staff member who waved it
+  // away. Both are foreign keys; `stock` is directly above and `staff` is first.
+  'stockAlertDismissals',
   'patients',
   'appointments',
   'visits',
@@ -122,6 +125,12 @@ const ORDER = [
   // it is about and the staff member who resolved it — all three are foreign
   // keys, and all three are far above.
   'scheduledMessages',
+  // The correspondence, parents first: a thread points at a patient (optional,
+  // and far above), a message points at its thread and at the staff member who
+  // sent it, and an attachment points at its message.
+  'emailThreads',
+  'emailMessages',
+  'emailAttachments',
   'movements',
   'audit',
 ] as const;
@@ -143,6 +152,7 @@ const MODEL: Record<Key, string> = {
   serviceMaterials: 'serviceMaterial',
   productBarcodes: 'productBarcode',
   batches: 'stockBatch',
+  stockAlertDismissals: 'stockAlertDismissal',
   patients: 'patient',
   appointments: 'appointment',
   visits: 'visitRecord',
@@ -163,6 +173,9 @@ const MODEL: Record<Key, string> = {
   followUps: 'followUp',
   followUpFiles: 'followUpAttachment',
   scheduledMessages: 'scheduledMessage',
+  emailThreads: 'emailThread',
+  emailMessages: 'emailMessage',
+  emailAttachments: 'emailAttachment',
   movements: 'stockMovement',
   audit: 'auditLog',
 };

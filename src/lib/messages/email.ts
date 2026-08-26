@@ -221,6 +221,120 @@ export function mailRequest(
 }
 
 /**
+ * The identity the provider gave the message it just accepted.
+ *
+ * **Why this is read at all.** A reply arrives carrying `In-Reply-To`, and the
+ * only way to know which conversation it belongs to is to have written down
+ * what went out. Until now the response body was read for the error text and
+ * thrown away on success, which was correct for a system that could not
+ * receive anything and is the one thing that has to change first now that it
+ * can. Adding it afterwards would leave a gap of threadless replies exactly as
+ * wide as the interval between the two deployments.
+ *
+ * **The two providers do not answer the same question.** Brevo returns the real
+ * RFC 5322 header, angle brackets and all. Resend returns its own id, which is
+ * not the header but does appear *inside* it. So this stores whatever came
+ * back, and matching is done loosely at the other end — see `matchesMessageId`,
+ * which is where that looseness is paid for and explained.
+ */
+export function readMessageId(provider: MailProvider, body: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    // A provider that accepted the message and answered with something other
+    // than JSON has still sent it. Losing the thread is worth far less than
+    // failing a send that worked.
+    return null;
+  }
+
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const record = parsed as Record<string, unknown>;
+
+  const value = provider === 'brevo' ? record.messageId : record.id;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+/**
+ * A `Message-ID` reduced to the part two mail clients would agree on.
+ *
+ * The header is case-insensitive in practice, is written with and without
+ * angle brackets by different software, and picks up whitespace in transit.
+ * None of that is a difference in identity, and comparing raw strings would
+ * make it one.
+ */
+export function normaliseMessageId(value: string): string {
+  return value.trim().replace(/^<|>$/g, '').trim().toLowerCase();
+}
+
+/**
+ * Every id named by an `In-Reply-To` or `References` header, in the order a
+ * thread should be looked for: the direct parent first, then back up the chain.
+ *
+ * `References` lists the whole ancestry oldest-first, so it is reversed — the
+ * nearest ancestor is the one most likely to still be a thread we hold.
+ */
+export function referencedMessageIds(inReplyTo?: string | null, references?: string | null): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  const take = (header: string | null | undefined, reverse: boolean) => {
+    if (!header) return;
+    const ids = header.match(/<[^<>]+>/g) ?? header.trim().split(/\s+/);
+    for (const id of reverse ? ids.toReversed() : ids) {
+      const key = normaliseMessageId(id);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(key);
+    }
+  };
+
+  take(inReplyTo, false);
+  take(references, true);
+  return out;
+}
+
+/**
+ * Whether a stored outbound id is the one a reply is answering.
+ *
+ * Exact match first, which is the Brevo case and the honest one. The fallback
+ * is for Resend, whose id is a bare uuid that the outgoing `Message-ID` header
+ * was built around: `<uuid@send.klinika.al>`. Containment is a blunt test and
+ * it is bounded by the length check — a stored id short enough to appear inside
+ * an unrelated header by chance is not something to thread on.
+ */
+export function matchesMessageId(stored: string, referenced: string): boolean {
+  const a = normaliseMessageId(stored);
+  const b = normaliseMessageId(referenced);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return a.length >= 16 && b.includes(a);
+}
+
+/**
+ * Where to fetch one inbound attachment from, given the token the webhook
+ * carried.
+ *
+ * Brevo hands over a token rather than the bytes, so a message with three
+ * X-rays on it is a small JSON POST and three deliberate fetches — which is the
+ * right way round, because it means the app decides what it is willing to
+ * store *before* anything is transferred. See `usableAttachments`.
+ *
+ * Brevo-only: Resend has no inbound product, so a practice on Resend sends
+ * through Resend and receives through nothing. That is stated in the deployment
+ * notes rather than papered over here.
+ */
+export function inboundAttachmentRequest(
+  apiKey: string,
+  downloadToken: string,
+): { url: string; headers: Record<string, string> } {
+  return {
+    url: `https://api.brevo.com/v3/inbound/attachments/${encodeURIComponent(downloadToken)}`,
+    headers: { 'api-key': apiKey, accept: 'application/octet-stream' },
+  };
+}
+
+/**
  * Why a send failed, in the only four ways worth telling apart.
  *
  * Each one has a different person fixing it, which is the test for whether a

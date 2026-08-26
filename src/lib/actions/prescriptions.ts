@@ -154,10 +154,28 @@ export async function issuePrescription(
 
     const hits = matchingAllergies(body, [...alerts, ...fromNotes]);
     if (hits.length > 0) {
+      const list = [
+        ...new Set(hits.map((hit) => hit.alert.substance).filter(Boolean)),
+      ].join(', ');
+
+      // Three reasons, three sentences. "Amoxicillin is in the same group as
+      // Penicilinë" is a warning a dentist can act on; the same warning worded
+      // as though the prescription said "penicillin" reads as a bug, and a
+      // warning that reads as a bug gets clicked through.
+      //
+      // A direct hit outranks the rest — it is the plainest thing to say, and
+      // the list names every substance either way.
+      const related = hits.every((hit) => hit.reason !== 'direct')
+        ? hits.find((hit) => hit.reason === 'group') ?? hits[0]
+        : undefined;
+
       return actionError(
-        t('allergyClash', {
-          list: [...new Set(hits.map((hit) => hit.substance))].join(', '),
-        }),
+        related
+          ? t(related.reason === 'group' ? 'allergySameGroup' : 'allergyCrossReactive', {
+              drug: related.drug ?? '',
+              list,
+            })
+          : t('allergyClash', { list }),
         'allergy',
       );
     }

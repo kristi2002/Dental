@@ -63,7 +63,10 @@ export function DocumentGallery({
         {documents.map((document) => {
           const isImage = document.mimeType.startsWith('image/');
           // Always through the authenticated route — never a direct file path.
-          const href = `/api/documents/${document.id}`;
+          // The patient rides along because the route checks the file belongs to
+          // the record it is being asked for from (G-28), not merely that the
+          // reader may see files.
+          const href = `/api/documents/${document.id}?patient=${patientId}`;
 
           return (
             <li

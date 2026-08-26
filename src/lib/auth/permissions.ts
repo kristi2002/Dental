@@ -26,6 +26,14 @@ export const PERMISSIONS = [
   'analytics.view',
   'recall.view',
   'recall.send',
+  // Correspondence. Split from `recall.send` because they answer different
+  // questions: `recall.send` is "may this person chase a patient", which the
+  // front desk plainly may, while these are "may this person read the practice's
+  // mail" — a thread holds whatever a patient chose to write, which is a good
+  // deal less predictable than a reminder and can be anything up to a complaint
+  // about the dentist.
+  'message.view',
+  'message.send',
   'waitlist.view',
   'waitlist.edit',
   'plan.view',
@@ -81,6 +89,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'stock.edit',
     'recall.view',
     'recall.send',
+    'message.view',
+    'message.send',
     'waitlist.view',
     'waitlist.edit',
     'plan.view',
@@ -105,6 +115,10 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'stock.view',
     'recall.view',
     'recall.send',
+    // The desk is who the mail is addressed to in practice: it answers "can we
+    // move it to Thursday", which is most of what a clinic receives.
+    'message.view',
+    'message.send',
     'waitlist.view',
     'waitlist.edit',
     // Reading the works register, not writing it. The front desk is who answers
@@ -127,6 +141,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'stock.view',
     'analytics.view',
     'recall.view',
+    'message.view',
     'waitlist.view',
     'plan.view',
     'work.view',

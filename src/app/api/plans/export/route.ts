@@ -89,7 +89,7 @@ export async function GET(request: Request) {
       followUpOn: t('exportFollowUpOn'),
       position: '#',
       stepTitle: t('stepTitle'),
-      tooth: tt('tooth'),
+      tooth: tt('colTooth'),
       stepStatus: t('exportStepStatus'),
       booked: t('exportStepDate'),
     },

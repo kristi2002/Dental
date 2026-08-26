@@ -79,7 +79,7 @@ export async function GET(
   });
 
   const body = buildCalendar({
-    name: `DentOrganizer — ${staff.firstName} ${staff.lastName}`,
+    name: `Shehu Dental — ${staff.firstName} ${staff.lastName}`,
     timeZone: CLINIC_TIME_ZONE,
     events: appointments.map((appointment) => ({
       id: appointment.id,

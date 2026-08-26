@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { collides, gapsIn } from '../src/lib/scheduling';
+import { assignGaps, collides, gapsIn, type FreeGap } from '../src/lib/scheduling';
 import { rangesFor, scheduleFor, type DayHours } from '../src/lib/clinic-hours';
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
@@ -191,5 +191,117 @@ describe('gapsIn — the free stretches left in a day', () => {
       { from: wednesday, to: wednesday, reason: 'Holiday' },
     ]);
     assert.deepEqual(gapsIn(shut, []), []);
+  });
+});
+
+describe('assignGaps — one slot, one person', () => {
+  const gap = (startTime: string, endTime: string, minutes: number): FreeGap => ({
+    startTime,
+    endTime,
+    minutes,
+  });
+
+  it('splits a free hour between two half-hour treatments', () => {
+    const offers = assignGaps(
+      [{ durationMin: 30 }, { durationMin: 30 }],
+      [gap('09:00', '10:00', 60)],
+    );
+    assert.equal(offers[0]?.gap?.startTime, '09:00');
+    assert.equal(offers[1]?.gap?.startTime, '09:30');
+  });
+
+  it('never offers the same minutes twice', () => {
+    // The bug this exists to stop: one hole, five people, five identical
+    // messages, and a slot promised to everybody.
+    const offers = assignGaps(
+      [{ durationMin: 45 }, { durationMin: 45 }, { durationMin: 45 }],
+      [gap('09:00', '10:00', 60)],
+    );
+    assert.equal(offers[0]?.gap?.startTime, '09:00');
+    assert.equal(offers[1]?.gap, null);
+    assert.equal(offers[2]?.gap, null);
+  });
+
+  it('keeps a long treatment out of a short hole', () => {
+    const offers = assignGaps([{ durationMin: 60 }], [gap('09:00', '09:20', 20)]);
+    assert.equal(offers[0]?.gap, null);
+  });
+
+  it('passes over a stretch that is too short and takes the next that fits', () => {
+    const offers = assignGaps(
+      [{ durationMin: 60 }],
+      [gap('09:00', '09:20', 20), gap('11:00', '12:30', 90)],
+    );
+    assert.equal(offers[0]?.gap?.startTime, '11:00');
+  });
+
+  it('hands back the slice assigned, not the stretch it came from', () => {
+    const offers = assignGaps([{ durationMin: 30 }], [gap('09:00', '12:00', 180)]);
+    assert.deepEqual(offers[0]?.gap, { startTime: '09:00', endTime: '09:30', minutes: 30 });
+  });
+
+  it('drops a leftover nobody could book', () => {
+    // 5 minutes left of the stretch: not free time worth offering to anybody.
+    const offers = assignGaps(
+      [{ durationMin: 30 }, { durationMin: 5 }],
+      [gap('09:00', '09:35', 35)],
+    );
+    assert.equal(offers[0]?.gap?.startTime, '09:00');
+    assert.equal(offers[1]?.gap, null);
+  });
+
+  it('answers in the order given, which is the fair one', () => {
+    const urgent = { durationMin: 30, id: 'urgent' };
+    const older = { durationMin: 30, id: 'older' };
+    const offers = assignGaps([urgent, older], [gap('09:00', '10:00', 60)]);
+    assert.equal(offers[0]?.entry.id, 'urgent');
+    assert.equal(offers[0]?.gap?.startTime, '09:00');
+  });
+
+  it('says no to everybody on a day with no free time', () => {
+    const offers = assignGaps([{ durationMin: 30 }], []);
+    assert.equal(offers[0]?.gap, null);
+  });
+});
+
+describe('assignGaps — looking past the day in view', () => {
+  const dated = (date: string, startTime: string, endTime: string, minutes: number) => ({
+    date,
+    startTime,
+    endTime,
+    minutes,
+  });
+
+  it('keeps the day on the slice it hands back', () => {
+    // Whoever reads the row has to be told *which* nine o'clock.
+    const offers = assignGaps(
+      [{ durationMin: 60 }],
+      [dated('2026-08-21', '09:00', '09:30', 30), dated('2026-08-25', '09:00', '11:00', 120)],
+    );
+    assert.equal(offers[0]?.gap?.date, '2026-08-25');
+    assert.equal(offers[0]?.gap?.startTime, '09:00');
+  });
+
+  it('spends today before it reaches next week', () => {
+    const offers = assignGaps(
+      [{ durationMin: 30 }, { durationMin: 30 }, { durationMin: 30 }],
+      [dated('2026-08-21', '09:00', '10:00', 60), dated('2026-08-25', '14:00', '15:00', 60)],
+    );
+    assert.deepEqual(
+      offers.map((offer) => [offer.gap?.date, offer.gap?.startTime]),
+      [
+        ['2026-08-21', '09:00'],
+        ['2026-08-21', '09:30'],
+        ['2026-08-25', '14:00'],
+      ],
+    );
+  });
+
+  it('still says no when a fortnight holds nothing long enough', () => {
+    const offers = assignGaps(
+      [{ durationMin: 90 }],
+      [dated('2026-08-21', '09:00', '10:00', 60), dated('2026-08-25', '14:00', '15:00', 60)],
+    );
+    assert.equal(offers[0]?.gap, null);
   });
 });

@@ -7,6 +7,7 @@ import { authorize, recordAudit } from '@/lib/auth/guard';
 import { MAX_FILE_BYTES } from '@/lib/file-constants';
 import { deleteStoredFile, storeFile } from '@/lib/files';
 import { suggestMaterials, type MaterialSuggestion } from '@/lib/material-history';
+import { usableQuantity } from '@/lib/expiry';
 import { prisma } from '@/lib/prisma';
 import { decrementShelf, recordConsumption, takeFromShelf } from '@/lib/stock-consumption';
 import { isPhotoMimeType, isPhotoOwner } from '@/lib/stock-photos';
@@ -1101,6 +1102,91 @@ export async function clearOrdered(formData: FormData): Promise<void> {
     entity: 'stock',
     entityId: id,
     summary: `${item.name} → not ordered`,
+  });
+  revalidateAll();
+}
+
+/**
+ * "Not now."
+ *
+ * The reminder board's other verb, and the one that makes it usable at all. A
+ * board you cannot quieten is a board that gets ignored wholesale — the low-stock
+ * list has eleven materials on it, four of them are things the practice buys once
+ * a year, and if those four cannot be waved away then the seven that matter are
+ * never read either.
+ *
+ * Recorded against the shelf count at the time, not as a plain "hidden" flag, so
+ * it expires on its own terms: drop below what was waved away and the board asks
+ * again. See `StockAlertDismissal` for why that is the whole design.
+ *
+ * An upsert rather than a create, because waving the same alert away twice is one
+ * decision restated at a lower count, and the newer count is the one that should
+ * govern. Note it is the *current* usable figure that is written both times —
+ * dismissing at three then again at one leaves the board silent until it reaches
+ * nought, which is exactly what the second press asked for.
+ *
+ * The usable count is recomputed here rather than trusted from the form. It
+ * arrives in a hidden field on a page that may have been open for an hour, and a
+ * stale number would set the threshold to a shelf that no longer exists.
+ */
+export async function dismissStockAlert(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const item = await prisma.stockItem.findUnique({
+    where: { id },
+    select: {
+      name: true,
+      quantity: true,
+      batches: { select: { expiryDate: true, quantity: true, usedQuantity: true } },
+    },
+  });
+  if (!item) return;
+
+  const atQuantity = usableQuantity(item.quantity, item.batches);
+
+  await prisma.stockAlertDismissal.upsert({
+    where: { stockItemId: id },
+    create: { stockItemId: id, atQuantity, dismissedById: user.id },
+    update: { atQuantity, dismissedById: user.id, dismissedAt: new Date() },
+  });
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'stock',
+    entityId: id,
+    summary: `${item.name} → alert dismissed at ${atQuantity}`,
+  });
+  revalidateAll();
+}
+
+/**
+ * Undo a "not now" — put the material back on the board.
+ *
+ * The counterpart to every dismissal in this app being reversible without a
+ * database client. Waving an alert away is one press on a board somebody is
+ * skimming, which makes it exactly the press that gets mis-aimed.
+ */
+export async function restoreStockAlert(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  // `deleteMany`, not `delete`: an alert restored twice — two tabs, one board —
+  // must be a no-op rather than a crash on a row that has already gone.
+  const removed = await prisma.stockAlertDismissal.deleteMany({ where: { stockItemId: id } });
+  if (removed.count === 0) return;
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'stock',
+    entityId: id,
+    summary: 'alert restored',
   });
   revalidateAll();
 }

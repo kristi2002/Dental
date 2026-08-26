@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /*
- * DentOrganizer visual language
+ * Shehu Dental visual language
  * -----------------------------
  * A calm clinical workspace: cool near-white surfaces, blue-grey ink, and one
  * teal that carries every primary action. Peach is the second voice — it marks
@@ -220,6 +220,29 @@
    * message them", and a missing row does not answer anything. */
   .menu-item-muted {
     @apply cursor-not-allowed text-ink-faint hover:bg-transparent;
+  }
+
+  /* --- A contact detail you can act on --------------------------------
+   *
+   * The phone number and the address in a patient header. These were anchors
+   * pointing at `tel:` and `mailto:`, which on a desktop with nothing
+   * registered for those schemes is a link that silently does nothing — so they
+   * are now buttons that open a menu of routes, at least one of which always
+   * works. See `ContactActions`.
+   *
+   * Styled to read as the text it replaced rather than as a control. A header
+   * carrying two more buttons in the same weight as "New appointment" would put
+   * four call-to-actions on a card that has one. The affordance is deliberately
+   * quiet: a dotted underline that fills in on hover, which is the oldest
+   * "there is more here" signal there is. */
+  .contact-chip {
+    @apply flex max-w-full items-center gap-1.5 rounded-md text-left text-inherit
+      underline decoration-dotted decoration-from-font underline-offset-4
+      transition-colors hover:text-ink hover:decoration-solid;
+  }
+
+  .contact-chip:focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand;
   }
 
   /* --- One of many ----------------------------------------------------
@@ -518,6 +541,26 @@
 .odontogram {
   --tooth-col: 4.25rem;
   --tooth-glyph-h: calc((var(--tooth-col) - 0.25rem) * 222 / 88);
+
+  /* Three probe readings sit side by side under one tooth, so a site box is a
+   * third of the column — see `PerioStrip`. Capped at the width it was tuned
+   * at, because under a full-width working column a third of it is a fat box
+   * that reads as a spreadsheet rather than a reading; the cap only lets go
+   * where the column is narrower than the strip, which is every printed sheet.
+   * Without this the six digits simply overflowed the cell and ran into the
+   * readings of the teeth either side. */
+  --perio-site: min(0.95rem, calc((var(--tooth-col) - 0.2rem) / 3));
+}
+
+/* The printed record's chart is a document, not a workspace. A full arch is 16
+ * of these columns plus the midline rule, and at the working width of 4.25rem
+ * that is nearly twice the sheet's own measure — 52rem less the card's padding,
+ * which at this document's 17px root comes to about 814px. 2.9rem lands the
+ * arch at 793 and fits without a scroll bar. The print block below takes it
+ * narrower still, for the narrower thing an A4 page is; it is later in this
+ * file at the same specificity, so it wins over this without an `!important`. */
+.odontogram-sheet {
+  --tooth-col: 2.9rem;
 }
 
 /* --- Print -------------------------------------------------------------
@@ -538,13 +581,42 @@
     padding: 0 !important;
   }
 
-  /* A narrower column so a full chart fits the sheet, and no horizontal scroll
-     to clip it — a scroller prints whatever happens to be in view. */
+  /* A narrower column, so a full arch fits across the paper: A4 less the 14mm
+     margins is 182mm, about 688px, and 16 columns of 2.4rem plus the midline
+     rule come to 657. */
   .odontogram {
     --tooth-col: 2.5rem;
   }
 
-  .odontogram .overflow-x-auto {
+  .odontogram-sheet {
+    --tooth-col: 2.4rem;
+  }
+
+  /* --- Nothing on paper is behind anything ---------------------------
+   *
+   * A box that scrolls on screen prints whatever happened to be scrolled into
+   * view, and a clamped paragraph prints three lines and an ellipsis. Both are
+   * answers to a screen being a fixed height — the page is not, and there is no
+   * "more" for a reader holding a sheet of paper to click. So every scroller on
+   * a printed page lets go of its contents, and every clamp lets go of its text.
+   *
+   * Written broadly on purpose. The alternative is remembering to name each new
+   * scroller in this file, and the failure when somebody forgets is silent: the
+   * sheet comes out looking complete and is missing the half nobody scrolled
+   * to. That is how a dental chart's findings panel printed six teeth out of
+   * nineteen for as long as it did. */
+  .overflow-auto,
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-x-scroll,
+  .overflow-y-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  [class*='line-clamp-'] {
+    display: block !important;
+    -webkit-line-clamp: unset !important;
     overflow: visible !important;
   }
 
@@ -552,7 +624,11 @@
     filter: none !important;
   }
 
-  .odontogram {
+  /* The arch is one drawing and is never split across the fold. The sheet's
+     chart is a whole document section and can be — it carries a findings table
+     that will not fit on a page beside the arches — so its parts each avoid the
+     break on their own instead. */
+  .odontogram:not(.odontogram-sheet) {
     break-inside: avoid;
   }
 

@@ -23,7 +23,7 @@ export default function RootNotFound() {
               Kjo faqe nuk ekziston · This page does not exist · Questa pagina non esiste
             </p>
             <Link href={`/${routing.defaultLocale}`} className="btn btn-primary mt-6">
-              DentOrganizer
+              Shehu Dental
             </Link>
           </div>
         </div>

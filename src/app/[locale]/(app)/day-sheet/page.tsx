@@ -128,7 +128,7 @@ export default async function DaySheetPage({
       <article className="card p-8 print:border-0 print:p-0 print:shadow-none">
         <header className="mb-5 border-b-2 border-line pb-4">
           <p className="text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
-            {profile.name || 'DentOrganizer'}
+            {profile.name || 'Shehu Dental'}
           </p>
           <h1 className="text-2xl font-bold text-ink">{heading}</h1>
           <p className="mt-1 text-[1rem] text-ink-soft tabular-nums">

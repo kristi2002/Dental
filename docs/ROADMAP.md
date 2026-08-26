@@ -99,13 +99,52 @@ Two things ride along:
   *staff member's* UI locale, so an Albanian receptionist sends an Albanian
   message to an Italian patient. `Patient.locale` fixes it.
 
+### 3b — The messages only went one way 🟣
+
+**Status: implemented.** Three gaps, and the third was the one nobody could see.
+
+- **Nothing could simply *write* to a patient.** The app could remind and it
+  could chase, and had no way to say "your crown is back" or "we are shut on
+  Friday". Those went out through somebody's personal WhatsApp, unlogged.
+  `MessageDialog` + `composeTemplates` — six starting points, composed in the
+  patient's language, editable before they go, logged as a `Contact` either way.
+
+- **Nothing came back.** A reminder set `Reply-To` and then lost track: the
+  patient's answer landed in somebody's Outlook and the record showed a message
+  sent into silence. `EmailThread` / `EmailMessage`, filled by a Brevo inbound
+  webhook at `/api/mail/inbound`, worked at `/inbox`. This is the app's one
+  deliberate departure from "derive, don't store" — argued in §1.2 of the
+  blueprint rather than smuggled in under a migration name.
+
+- **The contact links did nothing on a desktop.** `tel:` and `mailto:` are
+  hand-offs to whatever the *workstation* has registered, and a browser-only
+  front desk has nothing registered — so every phone number and every address in
+  the app was a link that silently did nothing, and had been for as long as they
+  had existed. Nobody could have known: a link that does nothing looks exactly
+  like a link nobody clicked. Every one of them now sits beside a route that
+  cannot fail — a `wa.me` link, a send the server performs, or copy.
+
+Riding along: `Patient.preferredChannel` is finally *read* by something (it had
+been collected by the edit form and used by nothing), and a telephone call can
+be logged from the patient record, which is the one channel where the practice
+really knows the message arrived.
+
 ---
 
 ## Phase 4 — Allergies are a regex over prose 🔵
 
 **Status: implemented.** `PatientAlert` rows drive the header badges and are
 checked against prescription text at issue time (`matchingAllergies`), with an
-override. The regex stays as the safety net for notes not yet promoted to rows.
+override. The regex stays as the safety net for notes not yet promoted to rows —
+and those sentences are fed into the check too, not just the header.
+
+The check is no longer only a string comparison. [drugs.ts](../src/lib/drugs.ts)
+resolves both the prescription and the allergy record to drug families, which
+closes the hole that mattered: "Amoxicillin 875 mg" shares no useful substring
+with "Penicilinë", and is the antibiotic actually prescribed. Same-family and
+cross-reactive hits are worded differently, and the cross-reactivity list is one
+edge — penicillin/cephalosporin — because an alarm on clindamycin or
+azithromycin would fire on exactly the drugs a penicillin allergy calls for.
 
 [medical.ts](../src/lib/medical.ts) scans free-text notes for `/al+erg/i`. As a
 safety net over data that is already unstructured it is a good idea; as the
@@ -119,9 +158,13 @@ enum MedicalAlertKind {
 ```
 
 Once alerts are rows: the prescription form can cross-check the drug against
-recorded allergies at issue time (today `Prescription.body` is free text with no
-drug field and no check at all), the banner renders on the day view before the
+recorded allergies at issue time, the banner renders on the day view before the
 patient sits down, and `patient.medical.view` gates something concrete.
+
+`Prescription.body` stays free text, deliberately. A structured drug field would
+be one more box to fill at the fastest moment of the appointment, and a box that
+gets skipped protects nobody — the family check reads the wording that is
+already there instead.
 
 The regex stays as a migration aid — it can flag notes whose allergy has not
 been promoted to a row yet.

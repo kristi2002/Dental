@@ -146,6 +146,34 @@ recomputed from raw rows on every render. Nothing goes stale, and there is no
 maintenance job to forget to run. The cost is that the read paths carry the
 complexity — which is why [§7](#7-the-derivation-layer) exists.
 
+> **The one deliberate exception: correspondence.** `EmailThread` and
+> `EmailMessage` store something the app cannot derive from anything, because it
+> was not the app's to begin with — a patient wrote it. There is no raw row
+> underneath to recompute it from; the message *is* the raw row.
+>
+> It earns the exception because sending had no receiving half. The app set
+> `Reply-To` on a reminder and then lost track: "can we move it to Thursday?"
+> landed in somebody's Outlook, and the record showed a message sent into
+> silence. A `Contact` row saying "opened in a mail client" is the practice
+> describing its own actions; a thread is the conversation.
+>
+> Three consequences, named because they are the real price:
+>
+> - **The app becomes a system of record for medical-adjacent correspondence.**
+>   Retention and erasure now have to mean something here too, in the way
+>   `audit-retention.ts` already argues for the activity log.
+> - **The backup carries it, and must.** Everything else in the export is the
+>   practice's record of its own decisions and is in principle reconstructible.
+>   This is not — it exists nowhere else. See backup format v6.
+> - **`EmailThread.lastMessageAt` is denormalised**, which nothing else in this
+>   schema is. Safe only because it is append-only: a thread's last message never
+>   moves backwards, which is the property the app's derived answers lack.
+>
+> One thread per *correspondent*, not per RFC conversation — see the schema
+> note. That is a clinic's mental model ("messages with Dritan") rather than a
+> mailbox's, and it means a reply always has a home even when the sender's mail
+> client dropped the threading headers.
+
 **Nudge, don't send.** The app never contacts a patient without a human pressing
 send. It composes the message and either opens WhatsApp / the mail client, or —
 if the practice has configured a mail provider — transmits it itself when
@@ -160,7 +188,7 @@ it is the reason the practice trusts it.
 > What the rule protects is that **a person reads every message before it goes**.
 > That is untouched. Nothing sends on a clock; the only caller is a button on a
 > row somebody is looking at, and the queue that feeds it — `ScheduledMessage`,
-> filled by `queue-appointment-reminders` and worked down at `/outbox` — exists
+> filled by `queue-appointment-reminders` and worked down at `/reminders` — exists
 > precisely to be that gate. What changed is the transport, and with it three
 > things worth naming, because they are the real cost:
 >
@@ -173,6 +201,25 @@ it is the reason the practice trusts it.
 >
 > A practice that configures no provider keeps the old behaviour exactly, which
 > is what makes this an option rather than a change of direction.
+>
+> **Extended again, on the same terms.** There are now three places a message can
+> leave from — the send queue, the composer on a patient record
+> (`sendPatientMessage`), and a reply typed in the inbox (`replyToThread`) — and
+> every one of them is a button a person presses on wording they are looking at.
+> Nothing sends on a clock and nothing may. The composer is the first thing that
+> transmits words somebody *typed* rather than words the app composed, which is a
+> smaller step than it sounds: what has to be untouchable is the **recipient**,
+> and in all three the address is read from the row and only an id crosses the
+> wire. A form field naming the address would turn a send button into an open
+> relay wearing the practice's verified domain.
+>
+> **What "nudge" cannot cover.** Reaching a patient at all is a separate
+> problem from deciding to. `tel:` and `mailto:` are hand-offs to whatever the
+> *workstation* has registered, and on a browser-only front desk they do
+> nothing — silently, with no error and no window. Every screen that offers a
+> way to reach somebody therefore also offers one that cannot fail: a `wa.me`
+> link, which is plain HTTPS; a send the server performs; or copy-to-clipboard.
+> See `ContactActions`.
 
 ### 1.3 What "automation" means here
 
@@ -1019,14 +1066,23 @@ issue:
  1. authorize('prescription.edit')  — ASSISTANT is deliberately excluded.
     Prescribing carries the dentist's signature; it is not delegable.
  2. Body comes from a template or is typed.
- 3. CROSS-CHECK against recorded PatientAlerts:
+ 3. CROSS-CHECK against recorded PatientAlerts *and* the notes prose:
       matchingAllergies(body, alerts)
+      BY NAME:
       - case- and accent-folded ("Penicilinë" must fire on "Penicilin 500 mg")
       - matched in BOTH directions, word by word
       - multi-word substances match only as a phrase
-      - makes NO claim about drug families: "Amoxicillin" does not trip a
-        "penicillin" allergy, because pretending otherwise would give a
-        false sense of coverage, which is worse than none
+      BY FAMILY (drugs.ts):
+      - both sides resolved to drug families, so "Amoxicillin 875 mg" fires
+        on a recorded penicillin allergy — the case the name test could
+        never catch, and the antibiotic actually prescribed
+      - reads the SENTENCE form too, so a notes-only allergy resolves
+      - reported as 'group' (same family) or 'cross' (cross-reactive),
+        worded differently, because a warning that reads as a bug gets
+        clicked through
+      - the cross-reactivity list is ONE edge (penicillin/cephalosporin)
+        and stays short on purpose: every invented edge alarms on the drug
+        that was the safe alternative
       - NOTHING IS BLOCKED. It reports; the dentist remains the check.
  4. Prescription.body is its OWN column, copied at issue time.
     Editing or deleting the template later must never rewrite what a
@@ -1036,11 +1092,13 @@ issue:
 **Should be automatic**
 
 - **T0+T2** — the allergy cross-check fires at issue time, unasked. ✅
-- ❌ **G-29** — the check reads `PatientAlert` rows only. The regex over
-  free-text notes (`allergyLines`) is what the header uses, and it is *not* fed
-  into `matchingAllergies`. A patient whose penicillin allergy is a sentence in
-  their notes and has never been promoted to a row gets no warning at issue
-  time — even though the header shouts about it two inches away.
+- ✅ **G-29** — closed. `allergyLines` feeds the free-text notes into
+  `matchingAllergies` alongside the `PatientAlert` rows, so a penicillin allergy
+  that is only a sentence in the notes warns at issue time instead of being
+  shouted about in the header two inches away and ignored by the check.
+- ✅ **G-30** — closed. The check knows drug families ([drugs.ts](../src/lib/drugs.ts)),
+  so "Amoxicillin 875 mg" fires on a recorded penicillin allergy. It was the
+  common case and it used to pass in silence.
 
 ---
 
@@ -1816,7 +1874,8 @@ only on a leaf page will not be seen.
 | **Batch expiry** | `expiry.summariseBatches` | `StockBatch.expiryDate` | Stock |
 | **Unreminded tomorrow** | `queries.getUnremindedTomorrow` | tomorrow's SCHEDULED, no `Contact(REMINDER)`, not answered, consent ≠ false | Dashboard |
 | **Allergy prose scan** | `medical.allergyLines` | `medicalNotes` regex `/al+erg/i` | Patient header, patient list |
-| **Allergy ↔ prescription** | `medical.matchingAllergies` | `PatientAlert` rows vs prescription body, folded, bidirectional | Prescription dialog |
+| **Allergy ↔ prescription** | `medical.matchingAllergies` | `PatientAlert` rows **and** notes prose vs prescription body — folded and bidirectional by name, then by drug family via `drugs.ts` | Prescription dialog |
+| **Drug family** | `drugs.familiesIn` | name stems (en/sq/it + brands) → family; one cross-reactive edge | Allergy cross-check |
 | **Per-day counts** | `queries.getAppointmentCountsByDay` | grouped by date | Appointments month rail |
 | **Case history** | `AuditLog` filtered by entity+id | audit rows | Lab order sheet |
 

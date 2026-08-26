@@ -97,6 +97,10 @@ export async function POST(request: Request) {
     followUps,
     followUpFiles,
     scheduledMessages,
+    emailThreads,
+    emailMessages,
+    emailAttachments,
+    stockAlertDismissals,
     auditTotal,
   ] = await Promise.all([
     prisma.staffUser.findMany({
@@ -185,17 +189,44 @@ export async function POST(request: Request) {
     // patients get them a second time. The backup would not have lost data so
     // much as re-armed it.
     prisma.scheduledMessage.findMany(),
+    // The correspondence, which is the one thing in this file that cannot be
+    // reconstructed from anything else.
+    //
+    // Everything else here is the practice's own record of its own decisions —
+    // painful to lose and, in principle, re-derivable from paper, from memory,
+    // from the patients themselves. A message somebody sent the clinic is not:
+    // it exists nowhere but this database, because the whole point of the
+    // inbox is that the reply stopped landing in a mailbox nobody kept. Losing
+    // these rows loses what a patient actually said.
+    prisma.emailThread.findMany(),
+    prisma.emailMessage.findMany(),
+    // The rows, not the bytes — no upload is in this file, see the note below.
+    // Without them a restored practice has the message and no idea an X-ray
+    // came with it.
+    prisma.emailAttachment.findMany(),
+    // Which low-stock alerts somebody has already waved away, and at what count.
+    // The storage room's own memory of a decision — "we can live with three" —
+    // and the one stock table nothing else can rebuild: the count it was waved
+    // away at exists nowhere but this row. Restoring without them hands the
+    // practice a cupboard that has forgotten every such answer, so the reorder
+    // list comes back shouting about material somebody already looked at and
+    // settled. The fastest way to teach a dentist to ignore a stock alert is to
+    // show them one they have already dismissed.
+    prisma.stockAlertDismissal.findMany(),
     prisma.auditLog.count(),
   ]);
 
   const payload = JSON.stringify(
     {
       format: 'dentorganizer-backup',
-      // v5 adds the message outbox. v4 added the files pinned to a follow-up;
-      // v3 the laboratory register, the follow-up board, stock products and the
-      // template↔treatment links. An older file still restores — the restore
-      // skips a key it does not find — it simply carries none of those.
-      version: 5,
+      // v7 adds the dismissed stock alerts — the shelf decisions somebody has
+      // already made. v6 added the correspondence — threads, messages and the
+      // rows naming their attachments. v5 added the message outbox; v4 the files
+      // pinned to a follow-up; v3 the laboratory register, the follow-up board,
+      // stock products and the template↔treatment links. An older file still
+      // restores — the restore skips a key it does not find — it simply carries
+      // none of those.
+      version: 7,
       exportedAt: new Date().toISOString(),
       exportedBy: user.fullName,
       note: 'Staff PIN hashes and uploaded files are not included — see README.',
@@ -239,6 +270,10 @@ export async function POST(request: Request) {
         followUps,
         followUpFiles,
         scheduledMessages,
+        emailThreads,
+        emailMessages,
+        emailAttachments,
+        stockAlertDismissals,
       },
     },
     null,

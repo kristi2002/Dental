@@ -1,3 +1,4 @@
+import type { Prisma } from '@/generated/prisma/client';
 import { AppointmentStatus, CancelledBy } from '@/generated/prisma/enums';
 import { prisma } from '@/lib/prisma';
 import { today } from '@/lib/dates';
@@ -29,6 +30,27 @@ export type Reliability = {
 };
 
 type StatusCount = { status: string; _count: { _all: number } };
+
+/**
+ * Every appointment except the ones the *clinic* called off.
+ *
+ * Spelled as an `OR` rather than the obvious `NOT: { cancelledBy: CLINIC }`,
+ * and the difference is the whole of this filter. `cancelledBy` is nullable —
+ * it is null on every appointment that was never cancelled at all, which is
+ * almost all of them — and a `NOT` compiles to `cancelledBy <> 'CLINIC'`, which
+ * in SQL is *unknown* for a null and therefore matches nothing. So the tidier
+ * spelling excluded every completed appointment, every no-show and every
+ * patient cancellation along with the clinic's, and `groupBy` came back empty:
+ * `past: 0` for everybody, `level: 'unknown'` for everybody, and a badge that
+ * renders nothing for `unknown` — a total failure that looked exactly like a
+ * practice where every patient turns up.
+ *
+ * Shared with `utilisation.ts`, which asks the same question per dentist and
+ * had the same bug for the same reason. One filter, one place to be right.
+ */
+export const NOT_CLINIC_CANCELLED: Prisma.AppointmentWhereInput = {
+  OR: [{ cancelledBy: null }, { cancelledBy: { not: CancelledBy.CLINIC } }],
+};
 
 function classify(past: number, noShows: number): ReliabilityLevel {
   if (past < MIN_HISTORY) return 'unknown';
@@ -64,7 +86,7 @@ export async function getReliability(patientId: string): Promise<Reliability> {
     where: {
       patientId,
       date: { lt: today() },
-      NOT: { cancelledBy: CancelledBy.CLINIC },
+      ...NOT_CLINIC_CANCELLED,
     },
     _count: { _all: true },
   });
@@ -87,7 +109,7 @@ export async function getReliabilityMap(
     where: {
       patientId: { in: patientIds },
       date: { lt: today() },
-      NOT: { cancelledBy: CancelledBy.CLINIC },
+      ...NOT_CLINIC_CANCELLED,
     },
     _count: { _all: true },
   });

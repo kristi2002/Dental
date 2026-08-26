@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { familiesIn } from '../src/lib/drugs';
 import { allergyLines, hasAllergyNote, matchingAllergies } from '../src/lib/medical';
 import {
   ALL_TEETH,
@@ -48,13 +49,6 @@ describe('matchingAllergies — the prescription cross-check', () => {
     assert.equal(matchingAllergies('Penicilinë 500 mg', [short]).length, 1);
   });
 
-  it('does not claim to know drug families', () => {
-    // Amoxicillin clinically should trip a penicillin allergy. Pretending this
-    // check knows that would be a false sense of coverage, which is worse than
-    // none — the dentist stays the check.
-    assert.equal(matchingAllergies('Amoxicillin 500 mg', [penicillin]).length, 0);
-  });
-
   it('ignores non-allergy alerts', () => {
     const pregnancy = { kind: 'PREGNANCY', substance: null, severity: 'IMPORTANT' };
     assert.equal(matchingAllergies('Ibuprofen 400 mg', [pregnancy]).length, 0);
@@ -77,6 +71,101 @@ describe('matchingAllergies — the prescription cross-check', () => {
 
   it('says nothing about an empty prescription', () => {
     assert.equal(matchingAllergies('', [penicillin]).length, 0);
+  });
+
+  it('reports a name match as direct, with nothing to explain', () => {
+    const [hit] = matchingAllergies('Penicilin 500 mg', [penicillin]);
+    assert.equal(hit.reason, 'direct');
+  });
+});
+
+describe('matchingAllergies — the drug family it belongs to', () => {
+  const penicillin = { kind: 'ALLERGY', substance: 'Penicilinë', severity: 'CRITICAL' };
+
+  it('catches amoxicillin under a penicillin allergy', () => {
+    // The whole reason the catalogue exists. These two names share no useful
+    // substring, and amoxicillin is the antibiotic actually prescribed.
+    const [hit] = matchingAllergies('Amoxicillin 875 mg, 2x daily', [penicillin]);
+    assert.equal(hit.reason, 'group');
+    assert.equal(hit.family, 'PENICILLIN');
+    assert.equal(hit.drug, 'Amoxicillin', 'quotes the word as the dentist wrote it');
+  });
+
+  it('catches it through a brand name and an Albanian spelling', () => {
+    assert.equal(matchingAllergies('Augmentin 1 g', [penicillin])[0]?.reason, 'group');
+    assert.equal(matchingAllergies('Amoksicilinë 500 mg', [penicillin])[0]?.reason, 'group');
+  });
+
+  it('reads the allergy out of a sentence, not just a substance field', () => {
+    // How every record predating structured alerts holds it.
+    const note = { kind: 'ALLERGY', substance: 'Alergji ndaj penicilinës', severity: 'CRITICAL' };
+    assert.equal(matchingAllergies('Amoxicillin 500 mg', [note])[0]?.reason, 'group');
+  });
+
+  it('flags a cephalosporin as cross-reacting, not as the same thing', () => {
+    const [hit] = matchingAllergies('Cefixim 400 mg', [penicillin]);
+    assert.equal(hit.reason, 'cross');
+    assert.equal(hit.drug, 'Cefixim');
+  });
+
+  it('stays silent on the drugs that are the answer to a penicillin allergy', () => {
+    // Clindamycin and azithromycin are what you reach for *because* of this
+    // allergy. Warning here would teach the dentist to click through the
+    // warning that matters.
+    assert.equal(matchingAllergies('Klindamicinë 300 mg', [penicillin]).length, 0);
+    assert.equal(matchingAllergies('Azitromicinë 500 mg', [penicillin]).length, 0);
+    assert.equal(matchingAllergies('Metronidazol 500 mg', [penicillin]).length, 0);
+  });
+
+  it('treats the NSAIDs as one class', () => {
+    const ibuprofen = { kind: 'ALLERGY', substance: 'Ibuprofen', severity: 'IMPORTANT' };
+    assert.equal(matchingAllergies('Ketoprofen 100 mg', [ibuprofen])[0]?.reason, 'group');
+    assert.equal(matchingAllergies('Aulin 100 mg', [ibuprofen])[0]?.reason, 'group');
+    // ...but paracetamol is what such a patient is given instead.
+    assert.equal(matchingAllergies('Paracetamol 1 g', [ibuprofen]).length, 0);
+  });
+
+  it('keeps the amide and ester anaesthetics apart', () => {
+    const ester = { kind: 'ALLERGY', substance: 'Benzocaine', severity: 'CRITICAL' };
+    assert.equal(matchingAllergies('Procaine 2%', [ester])[0]?.reason, 'group');
+    // The amides are the alternative, and one is injected every appointment.
+    assert.equal(matchingAllergies('Lidokainë 2% me adrenalinë', [ester]).length, 0);
+    assert.equal(matchingAllergies('Articaine 4%', [ester]).length, 0);
+  });
+
+  it('invents nothing for a substance it does not recognise', () => {
+    const pollen = { kind: 'ALLERGY', substance: 'Polen', severity: 'INFO' };
+    assert.equal(matchingAllergies('Amoxicillin 500 mg', [pollen]).length, 0);
+  });
+
+  it('prefers the direct reason when both apply', () => {
+    const [hit] = matchingAllergies('Penicilinë 500 mg', [penicillin]);
+    assert.equal(hit.reason, 'direct');
+  });
+
+  it('reports each recorded allergy once', () => {
+    const both = matchingAllergies('Amoxicillin 500 mg and Augmentin 1 g', [penicillin]);
+    assert.equal(both.length, 1);
+  });
+});
+
+describe('drugsIn — reading names out of free text', () => {
+  it('finds a drug through a diacritic and a dosage', () => {
+    assert.deepEqual(familiesIn('Amoksicilinë 500 mg'), new Set(['PENICILLIN']));
+  });
+
+  it('puts beta-lactam in both families it means', () => {
+    assert.deepEqual(familiesIn('beta-lactam'), new Set(['PENICILLIN', 'CEPHALOSPORIN']));
+  });
+
+  it('matches the start of a word, not the middle of one', () => {
+    // "cain" inside "cocaine" must not make it an anaesthetic we prescribed.
+    assert.equal(familiesIn('Ocaine').size, 0);
+  });
+
+  it('finds nothing in ordinary aftercare wording', () => {
+    assert.equal(familiesIn('Shpëlani me ujë të vakët dhe kripë për tre ditë.').size, 0);
+    assert.equal(familiesIn('Rinse with warm salt water for three days.').size, 0);
   });
 });
 

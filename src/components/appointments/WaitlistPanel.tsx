@@ -6,7 +6,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Link } from '@/i18n/navigation';
 import { resolveWaitlistEntry } from '@/lib/actions/waitlist';
-import type { FreeGap } from '@/lib/scheduling';
+import { assignGaps, type DatedGap } from '@/lib/scheduling';
 import { whatsappLink } from '@/lib/reminders';
 import { cn } from '@/lib/utils';
 import type { ServiceOption } from './AppointmentFormDialog';
@@ -21,26 +21,43 @@ export type WaitlistRow = {
   durationMin: number;
   note: string;
   urgent: boolean;
+  /** Whole days since the request, so a list nobody prunes says so. */
+  waitingDays: number;
 };
 
+/** A free stretch with its day already written the way a person reads it. */
+export type OfferGap = DatedGap & { dayLabel: string };
+
 /**
- * The list of people who would take an earlier appointment, paired with the gaps
- * actually available on the day being viewed.
+ * The list of people who would take an earlier appointment, paired with the free
+ * time actually coming up.
  *
  * The matching is the useful part: a 60-minute root canal is not a candidate for
- * a 20-minute hole, and showing it as one would waste a phone call. Each row
- * says plainly whether the day can hold it.
+ * a 20-minute hole, and showing it as one would waste a phone call. No two rows
+ * are sent to the same minutes either, because the offer here is a message
+ * somebody actually sends.
+ *
+ * The search runs past the day in view. A list read one day at a time answers
+ * "not today" over and over to a person who has waited three months; what the
+ * front desk is asked at the counter is when the practice *can* take them, so a
+ * row that the day cannot hold names the next day that can.
  */
 export function WaitlistPanel({
   entries,
-  freeGaps,
+  gaps,
+  anchorDate,
+  windowDays,
   dayLabel,
   services,
   canEdit,
 }: {
   entries: WaitlistRow[];
-  /** Empty stretches on the day currently in view. */
-  freeGaps: FreeGap[];
+  /** Empty stretches from the day in view onwards, in the order they happen. */
+  gaps: OfferGap[];
+  /** `YYYY-MM-DD` of the day in view — what counts as "this day" on a row. */
+  anchorDate: string;
+  /** How far ahead the search ran, so a fruitless one can say how far. */
+  windowDays: number;
   dayLabel: string;
   services: ServiceOption[];
   canEdit: boolean;
@@ -49,7 +66,10 @@ export function WaitlistPanel({
   const tc = useTranslations('common');
   const tr = useTranslations('reminders');
 
-  const gapFor = (durationMin: number) => freeGaps.find((gap) => gap.minutes >= durationMin);
+  const offers = assignGaps(entries, gaps);
+  // The badge row is about the day being looked at; the offers below may reach
+  // into next week.
+  const onThisDay = gaps.filter((gap) => gap.date === anchorDate);
 
   return (
     <Card>
@@ -60,11 +80,11 @@ export function WaitlistPanel({
         action={canEdit ? <WaitlistFormDialog services={services} /> : null}
       />
 
-      {freeGaps.length > 0 ? (
+      {onThisDay.length > 0 ? (
         <p className="flex flex-wrap items-center gap-2 border-b border-line bg-surface-soft px-5 py-3 text-[0.95rem] text-ink-soft">
           <Clock size={16} aria-hidden className="text-brand" />
           {t('freeOn', { day: dayLabel })}
-          {freeGaps.map((gap) => (
+          {onThisDay.map((gap) => (
             <Badge key={gap.startTime} tone="ok">
               {gap.startTime}–{gap.endTime}
             </Badge>
@@ -76,12 +96,11 @@ export function WaitlistPanel({
         <EmptyState icon={<ListChecks size={40} aria-hidden />} title={t('empty')} />
       ) : (
         <ul className="divide-y border-line">
-          {entries.map((entry) => {
-            const gap = gapFor(entry.durationMin);
+          {offers.map(({ entry, gap }) => {
             const message = gap
               ? tr('waitlistWhatsapp', {
                   name: entry.patientName.split(' ')[0] ?? entry.patientName,
-                  day: dayLabel,
+                  day: gap.dayLabel,
                   time: gap.startTime,
                 })
               : '';
@@ -105,6 +124,8 @@ export function WaitlistPanel({
                   </p>
                   <p className="mt-0.5 text-[0.92rem] text-ink-soft">
                     {entry.durationMin} {tc('minutes')}
+                    {' · '}
+                    {t('waitingSince', { days: entry.waitingDays })}
                     {entry.note ? ` · ${entry.note}` : ''}
                   </p>
                 </div>
@@ -117,7 +138,11 @@ export function WaitlistPanel({
                     )}
                   >
                     <CalendarClock size={16} aria-hidden />
-                    {gap ? t('fitsAt', { time: gap.startTime }) : t('noFit')}
+                    {gap
+                      ? gap.date === anchorDate
+                        ? t('fitsAt', { time: gap.startTime })
+                        : t('fitsOn', { day: gap.dayLabel, time: gap.startTime })
+                      : t('noFitWithin', { days: windowDays })}
                   </span>
 
                   {whatsapp ? (

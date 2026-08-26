@@ -6,6 +6,9 @@
  * to notice the third sentence.
  */
 
+import { crossReactingWith, drugsIn, familiesIn, type DrugFamily } from '@/lib/drugs';
+import { fold } from '@/lib/utils';
+
 /** Albanian "alergji", English "allergy/allergic", Italian "allergia" — one stem. */
 const ALLERGY_PATTERN = /al+erg/i;
 
@@ -33,55 +36,126 @@ export type AlertLike = {
   severity: string;
 };
 
+/**
+ * Why an alert fired, because the three reasons need three different sentences.
+ *
+ * - `direct` — the wording names the recorded substance itself.
+ * - `group` — it names a different drug of the same family. Amoxicillin against
+ *   a penicillin allergy: not the same molecule, the same thing as far as the
+ *   patient is concerned.
+ * - `cross` — it names a drug of a family known to cross-react with the recorded
+ *   one. A weaker claim, and worded as one.
+ */
+export type AllergyReason = 'direct' | 'group' | 'cross';
+
+export type AllergyHit = {
+  alert: AlertLike;
+  reason: AllergyReason;
+  /**
+   * What in the prescription raised it, quoted as written. Only meaningful for
+   * `group` and `cross` — for a direct hit the substance already says it.
+   */
+  drug?: string;
+  /** The family that bridges the two, for a `group` or `cross` hit. */
+  family?: DrugFamily;
+};
+
 /** Words this short match too much to be worth testing against. */
 const MIN_MATCH_LENGTH = 4;
 
 /**
  * Which of a patient's recorded allergies a prescription appears to name.
  *
- * Case- and accent-folded, and matched **in both directions** word by word:
- * a record saying "Penicilinë" has to fire on a prescription saying
- * "Penicilin 500 mg", and the reverse, because the two are the same drug
- * written by two people. That is the whole failure this guard exists to catch.
+ * Two passes, and the second is the one that earns its keep.
  *
- * It makes no claim about drug *families* — "Amoxicillin" does not trip a
- * "penicillin" allergy, even though clinically it should. Pretending otherwise
- * would give a false sense of coverage, which is worse than none; the dentist
- * remains the check. Nothing is blocked either, only reported.
+ * **By name.** Case- and accent-folded, matched **in both directions** word by
+ * word: a record saying "Penicilinë" has to fire on a prescription saying
+ * "Penicilin 500 mg", and the reverse, because the two are the same drug written
+ * by two people.
+ *
+ * **By family.** Both sides are resolved against the drug catalogue and compared
+ * as classes, which is what closes the hole the name test could never close:
+ * "Amoxicillin 875 mg" against a recorded penicillin allergy shares not one
+ * useful substring, and is the prescription most likely to be written. The
+ * catalogue also reads the *sentence* form, so the same works for a record that
+ * predates structured alerts and only says "Alergji ndaj penicilinës".
+ *
+ * A hit is reported once, under the strongest reason that produced it.
+ *
+ * Nothing is blocked. The dentist remains the check, and this is the thing that
+ * makes them look — see `drugs.ts` for why the cross-reactivity list is kept
+ * deliberately short rather than generous.
  */
-export function matchingAllergies(body: string, alerts: readonly AlertLike[]): AlertLike[] {
+export function matchingAllergies(body: string, alerts: readonly AlertLike[]): AllergyHit[] {
   const haystack = fold(body);
   if (!haystack) return [];
 
   const words = haystack.split(/[^\p{L}\p{N}]+/u).filter((word) => word.length >= MIN_MATCH_LENGTH);
+  const prescribed = drugsIn(body);
 
-  return alerts.filter((alert) => {
-    if (alert.kind !== 'ALLERGY') return false;
+  const hits: AllergyHit[] = [];
 
-    const needle = fold(alert.substance ?? '');
-    if (needle.length < MIN_MATCH_LENGTH) return false;
+  for (const alert of alerts) {
+    if (alert.kind !== 'ALLERGY') continue;
 
-    // The whole phrase, when it is there verbatim.
-    if (haystack.includes(needle)) return true;
+    const substance = alert.substance ?? '';
 
-    // Otherwise compare whole words either way round, so a trailing "ë" or a
-    // doubled consonant does not hide the match.
-    //
-    // This deliberately over-fires on a multi-word substance: a record of
-    // "gome lateksi" also matches a prescription that merely says "gome",
-    // because `needle.includes(word)` is true. For a check whose only job is to
-    // make somebody look twice before handing over a drug, a false alarm costs
-    // a glance and a miss costs an anaphylaxis — so the asymmetry is the point,
-    // not an oversight.
-    return words.some((word) => word.includes(needle) || needle.includes(word));
-  });
+    if (namesIt(haystack, words, substance)) {
+      hits.push({ alert, reason: 'direct' });
+      continue;
+    }
+
+    // The catalogue only speaks up when it recognises *both* sides. An allergy
+    // to pollen resolves to no family, so nothing downstream can invent a match
+    // for it.
+    const recorded = familiesIn(substance);
+    if (recorded.size === 0) continue;
+
+    const sameGroup = prescribed.find((drug) =>
+      drug.families.some((family) => recorded.has(family)),
+    );
+    if (sameGroup) {
+      hits.push({
+        alert,
+        reason: 'group',
+        drug: sameGroup.text,
+        family: sameGroup.families.find((family) => recorded.has(family)),
+      });
+      continue;
+    }
+
+    for (const drug of prescribed) {
+      const bridge = drug.families.find((family) =>
+        crossReactingWith(family).some((related) => recorded.has(related)),
+      );
+      if (bridge) {
+        hits.push({ alert, reason: 'cross', drug: drug.text, family: bridge });
+        break;
+      }
+    }
+  }
+
+  return hits;
 }
 
-/** Lowercase and strip diacritics, so "Penicilinë" matches "penicilin". */
-function fold(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .trim();
+/**
+ * The original name test, unchanged.
+ *
+ * It deliberately over-fires on a multi-word substance: a record of "gome
+ * lateksi" also matches a prescription that merely says "gome", because
+ * `needle.includes(word)` is true. For a check whose only job is to make
+ * somebody look twice before handing over a drug, a false alarm costs a glance
+ * and a miss costs an anaphylaxis — so the asymmetry is the point, not an
+ * oversight.
+ */
+function namesIt(haystack: string, words: readonly string[], substance: string): boolean {
+  const needle = fold(substance);
+  if (needle.length < MIN_MATCH_LENGTH) return false;
+
+  // The whole phrase, when it is there verbatim.
+  if (haystack.includes(needle)) return true;
+
+  // Otherwise compare whole words either way round, so a trailing "ë" or a
+  // doubled consonant does not hide the match.
+  return words.some((word) => word.includes(needle) || needle.includes(word));
 }

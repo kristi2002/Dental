@@ -1,3 +1,4 @@
+import { FileText } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -5,12 +6,12 @@ import type { ReactNode } from 'react';
 import { SheetHead } from '@/components/brand/SheetHead';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PrintButton } from '@/components/prescriptions/PrintButton';
-import { DocketChart, mergeSpans } from '@/components/works/DocketChart';
+import { DocketChart } from '@/components/works/DocketChart';
 import { recordView, requirePermission } from '@/lib/auth/guard';
 import { age } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { getClinicProfile } from '@/lib/queries';
-import { spanCodes } from '@/lib/tooth-span';
+import { mergeSpans, spanCodes } from '@/lib/tooth-span';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,7 +113,21 @@ export default async function WorkDocketPage({
         <Breadcrumbs
           items={[{ href: '/works', label: t('title') }, { label: t('docketTitle') }]}
         />
-        <PrintButton label={t('docketPrint')} />
+        <div className="flex items-center gap-2">
+          {/* The same slip, the two ways it leaves: onto paper for the box, and
+              into a file for whoever asks about it afterwards. A plain anchor —
+              the route sits outside the `[locale]` segment, so it is handed the
+              language rather than reading one. */}
+          <a
+            href={`/api/works/${work.id}/docket?locale=${locale}`}
+            className="btn btn-secondary"
+            download
+          >
+            <FileText size={20} aria-hidden />
+            {t('docketDownload')}
+          </a>
+          <PrintButton label={t('docketPrint')} />
+        </div>
       </div>
 
       <article className="card p-8 print:border-0 print:p-0 print:shadow-none">

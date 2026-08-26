@@ -48,25 +48,27 @@ model StaffUser {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  auditEntries   AuditLog[]
-  visitRecords   VisitRecord[]    @relation("VisitRecorder")
-  visitsPerformed VisitRecord[]   @relation("VisitPerformer")
-  stockMovements StockMovement[]
-  documents      PatientDocument[]
-  prescriptions  Prescription[]
-  appointments   Appointment[]
-  leave          Closure[]
-  contacts       Contact[]
-  followUpFiles  FollowUpAttachment[]
-  messagesSent   ScheduledMessage[]
-  alertsCreated  PatientAlert[]
+  auditEntries    AuditLog[]
+  visitRecords    VisitRecord[]        @relation("VisitRecorder")
+  visitsPerformed VisitRecord[]        @relation("VisitPerformer")
+  stockMovements  StockMovement[]
+  documents       PatientDocument[]
+  prescriptions   Prescription[]
+  appointments    Appointment[]
+  leave           Closure[]
+  contacts        Contact[]
+  followUpFiles   FollowUpAttachment[]
+  messagesSent    ScheduledMessage[]
+  emailsSent      EmailMessage[]
+  alertsCreated   PatientAlert[]
 
   /// Three roles on one board: who wrote the line, whose job it is, who ticked
   /// it off. Named relations because Prisma cannot tell three links to the same
   /// table apart on its own.
-  followUpsCreated  FollowUp[] @relation("FollowUpAuthor")
-  followUpsAssigned FollowUp[] @relation("FollowUpAssignee")
-  followUpsClosed   FollowUp[] @relation("FollowUpCompleter")
+  followUpsCreated     FollowUp[]            @relation("FollowUpAuthor")
+  followUpsAssigned    FollowUp[]            @relation("FollowUpAssignee")
+  followUpsClosed      FollowUp[]            @relation("FollowUpCompleter")
+  stockAlertsDismissed StockAlertDismissal[]
 
   @@index([active])
 }
@@ -99,9 +101,9 @@ enum Role {
 /// Append-only record of who changed what. Written by the action guard, never
 /// edited, and readable only by the owner.
 model AuditLog {
-  id      String     @id @default(uuid())
-  actorId String?
-  actor   StaffUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  id        String     @id @default(uuid())
+  actorId   String?
+  actor     StaffUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
   /// Name and role are snapshotted so the trail still reads correctly after a
   /// person is renamed, demoted or removed.
   actorName String
@@ -142,15 +144,15 @@ model AuditLog {
 }
 
 model Patient {
-  id           String        @id @default(uuid())
-  firstName    String
-  lastName     String
-  phone        String
-  email        String?
-  dateOfBirth  DateTime?
-  medicalNotes String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id            String            @id @default(uuid())
+  firstName     String
+  lastName      String
+  phone         String
+  email         String?
+  dateOfBirth   DateTime?
+  medicalNotes  String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   appointments  Appointment[]
   visitRecords  VisitRecord[]
   teethRecords  ToothRecord[]
@@ -159,11 +161,12 @@ model Patient {
   documents     PatientDocument[]
   prescriptions Prescription[]
 
-  contacts      Contact[]
+  contacts          Contact[]
   scheduledMessages ScheduledMessage[]
-  alerts        PatientAlert[]
-  works         Work[]
-  followUps     FollowUp[]
+  emailThreads      EmailThread[]
+  alerts            PatientAlert[]
+  works             Work[]
+  followUps         FollowUp[]
 
   /// Whether they have agreed to be messaged. Deliberately tri-state: `null`
   /// means nobody has asked yet, which is a different thing from "no" and is
@@ -173,7 +176,7 @@ model Patient {
   /// Which language to write to them in. Falls back to the app's default —
   /// without it, reminders go out in whichever language the *receptionist*
   /// happens to be using.
-  locale String?
+  locale           String?
 
   /// A minor's phone number belongs to their parent, and the consent form has
   /// to be signed by them. Without these a child's record is either wrong or
@@ -193,7 +196,7 @@ model Patient {
   referralSource String?
 
   /// Recall: how often this patient should be seen. 0 disables recall for them.
-  recallMonths Int @default(6)
+  recallMonths       Int       @default(6)
   /// Set by "remind me later" so a declined patient stops resurfacing daily.
   recallSnoozedUntil DateTime?
   /// Stamped when the recall message is opened, so the list stops nagging.
@@ -311,7 +314,7 @@ model Appointment {
   /// is an existence test — `visitRecords: { none: {} }`, `_count` — which says
   /// what it means in the list form, and converting would be a wide, purely
   /// cosmetic edit across queries that already behave correctly.
-  visitRecords VisitRecord[]
+  visitRecords      VisitRecord[]
 
   @@index([date])
   @@index([patientId])
@@ -332,14 +335,14 @@ model Appointment {
 /// A course of treatment that spans several visits. The point is that a
 /// half-finished plan stays visible instead of being remembered by one person.
 model TreatmentPlan {
-  id        String            @id @default(uuid())
+  id        String              @id @default(uuid())
   patientId String
-  patient   Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient   Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
   title     String
   notes     String?
   status    TreatmentPlanStatus @default(ACTIVE)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
   /// When somebody last chased this course of treatment, and the day they said
   /// they would chase it again.
@@ -369,9 +372,9 @@ enum TreatmentPlanStatus {
 }
 
 model TreatmentStep {
-  id     String        @id @default(uuid())
-  planId String
-  plan   TreatmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  id          String              @id @default(uuid())
+  planId      String
+  plan        TreatmentPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
   /// Position in the sequence, 1-based. Gaps are fine; only the order matters.
   position    Int
   title       String
@@ -408,15 +411,15 @@ enum TreatmentStepStatus {
 /// X-rays, photos and signed forms. The bytes live on disk (see `src/lib/files.ts`);
 /// this row is the index, and the only thing the backup export carries.
 model PatientDocument {
-  id        String       @id @default(uuid())
-  patientId String
-  patient   Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  kind      DocumentKind @default(OTHER)
-  fileName  String
-  mimeType  String
-  sizeBytes Int
+  id         String       @id @default(uuid())
+  patientId  String
+  patient    Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  kind       DocumentKind @default(OTHER)
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
   /// Opaque on-disk name. Never the original filename — that is user input.
-  storageKey String  @unique
+  storageKey String       @unique
   toothNum   Int?
   notes      String?
 
@@ -450,7 +453,7 @@ model PrescriptionTemplate {
 
   prescriptions Prescription[]
   /// Which treatments this wording follows. See `PrescriptionTemplateService`.
-  services PrescriptionTemplateService[]
+  services      PrescriptionTemplateService[]
 }
 
 /// Which treatments a piece of standard wording is written after.
@@ -558,7 +561,7 @@ model VisitRecord {
   /// `saveVisit` still checks first, because a constraint violation surfaces as
   /// a database error and "this slot is already written up" is a sentence
   /// somebody at the desk can act on.
-  appointmentId String? @unique
+  appointmentId String?      @unique
   appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   services       VisitService[]
@@ -626,8 +629,8 @@ model ToothRecord {
 /// Practice-wide preferences that are not opening hours. A single row — the id
 /// is fixed so there can only ever be one.
 model ClinicProfile {
-  id             String        @id @default("clinic")
-  name           String        @default("")
+  id             String         @id @default("clinic")
+  name           String         @default("")
   toothNumbering ToothNumbering @default(FDI)
 
   /// ISO 4217 code the money on the stock page is written in. A practice buys
@@ -654,7 +657,7 @@ model ClinicProfile {
   email   String?
   address String?
 
-  updatedAt      DateTime      @updatedAt
+  updatedAt DateTime @updatedAt
 }
 
 enum ToothNumbering {
@@ -807,11 +810,16 @@ model StockItem {
   /// every picker, and its history stays exactly where it was.
   archivedAt DateTime?
 
-  movements  StockMovement[]
-  usedBy     ServiceMaterial[]
-  batches    StockBatch[]
-  barcodes   ProductBarcode[]
-  followUps  FollowUp[]
+  movements StockMovement[]
+  usedBy    ServiceMaterial[]
+  batches   StockBatch[]
+  barcodes  ProductBarcode[]
+  followUps FollowUp[]
+
+  /// The one open "not now" against this material's low-stock alert, if any.
+  /// See `StockAlertDismissal` — at most one per material, which is why this
+  /// side is singular rather than a list.
+  alertDismissal StockAlertDismissal?
 
   /// Both the duplicate check on save and searching the shelf by label.
   @@index([code])
@@ -979,7 +987,7 @@ model StockBatch {
   /// How many arrived in this lot. Never changes — it is what the delivery note
   /// said, and rewriting it would lose the only figure that can be checked
   /// against the supplier.
-  quantity Int @default(0)
+  quantity   Int       @default(0)
 
   /// How many of them have since been used.
   ///
@@ -1018,15 +1026,15 @@ model StockBatch {
 /// Append-only log of quantity changes — powers the "stock usage" analytics chart
 /// and gives the dentist a plain audit trail of what was consumed and when.
 model StockMovement {
-  id     String    @id @default(uuid())
-  itemId String
+  id        String    @id @default(uuid())
+  itemId    String
   /// `Restrict`, not `Cascade`: the ledger outlives the label. See
   /// `StockItem.archivedAt` — a discontinued material is archived, and the
   /// database refuses the delete that would rewrite history behind it.
   item      StockItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
   delta     Int // negative = used / removed, positive = restocked
   reason    String? // e.g. "manual", "restock", "used in visit"
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   staffUserId String?
   staffUser   StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
@@ -1109,13 +1117,13 @@ model Service {
 
   /// Retired — see `ServiceMaterial`. Declared because Prisma requires both
   /// sides of a relation, not because anything reads it.
-  materials    ServiceMaterial[]
-  visits       VisitService[]
-  appointments Appointment[]
-  waitlist     WaitlistEntry[]
+  materials             ServiceMaterial[]
+  visits                VisitService[]
+  appointments          Appointment[]
+  waitlist              WaitlistEntry[]
   /// Steps that plan this treatment. Declared because Prisma requires both
   /// sides; the plan reads its own `serviceId`, never this list.
-  planSteps    TreatmentStep[]
+  planSteps             TreatmentStep[]
   /// Standard prescription wording written after this treatment.
   prescriptionTemplates PrescriptionTemplateService[]
 
@@ -1200,11 +1208,11 @@ model PatientAlert {
   patientId String
   patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
-  kind MedicalAlertKind
+  kind      MedicalAlertKind
   /// The drug or material itself, for the kinds where naming it is the point.
   /// Matched against prescription text, so it is stored as typed.
   substance String?
-  severity  AlertSeverity @default(IMPORTANT)
+  severity  AlertSeverity    @default(IMPORTANT)
   notes     String?
 
   createdById String?
@@ -1340,7 +1348,7 @@ model WaitlistEntry {
   service     Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   serviceName String?
 
-  durationMin Int @default(30)
+  durationMin Int     @default(30)
   note        String?
   urgent      Boolean @default(false)
 
@@ -1739,7 +1747,7 @@ model JobRun {
   /// One line, for the log and for the screen: "9 orphans, 765 B".
   summary String?
   /// The failure, when there was one. Truncated by the runner.
-  error String?
+  error   String?
 
   /// Newest run of a given job is the question every reader asks.
   @@index([name, startedAt])
@@ -1769,9 +1777,9 @@ model FollowUpAttachment {
   followUp   FollowUp @relation(fields: [followUpId], references: [id], onDelete: Cascade)
 
   /// As uploaded. Display only — user input never steers a filesystem path.
-  fileName  String
-  mimeType  String
-  sizeBytes Int
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
   /// Opaque on-disk name, as `PatientDocument.storageKey`.
   storageKey String @unique
 
@@ -1780,4 +1788,211 @@ model FollowUpAttachment {
   createdAt    DateTime   @default(now())
 
   @@index([followUpId])
+}
+
+/// ---------------------------------------------------------------------------
+/// Correspondence
+/// ---------------------------------------------------------------------------
+///
+/// The first time this app stores something it did not derive.
+///
+/// Everything else here is recomputed on every render — "who is overdue", "what
+/// is free on Thursday" — because a derived answer cannot go stale. An email
+/// cannot be derived from anything. It arrived, it says what it says, and the
+/// only copy is the one kept here. That is a real departure from §1.2 of the
+/// blueprint and it is written down there rather than smuggled in under a
+/// migration name.
+///
+/// **Why it earns the departure.** Sending had no receiving half. The app asks
+/// a patient "can we move it to Thursday?", sets `Reply-To` to a mailbox, and
+/// then has no idea what came back — the answer lands in somebody's Outlook and
+/// the record shows a message sent into silence. A `Contact` row saying "opened
+/// in a mail client" is the practice describing its own actions; a thread is the
+/// conversation.
+
+/// Everything said to and from one address.
+///
+/// **One thread per correspondent, not one per RFC conversation.** Mail clients
+/// thread by `In-Reply-To`, so a year of writing to the same patient becomes
+/// nine unrelated threads with near-identical subjects. That is the right model
+/// for a mailbox and the wrong one here: nobody at a front desk wants "Re:
+/// Appointment reminder (3)", they want *Dritan*, and the rest of this app is
+/// already organised that way. It also means a reply always has a home, even
+/// when the sender's client dropped the headers — which the cheap ones do.
+///
+/// The cost is that the subject stops identifying the thread and becomes the
+/// latest thing it was called. That is a fair trade for a clinic exchanging a
+/// dozen short messages a week with each patient, and a bad one for a helpdesk.
+/// This is a clinic.
+model EmailThread {
+  id String @id @default(uuid())
+
+  /// The most recent subject seen, with the `Re:` prefixes taken off. Decoration
+  /// rather than identity — `correspondent` is the identity.
+  subject String
+
+  /// Who the practice is talking to, and the thread's real key.
+  ///
+  /// Lower-cased, because a mailbox is case-insensitive in every way that
+  /// matters here and matching on the raw form would open a second thread the
+  /// first time somebody's phone capitalised their own address. Unique, so that
+  /// a webhook delivered twice and two people pressing send at once both land
+  /// on one row rather than racing to create two.
+  correspondent String @unique
+
+  /// The patient it is about, once anybody knows. Null is ordinary and not a
+  /// failure: a supplier, a lab, or a stranger. `SetNull` rather than cascade —
+  /// deleting a patient must not silently destroy correspondence that may be
+  /// the only record of what was agreed.
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  /// Denormalised, and the one place in this schema that is.
+  ///
+  /// The inbox is sorted by it, and deriving it would mean an aggregate over
+  /// every message on every render of a list that is read all day. Safe to
+  /// store because it is append-only — a thread's last message never moves
+  /// backwards — which is the property the rest of this app's derived answers
+  /// lack.
+  lastMessageAt DateTime
+
+  /// Filed away by hand. Spam, mostly, and the odd finished conversation.
+  archivedAt DateTime?
+
+  createdAt DateTime       @default(now())
+  messages  EmailMessage[]
+
+  /// The inbox's own question: newest first.
+  @@index([archivedAt, lastMessageAt])
+  @@index([patientId, lastMessageAt])
+}
+
+model EmailMessage {
+  id       String      @id @default(uuid())
+  threadId String
+  thread   EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  direction EmailDirection
+
+  fromAddress String
+  fromName    String @default("")
+  toAddress   String
+  subject     String
+
+  /// Plain text. What the screen renders, always.
+  text String
+
+  /// The markup, kept and never rendered as markup.
+  ///
+  /// A received email is the most hostile input this app accepts — it is
+  /// attacker-chosen HTML from an unauthenticated stranger — and the app has
+  /// nowhere it renders untrusted markup today. Keeping it costs a column and
+  /// buys "view the original", which is what somebody needs on the one day a
+  /// text/plain part was missing or useless.
+  html String?
+
+  /// The message's own identity, as the outside world knows it.
+  ///
+  /// For an inbound message this is the RFC 5322 `Message-ID` header. For an
+  /// outbound one it is whatever the provider gave back — Brevo returns the
+  /// real header, Resend returns its own id, which appears *inside* the header
+  /// it went out with. Matched loosely for that reason; see `matchThread`.
+  ///
+  /// Unique so that a webhook delivered twice — which every webhook eventually
+  /// is — writes one row. That is this table's whole idempotency story, exactly
+  /// as `ScheduledMessage.dedupeKey` is the outbox's.
+  providerMessageId String? @unique
+
+  /// The `In-Reply-To` header, when the sender set one.
+  inReplyTo String?
+
+  /// Null until somebody at the desk has opened it. Only ever set on inbound —
+  /// the practice has by definition read what it sent itself.
+  readAt DateTime?
+
+  /// Who sent it, for outbound. Null for everything that arrived.
+  actorId String?
+  actor   StaffUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  /// What the provider thought of it, 0–10 and higher is worse. Recorded rather
+  /// than acted on: a number the app silently filtered by would be a number
+  /// nobody could see was wrong.
+  spamScore Float?
+
+  createdAt   DateTime          @default(now())
+  attachments EmailAttachment[]
+
+  @@index([threadId, createdAt])
+  /// "What is unread", for the badge in the nav.
+  @@index([direction, readAt])
+}
+
+enum EmailDirection {
+  INBOUND
+  OUTBOUND
+}
+
+/// A file that arrived attached to a message.
+///
+/// Its own table rather than a `PatientDocument`, and for the reason
+/// `FollowUpAttachment` is its own table: a stranger's attachment is not a
+/// medical record, and filing it in the patient's documents automatically would
+/// be the app deciding something it has no business deciding. Promoting one to
+/// the record is a thing somebody does on purpose.
+model EmailAttachment {
+  id        String       @id @default(uuid())
+  messageId String
+  message   EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  /// As sent. Display only — user input never steers a filesystem path.
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  /// Opaque on-disk name, as `PatientDocument.storageKey`.
+  storageKey String @unique
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+}
+
+/// One material's low-stock alert, waved away.
+///
+/// The alert itself is never stored. "This material is low" is a comparison
+/// made when read — `usable <= minLimit` — for the same reason overdue-ness and
+/// batch expiry are: a stored flag is a flag that goes stale the moment somebody
+/// puts a box back on the shelf, and nothing would ever unset it.
+///
+/// What cannot be derived is a person's decision to ignore one. That is what
+/// this row is: not the alert, but the answer "not now" given to it, on a day,
+/// by somebody, against a shelf that held `atQuantity` boxes at the time.
+///
+/// Which is why the count is kept rather than just the date. A dismissal is
+/// about the situation as it stood, so it expires when the situation gets
+/// worse: drop below `atQuantity` and the alert is asked again, because "we can
+/// live with three" is not an answer to "there is one left". Restocking above
+/// the minimum clears the row outright — see `getStockAlerts`.
+///
+/// Ordering is the *other* answer, and it is not stored here: `StockItem.orderedAt`
+/// already records it, already survives a delivery clearing it, and already
+/// takes the material off the reorder list. A dismissal is "leave me alone",
+/// an order is "dealt with", and collapsing the two would lose the difference.
+model StockAlertDismissal {
+  id String @id @default(uuid())
+
+  /// Unique: a material has one open dismissal or none. Waving the same alert
+  /// away twice is not two decisions, it is the same decision restated against
+  /// a lower count — so the write is an upsert and this is what makes it one.
+  stockItemId String    @unique
+  stockItem   StockItem @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+
+  /// Usable boxes on the shelf when it was waved away — expired lots already
+  /// taken off, exactly as the alert counted them.
+  atQuantity Int
+
+  dismissedAt   DateTime   @default(now())
+  dismissedById String?
+  dismissedBy   StaffUser? @relation(fields: [dismissedById], references: [id], onDelete: SetNull)
+
+  @@index([dismissedById])
 }

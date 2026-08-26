@@ -69,6 +69,15 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Almost every test here is pure and needs nothing. `query-layer.test.ts`
+      # is the exception, and deliberately so: the four bugs it guards all lived
+      # in the seam between worked-out logic and a Prisma `where`, which is
+      # precisely the seam a pure test cannot reach. It skips itself when there
+      # is no migrated database, so this step is what makes it actually run —
+      # without it the suite would go green having quietly tested nothing.
+      - name: Prepare the test database
+        run: npx prisma migrate deploy
+
       - name: Test
         run: npm test
 

@@ -24,15 +24,24 @@ export function ActionMenu({
   align = 'end',
   className,
   triggerClassName = 'btn btn-secondary btn-sm',
+  trigger,
   floating = false,
 }: {
-  /** Names the button and the menu — there is no visible text on either. */
+  /** Names the button and the menu. The only text on either, unless `trigger` adds some. */
   label: string;
   children: ReactNode;
   /** Which edge of the button the panel hangs from. */
   align?: 'start' | 'end';
   className?: string;
   triggerClassName?: string;
+  /**
+   * What the button shows. Defaults to the three dots, which is what an overflow
+   * menu is — but a menu is also the right shape for a value that has several
+   * things you might do *with* it: a phone number you could ring, message or
+   * copy. Those want the value itself as the face of the button rather than a
+   * glyph beside it that the reader has to connect back to the number.
+   */
+  trigger?: ReactNode;
   /**
    * For a row in a table rather than on a card. The works register scrolls in a
    * box of its own and pins two of its edges, and a panel that stays inside it
@@ -46,7 +55,7 @@ export function ActionMenu({
   const [open, setOpen] = useState(false);
   const [spot, setSpot] = useState<{ top: number; left: number } | null>(null);
   const wrapper = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
 
   // The button and the panel, which are two separate trees once the panel is
@@ -143,11 +152,11 @@ export function ActionMenu({
     }
 
     function place() {
-      const button = trigger.current;
+      const face = button.current;
       const box = panel.current;
-      if (!button || !box) return;
+      if (!face || !box) return;
 
-      const at = button.getBoundingClientRect();
+      const at = face.getBoundingClientRect();
       const height = box.offsetHeight;
       const width = box.offsetWidth;
       const room = window.innerHeight - at.bottom;
@@ -209,7 +218,7 @@ export function ActionMenu({
   return (
     <div ref={wrapper} className={cn('relative', className)}>
       <button
-        ref={trigger}
+        ref={button}
         type="button"
         className={triggerClassName}
         aria-expanded={open}
@@ -218,7 +227,7 @@ export function ActionMenu({
         title={label}
         onClick={() => setOpen((value) => !value)}
       >
-        <EllipsisVertical size={18} aria-hidden />
+        {trigger ?? <EllipsisVertical size={18} aria-hidden />}
       </button>
 
       {/* Out of the table and onto the body. Not for the position — `fixed`

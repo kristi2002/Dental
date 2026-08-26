@@ -1,4 +1,4 @@
-import { Check, Download, FlaskConical, Plus, Printer, Trash2, Undo2 } from 'lucide-react';
+import { Check, Download, FileText, FlaskConical, Plus, Printer, Trash2, Undo2 } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
@@ -13,7 +13,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { deleteWork, markWorkReceived } from '@/lib/actions/works';
 import { requirePermission } from '@/lib/auth/guard';
-import { toDateKey, today } from '@/lib/dates';
+import { paddedDateFormat, toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { getAssignableStaff } from '@/lib/queries';
 import { cn } from '@/lib/utils';
@@ -224,21 +224,10 @@ export default async function WorksPage({
     ? ({ day: '2-digit', month: '2-digit' } as const)
     : ({ day: '2-digit', month: '2-digit', year: '2-digit' } as const);
 
-  // Padded here rather than left to the pattern, because asking for two digits
-  // is only a request. Albanian's own pattern for a day and a month is `d.M`,
-  // and ICU hands that back as written — so the fourth of August arrived as
-  // `4.8` and the fourteenth as `14.8`, a column of dates in a numeric face that
-  // did not line up and read like a version number. Only the width is taken
-  // over: the order of the parts and the mark between them stay the locale's
-  // business, which is why this counts parts rather than writing a format of its
-  // own. UTC to match `format.dateTime`, which every other date on this page
-  // goes through — the register stores its days at UTC midnight.
-  const dateFormat = new Intl.DateTimeFormat(locale, { ...dateStyle, timeZone: 'UTC' });
-  const shortDate = (value: Date) =>
-    dateFormat
-      .formatToParts(value)
-      .map((part) => (part.type === 'literal' ? part.value : part.value.padStart(2, '0')))
-      .join('');
+  // Padded rather than left to the locale's own pattern — the reasoning is on
+  // `paddedDateFormat`. The register's PDF calls the same function, so a date
+  // that lines up in this column lines up in that one.
+  const shortDate = paddedDateFormat(locale, dateStyle);
 
   // The export carries whatever the screen is showing — a filtered register is a
   // deliberate selection, and exporting the whole thing instead would silently
@@ -252,6 +241,9 @@ export default async function WorksPage({
   // own — without this the column headings would always come out in Albanian.
   exportQuery.set('locale', locale);
   const exportHref = `/api/works/export?${exportQuery}`;
+  // The same selection, on paper. Only `format` differs, so the two buttons
+  // cannot come to disagree about what it is they are handing over.
+  const pdfHref = `${exportHref}&format=pdf`;
 
   const newLink = canEdit ? (
     <Link href="/works/new" className="btn btn-primary">
@@ -273,10 +265,22 @@ export default async function WorksPage({
             {/* A plain link, not a form: the file is a GET of what is on screen,
                 so it can be bookmarked and it works with JavaScript off. */}
             {totalCount > 0 ? (
-              <a href={exportHref} className="btn btn-secondary" download data-print-hide>
-                <Download size={20} aria-hidden />
-                {t('export')}
-              </a>
+              <>
+                {/* Two files, one selection. The spreadsheet is for the practice
+                    — sorted, filtered, summed against the invoice. The sheet is
+                    for handing over: it carries the letterhead, so it is a
+                    document from this practice rather than a table from some
+                    software, and it looks the same on the laboratory's screen as
+                    it did on this one. */}
+                <a href={exportHref} className="btn btn-secondary" download data-print-hide>
+                  <Download size={20} aria-hidden />
+                  {t('export')}
+                </a>
+                <a href={pdfHref} className="btn btn-secondary" download data-print-hide>
+                  <FileText size={20} aria-hidden />
+                  {t('exportPdf')}
+                </a>
+              </>
             ) : null}
             {newLink}
           </>
@@ -663,6 +667,21 @@ export default async function WorksPage({
                               <Printer size={17} aria-hidden />
                               {t('docketPrint')}
                             </Link>
+
+                            {/* The same slip as a file. A plain anchor rather
+                                than `Link`: it is a download from a route that
+                                sits outside the `[locale]` segment, so it takes
+                                the language as a parameter and must not be
+                                prefetched as though it were a page. */}
+                            <a
+                              href={`/api/works/${work.id}/docket?locale=${locale}`}
+                              className="menu-item"
+                              role="menuitem"
+                              download
+                            >
+                              <FileText size={17} aria-hidden />
+                              {t('docketDownload')}
+                            </a>
 
                             {/* Only the case, never the patient behind it: a
                                 line about a crown should open the register at

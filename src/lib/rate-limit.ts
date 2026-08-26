@@ -50,12 +50,51 @@ export function rateLimit(
 }
 
 /**
- * Best-effort client address. Behind a reverse proxy the first hop in
- * `x-forwarded-for` is the client; direct, there is no header and every request
- * shares one bucket — which is stricter, not looser, so it fails safe.
+ * How many proxies sit in front of this app and may be believed.
+ *
+ * One by default, which is the deployment this ships in: Coolify's Traefik
+ * terminates TLS and forwards. Raise it only if you actually add a hop — a CDN
+ * in front of the proxy makes it two — because every hop counted here is a hop
+ * whose word is taken on trust.
+ */
+const TRUSTED_PROXY_HOPS = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS) || 1);
+
+/**
+ * Best-effort client address, read from the *trusted* end of the chain.
+ *
+ * `x-forwarded-for` is a list that each proxy appends to, so it reads
+ * `client, proxy1, proxy2` — and only the entries a proxy we trust wrote are
+ * worth anything. Everything to the left of those was supplied by the caller
+ * and can say whatever the caller likes.
+ *
+ * This used to take `split(',')[0]`, the leftmost entry, on the reasoning that
+ * the first hop is the client. That is true only when no client sent the header
+ * itself — and Traefik *appends* rather than replaces, so anybody who sent
+ * `X-Forwarded-For: <anything>` had their own value land in first position and
+ * be read as their address. A fresh value per request meant a fresh bucket per
+ * request, which is no throttle at all: the confirmation-token and
+ * calendar-token limits this module exists for could both be walked at full
+ * speed, and the sign-in limiter was left leaning entirely on the per-account
+ * lockout ladder.
+ *
+ * Counting `TRUSTED_PROXY_HOPS` back from the right gives the address our own
+ * proxy observed, which is the last entry a caller cannot forge. A short header
+ * — no proxy in front, or fewer hops than configured — falls back to the
+ * leftmost entry we have; that is the direct-connection case, where there is no
+ * proxy to have written anything and nothing is gained by refusing to answer.
  */
 export function clientKey(headers: Headers): string {
   const forwarded = headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return headers.get('x-real-ip') ?? 'unknown';
+  if (forwarded) {
+    const hops = forwarded
+      .split(',')
+      .map((hop) => hop.trim())
+      .filter(Boolean);
+    const address = hops.at(-TRUSTED_PROXY_HOPS) ?? hops[0];
+    if (address) return address;
+  }
+  // Traefik sets this to the address it observed, so it is the same claim as
+  // above and not a second, weaker one. Direct, there is no header at all and
+  // every request shares one bucket — stricter, not looser, so it fails safe.
+  return headers.get('x-real-ip')?.trim() || 'unknown';
 }

@@ -7,6 +7,7 @@ import {
   DoorOpen,
   Mail,
   MapPin,
+  MessageCircle,
   NotebookPen,
   Pencil,
   Phone,
@@ -20,9 +21,11 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { AppointmentStatusBadge } from '@/components/appointments/AppointmentStatusBadge';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { Link } from '@/i18n/navigation';
 import { deleteAppointment, setAppointmentStatus } from '@/lib/actions/appointments';
 import { fromDateKey, minutesToTime, timeToMinutes } from '@/lib/dates';
+import { telLink, whatsappChatLink } from '@/lib/reminders';
 import type { AppointmentView } from './types';
 
 /** One labelled fact. The label is small and grey; the fact is what is read. */
@@ -81,6 +84,7 @@ export function AppointmentDetailsDialog({
   const t = useTranslations('appointments');
   const tc = useTranslations('common');
   const tp = useTranslations('patients');
+  const tcontacts = useTranslations('contacts');
   const format = useFormatter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -179,24 +183,61 @@ export function AppointmentDetailsDialog({
             </Fact>
           ) : null}
 
-          {/* Tap-to-call and tap-to-mail, because the reason for opening a
-              booking at the front desk is very often to ring the person in it. */}
+          {/* The reason for opening a booking at the front desk is very often to
+              reach the person in it — so this is the one place a dead link costs
+              the most. `tel:` and `mailto:` are kept because on a tablet they
+              are the fastest thing here, and each is now sat beside something
+              that works when the workstation has no handler registered: a
+              WhatsApp link, which is plain HTTPS, and a copy button. */}
           {appointment.patient.phone ? (
             <Fact icon={<Phone size={19} />} label={tp('phone')}>
-              <a href={`tel:${appointment.patient.phone}`} className="font-semibold text-brand-deep">
-                {appointment.patient.phone}
-              </a>
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <a
+                  href={telLink(appointment.patient.phone) ?? undefined}
+                  className="font-semibold text-brand-deep"
+                >
+                  {appointment.patient.phone}
+                </a>
+                {whatsappChatLink(appointment.patient.phone) ? (
+                  <a
+                    href={whatsappChatLink(appointment.patient.phone) ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-ghost btn-sm px-2"
+                    title={tcontacts('openWhatsapp')}
+                    aria-label={tcontacts('openWhatsapp')}
+                  >
+                    <MessageCircle size={16} aria-hidden />
+                  </a>
+                ) : null}
+                <CopyButton
+                  value={appointment.patient.phone}
+                  label={tcontacts('copyNumber')}
+                  copiedLabel={tcontacts('copied')}
+                  showLabel={false}
+                  className="btn btn-ghost btn-sm px-2"
+                />
+              </span>
             </Fact>
           ) : null}
 
           {appointment.patient.email ? (
             <Fact icon={<Mail size={19} />} label={tp('email')}>
-              <a
-                href={`mailto:${appointment.patient.email}`}
-                className="font-semibold break-all text-brand-deep"
-              >
-                {appointment.patient.email}
-              </a>
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <a
+                  href={`mailto:${appointment.patient.email}`}
+                  className="font-semibold break-all text-brand-deep"
+                >
+                  {appointment.patient.email}
+                </a>
+                <CopyButton
+                  value={appointment.patient.email}
+                  label={tcontacts('copyEmail')}
+                  copiedLabel={tcontacts('copied')}
+                  showLabel={false}
+                  className="btn btn-ghost btn-sm px-2"
+                />
+              </span>
             </Fact>
           ) : null}
 

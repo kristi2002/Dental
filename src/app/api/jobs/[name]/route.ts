@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { secretMatches } from '@/lib/constant-time';
 import { runJob } from '@/lib/jobs/run';
 
 export const dynamic = 'force-dynamic';
@@ -21,25 +22,6 @@ export const dynamic = 'force-dynamic';
  * not be something a crawler, a link preview or a browser prefetch can trip.
  */
 
-const encoder = new TextEncoder();
-
-/**
- * Constant-time comparison.
- *
- * `a === b` on strings returns as soon as two bytes differ, which leaks the
- * length of the matching prefix to anybody willing to measure — the same reason
- * `verifyConfirmationToken` compares the way it does.
- */
-function matches(provided: string, expected: string): boolean {
-  const a = encoder.encode(provided);
-  const b = encoder.encode(expected);
-  if (a.length !== b.length) return false;
-
-  let difference = 0;
-  for (let i = 0; i < a.length; i += 1) difference |= a[i] ^ b[i];
-  return difference === 0;
-}
-
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ name: string }> },
@@ -55,7 +37,7 @@ export async function POST(
   }
 
   const provided = request.headers.get('x-jobs-secret') ?? '';
-  if (!matches(provided, secret)) {
+  if (!secretMatches(provided, secret)) {
     // 404, not 401: whether this endpoint exists is not something an unproven
     // caller needs to learn, and the route's own name reveals what it does.
     return new NextResponse(null, { status: 404 });

@@ -9,12 +9,14 @@ import {
   ClipboardList,
   FlaskConical,
   Images,
+  Inbox,
   LayoutDashboard,
   Menu,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
   Pill,
+  Send,
   Stethoscope,
   Tags,
   Truck,
@@ -25,10 +27,8 @@ import {
 import { useTranslations } from 'next-intl';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { ClinicMark } from '@/components/brand/ClinicLogo';
-import { FollowUpBell } from '@/components/follow-ups/FollowUpBell';
 import type { Role } from '@/generated/prisma/enums';
 import { Link, usePathname } from '@/i18n/navigation';
-import type { BellCounts } from '@/lib/follow-ups';
 import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { UserMenu } from './UserMenu';
@@ -42,6 +42,8 @@ const ICONS: Record<string, LucideIcon> = {
   plans: ClipboardList,
   works: FlaskConical,
   recalls: BellRing,
+  outbox: Send,
+  inbox: Inbox,
   followUps: AlarmClock,
   services: Stethoscope,
   serviceCategories: Tags,
@@ -92,6 +94,7 @@ function RailRow({
   active,
   collapsed,
   nested = false,
+  badge = 0,
   expanded,
   controls,
   onToggle,
@@ -103,13 +106,23 @@ function RailRow({
   active: boolean;
   collapsed: boolean;
   nested?: boolean;
+  /**
+   * A number worth interrupting somebody for. Zero draws nothing.
+   *
+   * Only the inbox has one today, and the bar for a second is meant to be high:
+   * a rail where four rows carry counts is a rail where none of them is read.
+   * The test is whether the number represents *somebody else waiting* — a
+   * patient's unanswered reply does, a list of things the practice could get
+   * round to does not, which is why the recalls and the outbox have none.
+   */
+  badge?: number;
   /** Set only on a section heading: whether its list is showing. */
   expanded?: boolean;
   controls?: string;
   onToggle?: () => void;
 }) {
   const className = cn(
-    'flex w-full items-center gap-3 rounded-lg px-3 font-semibold no-underline transition-colors',
+    'relative flex w-full items-center gap-3 rounded-lg px-3 font-semibold no-underline transition-colors',
     // The ring is white here: brand-dark on teal is invisible.
     'focus-visible:outline-white focus-visible:outline-offset-[-1px]',
     // Still a thumb-sized target one level down — a phone drawer is where
@@ -132,6 +145,21 @@ function RailRow({
       <span className={cn('min-w-0 flex-1 truncate text-left', collapsed && 'lg:sr-only')}>
         {label}
       </span>
+      {/* Stays visible when the rail is pinched, where it becomes a dot on the
+          icon — a collapsed rail is the state somebody leaves it in all day,
+          and a count that disappears in it is a count that does not work. */}
+      {badge > 0 ? (
+        <span
+          className={cn(
+            'shrink-0 rounded-full px-1.5 py-0.5 text-[0.72rem] font-bold tabular-nums',
+            active ? 'bg-brand text-white' : 'bg-white text-brand-deep',
+            collapsed &&
+              'lg:absolute lg:top-1 lg:right-1 lg:px-1 lg:py-0 lg:text-[0.62rem] lg:leading-4',
+          )}
+        >
+          {badge > 99 ? '99+' : badge}
+        </span>
+      ) : null}
       {/* Turned down while the list is showing, a quarter turn back when it is
           not. Part of the row, not a target of its own — a pinched rail has room
           for neither, so there the stacked sub-icons are what says open. */}
@@ -207,11 +235,14 @@ export function Sidebar({
   items,
   user,
   clinicName,
-  followUps,
+  badges,
+  board,
   defaultCollapsed,
   defaultClosedSections,
 }: {
   items: Item[];
+  /** Counts by destination key. Resolved on the server; see `AppShell`. */
+  badges?: Readonly<Record<string, number>>;
   /**
    * Whose practice this is, resolved on the server — see `clinicDisplayName`.
    * Written beside the mark rather than left to it: the drawing is what makes
@@ -220,14 +251,14 @@ export function Sidebar({
    */
   clinicName: string;
   /**
-   * The board and its counts, already rendered on the server. Null for anyone
-   * without `followup.view`, which takes the bell off the chrome entirely.
+   * The reminder board, already rendered on the server.
+   *
+   * On a desktop the shell puts this in the top right of the work itself and
+   * the rail never sees it. A phone has no such row pinned anywhere — the
+   * search box scrolls away with the page — and a bell that scrolls off the
+   * top is a bell nobody presses, so the phone bar keeps its own copy.
    */
-  followUps: {
-    counts: BellCounts;
-    list: ReactNode;
-    newButton: ReactNode;
-  } | null;
+  board: ReactNode;
   user: {
     firstName: string;
     lastName: string;
@@ -377,28 +408,6 @@ export function Sidebar({
     remember('rail', next ? 'collapsed' : 'expanded');
   }
 
-  /**
-   * The same bell twice, exactly as the account button already is: once in the
-   * phone bar and once at the foot of the desktop rail, with only one of them
-   * on screen at a time.
-   *
-   * `placement` is which way the popover opens; `compact` is whether the button
-   * carries its label. The phone bar is always compact — between the menu
-   * button, the wordmark and the account there is no room for a fourth word —
-   * and the rail foot follows whatever shape the rail is in.
-   */
-  const bell = (placement: 'top' | 'bottom') =>
-    followUps ? (
-      <FollowUpBell
-        counts={followUps.counts}
-        placement={placement}
-        compact={placement === 'bottom' || collapsed}
-        newButton={followUps.newButton}
-      >
-        {followUps.list}
-      </FollowUpBell>
-    ) : null;
-
   const account = (placement: 'top' | 'bottom') => (
     <UserMenu
       firstName={user.firstName}
@@ -443,7 +452,10 @@ export function Sidebar({
           </span>
         </Link>
 
-        {bell('bottom')}
+        {/* Top right of the phone bar, beside the account button — the same
+            corner the desktop puts it in, and the only part of a phone screen
+            that stays put while the page scrolls. */}
+        {board}
         {account('bottom')}
       </header>
 
@@ -551,6 +563,7 @@ export function Sidebar({
                     icon={ICONS[key] ?? LayoutDashboard}
                     active={isCurrent(href) && !onChild}
                     collapsed={collapsed}
+                    badge={badges?.[key] ?? 0}
                     expanded={section ? unfolded : undefined}
                     controls={section ? `rail-section-${key}` : undefined}
                     onToggle={section ? () => toggleSection(key) : undefined}
@@ -593,12 +606,9 @@ export function Sidebar({
             collapsed && 'lg:items-center lg:px-1',
           )}
         >
-          {/* Only on desktop, for the reason the account button below is: on a
-              phone both live in the top bar, where they are reachable without
-              opening the drawer first — and a reminder behind a drawer is a
-              reminder nobody sees. */}
-          <div className="hidden lg:block">{bell('top')}</div>
           <LanguageSwitcher compact stacked={collapsed} />
+          {/* Only on desktop: on a phone the account button lives in the top
+              bar, where it is reachable without opening the drawer first. */}
           <div className="hidden lg:block">{account('top')}</div>
         </div>
       </aside>

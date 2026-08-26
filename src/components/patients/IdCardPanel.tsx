@@ -96,7 +96,11 @@ function IdSlot({
     if (inputRef.current) inputRef.current.value = '';
   }, [state]);
 
-  const href = captured?.documentId ? `/api/documents/${captured.documentId}` : null;
+  // `?patient=` as the gallery does — the route refuses a file that does not
+  // belong to the record it is asked for from.
+  const href = captured?.documentId
+    ? `/api/documents/${captured.documentId}?patient=${patientId}`
+    : null;
 
   return (
     <div>

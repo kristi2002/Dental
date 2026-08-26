@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import {
   AppointmentStatus,
+  CancelledBy,
   ContactChannel,
   ContactPurpose,
 } from '@/generated/prisma/enums';
@@ -83,8 +84,35 @@ export async function respondToAppointment(
     await prisma.appointment.update({
       where: { id: appointmentId },
       data: coming
-        ? { confirmedAt: now, declinedAt: null, status: AppointmentStatus.SCHEDULED }
-        : { declinedAt: now, confirmedAt: null, status: AppointmentStatus.CANCELLED },
+        ? {
+            confirmedAt: now,
+            declinedAt: null,
+            status: AppointmentStatus.SCHEDULED,
+            // Answering "yes" to a slot somebody had pencilled as called-off
+            // clears the reason with it, so the two never disagree.
+            cancelledBy: null,
+            cancelReason: null,
+          }
+        : {
+            declinedAt: now,
+            confirmedAt: null,
+            status: AppointmentStatus.CANCELLED,
+            // Said, rather than left blank. Both staff cancellation paths
+            // record who called it off; this one did not, so the single
+            // cancellation the practice is *most* certain about — the patient
+            // pressing "no" themselves — was the one filed as cancelled by
+            // nobody. That is the column's whole purpose, and it left the
+            // reliability score and the cancellation figures unable to tell a
+            // patient who rang ahead from a row with no provenance at all.
+            //
+            // `cancelReason` is deliberately left alone: it holds a sentence a
+            // member of staff typed, and `declinedAt` beside `cancelledBy`
+            // already says everything this path knows. Filling it with
+            // generated wording — in whichever of the three languages the
+            // patient happened to be reading — would put words in the
+            // practice's mouth to no end.
+            cancelledBy: CancelledBy.PATIENT,
+          },
     });
   } catch {
     return actionError(t('errorGeneric'));

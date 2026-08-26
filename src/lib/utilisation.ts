@@ -3,6 +3,7 @@ import { scheduleFor, type ClosureRange, type DayHours } from '@/lib/clinic-hour
 import { addDays, toMonthKey } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { getClinicWeek, getClosures } from '@/lib/queries';
+import { NOT_CLINIC_CANCELLED } from '@/lib/reliability';
 
 /**
  * How much of the chair time the practice opened for was actually sold.
@@ -155,7 +156,7 @@ export async function getProviderNoShows({
           AppointmentStatus.CANCELLED,
         ],
       },
-      NOT: { cancelledBy: 'CLINIC' },
+      ...NOT_CLINIC_CANCELLED,
     },
     _count: { _all: true },
   });

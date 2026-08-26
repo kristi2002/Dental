@@ -7,6 +7,7 @@ import { authorize, recordAudit } from '@/lib/auth/guard';
 import { isAllowedMimeType, MAX_FILE_BYTES } from '@/lib/file-constants';
 import { deleteStoredFile, storeFile } from '@/lib/files';
 import { prisma } from '@/lib/prisma';
+import { isValidTooth } from '@/lib/teeth';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
@@ -61,7 +62,7 @@ export async function uploadDocument(
         mimeType: file.type,
         sizeBytes: file.size,
         storageKey,
-        toothNum: toothRaw >= 1 && toothRaw <= 32 ? toothRaw : null,
+        toothNum: isValidTooth(toothRaw) ? toothRaw : null,
         notes: optionalString(formData.get('notes')),
         uploadedById: user.id,
       },
