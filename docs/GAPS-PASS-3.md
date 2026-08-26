@@ -31,11 +31,26 @@ every one of them checked against the code rather than inferred from a document.
 | L-01 | The recall cooldown read one of its two memories | `lastChasedAt` — the newest `RECALL`/`FOLLOW_UP` contact, taken against `lastRecallAt` |
 | L-02 | `expectedAt` was compared to a date by nothing | `orderOverdue` / `orderLateBy`, read by the board, the reorder panel and the storage room |
 | L-03 | A fourth hand-spelled occupancy filter | `OCCUPIES_A_SLOT` in `recalls.ts` |
+| B-01 | `restoreStockAlert` had no caller, and nothing listed what was waved away | `alertQuietened` and the folded undo list at the foot of the board |
+| B-02 | `unlinkBarcode` had no caller, and no screen showed a material's codes | `BarcodeList` on `/stock/[id]/edit` |
+| L-04 | Confirming from the patient link un-arrived them | the status write dropped from `respondToAppointment` |
 
-Each of the three is covered by a pure test and, where the bug lived in a
-`where`, by an assertion in `tests/query-layer.test.ts` — checked by
-reintroducing the bug it guards, which is the standard §8 of the last document
-set. Everything below **Batch 1** in the plan is still open.
+Batch 1 is covered by pure tests and, where the bug lived in a `where`, by
+assertions in `tests/query-layer.test.ts` — each checked by reintroducing the
+bug it guards, which is the standard §8 of the last document set. Batch 2 is
+covered by tests where it is a rule (`alertQuietened`) and by exercising the
+running app where it is a button, which is the only place a missing caller can
+be shown to exist.
+
+Two of the three Batch 2 items were verbs the app already had. That is worth
+saying plainly, because it is the finding rather than the fix: `unlinkBarcode`
+and `restoreStockAlert` were both written, guarded, audited and correct, and
+both had been unreachable since the day they were added — one of them with a
+comment claiming the reversibility it did not provide. A test suite cannot see
+this and a typecheck cannot either. Cross-referencing exported actions against
+components can, which is why phase 3 of the search exists.
+
+Everything below **Batch 2** in the plan is still open.
 
 ---
 
