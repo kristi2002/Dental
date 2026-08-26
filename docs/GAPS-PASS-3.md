@@ -34,6 +34,8 @@ every one of them checked against the code rather than inferred from a document.
 | B-01 | `restoreStockAlert` had no caller, and nothing listed what was waved away | `alertQuietened` and the folded undo list at the foot of the board |
 | B-02 | `unlinkBarcode` had no caller, and no screen showed a material's codes | `BarcodeList` on `/stock/[id]/edit` |
 | L-04 | Confirming from the patient link un-arrived them | the status write dropped from `respondToAppointment` |
+| A-01 | `JobRun` was written by the runner and read by nothing | `job-status.ts`, `jobs/board.ts`, and the **Scheduled jobs** card on `/staff` |
+| L-05 | The evening reminder run could not see an evening booking | a second trigger at 07:00, in the sidecar and in both deployment paths |
 
 Batch 1 is covered by pure tests and, where the bug lived in a `where`, by
 assertions in `tests/query-layer.test.ts` — each checked by reintroducing the
@@ -50,7 +52,17 @@ comment claiming the reversibility it did not provide. A test suite cannot see
 this and a typecheck cannot either. Cross-referencing exported actions against
 components can, which is why phase 3 of the search exists.
 
-Everything below **Batch 2** in the plan is still open.
+Batch 3 is covered by `tests/job-status.test.ts` for the decision and by the
+running app for the screen. One thing it is **not** covered by, and the reason
+is worth recording: the **Run now** button cannot be click-verified here.
+`document.visibilityState` stays `hidden` in this browser pane even when the tab
+is fronted, so React defers hydration indefinitely and a form whose action is a
+server action posts natively — which Next then refuses, because a native post
+from this pane carries `origin: null`. Every server action in the app is
+unreachable from this environment. The work the button triggers was exercised
+through `/api/jobs/<name>`, which is the same `runJob`.
+
+Everything below **Batch 3** in the plan is still open.
 
 ---
 
