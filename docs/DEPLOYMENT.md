@@ -1,6 +1,6 @@
 # Deploying to Coolify
 
-Target: **https://dental.testdemo.it**
+Target: **https://shehudental.testdemo.it**
 
 ## What is being deployed
 
@@ -19,7 +19,7 @@ missing, rather than failing later inside a request.
 Point DNS at the server:
 
 ```
-A    dental.testdemo.it    →    <your Coolify server's IP>
+A    shehudental.testdemo.it    →    <your Coolify server's IP>
 ```
 
 Coolify issues the Let's Encrypt certificate itself once the record resolves.
@@ -33,12 +33,12 @@ file in the repo.
 
 1. **New Resource → Docker Compose**, connected to this Git repository.
 2. Set the compose file to `docker-compose.prod.yml`.
-3. Set the domain for the `app` service to `https://dental.testdemo.it`.
+3. Set the domain for the `app` service to `https://shehudental.testdemo.it`.
 4. Under **Build Variables**, set:
 
    | Name | Value |
    | --- | --- |
-   | `NEXT_PUBLIC_APP_URL` | `https://dental.testdemo.it` |
+   | `NEXT_PUBLIC_APP_URL` | `https://shehudental.testdemo.it` |
    | `NEXT_PUBLIC_CLINIC_NAME` | the clinic's name |
 
 5. Deploy.
@@ -66,7 +66,7 @@ Slightly more clicking, but you get Coolify's database backup UI.
 
 1. **New Resource → PostgreSQL**. Note the *internal* connection URL.
 2. **New Resource → Application**, this Git repository, build pack **Dockerfile**.
-3. Domain: `https://dental.testdemo.it`. Port: `3000`.
+3. Domain: `https://shehudental.testdemo.it`. Port: `3000`.
 4. **Environment Variables**:
 
    | Name | Value |
