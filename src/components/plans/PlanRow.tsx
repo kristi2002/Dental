@@ -18,13 +18,14 @@ import {
   Trash2,
   TriangleAlert,
 } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 import type {
   OperatoryOption,
   ServiceOption,
   StaffOption,
 } from '@/components/appointments/AppointmentFormDialog';
+import { useDateNames } from '@/components/shared/DateNamesProvider';
 import { ReportingActionForm } from '@/components/ui/ActionForm';
 import { ActionMenu } from '@/components/ui/ActionMenu';
 import { Badge } from '@/components/ui/Badge';
@@ -123,7 +124,9 @@ export function PlanRow({
   const t = useTranslations('plans');
   const tc = useTranslations('common');
   const tt = useTranslations('teeth');
-  const format = useFormatter();
+  // Month names, which the browser may not have in the practice's own
+  // language. See `lib/date-names.ts`.
+  const dates = useDateNames();
 
   const [open, setOpen] = useState(false);
 
@@ -146,12 +149,11 @@ export function PlanRow({
 
   const slotLabel = (slot: PlanRowSlot) =>
     t('nextOn', {
-      date: format.dateTime(slot.date, { day: 'numeric', month: 'short', timeZone: 'UTC' }),
+      date: dates.date(slot.date, 'dayMonthShort'),
       time: slot.startTime,
     });
 
-  const dayLabel = (day: Date) =>
-    format.dateTime(day, { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const dayLabel = (day: Date) => dates.date(day, 'dayMonthShort');
 
   const tooth = (toothNum: number) => tt('tooth', { num: toothLabel(toothNum, numbering) });
 
@@ -285,11 +287,7 @@ export function PlanRow({
                 <span className="flex items-center gap-1.5 text-ink-faint tabular-nums">
                   <History size={15} aria-hidden />
                   {t('lastUpdated', {
-                    date: format.dateTime(plan.updatedAt, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    }),
+                    date: dates.date(plan.updatedAt, 'dayMonthShortYear'),
                   })}
                 </span>
               )}

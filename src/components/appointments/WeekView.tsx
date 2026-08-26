@@ -3,6 +3,7 @@
 import { TriangleAlert } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useRef, useState, useTransition, type PointerEvent as ReactPointerEvent } from 'react';
+import { useDateNames } from '@/components/shared/DateNamesProvider';
 import { Link, useRouter } from '@/i18n/navigation';
 import { moveAppointment } from '@/lib/actions/appointments';
 import { gridHoursFor, type DaySchedule } from '@/lib/clinic-hours';
@@ -160,6 +161,10 @@ export function WeekView({
   const t = useTranslations('appointments');
   const tc = useTranslations('common');
   const format = useFormatter();
+  // Weekday names come from the server, not from the browser's locale data —
+  // Chrome has none for Albanian. `format` still handles the numeric day below,
+  // which reads the same in every language this ships. See `lib/date-names.ts`.
+  const dates = useDateNames();
   const router = useRouter();
   const [saving, startTransition] = useTransition();
 
@@ -462,7 +467,7 @@ export function WeekView({
                       isToday ? 'text-white/85' : 'text-ink-faint',
                     )}
                   >
-                    {format.dateTime(day, { weekday: 'short' })}
+                    {dates.date(day, 'weekdayShort')}
                   </span>
                   <span className="block text-[1.15rem] font-bold tabular-nums">
                     {format.dateTime(day, { day: 'numeric' })}

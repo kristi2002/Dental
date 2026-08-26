@@ -12,10 +12,11 @@ import {
   SkipForward,
   Trash2,
 } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useRef, useState, useTransition, type ReactNode } from 'react';
 import type { ServiceOption } from '@/components/appointments/AppointmentFormDialog';
 import type { ChartedTeeth } from '@/components/dental/ToothPicker';
+import { useDateNames } from '@/components/shared/DateNamesProvider';
 import { ReportingActionForm } from '@/components/ui/ActionForm';
 import { ActionMenu } from '@/components/ui/ActionMenu';
 import { TreatmentStepStatus } from '@/generated/prisma/enums';
@@ -104,7 +105,8 @@ export function StepList({
   const t = useTranslations('plans');
   const tc = useTranslations('common');
   const tt = useTranslations('teeth');
-  const format = useFormatter();
+  // See `lib/date-names.ts`: a month name must not be asked of the browser.
+  const dates = useDateNames();
 
   // The order as the browser has it, which is ahead of the server for as long as
   // a save is in flight. `sent` is what we last told the server; when the props
@@ -344,11 +346,7 @@ export function StepList({
                     >
                       <CalendarCheck size={15} aria-hidden />
                       {t('bookedOn', {
-                        date: format.dateTime(step.booked.date, {
-                          day: 'numeric',
-                          month: 'short',
-                          timeZone: 'UTC',
-                        }),
+                        date: dates.date(step.booked.date, 'dayMonthShort'),
                         time: step.booked.startTime,
                       })}
                     </Link>

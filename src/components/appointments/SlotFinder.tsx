@@ -1,8 +1,9 @@
 'use client';
 
 import { CalendarSearch, Loader2 } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
+import { useDateNames } from '@/components/shared/DateNamesProvider';
 import { findNextSlots } from '@/lib/actions/appointments';
 import { fromDateKey } from '@/lib/dates';
 import type { DatedGap } from '@/lib/scheduling';
@@ -38,7 +39,10 @@ export function SlotFinder({
 }) {
   const t = useTranslations('appointments');
   const tc = useTranslations('common');
-  const format = useFormatter();
+  // Slots arrive from a server action after the page has loaded, so their
+  // labels are built in the browser — which is why these names have to have
+  // travelled with the page. See `lib/date-names.ts`.
+  const dates = useDateNames();
 
   const [slots, setSlots] = useState<DatedGap[] | null>(null);
   const [pending, startTransition] = useTransition();
@@ -79,11 +83,7 @@ export function SlotFinder({
                   onClick={() => onPick(slot.date, slot.startTime)}
                   className="btn btn-secondary btn-sm tabular-nums"
                 >
-                  {format.dateTime(fromDateKey(slot.date), {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                  })}
+                  {dates.date(fromDateKey(slot.date), 'weekdayShortDayMonthShort')}
                   {' · '}
                   {slot.startTime}
                   <span className="font-normal text-ink-faint">

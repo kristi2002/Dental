@@ -3,7 +3,9 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { DateNamesProvider } from '@/components/shared/DateNamesProvider';
 import { routing } from '@/i18n/routing';
+import { dateNamesFor } from '@/lib/date-names';
 import { clinicDisplayName, getClinicProfile } from '@/lib/queries';
 import { poppins } from '../fonts';
 import '../globals.css';
@@ -76,7 +78,12 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={poppins.variable}>
       <body>
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          {/* Measured here, on Node, because Chrome has no Albanian locale data
+              and every client component that renders a weekday would otherwise
+              disagree with the server. See `lib/date-names.ts`. */}
+          <DateNamesProvider names={dateNamesFor(locale)}>{children}</DateNamesProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -2,6 +2,7 @@
 
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { useDateNames } from '@/components/shared/DateNamesProvider';
 import { Link } from '@/i18n/navigation';
 import { isSameDay, isSameMonth, monthGrid, toDateKey, today, weekDays } from '@/lib/dates';
 import { cn } from '@/lib/utils';
@@ -65,6 +66,8 @@ export function MonthView({
 }) {
   const t = useTranslations('appointments');
   const format = useFormatter();
+  // See `lib/date-names.ts`: a weekday must not be asked of the browser.
+  const dates = useDateNames();
   const now = today();
   const days = monthGrid(anchor);
 
@@ -92,14 +95,14 @@ export function MonthView({
           {weekDays(anchor).map((day, index) => (
             <abbr
               key={toDateKey(day)}
-              title={format.dateTime(day, { weekday: 'long' })}
+              title={dates.date(day, 'weekdayLong')}
               className={cn(
                 'border-r border-line py-2 text-center text-[0.78rem] font-bold tracking-wide uppercase no-underline last:border-r-0',
                 // Saturday and Sunday in red, the way a paper calendar prints them.
                 index > 4 ? 'text-danger' : 'text-ink-faint',
               )}
             >
-              {format.dateTime(day, { weekday: 'short' })}
+              {dates.date(day, 'weekdayShort')}
             </abbr>
           ))}
         </div>

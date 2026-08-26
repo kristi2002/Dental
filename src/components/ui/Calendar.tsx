@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useDateNames } from '@/components/shared/DateNamesProvider';
 import {
   addDays,
   addMonths,
@@ -123,6 +124,10 @@ export function Calendar({
 }) {
   const t = useTranslations('calendar');
   const format = useFormatter();
+  // Month and weekday names come from the server. This picker navigates months
+  // entirely in the browser, so it is the one place that could not have been
+  // fixed by formatting on the server and passing labels down.
+  const dates = useDateNames();
   const now = today();
   const chosen = value ? fromDateKey(value) : null;
 
@@ -161,7 +166,7 @@ export function Calendar({
 
   const caption =
     view === 'days'
-      ? format.dateTime(cursor, { month: 'long', year: 'numeric' })
+      ? dates.date(cursor, 'monthYearLong')
       : view === 'months'
         ? format.dateTime(cursor, { year: 'numeric' })
         : `${yearPageStart}–${yearPageStart + YEARS_PER_PAGE - 1}`;
@@ -284,7 +289,7 @@ export function Calendar({
                   className="pb-1.5 text-center"
                 >
                   <abbr
-                    title={format.dateTime(day, { weekday: 'long' })}
+                    title={dates.date(day, 'weekdayLong')}
                     className={cn(
                       'text-[0.72rem] font-bold tracking-wide uppercase no-underline',
                       // Saturday and Sunday in red, the way a paper calendar
@@ -292,7 +297,7 @@ export function Calendar({
                       index > 4 ? 'text-danger' : 'text-ink-faint',
                     )}
                   >
-                    {format.dateTime(day, { weekday: 'short' })}
+                    {dates.date(day, 'weekdayShort')}
                   </abbr>
                 </span>
               ))}
@@ -319,7 +324,7 @@ export function Calendar({
                         // The whole date, because "14" on its own is not one —
                         // and the month it belongs to is exactly what the
                         // trailing and leading cells are ambiguous about.
-                        aria-label={format.dateTime(day, { dateStyle: 'long' })}
+                        aria-label={dates.date(day, 'dateLong')}
                         className={cn(
                           'h-9',
                           cellClass({
@@ -384,7 +389,7 @@ export function Calendar({
                     setView('days');
                   }}
                 >
-                  {format.dateTime(first, { month: 'short' })}
+                  {dates.date(first, 'monthShort')}
                 </button>
               );
             })}

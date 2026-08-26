@@ -3,6 +3,7 @@
 import { FileCheck2, Info, ShieldQuestion } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useActionState, useId } from 'react';
+import { useDateNames } from '@/components/shared/DateNamesProvider';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { SubmitButton } from '@/components/ui/SubmitButton';
 import { checkBackup, type CheckState } from '@/lib/actions/backup-check';
@@ -25,6 +26,11 @@ import type { BackupNote } from '@/lib/backup-inspect';
 export function BackupCheckCard() {
   const t = useTranslations('backup');
   const tc = useTranslations('common');
+  // `toLocaleString()` with no argument formats in whatever locale the *browser*
+  // defaults to, which on an Albanian page is usually not Albanian — and differs
+  // from the locale Node used to render the same number on the server. See
+  // `lib/date-names.ts`.
+  const dates = useDateNames();
   const uid = useId();
 
   const [state, formAction] = useActionState<CheckState, FormData>(checkBackup, IDLE_STATE);
@@ -101,7 +107,7 @@ export function BackupCheckCard() {
             <dd className="text-ink">{report.encrypted ? tc('yes') : tc('no')}</dd>
 
             <dt className="font-bold text-ink-faint">{t('checkRows')}</dt>
-            <dd className="text-ink tabular-nums">{report.totalRows.toLocaleString()}</dd>
+            <dd className="text-ink tabular-nums">{dates.count(report.totalRows)}</dd>
           </dl>
 
           {/* Table by table, because "it decrypted" is not the same as "the
@@ -114,7 +120,7 @@ export function BackupCheckCard() {
                 <li key={row.table} className="flex justify-between gap-3 border-b border-line py-1">
                   <span className="text-ink-soft">{row.table}</span>
                   <span className="font-semibold text-ink tabular-nums">
-                    {row.rows.toLocaleString()}
+                    {dates.count(row.rows)}
                   </span>
                 </li>
               ))}

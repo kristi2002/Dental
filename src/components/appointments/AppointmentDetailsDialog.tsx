@@ -16,9 +16,10 @@ import {
   User,
   X,
 } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { AppointmentStatusBadge } from '@/components/appointments/AppointmentStatusBadge';
+import { useDateNames } from '@/components/shared/DateNamesProvider';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { CopyButton } from '@/components/ui/CopyButton';
@@ -85,7 +86,9 @@ export function AppointmentDetailsDialog({
   const tc = useTranslations('common');
   const tp = useTranslations('patients');
   const tcontacts = useTranslations('contacts');
-  const format = useFormatter();
+  // A weekday and a month name, which the browser may not have. See
+  // `lib/date-names.ts`.
+  const dates = useDateNames();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -136,12 +139,7 @@ export function AppointmentDetailsDialog({
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
           <Fact icon={<CalendarDays size={19} />} label={t('date')}>
-            {format.dateTime(fromDateKey(appointment.date), {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
+            {dates.date(fromDateKey(appointment.date), 'weekdayLongDayMonthLongYear')}
           </Fact>
 
           <Fact icon={<Clock size={19} />} label={t('startTime')}>
