@@ -91,6 +91,28 @@ services:
         condition: service_healthy
     expose:
       - '3000'
+    # Stated here as well as in the image, and the difference is what it is for.
+    #
+    # The Dockerfile's own HEALTHCHECK is what Docker falls back on, and it does
+    # work — but it is invisible from this file, which is the file somebody reads
+    # to find out what this deployment does, and the only one Coolify shows them.
+    # More to the point, nothing could *depend* on it while it was unstated: the
+    # jobs sidecar below waited for the app to be started rather than to be
+    # answering, because a dependency on health is a thing you write next to the
+    # health you are depending on.
+    #
+    # `/api/health` reaches Postgres before it answers, so this says "serving and
+    # able to read the practice's records", not merely "the process is alive" —
+    # which is the distinction that matters on a mini-PC nobody is watching.
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/api/health > /dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      # The entrypoint replays migrations before the server listens, so the first
+      # check must not land while that is still going. Matches the image's own
+      # grace period rather than inventing a second answer.
+      start_period: 60s
+      retries: 3
 
   db:
     image: postgres:17-alpine
@@ -134,8 +156,23 @@ services:
       # would be worse, so it sits before it and competes with nothing.
       SWEEP_SCHEDULE: ${SWEEP_SCHEDULE:-15 3 * * 0}
       TZ: ${TZ:-Europe/Tirane}
+    # `service_healthy`, not the bare list form this used to be. The short form
+    # waits only for the container to have been *started*, and the app spends
+    # the first stretch of that replaying migrations without listening.
+    #
+    # Nothing was breaking: the jobs are on a clock rather than fired at boot,
+    # and `entrypoint.sh` already probes `/api/health` on the way up and warns
+    # when it gets no answer. But that warning is the sidecar reporting a race
+    # it cannot do anything about, and the window is real — a restart shortly
+    # before six in the evening puts a scheduled run inside it. Waiting for
+    # health closes it, and turns that warning into something that should now
+    # never be seen.
+    #
+    # `db` was already depended on this way by both other services; the app was
+    # the one that could not be, for want of the healthcheck above.
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   backup:
     build:
