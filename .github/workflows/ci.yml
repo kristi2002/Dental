@@ -414,3 +414,76 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose -f docker-compose.prod.yml down -v || true
+
+  # The pass a browser has to make, because nothing else can.
+  #
+  # `check` proves the rules and `image` proves the artefact boots. Neither can
+  # tell you whether a screen opens, or whether the button that calls a
+  # correct, guarded, audited server action is on any page at all — which is
+  # exactly how `unlinkBarcode` and `restoreStockAlert` stayed unreachable for
+  # their whole lives (docs/GAPS-PASS-3.md, §B-01 and §B-02).
+  #
+  # Its own job rather than more steps on `check`: it wants a browser download
+  # and a second build, and keeping it separate means a red end-to-end run does
+  # not hide a red typecheck.
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dent
+          POSTGRES_PASSWORD: dent
+          POSTGRES_DB: dentorganizer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dent -d dentorganizer"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # The suite re-aims this at a schema of its own before it seeds — see
+      # `e2eDatabaseUrl` in e2e/env.ts, which refuses to run against `public`.
+      # Named `E2E_DATABASE_URL` rather than `DATABASE_URL` so the build steps
+      # below cannot accidentally inherit the test target.
+      E2E_DATABASE_URL: postgresql://dent:dent@localhost:5432/dentorganizer?schema=public
+      AUTH_SECRET: ci-placeholder-never-signs-a-real-cookie
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # `--with-deps` pulls the shared libraries a headless browser needs on a
+      # bare runner. Chromium only: this suite asserts behaviour, not rendering,
+      # and three engines would treble the slowest job in the workflow.
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+
+      # Builds, starts the standalone server, provisions and seeds its own
+      # schema, then walks every route and presses the verbs. All of that is in
+      # playwright.config.ts, so this stays one line.
+      - name: End-to-end
+        run: npm run test:e2e
+
+      # The report is worth having exactly when the run failed: it carries the
+      # trace, the screenshot and the DOM at the moment of the failure, which is
+      # the difference between "a click timed out" and knowing which control.
+      - uses: actions/upload-artifact@v5
+        if: ${{ failure() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

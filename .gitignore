@@ -34,3 +34,10 @@ next-env.d.ts
 # Scratch work — sketches, screenshots, bundles pulled apart to look at.
 # Never part of the app, and never committed.
 /.scratch
+
+# Playwright: the run's own artefacts, session cookie and upload directory.
+/test-results/
+/playwright-report/
+/blob-report/
+/e2e/.auth/
+/e2e/.storage/

@@ -7,6 +7,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hashPin } from '../src/lib/auth/crypto';
 import { gtinCheckDigit } from '../src/lib/barcode';
+import { pgAdapterOptions, schemaFromDatabaseUrl } from '../src/lib/db-url';
 import { storeFile } from '../src/lib/files';
 import { PrismaClient } from '../src/generated/prisma/client';
 
@@ -16,8 +17,13 @@ try {
   // Rely on the ambient environment when there is no `.env`.
 }
 
+const connectionString = process.env.DATABASE_URL;
+
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+  // Honours the URL's `?schema=`, which is the difference between seeding the
+  // schema you aimed at and seeding `public` while being told you did neither.
+  // See `src/lib/db-url.ts`.
+  adapter: new PrismaPg({ connectionString }, pgAdapterOptions(connectionString)),
 });
 
 /** Deterministic pseudo-randomness, so re-seeding produces the same demo set. */
@@ -195,6 +201,22 @@ const EXPIRING_MATERIALS = new Set([
 ]);
 
 async function main() {
+  // Said out loud before anything is deleted, because this script's first act is
+  // to empty twenty-odd tables and its second is to refill them with data that
+  // looks exactly like a healthy database. If it is pointed somewhere
+  // unintended, this line is the only chance anyone gets to notice.
+  const target = (() => {
+    if (!connectionString) return 'DATABASE_URL is not set';
+    try {
+      const url = new URL(connectionString);
+      const schema = schemaFromDatabaseUrl(connectionString) ?? 'public';
+      return `${url.host}${url.pathname} — schema "${schema}"`;
+    } catch {
+      return connectionString;
+    }
+  })();
+  console.log(`Seeding ${target}`);
+
   console.log('Clearing existing data…');
   await prisma.auditLog.deleteMany();
   await prisma.stockMovement.deleteMany();

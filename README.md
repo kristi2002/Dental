@@ -204,6 +204,52 @@ node /app/docker/create-owner.mjs "Ilir" "Berisha"
 | `npm run db:seed` | Load demo data (**clears existing rows first**) |
 | `npm run db:studio` | Prisma Studio |
 | `npm test` | Unit tests for the pure logic (`node:test`, no database needed) |
+| `npm run test:e2e` | End-to-end pass in a browser — builds, serves, seeds its own schema |
+| `npm run test:e2e:ui` | The same suite in Playwright's interactive runner |
+| `npm run test:e2e:report` | Open the report from the last run |
+
+## Testing
+
+Two suites, answering different questions.
+
+**`npm test`** — 849 assertions over the pure logic and the query shapes, in
+about eleven seconds, against no browser and (mostly) no database. This is where
+a rule belongs: what `orderOverdue()` decides, what a `where` narrows to, how a
+CSV cell is quoted.
+
+**`npm run test:e2e`** — Playwright. Signs in through the real number pad, walks
+all forty-four screens, and presses the primary verb on the ones that have one.
+It answers the question the first suite structurally cannot: *is any of this
+reachable?* Two server actions in this repository were written, permission
+guarded, audited and correct, and unreachable from any screen for their entire
+lives — a typecheck cannot see that and neither can a unit test. See
+`docs/GAPS-PASS-3.md` §B-01 and §B-02, and `docs/GAPS-PASS-4.md` for the two
+bugs the browser pass found on its first run.
+
+It needs a Postgres it can reach and a browser:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+Three things worth knowing before you run it:
+
+- **It builds first, every time.** A long-lived `next dev` serves stale
+  translations and a stale Prisma client, and it serves them from a build nobody
+  is going to deploy. Pass `E2E_SKIP_BUILD=1` while iterating on a spec to reuse
+  the last build.
+- **It serves the standalone output**, `node .next/standalone/server.js`, which
+  is what the container runs — `next start` refuses `output: 'standalone'`
+  outright. `scripts/stage-standalone.mjs` supplies the two directories the
+  build tracer leaves out, exactly as the Dockerfile does.
+- **It seeds, so it needs a schema of its own.** The suite takes your
+  `DATABASE_URL`, re-aims it at the `e2e` schema of the same database, migrates
+  and seeds *that*, and refuses outright to run against `public`. Nothing it
+  does touches the rows you work with. Set `E2E_SCHEMA` if `e2e` is taken.
+
+Outbound mail is blanked in the run's environment (`e2e/env.ts`), so no test can
+send a real message no matter which button it presses.
 
 ## How things are laid out
 
