@@ -87,9 +87,26 @@ export async function respondToAppointment(
         ? {
             confirmedAt: now,
             declinedAt: null,
-            status: AppointmentStatus.SCHEDULED,
-            // Answering "yes" to a slot somebody had pencilled as called-off
-            // clears the reason with it, so the two never disagree.
+            // **The status is deliberately not written.**
+            //
+            // It used to be set to `SCHEDULED` here, which was a no-op in every
+            // case this path can still reach except one — and in that one it
+            // was a regression. The guards above refuse a cancelled, declined,
+            // completed, no-show or past appointment, so what arrives here is
+            // either `SCHEDULED` already or `ARRIVED`. Writing `SCHEDULED` over
+            // `ARRIVED` un-arrives a patient who is standing at the desk: the
+            // front desk's most-pressed button undone by the patient opening
+            // yesterday's WhatsApp and tapping "yes", leaving `arrivedAt`
+            // stamped at 09:02 against a row claiming they have not turned up.
+            //
+            // Confirming is a fact about the patient's intention, and
+            // `confirmedAt` is where that fact lives. It has never been the
+            // status's job to carry it.
+            //
+            // Clearing the cancellation columns stays: they belong to
+            // `declinedAt`, which this branch is clearing, and leaving a reason
+            // behind an appointment that is going ahead is exactly the kind of
+            // disagreement the pair exists to prevent.
             cancelledBy: null,
             cancelReason: null,
           }
