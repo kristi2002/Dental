@@ -46,6 +46,7 @@
   "common": {
     "save": "Save",
     "cancel": "Cancel",
+    "discardUnsaved": "You have typed something that has not been saved. Discard it?",
     "delete": "Delete",
     "edit": "Edit",
     "add": "Add",
@@ -302,6 +303,7 @@
     "provider": "Dentist",
     "selectProvider": "Not assigned",
     "allProviders": "Everyone",
+    "allOperatories": "Any chair",
     "operatory": "Chair",
     "selectOperatory": "Not assigned",
     "markArrived": "Arrived",
@@ -549,6 +551,8 @@
   "analytics": {
     "title": "Statistics",
     "subtitle": "Last 6 months",
+    "windowLabel": "Period",
+    "windowMonths": "{months, plural, =24 {2 years} =12 {1 year} other {# months}}",
     "visitsOverTime": "Visits per month",
     "topServices": "Most performed services",
     "patientGrowth": "New patients per month",
@@ -760,8 +764,11 @@
       "mailAuth": "the mail provider refused the key",
       "mailRejected": "the mail provider refused the message",
       "mailLimit": "today's sending limit is used up",
-      "mailUnreachable": "the mail provider could not be reached"
-    }
+      "mailUnreachable": "the mail provider could not be reached",
+      "cancelNoLongerDue": "the patient is no longer overdue"
+    },
+    "lastSeen": "Last seen {date}",
+    "neverSeen": "Never been in"
   },
   "errors": {
     "duplicatePhone": "A patient with this number already exists: {list}.",
@@ -794,7 +801,10 @@
     "barcodeTaken": "This code is already linked to {name}.",
     "alreadyMoved": "This appointment has already been moved. Open the new one instead.",
     "mergeSame": "That is the same record.",
-    "importTooMany": "That import has more than {limit} rows. Split it and import it in parts."
+    "importTooMany": "That import has more than {limit} rows. Split it and import it in parts.",
+    "gone": "That has already been removed by somebody else.",
+    "alreadyHandled": "Somebody else has already handled this one.",
+    "notReopenable": "This one was withdrawn automatically and cannot be put back — the appointment it was about has changed."
   },
   "roles": {
     "OWNER": "Owner / Dentist",
@@ -904,7 +914,19 @@
     "unlock": "Unlock",
     "unlocking": "Unlocking…",
     "lockedSignOut": "Sign out and switch user",
-    "idleWarning": "Locking in {seconds}s"
+    "idleWarning": "Locking in {seconds}s",
+    "errorSignedOut": "You are no longer signed in.",
+    "errorPinRequired": "Fill in all three boxes.",
+    "errorPinMismatch": "The two new PINs are not the same.",
+    "errorPinFormat": "A PIN must be 4 to 6 digits.",
+    "errorWrongCurrentPin": "That is not your current PIN.",
+    "errorPinUnchanged": "That is the PIN you already had.",
+    "changePin": "Change my PIN",
+    "changePinHint": "Only you know your PIN. Every line in the activity log is signed with it.",
+    "currentPin": "Current PIN",
+    "newPin": "New PIN",
+    "confirmNewPin": "New PIN again",
+    "pinChanged": "Your PIN has been changed."
   },
   "staff": {
     "title": "Staff and roles",
@@ -1566,11 +1588,13 @@
     "footnote": "The schedule lives in the jobs container, not in this app. Running one here does the same work, now.",
     "name": {
       "queue-appointment-reminders": "Tomorrow's reminders",
-      "sweep-orphan-files": "Tidy up unused files"
+      "sweep-orphan-files": "Tidy up unused files",
+      "queue-recalls": "Overdue check-ups"
     },
     "hint": {
       "queue-appointment-reminders": "Works out who to remind about tomorrow and fills the outbox. It sends nothing.",
-      "sweep-orphan-files": "Removes uploaded files no record points at any more."
+      "sweep-orphan-files": "Removes uploaded files no record points at any more.",
+      "queue-recalls": "Puts the patients nobody has seen for months into the outbox. It sends nothing."
     },
     "reason": {
       "ok": "Working",

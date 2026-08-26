@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Printer, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Printer, Users } from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppointmentFormDialog } from '@/components/appointments/AppointmentFormDialog';
 import { DayView } from '@/components/appointments/DayView';
@@ -99,7 +99,13 @@ export default async function AppointmentsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ view?: string; date?: string; staff?: string; status?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    date?: string;
+    staff?: string;
+    status?: string;
+    operatory?: string;
+  }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -117,6 +123,7 @@ export default async function AppointmentsPage({
     date: rawDate,
     staff: rawStaff,
     status: rawStatus,
+    operatory: rawOperatory,
   } = await searchParams;
   const view: CalendarView = VIEWS.includes(rawView as CalendarView)
     ? (rawView as CalendarView)
@@ -129,6 +136,18 @@ export default async function AppointmentsPage({
   // dentist; an unknown id is dropped rather than shown as an empty calendar.
   const providers = await getProviderOptions();
   const staffFilter = providers.some((person) => person.id === rawStaff) ? rawStaff! : '';
+
+  // And the same for the chair.
+  //
+  // `Operatory` has existed, `Appointment.operatoryId` has been written, the
+  // booking dialog has offered it once there was more than one, and `collides()`
+  // has treated a shared chair as a clash — so the app could answer "how full is
+  // Thursday for Dr B" and not "what is chair 2 doing", which is the question a
+  // two-chair practice asks when deciding whether it can take a walk-in.
+  const operatories = await getOperatoryOptions();
+  const operatoryFilter = operatories.some((room) => room.id === rawOperatory)
+    ? rawOperatory!
+    : '';
 
   // The month grid draws whole weeks, so it reaches into the days either side
   // of the month: 42 cells, always six rows.
@@ -151,16 +170,14 @@ export default async function AppointmentsPage({
   const [
     allAppointments,
     services,
-    operatories,
     waitlist,
     waitlistGaps,
     schedule,
     weekSchedules,
     monthSchedules,
   ] = await Promise.all([
-      getAppointmentsBetween(range.from, range.to, staffFilter),
+      getAppointmentsBetween(range.from, range.to, staffFilter, operatoryFilter),
       getServiceOptions(),
-      getOperatoryOptions(),
       canSeeWaitlist
         ? prisma.waitlistEntry.findMany({
             where: { resolvedAt: null },
@@ -181,6 +198,12 @@ export default async function AppointmentsPage({
             days: WAITLIST_DAYS,
             limit: WAITLIST_GAP_LIMIT,
             staffUserId: staffFilter,
+            // Deliberately not narrowed by the chair. The chair filter is a
+            // view — it decides what the grid shows — and the waiting list is
+            // about whether the practice can take somebody at all, which is
+            // answered by any free chair. Narrowing it would turn "we have a
+            // Tuesday" into "chair 2 has a Tuesday", which is not the offer
+            // anybody makes on the telephone.
             after: isSameDay(waitlistFrom, today()) ? nextSlotTime() : undefined,
           })
         : [],
@@ -244,9 +267,11 @@ export default async function AppointmentsPage({
     nextView: CalendarView = view,
     nextStaff = staffFilter,
     nextStatuses: CalendarStatus[] = statusFilter,
+    nextOperatory = operatoryFilter,
   ) => {
     const query = new URLSearchParams({ view: nextView, date: toDateKey(date) });
     if (nextStaff) query.set('staff', nextStaff);
+    if (nextOperatory) query.set('operatory', nextOperatory);
     // "Everything" is the default, so it is left out of the URL entirely.
     if (nextStatuses.length < CALENDAR_STATUSES.length) {
       query.set('status', nextStatuses.join(','));
@@ -426,6 +451,35 @@ export default async function AppointmentsPage({
                   className="segment"
                 >
                   {person.name}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
+
+          {/* The chair, on the same row and by the same rule as the dentist
+              beside it: offered only once there is more than one, because a
+              single-chair practice being asked which chair is a control that
+              can only ever have one answer. */}
+          {operatories.length > 1 ? (
+            <nav aria-label={t('operatory')} className="segmented min-w-0">
+              <span aria-hidden className="px-1.5 text-ink-faint">
+                <MapPin size={19} />
+              </span>
+              <Link
+                href={hrefFor(anchor, view, staffFilter, statusFilter, '')}
+                aria-current={operatoryFilter ? undefined : 'true'}
+                className="segment"
+              >
+                {t('allOperatories')}
+              </Link>
+              {operatories.map((room) => (
+                <Link
+                  key={room.id}
+                  href={hrefFor(anchor, view, staffFilter, statusFilter, room.id)}
+                  aria-current={operatoryFilter === room.id ? 'true' : undefined}
+                  className="segment"
+                >
+                  {room.name}
                 </Link>
               ))}
             </nav>

@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Link } from '@/i18n/navigation';
 import { StatCard } from '@/components/ui/StatCard';
 import { requirePermission } from '@/lib/auth/guard';
 import {
@@ -38,7 +39,26 @@ import { getProviderNoShows, getUtilisation, overallUtilisation } from '@/lib/ut
 
 export const dynamic = 'force-dynamic';
 
-const MONTHS_TRACKED = 6;
+/**
+ * The windows this page can be read over, in months.
+ *
+ * It had one, `MONTHS_TRACKED = 6`, as a module constant — on the single screen
+ * in the app that exists to be read by the owner rather than worked by the desk,
+ * and the only list that never grew a filter bar. Six months answers "how are we
+ * doing" and cannot answer "how does this year compare with last", which is the
+ * other half of why anybody opens it.
+ *
+ * Twelve is the default rather than six: a dental practice is seasonal — August
+ * is quiet in Albania and every check-up recall lands on its own anniversary —
+ * so a half-year window shows a slope that a full year shows as a cycle.
+ */
+const WINDOWS = [3, 6, 12, 24] as const;
+const DEFAULT_MONTHS = 12;
+
+function monthsFrom(raw: string | undefined): number {
+  const parsed = Number.parseInt(raw ?? '', 10);
+  return (WINDOWS as readonly number[]).includes(parsed) ? parsed : DEFAULT_MONTHS;
+}
 
 const STATUS_COLOR: Record<string, string> = {
   SCHEDULED: 'var(--color-brand)',
@@ -49,13 +69,18 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default async function AnalyticsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ months?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
 
   await requirePermission('analytics.view');
+
+  const { months: rawMonths } = await searchParams;
+  const MONTHS_TRACKED = monthsFrom(rawMonths);
 
   const t = await getTranslations('analytics');
   const ta = await getTranslations('appointments');
@@ -237,7 +262,29 @@ export default async function AnalyticsPage({
 
   return (
     <>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} trail={[{ label: t('title') }]} />
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle')}
+        trail={[{ label: t('title') }]}
+        actions={
+          /* A segmented control rather than a filter bar: there is one thing to
+             choose and four answers, and a form with a Filter button would be
+             three presses to change a number. Plain links, so the window is in
+             the address and a particular view can be sent to somebody. */
+          <nav className="segmented" aria-label={t('windowLabel')}>
+            {WINDOWS.map((window) => (
+              <Link
+                key={window}
+                href={window === DEFAULT_MONTHS ? '/analytics' : `/analytics?months=${window}`}
+                className="segment"
+                aria-current={window === MONTHS_TRACKED ? 'page' : undefined}
+              >
+                {t('windowMonths', { months: window })}
+              </Link>
+            ))}
+          </nav>
+        }
+      />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t('totalPatients')} value={totalPatients} Icon={Users} />

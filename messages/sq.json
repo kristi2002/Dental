@@ -46,6 +46,7 @@
   "common": {
     "save": "Ruaj",
     "cancel": "Anulo",
+    "discardUnsaved": "Keni shkruar diçka që nuk është ruajtur. Ta hidhni poshtë?",
     "delete": "Fshi",
     "edit": "Ndrysho",
     "add": "Shto",
@@ -302,6 +303,7 @@
     "provider": "Dentisti",
     "selectProvider": "I pacaktuar",
     "allProviders": "Të gjithë",
+    "allOperatories": "Çdo karrige",
     "operatory": "Karrigia",
     "selectOperatory": "E pacaktuar",
     "markArrived": "Mbërriti",
@@ -549,6 +551,8 @@
   "analytics": {
     "title": "Statistikat",
     "subtitle": "6 muajt e fundit",
+    "windowLabel": "Periudha",
+    "windowMonths": "{months, plural, =24 {2 vjet} =12 {1 vit} other {# muaj}}",
     "visitsOverTime": "Vizitat sipas muajit",
     "topServices": "Shërbimet më të kryera",
     "patientGrowth": "Pacientë të rinj sipas muajit",
@@ -760,8 +764,11 @@
       "mailAuth": "ofruesi i postës refuzoi çelësin",
       "mailRejected": "ofruesi i postës refuzoi mesazhin",
       "mailLimit": "kufiri i dërgimeve për sot është shterur",
-      "mailUnreachable": "ofruesi i postës nuk u arrit"
-    }
+      "mailUnreachable": "ofruesi i postës nuk u arrit",
+      "cancelNoLongerDue": "pacienti nuk është më me vonesë"
+    },
+    "lastSeen": "Parë së fundi më {date}",
+    "neverSeen": "Nuk ka ardhur kurrë"
   },
   "errors": {
     "duplicatePhone": "Ekziston tashmë një pacient me këtë numër: {list}.",
@@ -794,7 +801,10 @@
     "barcodeTaken": "Ky kod është tashmë i lidhur me {name}.",
     "alreadyMoved": "Ky takim është zhvendosur tashmë. Hap atë të riun.",
     "mergeSame": "Është e njëjta kartelë.",
-    "importTooMany": "Ky import ka më shumë se {limit} rreshta. Ndaje dhe importoje në pjesë."
+    "importTooMany": "Ky import ka më shumë se {limit} rreshta. Ndaje dhe importoje në pjesë.",
+    "gone": "Kjo është hequr tashmë nga dikush tjetër.",
+    "alreadyHandled": "Dikush tjetër e ka trajtuar tashmë këtë.",
+    "notReopenable": "Kjo u tërhoq automatikisht dhe nuk mund të kthehet — takimi për të cilin ishte ka ndryshuar."
   },
   "roles": {
     "OWNER": "Pronar / Dentist",
@@ -904,7 +914,19 @@
     "unlock": "Zhblloko",
     "unlocking": "Duke zhbllokuar…",
     "lockedSignOut": "Dil dhe ndërro përdorues",
-    "idleWarning": "Bllokohet për {seconds}s"
+    "idleWarning": "Bllokohet për {seconds}s",
+    "errorSignedOut": "Nuk jeni më i identifikuar.",
+    "errorPinRequired": "Plotësoni të tria kutitë.",
+    "errorPinMismatch": "Dy PIN-et e reja nuk përputhen.",
+    "errorPinFormat": "PIN-i duhet të jetë 4 deri në 6 shifra.",
+    "errorWrongCurrentPin": "Ky nuk është PIN-i juaj aktual.",
+    "errorPinUnchanged": "Ky është PIN-i që kishit tashmë.",
+    "changePin": "Ndrysho PIN-in tim",
+    "changePinHint": "Vetëm ju e dini PIN-in tuaj. Çdo rresht i regjistrit të veprimtarisë firmoset me të.",
+    "currentPin": "PIN-i aktual",
+    "newPin": "PIN-i i ri",
+    "confirmNewPin": "PIN-i i ri përsëri",
+    "pinChanged": "PIN-i juaj u ndryshua."
   },
   "staff": {
     "title": "Stafi dhe rolet",
@@ -1566,11 +1588,13 @@
     "footnote": "Orari ndodhet te kontejneri i punëve, jo në këtë aplikacion. Nisja këtu bën të njëjtën punë, tani.",
     "name": {
       "queue-appointment-reminders": "Kujtesat e nesërme",
-      "sweep-orphan-files": "Pastro skedarët e papërdorur"
+      "sweep-orphan-files": "Pastro skedarët e papërdorur",
+      "queue-recalls": "Kontrollet me vonesë"
     },
     "hint": {
       "queue-appointment-reminders": "Gjen kë duhet kujtuar për nesër dhe mbush radhën e dërgimit. Nuk dërgon asgjë.",
-      "sweep-orphan-files": "Heq skedarët e ngarkuar që nuk i përket më asnjë regjistrim."
+      "sweep-orphan-files": "Heq skedarët e ngarkuar që nuk i përket më asnjë regjistrim.",
+      "queue-recalls": "Vendos në radhë pacientët që s'i ka parë kush prej muajsh. Nuk dërgon asgjë."
     },
     "reason": {
       "ok": "Në rregull",

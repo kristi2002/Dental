@@ -46,6 +46,7 @@
   "common": {
     "save": "Salva",
     "cancel": "Annulla",
+    "discardUnsaved": "Hai scritto qualcosa che non è stato salvato. Vuoi scartarlo?",
     "delete": "Elimina",
     "edit": "Modifica",
     "add": "Aggiungi",
@@ -302,6 +303,7 @@
     "provider": "Dentista",
     "selectProvider": "Non assegnato",
     "allProviders": "Tutti",
+    "allOperatories": "Qualsiasi poltrona",
     "operatory": "Poltrona",
     "selectOperatory": "Non assegnata",
     "markArrived": "Arrivato",
@@ -549,6 +551,8 @@
   "analytics": {
     "title": "Statistiche",
     "subtitle": "Ultimi 6 mesi",
+    "windowLabel": "Periodo",
+    "windowMonths": "{months, plural, =24 {2 anni} =12 {1 anno} other {# mesi}}",
     "visitsOverTime": "Visite per mese",
     "topServices": "Servizi più eseguiti",
     "patientGrowth": "Nuovi pazienti per mese",
@@ -760,8 +764,11 @@
       "mailAuth": "il provider di posta ha rifiutato la chiave",
       "mailRejected": "il provider di posta ha rifiutato il messaggio",
       "mailLimit": "il limite di invii di oggi è esaurito",
-      "mailUnreachable": "impossibile raggiungere il provider di posta"
-    }
+      "mailUnreachable": "impossibile raggiungere il provider di posta",
+      "cancelNoLongerDue": "il paziente non è più in ritardo"
+    },
+    "lastSeen": "Visto l'ultima volta il {date}",
+    "neverSeen": "Non è mai venuto"
   },
   "errors": {
     "duplicatePhone": "Esiste già un paziente con questo numero: {list}.",
@@ -794,7 +801,10 @@
     "barcodeTaken": "Questo codice è già collegato a {name}.",
     "alreadyMoved": "Questo appuntamento è già stato spostato. Apri quello nuovo.",
     "mergeSame": "È la stessa scheda.",
-    "importTooMany": "Quell'importazione ha più di {limit} righe. Dividila e importala in parti."
+    "importTooMany": "Quell'importazione ha più di {limit} righe. Dividila e importala in parti.",
+    "gone": "È già stato rimosso da qualcun altro.",
+    "alreadyHandled": "Qualcun altro se ne è già occupato.",
+    "notReopenable": "È stato ritirato automaticamente e non può essere ripristinato — l'appuntamento a cui si riferiva è cambiato."
   },
   "roles": {
     "OWNER": "Titolare / Dentista",
@@ -904,7 +914,19 @@
     "unlock": "Sblocca",
     "unlocking": "Sblocco…",
     "lockedSignOut": "Esci e cambia utente",
-    "idleWarning": "Blocco tra {seconds}s"
+    "idleWarning": "Blocco tra {seconds}s",
+    "errorSignedOut": "Non sei più connesso.",
+    "errorPinRequired": "Compila tutte e tre le caselle.",
+    "errorPinMismatch": "I due nuovi PIN non coincidono.",
+    "errorPinFormat": "Un PIN deve avere da 4 a 6 cifre.",
+    "errorWrongCurrentPin": "Questo non è il tuo PIN attuale.",
+    "errorPinUnchanged": "Questo è il PIN che avevi già.",
+    "changePin": "Cambia il mio PIN",
+    "changePinHint": "Solo tu conosci il tuo PIN. Ogni riga del registro attività è firmata con esso.",
+    "currentPin": "PIN attuale",
+    "newPin": "Nuovo PIN",
+    "confirmNewPin": "Ripeti il nuovo PIN",
+    "pinChanged": "Il tuo PIN è stato cambiato."
   },
   "staff": {
     "title": "Personale e ruoli",
@@ -1566,11 +1588,13 @@
     "footnote": "La pianificazione risiede nel contenitore delle operazioni, non in questa app. Avviarne una qui fa lo stesso lavoro, subito.",
     "name": {
       "queue-appointment-reminders": "Promemoria di domani",
-      "sweep-orphan-files": "Pulisci i file inutilizzati"
+      "sweep-orphan-files": "Pulisci i file inutilizzati",
+      "queue-recalls": "Controlli in ritardo"
     },
     "hint": {
       "queue-appointment-reminders": "Individua chi ricordare per domani e riempie la coda di invio. Non invia nulla.",
-      "sweep-orphan-files": "Rimuove i file caricati a cui non punta più alcun record."
+      "sweep-orphan-files": "Rimuove i file caricati a cui non punta più alcun record.",
+      "queue-recalls": "Mette in coda i pazienti che nessuno vede da mesi. Non invia nulla."
     },
     "reason": {
       "ok": "Funziona",

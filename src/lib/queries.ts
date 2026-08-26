@@ -389,11 +389,18 @@ export async function getAppointmentsBetween(
   to: Date,
   /** Narrow to one dentist's list — the calendar's provider filter. */
   staffUserId?: string | null,
+  /**
+   * Narrow to one chair. The other half of the same question, and the half the
+   * calendar could not ask: a two-chair practice deciding whether it can take a
+   * walk-in wants to know what chair 2 is doing, not what Dr B is doing.
+   */
+  operatoryId?: string | null,
 ): Promise<AppointmentView[]> {
   const rows = await prisma.appointment.findMany({
     where: {
       date: { gte: from, lte: to },
       ...(staffUserId ? { staffUserId } : {}),
+      ...(operatoryId ? { operatoryId } : {}),
     },
     select: APPOINTMENT_SELECT,
     orderBy: { date: 'asc' },
