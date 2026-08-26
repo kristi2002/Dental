@@ -1,8 +1,9 @@
 import { cache } from 'react';
-import { AppointmentStatus } from '@/generated/prisma/enums';
+import { ContactPurpose } from '@/generated/prisma/enums';
 import { addMonths, today, toDateKey } from '@/lib/dates';
 import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
+import { OCCUPIES_A_SLOT } from '@/lib/scheduling';
 
 /**
  * Who the clinic should be calling, worked out rather than remembered.
@@ -17,6 +18,19 @@ import { prisma } from '@/lib/prisma';
 
 /** Once contacted, a patient drops off the list for this long regardless. */
 const CONTACT_COOLDOWN_DAYS = 30;
+
+/**
+ * The purposes that count as "we have already chased this person".
+ *
+ * Both lists are worked from the same `RecallCard`, and every message it opens —
+ * on either list — is logged as `RECALL`. `FOLLOW_UP` is included so that a card
+ * given its own purpose later starts suppressing rather than silently not.
+ *
+ * `REMINDER` and `CONFIRMATION` are deliberately out. Those are about one booked
+ * slot, not about coming back at all, and anybody who has one is already off the
+ * recall list for having an appointment.
+ */
+const CHASE_PURPOSES = [ContactPurpose.RECALL, ContactPurpose.FOLLOW_UP] as const;
 
 /** A follow-up is worth making in this window after treatment, and not later. */
 const FOLLOW_UP_FROM_DAYS = 2;
@@ -70,11 +84,40 @@ export type PatientForRecall = {
   createdAt: Date;
   recallMonths: number;
   recallSnoozedUntil: Date | null;
+  /** The manual tick — `markRecallContacted` and nothing else writes it. */
   lastRecallAt: Date | null;
+  /**
+   * The newest chase in the contact log, or an empty list. At most one row.
+   *
+   * The other half of the same memory. Opening a WhatsApp or an email from the
+   * recall card writes a `Contact`; pressing **Contacted** stamps
+   * `lastRecallAt`. Neither wrote the other, and the cooldown read only the
+   * second — so messaging somebody from this list left them on it, and the list
+   * asked the practice to ring them again tomorrow.
+   */
+  contacts: Array<{ createdAt: Date }>;
   contactConsent: boolean | null;
   visitRecords: Array<{ visitDate: Date; servicesText: string }>;
   appointments: Array<{ id: string }>;
 };
+
+/**
+ * When this patient was last chased, by either route.
+ *
+ * Derived rather than reconciled: neither memory is made to write the other, so
+ * neither can drift from it. `lastRecallAt` stays as the honest record of
+ * somebody pressing the button, and the contact log stays as the honest record
+ * of a message being put in front of the patient — the cooldown simply wants
+ * whichever happened last.
+ */
+export function lastChasedAt(
+  patient: Pick<PatientForRecall, 'lastRecallAt' | 'contacts'>,
+): Date | null {
+  const logged = patient.contacts[0]?.createdAt ?? null;
+  if (!patient.lastRecallAt) return logged;
+  if (!logged) return patient.lastRecallAt;
+  return logged > patient.lastRecallAt ? logged : patient.lastRecallAt;
+}
 
 /**
  * Cached per request: the recalls page asks for both lists in one `Promise.all`,
@@ -114,9 +157,23 @@ const loadCandidates = cache(async (): Promise<PatientForRecall[]> => {
         // the patient in their own words — "how is the upper left filling?"
         select: { visitDate: true, servicesText: true },
       },
+      // The other memory of "we already rang them" — see `lastChasedAt`.
+      contacts: {
+        where: { purpose: { in: [...CHASE_PURPOSES] } },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { createdAt: true },
+      },
       // Anyone already booked is not overdue, whatever the calendar says.
+      //
+      // `OCCUPIES_A_SLOT` rather than a bare `SCHEDULED`, which is what this
+      // read used to spell by hand — and it was the fourth such array, after
+      // the three `scheduling.ts` gathered into this constant. Omitting
+      // `ARRIVED` meant a patient stopped counting as booked at the exact
+      // moment the front desk confirmed they were in the building, so an
+      // overdue patient could surface on this list while sitting in the chair.
       appointments: {
-        where: { date: { gte: now }, status: AppointmentStatus.SCHEDULED },
+        where: { date: { gte: now }, status: { in: [...OCCUPIES_A_SLOT] } },
         take: 1,
         select: { id: true },
       },
@@ -145,12 +202,9 @@ export function selectRecalls(patients: PatientForRecall[], now: Date): RecallRo
     if (patient.recallMonths <= 0) continue;
     if (patient.appointments.length > 0) continue;
     if (patient.recallSnoozedUntil && patient.recallSnoozedUntil > now) continue;
-    if (
-      patient.lastRecallAt &&
-      daysBetween(patient.lastRecallAt, now) < CONTACT_COOLDOWN_DAYS
-    ) {
-      continue;
-    }
+
+    const chased = lastChasedAt(patient);
+    if (chased && daysBetween(chased, now) < CONTACT_COOLDOWN_DAYS) continue;
 
     // Never seen? Count from when they were entered, so a patient added and
     // never booked still surfaces instead of sitting invisible forever.
@@ -189,12 +243,9 @@ export function selectFollowUps(patients: PatientForRecall[], now: Date): Follow
 
     const daysSince = daysBetween(visit.visitDate, now);
     if (daysSince < FOLLOW_UP_FROM_DAYS || daysSince > FOLLOW_UP_TO_DAYS) continue;
-    if (
-      patient.lastRecallAt &&
-      daysBetween(patient.lastRecallAt, now) < FOLLOW_UP_FROM_DAYS
-    ) {
-      continue;
-    }
+
+    const chased = lastChasedAt(patient);
+    if (chased && daysBetween(chased, now) < FOLLOW_UP_FROM_DAYS) continue;
 
     rows.push({
       id: patient.id,

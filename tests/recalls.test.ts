@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  lastChasedAt,
   type PatientForRecall,
   selectFollowUps,
   selectRecalls,
@@ -36,6 +37,7 @@ function patient(overrides: Partial<PatientForRecall> = {}): PatientForRecall {
     recallMonths: 6,
     recallSnoozedUntil: null,
     lastRecallAt: null,
+    contacts: [],
     contactConsent: true,
     // Six months and a day ago: due, by one day.
     visitRecords: [{ visitDate: new Date('2026-02-19T00:00:00.000Z'), servicesText: 'Mbushje' }],
@@ -93,6 +95,42 @@ describe('selectRecalls — whose check-up is overdue', () => {
     assert.equal(selectRecalls([patient({ lastRecallAt: daysBefore(29) })], NOW).length, 0);
     // Day 30 is the day they come back — the cooldown is "less than 30", not "at most".
     assert.equal(selectRecalls([patient({ lastRecallAt: daysBefore(30) })], NOW).length, 1);
+  });
+
+  it('holds a patient who was messaged, not only one who was ticked off', () => {
+    // The bug this replaces: opening WhatsApp from the recall card wrote a
+    // `Contact` and nothing else, so the cooldown — which read `lastRecallAt`
+    // alone — never started and the same patient was on the list the next
+    // morning, and the morning after that.
+    assert.equal(selectRecalls([patient({ contacts: [{ createdAt: daysBefore(29) }] })], NOW).length, 0);
+    assert.equal(selectRecalls([patient({ contacts: [{ createdAt: daysBefore(30) }] })], NOW).length, 1);
+  });
+
+  it('takes the later of the two memories, whichever way round they fall', () => {
+    // Ticked off long ago, messaged this morning: still held.
+    assert.equal(
+      selectRecalls(
+        [patient({ lastRecallAt: daysBefore(200), contacts: [{ createdAt: daysBefore(1) }] })],
+        NOW,
+      ).length,
+      0,
+    );
+    // Messaged long ago, ticked off this morning: still held.
+    assert.equal(
+      selectRecalls(
+        [patient({ lastRecallAt: daysBefore(1), contacts: [{ createdAt: daysBefore(200) }] })],
+        NOW,
+      ).length,
+      0,
+    );
+    // Both stale: back on the list.
+    assert.equal(
+      selectRecalls(
+        [patient({ lastRecallAt: daysBefore(200), contacts: [{ createdAt: daysBefore(100) }] })],
+        NOW,
+      ).length,
+      1,
+    );
   });
 
   it('counts from the registration date for somebody never seen', () => {
@@ -185,6 +223,11 @@ describe('selectFollowUps — how is the tooth today', () => {
     assert.equal(selectFollowUps([treated(5, { lastRecallAt: daysBefore(2) })], NOW).length, 1);
   });
 
+  it('counts a logged message as contact here too', () => {
+    assert.equal(selectFollowUps([treated(5, { contacts: [{ createdAt: daysBefore(1) }] })], NOW).length, 0);
+    assert.equal(selectFollowUps([treated(5, { contacts: [{ createdAt: daysBefore(2) }] })], NOW).length, 1);
+  });
+
   it('quotes the visit text back, which is what the message is built from', () => {
     assert.equal(selectFollowUps([treated(3)], NOW)[0].services, 'Heqje dhëmbi');
   });
@@ -202,5 +245,31 @@ describe('both lists', () => {
   it('return nothing for nobody', () => {
     assert.deepEqual(selectRecalls([], NOW), []);
     assert.deepEqual(selectFollowUps([], NOW), []);
+  });
+});
+
+describe('lastChasedAt — one answer from two memories', () => {
+  const base = { lastRecallAt: null, contacts: [] as Array<{ createdAt: Date }> };
+  const may = new Date('2026-05-01T00:00:00.000Z');
+  const june = new Date('2026-06-01T00:00:00.000Z');
+
+  it('is null when nobody has chased them at all', () => {
+    assert.equal(lastChasedAt(base), null);
+  });
+
+  it('falls back to whichever memory exists on its own', () => {
+    assert.equal(lastChasedAt({ ...base, lastRecallAt: may })?.getTime(), may.getTime());
+    assert.equal(lastChasedAt({ ...base, contacts: [{ createdAt: may }] })?.getTime(), may.getTime());
+  });
+
+  it('takes the later of the two when both exist', () => {
+    assert.equal(
+      lastChasedAt({ lastRecallAt: may, contacts: [{ createdAt: june }] })?.getTime(),
+      june.getTime(),
+    );
+    assert.equal(
+      lastChasedAt({ lastRecallAt: june, contacts: [{ createdAt: may }] })?.getTime(),
+      june.getTime(),
+    );
   });
 });
