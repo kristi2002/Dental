@@ -36,6 +36,9 @@ every one of them checked against the code rather than inferred from a document.
 | L-04 | Confirming from the patient link un-arrived them | the status write dropped from `respondToAppointment` |
 | A-01 | `JobRun` was written by the runner and read by nothing | `job-status.ts`, `jobs/board.ts`, and the **Scheduled jobs** card on `/staff` |
 | L-05 | The evening reminder run could not see an evening booking | a second trigger at 07:00, in the sidecar and in both deployment paths |
+| U-01 | "Waiting on the laboratory" offered the patient's number | the `Lab` entity, and a migration that carried every spelling over |
+| F-01 | The patient record could not answer "is my crown back yet" | a **Laboratory** tab, reading the `Work.patientId` relation that was always there |
+| F-02 | No list of the prescriptions the practice had written | `/prescriptions/issued`, and the section reordered around it |
 
 Batch 1 is covered by pure tests and, where the bug lived in a `where`, by
 assertions in `tests/query-layer.test.ts` — each checked by reintroducing the
@@ -53,16 +56,30 @@ this and a typecheck cannot either. Cross-referencing exported actions against
 components can, which is why phase 3 of the search exists.
 
 Batch 3 is covered by `tests/job-status.test.ts` for the decision and by the
-running app for the screen. One thing it is **not** covered by, and the reason
-is worth recording: the **Run now** button cannot be click-verified here.
-`document.visibilityState` stays `hidden` in this browser pane even when the tab
-is fronted, so React defers hydration indefinitely and a form whose action is a
-server action posts natively — which Next then refuses, because a native post
-from this pane carries `origin: null`. Every server action in the app is
-unreachable from this environment. The work the button triggers was exercised
-through `/api/jobs/<name>`, which is the same `runJob`.
+running app for the screen. One thing it is **not** covered by: the **Run now**
+button was never click-verified. The staff page did not hydrate in the browser
+pane on the attempt, so the form posted natively and Next refused it — a native
+post from that pane carries `origin: null`.
 
-Everything below **Batch 3** in the plan is still open.
+*(An earlier version of this paragraph concluded that every server action in the
+app is unreachable from this environment. That is not true: Batch 2's **Warn me
+again** was clicked for real on the reminder board and worked. Whatever stopped
+the staff page hydrating was particular to that page or that run, not a property
+of the environment — so the next person to reach for this should try it rather
+than believe the note.)*
+
+The work behind the button was exercised through `/api/jobs/<name>`, which calls
+the same `runJob`.
+
+Batch 4 is verified in the running app for all three screens, and its migration
+by replaying it over the real local register — with spelling variants planted
+first — inside a transaction that was then rolled back. `tests/backup.test.ts`
+supplied a guard nobody wrote for the occasion: it refused to pass until `Lab`
+was in both the export and the restore, on the grounds that a model no backup
+reads is a model a restored practice loses.
+
+Everything below **Batch 4** in the plan is still open. What remains is B-03,
+A-02, A-03, F-03, F-04, F-05, L-06 and U-02 — the rest of Batch 5.
 
 ---
 
