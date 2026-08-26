@@ -196,6 +196,7 @@ export function AppointmentFormDialog({
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
+      discardMessage={tc('discardUnsaved')}
       closeLabel={tc('close')}
       // The tooltip follows the label rather than restating the default: a
       // button that reads "Book" and hovers "New appointment" is two names for

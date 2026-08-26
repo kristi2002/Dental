@@ -138,6 +138,7 @@ export function PrescriptionDialog({
       submitLabel={t('issue')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
+      discardMessage={tc('discardUnsaved')}
       closeLabel={tc('close')}
       triggerClassName="btn btn-primary btn-sm"
       trigger={

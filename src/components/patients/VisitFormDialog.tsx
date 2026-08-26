@@ -96,6 +96,7 @@ export function VisitFormDialog({
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
+      discardMessage={tc('discardUnsaved')}
       closeLabel={tc('close')}
       triggerClassName={triggerClassName}
       trigger={

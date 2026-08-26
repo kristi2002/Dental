@@ -85,6 +85,7 @@ export function FollowUpFormDialog({
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
+      discardMessage={tc('discardUnsaved')}
       closeLabel={tc('close')}
       triggerTitle={label}
       triggerClassName={triggerClassName}

@@ -65,6 +65,7 @@ export function StepFormDialog({
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
+      discardMessage={tc('discardUnsaved')}
       closeLabel={tc('close')}
       triggerTitle={editing ? t('editStep') : t('addStep')}
       triggerClassName={triggerClassName}

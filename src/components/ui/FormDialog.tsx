@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, type ReactNode } from 'react';
 import type { ActionState } from '@/lib/actions/types';
 import { useRecoveredForm } from '@/lib/form-recovery';
 import { cn } from '@/lib/utils';
@@ -44,6 +44,18 @@ type Props = {
    */
   openOnMount?: boolean;
   wide?: boolean;
+  /**
+   * The question asked before a dialog with typing in it is thrown away.
+   *
+   * When set, closing a *dirty* form — Escape, the ✕, or a click on the
+   * backdrop — asks first. Unset, the dialog behaves exactly as it always has.
+   *
+   * Opt-in rather than automatic, because most of these hold four fields picked
+   * from selects and a confirmation on those would be a prompt in the way. It is
+   * worth setting wherever somebody might have *written* something: a visit
+   * note, a treatment plan, a message to a patient.
+   */
+  discardMessage?: string;
 };
 
 export function FormDialog({
@@ -62,6 +74,7 @@ export function FormDialog({
   onSuccess,
   openOnMount = false,
   wide = false,
+  discardMessage,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const handledTs = useRef<number | undefined>(undefined);
@@ -81,6 +94,95 @@ export function FormDialog({
     dialogRef.current?.close();
     onSuccess?.();
   }, [state, resetOnSuccess, formRef, onSuccess]);
+
+  /**
+   * Has anybody actually typed into this?
+   *
+   * Read off the DOM at the moment of closing rather than tracked as state:
+   * these are uncontrolled forms — that is the whole reason `useRecoveredForm`
+   * has to put values back by hand — so there is no React state to compare
+   * against, and a `dirty` flag hung off every `onChange` would be a second
+   * source of truth for something the elements already know.
+   *
+   * Compared against `defaultValue` / `defaultChecked`, so a field the dialog
+   * opened with does not count as typing. A `<select>` is deliberately left out:
+   * every one in this app opens on a real default and changing it back and forth
+   * would leave the form looking dirty when it says exactly what it started with.
+   */
+  const isDirty = useCallback(() => {
+    const form = formRef.current;
+    if (!form) return false;
+
+    for (const element of Array.from(form.elements)) {
+      if (element instanceof HTMLInputElement) {
+        // A file input has no `defaultValue` worth comparing — anything chosen
+        // is by definition something somebody chose.
+        if (element.type === 'file') {
+          if (element.files && element.files.length > 0) return true;
+          continue;
+        }
+        if (element.type === 'checkbox' || element.type === 'radio') {
+          if (element.checked !== element.defaultChecked) return true;
+          continue;
+        }
+        if (element.value !== element.defaultValue) return true;
+      } else if (element instanceof HTMLTextAreaElement) {
+        // The one that matters most: a visit write-up is the longest text
+        // anybody types into this app, and it lives in one of these.
+        if (element.value !== element.defaultValue) return true;
+      }
+    }
+
+    return false;
+  }, [formRef]);
+
+  /** Close, unless there is unsaved typing and the person says to keep it. */
+  const closeGuarded = useCallback(() => {
+    if (discardMessage && isDirty() && !window.confirm(discardMessage)) return;
+    dialogRef.current?.close();
+  }, [discardMessage, isDirty]);
+
+  /**
+   * Escape, which is the way this is actually lost.
+   *
+   * A native `<dialog>` closes on Escape and there is nothing to hook but
+   * `cancel` — which is fired *before* the close and can be prevented. The ✕ and
+   * the backdrop go through `closeGuarded` directly; this is the third way out
+   * and the one nobody presses on purpose.
+   */
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !discardMessage) return;
+
+    const onCancel = (event: Event) => {
+      if (!isDirty()) return;
+      event.preventDefault();
+      if (window.confirm(discardMessage)) dialog.close();
+    };
+
+    dialog.addEventListener('cancel', onCancel);
+    return () => dialog.removeEventListener('cancel', onCancel);
+  }, [discardMessage, isDirty]);
+
+  /**
+   * And the backdrop, which is the second way.
+   *
+   * A modal `<dialog>` fills the viewport and its backdrop *is* the element, so
+   * a click landing on the backdrop reports the dialog itself as its target —
+   * the same trick `ReminderCenter` uses, and the reason this needs no
+   * `stopPropagation` on the panel inside.
+   */
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const onClick = (event: MouseEvent) => {
+      if (event.target === dialog) closeGuarded();
+    };
+
+    dialog.addEventListener('click', onClick);
+    return () => dialog.removeEventListener('click', onClick);
+  }, [closeGuarded]);
 
   // Mount-time only, by design: re-opening is a remount with a new `key`, which
   // is also how the fields get the new slot's defaults.
@@ -120,7 +222,7 @@ export function FormDialog({
               type="button"
               className="btn btn-ghost btn-sm"
               aria-label={closeLabel}
-              onClick={() => dialogRef.current?.close()}
+              onClick={closeGuarded}
             >
               <X size={20} aria-hidden />
             </button>

@@ -59,6 +59,7 @@ export function PlanFormDialog({
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
+      discardMessage={tc('discardUnsaved')}
       closeLabel={tc('close')}
       triggerTitle={t('edit')}
       triggerClassName={triggerClassName}

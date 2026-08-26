@@ -50,6 +50,7 @@ export function ChaseDialog({
       submitLabel={t('chaseSubmit')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
+      discardMessage={tc('discardUnsaved')}
       closeLabel={tc('close')}
       triggerTitle={t('chase')}
       triggerClassName={triggerClassName}

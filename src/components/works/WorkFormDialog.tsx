@@ -80,6 +80,7 @@ export function WorkFormDialog({
       submitLabel={tc('save')}
       pendingLabel={tc('saving')}
       cancelLabel={tc('cancel')}
+      discardMessage={tc('discardUnsaved')}
       closeLabel={tc('close')}
       triggerTitle={tc('edit')}
       triggerClassName={triggerClassName}
