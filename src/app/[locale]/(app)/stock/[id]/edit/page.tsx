@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { BarcodeList } from '@/components/stock/BarcodeList';
 import { EditStockForm } from '@/components/stock/EditStockForm';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
@@ -57,6 +58,19 @@ export default async function EditStockItemPage({
         orderQty: true,
         supplierId: true,
         product: { select: { name: true } },
+        // What the scanner has been taught this material is. Read here because
+        // this is the only screen in the app that could ever have shown it —
+        // and until it did, a code linked to the wrong material was permanent.
+        barcodes: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            code: true,
+            packQty: true,
+            label: true,
+            createdAt: true,
+          },
+        },
       },
     }),
     // The products already recorded, offered as autocomplete — it is what keeps
@@ -111,6 +125,20 @@ export default async function EditStockItemPage({
         products={products.map((row) => row.name)}
         suppliers={suppliers}
         from={from}
+      />
+
+      {/* Below the save bar, deliberately. These rows are not part of what
+          **Save** is collecting — unlinking is immediate — and putting them
+          inside the form would say the opposite. It would also be invalid
+          markup: the unlink verb is a form of its own, and forms do not nest. */}
+      <BarcodeList
+        barcodes={item.barcodes.map((barcode) => ({
+          id: barcode.id,
+          code: barcode.code,
+          packQty: barcode.packQty,
+          label: barcode.label ?? '',
+          createdAt: barcode.createdAt,
+        }))}
       />
     </>
   );
