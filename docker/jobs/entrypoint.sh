@@ -50,16 +50,32 @@ SWEEP_SCHEDULE="${SWEEP_SCHEDULE:-15 3 * * 0}"
 # before they go home — which is the point of queueing it rather than sending it.
 REMINDERS_SCHEDULE="${REMINDERS_SCHEDULE:-0 18 * * *}"
 
+# And again first thing, because the evening run cannot see an evening booking.
+#
+# The job queues *tomorrow's* appointments and every row it writes carries a
+# unique `dedupeKey`, so a second run inside the same day collides and is skipped
+# rather than duplicating — which is what makes this free, and is also why the
+# evening run alone was not enough: a slot booked at half past six for nine the
+# next morning was never queued at all, and nothing said so. The dashboard's
+# "to remind" panel is a live query and showed the patient regardless, so the two
+# surfaces disagreed and the one that was incomplete was the queue somebody is
+# told to work down.
+#
+# Seven, so the queue is right before the desk opens rather than while somebody
+# is already working it.
+REMINDERS_MORNING_SCHEDULE="${REMINDERS_MORNING_SCHEDULE:-0 7 * * *}"
+
 # `/proc/1/fd/1` is this process's own stdout — what `docker logs` and Coolify's
 # log view read. Without it a cron job's output goes to a mail spool that does
 # not exist in this image, and every run is silent.
 cat > /etc/crontabs/root <<CRONTAB
 $REMINDERS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-appointment-reminders > /proc/1/fd/1 2>&1
+$REMINDERS_MORNING_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-appointment-reminders > /proc/1/fd/1 2>&1
 $SWEEP_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh sweep-orphan-files > /proc/1/fd/1 2>&1
 CRONTAB
 
 log "app: $APP_URL"
-log "schedule: reminders '$REMINDERS_SCHEDULE', sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
+log "schedule: reminders '$REMINDERS_SCHEDULE' and '$REMINDERS_MORNING_SCHEDULE', sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
 
 # --- Reachability -----------------------------------------------------------
 # Not a first run of the job itself: unlike a backup, nothing here is urgent

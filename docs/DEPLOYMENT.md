@@ -101,13 +101,27 @@ Slightly more clicking, but you get Coolify's database backup UI.
    is refused, no reminders are ever queued, and the Messages page simply stays
    empty as though the practice had a quiet week.
 
-   So set `JOBS_SECRET` above, then add two **Scheduled Tasks** to the
-   application in Coolify, both running in the `app` container:
+   The **Scheduled jobs** card on the Staff page is where that now shows up. It
+   lists every job the app knows about whether or not it has ever run, so a
+   secret that does not match reads as "Never run" rather than as a quiet week —
+   and it carries a **Run now** button, which is the fastest way to tell a clock
+   that is not firing from a job that is broken.
+
+   So set `JOBS_SECRET` above, then add three **Scheduled Tasks** to the
+   application in Coolify, all running in the `app` container:
 
    | Frequency | Job |
    | --- | --- |
    | `0 18 * * *` | `queue-appointment-reminders` |
+   | `0 7 * * *` | `queue-appointment-reminders` |
    | `15 3 * * 0` | `sweep-orphan-files` |
+
+   The reminder job appears twice on purpose. It queues *tomorrow's*
+   appointments, so the evening run cannot see a slot booked after it — half past
+   six for nine the next morning was never queued at all, and nothing anywhere
+   said so. Repeating it is free: every row it writes carries a unique dedupe
+   key, so the second run collides and skips rather than sending anybody two of
+   anything.
 
    The command, with the job name substituted in:
 
