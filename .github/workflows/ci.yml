@@ -52,9 +52,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # From `.nvmrc`, which is also what the Dockerfile's NODE_VERSION tracks.
+      # Pinning a number here instead is what broke this job: the image builds on
+      # Node 24 and this job ran on 22, so the lockfile was written by one npm
+      # and validated by another. They disagree about a single package —
+      # `next` depends on `@swc/helpers@0.5.15` exactly, while `next-intl`'s
+      # nested `@swc/core` peer-wants `>=0.5.17` — and npm 10 resolves that by
+      # adding a nested copy the lockfile does not carry, so `npm ci` failed
+      # while the production image built from the same file without complaint.
+      #
+      # One source of truth, so a Node bump cannot land in the image and miss CI.
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       # `npm ci`, not `npm install`. The difference is the entire point: `ci`

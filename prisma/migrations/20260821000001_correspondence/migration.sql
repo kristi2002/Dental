@@ -48,17 +48,6 @@ CREATE TABLE "EmailAttachment" (
     CONSTRAINT "EmailAttachment_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "StockAlertDismissal" (
-    "id" TEXT NOT NULL,
-    "stockItemId" TEXT NOT NULL,
-    "atQuantity" INTEGER NOT NULL,
-    "dismissedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "dismissedById" TEXT,
-
-    CONSTRAINT "StockAlertDismissal_pkey" PRIMARY KEY ("id")
-);
-
 -- CreateIndex
 CREATE UNIQUE INDEX "EmailThread_correspondent_key" ON "EmailThread"("correspondent");
 
@@ -83,12 +72,6 @@ CREATE UNIQUE INDEX "EmailAttachment_storageKey_key" ON "EmailAttachment"("stora
 -- CreateIndex
 CREATE INDEX "EmailAttachment_messageId_idx" ON "EmailAttachment"("messageId");
 
--- CreateIndex
-CREATE UNIQUE INDEX "StockAlertDismissal_stockItemId_key" ON "StockAlertDismissal"("stockItemId");
-
--- CreateIndex
-CREATE INDEX "StockAlertDismissal_dismissedById_idx" ON "StockAlertDismissal"("dismissedById");
-
 -- AddForeignKey
 ALTER TABLE "EmailThread" ADD CONSTRAINT "EmailThread_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -100,10 +83,3 @@ ALTER TABLE "EmailMessage" ADD CONSTRAINT "EmailMessage_actorId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "EmailAttachment" ADD CONSTRAINT "EmailAttachment_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "EmailMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "StockAlertDismissal" ADD CONSTRAINT "StockAlertDismissal_stockItemId_fkey" FOREIGN KEY ("stockItemId") REFERENCES "StockItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "StockAlertDismissal" ADD CONSTRAINT "StockAlertDismissal_dismissedById_fkey" FOREIGN KEY ("dismissedById") REFERENCES "StaffUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
