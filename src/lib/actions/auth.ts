@@ -336,3 +336,85 @@ export async function unlockSession(
 
   return actionOk();
 }
+
+/**
+ * Changing your own PIN.
+ *
+ * The gap this closes is small in a clinic of four and worth naming anyway,
+ * because of what the PIN *is* here. `saveStaff` was the only path that wrote
+ * `pinHash`, and it needs `staff.manage` — so a receptionist who thought
+ * somebody watched them type had to ask the owner, and the owner necessarily
+ * knew every PIN in the practice. Every line in the activity log is attributed
+ * to one of those PINs, which makes "only its owner knows it" a property the
+ * trail quietly depends on.
+ *
+ * The current PIN is required. Not because an attacker at an unlocked machine
+ * is the threat this stops — they could already read every chart in the app —
+ * but because the one thing they could otherwise do is lock the real user out of
+ * their own account, and it costs one field to prevent.
+ *
+ * No permission check: this is the one action in the app that every signed-in
+ * person may perform on exactly one row, which is their own. It never takes an
+ * id — the session is the id, and an action that accepted one would be an
+ * action somebody could point at a colleague.
+ */
+export async function changeOwnPin(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getTranslations('auth');
+
+  const user = await getCurrentUser();
+  if (!user) return actionError(t('errorSignedOut'));
+
+  const current = requiredString(formData.get('currentPin'));
+  const next = requiredString(formData.get('newPin'));
+  const again = requiredString(formData.get('confirmPin'));
+
+  if (!current || !next || !again) return actionError(t('errorPinRequired'));
+  if (next !== again) return actionError(t('errorPinMismatch'));
+  if (!isValidPinFormat(next)) return actionError(t('errorPinFormat'));
+
+  // Throttled on the same bucket as signing in, and for the same reason: this
+  // verifies a PIN, so it is another oracle for guessing one.
+  const throttled = await throttleSignIn();
+  if (throttled) return throttled;
+
+  const account = await prisma.staffUser.findUnique({
+    where: { id: user.id },
+    select: { pinHash: true, pinSalt: true },
+  });
+  if (!account) return actionError(t('errorSignedOut'));
+
+  if (!(await verifyPin(current, account.pinHash, account.pinSalt))) {
+    // Audited, because a wrong current PIN here is the same event as a wrong PIN
+    // at the sign-in screen and the trail must not be able to tell them apart by
+    // one of them being silent.
+    await recordAudit(user, {
+      action: 'denied',
+      entity: 'session',
+      summary: 'Wrong current PIN on a change attempt',
+    });
+    return actionError(t('errorWrongCurrentPin'));
+  }
+
+  // The same PIN back again is not a change, and telling somebody so beats
+  // letting them believe they rotated it.
+  if (await verifyPin(next, account.pinHash, account.pinSalt)) {
+    return actionError(t('errorPinUnchanged'));
+  }
+
+  const credentials = await hashPin(next);
+  await prisma.staffUser.update({
+    where: { id: user.id },
+    data: { pinHash: credentials.hash, pinSalt: credentials.salt },
+  });
+
+  // The event, never the value. Nothing in this app writes a PIN anywhere but
+  // into its own hash.
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'staff',
+    entityId: user.id,
+    summary: `${user.fullName} changed their own PIN`,
+  });
+
+  return actionOk();
+}

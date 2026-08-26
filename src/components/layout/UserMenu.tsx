@@ -3,6 +3,7 @@
 import { CalendarClock, ChevronDown, LogOut, ScrollText, UserCog } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
+import { ChangePinDialog } from '@/components/auth/ChangePinDialog';
 import { Link } from '@/i18n/navigation';
 import type { Role } from '@/generated/prisma/enums';
 import { signOut } from '@/lib/actions/auth';
@@ -154,6 +155,17 @@ export function UserMenu({
               {t('activity')}
             </Link>
           ) : null}
+
+          {/* Above the way out and below the three destinations, because it is
+              neither: the others navigate, this one acts. It is the only item in
+              this menu that is unambiguously about *you* rather than about the
+              practice, which is why it lives here and not under Settings.
+
+              No permission branch — everybody has exactly one PIN and it is
+              their own. See `changeOwnPin`, which never takes an id. */}
+          <div className="border-t border-line">
+            <ChangePinDialog triggerClassName="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-[1rem] font-semibold text-ink hover:bg-brand-soft" />
+          </div>
 
           <form action={signOut} className="border-t border-line">
             <button
