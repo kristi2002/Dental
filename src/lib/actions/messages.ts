@@ -73,20 +73,29 @@ export async function sendQueuedMessage(input: {
  * link, and a server action reached by `<form action={…}>` is handed a
  * `FormData` whether it wants one or not.
  */
-export async function markQueuedMessageCalled(formData: FormData): Promise<void> {
-  await resolveAsSent(
+export async function markQueuedMessageCalled(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return resolveAsSent(
     requiredString(formData.get('id')),
     'PHONE',
     requiredString(formData.get('body')),
   );
 }
 
-async function resolveAsSent(id: string, rawChannel: string, body: string): Promise<void> {
+async function resolveAsSent(
+  id: string,
+  rawChannel: string,
+  body: string,
+): Promise<ActionState> {
+  const te = await getTranslations('errors');
+
   const user = await authorize('recall.send');
-  if (!user) return;
+  if (!user) return actionError(te('forbidden'));
 
   const channel = toChannel(rawChannel);
-  if (!id || !channel) return;
+  if (!id || !channel) return actionError(te('generic'));
 
   let patientId = '';
 
@@ -95,7 +104,11 @@ async function resolveAsSent(id: string, rawChannel: string, body: string): Prom
       where: { id },
       select: { id: true, status: true, patientId: true, appointmentId: true },
     });
-    if (!message || message.status !== MessageStatus.PENDING) return;
+    // Already resolved by somebody else. The outbox's own doc says two people
+    // work this queue and ask each other "did somebody already ring them?" —
+    // this is the app answering that question instead of shrugging.
+    if (!message) return actionError(te('gone'));
+    if (message.status !== MessageStatus.PENDING) return actionError(te('alreadyHandled'));
     patientId = message.patientId;
 
     await prisma.$transaction([
@@ -126,7 +139,7 @@ async function resolveAsSent(id: string, rawChannel: string, body: string): Prom
     ]);
   } catch (error) {
     console.error('[messages] could not record a send for', id, error);
-    return;
+    return actionError(te('generic'));
   }
 
   // Filed against the *patient*, as `logContact` files its own line, and for the
@@ -140,6 +153,7 @@ async function resolveAsSent(id: string, rawChannel: string, body: string): Prom
   });
 
   revalidateAll();
+  return actionOk();
 }
 
 /**
@@ -423,18 +437,23 @@ export async function sendTestEmail(_prev: ActionState, _formData: FormData): Pr
  * decides against it. Overloading SKIPPED would make "the job refused this"
  * unanswerable.
  */
-export async function setQueuedMessageAside(formData: FormData): Promise<void> {
+export async function setQueuedMessageAside(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const te = await getTranslations('errors');
+
   const user = await authorize('recall.send');
-  if (!user) return;
+  if (!user) return actionError(te('forbidden'));
 
   const id = requiredString(formData.get('id'));
-  if (!id) return;
+  if (!id) return actionError(te('generic'));
 
   const message = await prisma.scheduledMessage.findUnique({
     where: { id },
     select: { patientId: true },
   });
-  if (!message) return;
+  if (!message) return actionError(te('gone'));
 
   const { count } = await prisma.scheduledMessage.updateMany({
     where: { id, status: MessageStatus.PENDING },
@@ -445,7 +464,11 @@ export async function setQueuedMessageAside(formData: FormData): Promise<void> {
       resolvedById: user.id,
     },
   });
-  if (count === 0) return;
+  // Guarded on PENDING in the write, so nought means somebody else resolved it
+  // between the read above and this. That is the whole reason this action
+  // reports: on the old signature it was indistinguishable from a press that
+  // worked.
+  if (count === 0) return actionError(te('alreadyHandled'));
 
   await recordAudit(user, {
     action: 'update',
@@ -454,6 +477,7 @@ export async function setQueuedMessageAside(formData: FormData): Promise<void> {
     summary: 'set aside',
   });
   revalidateAll();
+  return actionOk();
 }
 
 /**
@@ -470,18 +494,23 @@ export async function setQueuedMessageAside(formData: FormData): Promise<void> {
  * by the note, which is the only thing on the row that records who resolved it
  * and why; `resolvedById` is null for everything the job did.
  */
-export async function reopenQueuedMessage(formData: FormData): Promise<void> {
+export async function reopenQueuedMessage(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const te = await getTranslations('errors');
+
   const user = await authorize('recall.send');
-  if (!user) return;
+  if (!user) return actionError(te('forbidden'));
 
   const id = requiredString(formData.get('id'));
-  if (!id) return;
+  if (!id) return actionError(te('generic'));
 
   const message = await prisma.scheduledMessage.findUnique({
     where: { id },
     select: { patientId: true },
   });
-  if (!message) return;
+  if (!message) return actionError(te('gone'));
 
   const { count } = await prisma.scheduledMessage.updateMany({
     where: {
@@ -497,7 +526,11 @@ export async function reopenQueuedMessage(formData: FormData): Promise<void> {
       resolvedById: null,
     },
   });
-  if (count === 0) return;
+  // Nought means the row was not a person's to reopen — the clock withdrew it,
+  // and putting it back would re-arm a message about an appointment that has
+  // moved or already begun. The button is offered on rows where that is not
+  // obvious from the outside, so it has to say which happened.
+  if (count === 0) return actionError(te('notReopenable'));
 
   await recordAudit(user, {
     action: 'update',
@@ -506,4 +539,5 @@ export async function reopenQueuedMessage(formData: FormData): Promise<void> {
     summary: 'put back',
   });
   revalidateAll();
+  return actionOk();
 }

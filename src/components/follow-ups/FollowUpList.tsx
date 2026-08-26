@@ -1,7 +1,7 @@
 import { Check, CircleCheck, ExternalLink, Paperclip, Trash2 } from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { Badge } from '@/components/ui/Badge';
-import { ActionForm } from '@/components/ui/ActionForm';
+import { ActionForm, ReportingActionForm } from '@/components/ui/ActionForm';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Link } from '@/i18n/navigation';
 import { deleteFollowUp, snoozeFollowUp, toggleFollowUpDone } from '@/lib/actions/follow-ups';
@@ -79,7 +79,7 @@ export async function FollowUpList({
             {/* The tick, first and biggest. Everything else on the row is
                 secondary to the one act that makes the board shrink. */}
             {canEdit ? (
-              <ActionForm action={toggleFollowUpDone} values={{ id: item.id }}>
+              <ReportingActionForm action={toggleFollowUpDone} values={{ id: item.id }}>
                 <button
                   type="submit"
                   title={t('markDone')}
@@ -88,7 +88,7 @@ export async function FollowUpList({
                   <Check size={16} aria-hidden />
                   <span className="sr-only">{t('markDone')}</span>
                 </button>
-              </ActionForm>
+              </ReportingActionForm>
             ) : (
               <span
                 aria-hidden

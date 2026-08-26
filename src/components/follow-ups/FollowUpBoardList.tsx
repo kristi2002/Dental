@@ -1,6 +1,6 @@
 import { Check, ExternalLink, Paperclip, RotateCcw } from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
-import { ActionForm } from '@/components/ui/ActionForm';
+import { ActionForm, ReportingActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Link } from '@/i18n/navigation';
 import { snoozeFollowUp, toggleFollowUpDone } from '@/lib/actions/follow-ups';
@@ -45,7 +45,7 @@ export async function FollowUpBoardList({
         return (
           <li key={item.id} className="flex items-start gap-3 px-5 py-4">
             {canEdit ? (
-              <ActionForm action={toggleFollowUpDone} values={{ id: item.id }}>
+              <ReportingActionForm action={toggleFollowUpDone} values={{ id: item.id }}>
                 <button
                   type="submit"
                   title={done ? t('reopen') : t('markDone')}
@@ -59,7 +59,7 @@ export async function FollowUpBoardList({
                   {done ? <RotateCcw size={15} aria-hidden /> : <Check size={16} aria-hidden />}
                   <span className="sr-only">{done ? t('reopen') : t('markDone')}</span>
                 </button>
-              </ActionForm>
+              </ReportingActionForm>
             ) : (
               <span
                 aria-hidden

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { FollowUpAttachments } from '@/components/follow-ups/FollowUpAttachments';
 import { FollowUpDetailForm } from '@/components/follow-ups/FollowUpDetailForm';
-import { ActionForm } from '@/components/ui/ActionForm';
+import { ActionForm, ReportingActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -85,12 +85,12 @@ export default async function FollowUpDetailPage({
         actions={
           canEdit ? (
             <>
-              <ActionForm action={toggleFollowUpDone} values={{ id: followUp.id }}>
+              <ReportingActionForm action={toggleFollowUpDone} values={{ id: followUp.id }}>
                 <button type="submit" className="btn btn-secondary">
                   {done ? <RotateCcw size={18} aria-hidden /> : <Check size={18} aria-hidden />}
                   {done ? t('reopen') : t('markDone')}
                 </button>
-              </ActionForm>
+              </ReportingActionForm>
 
               <ActionForm
                 action={deleteFollowUp}

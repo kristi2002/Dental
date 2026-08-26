@@ -142,18 +142,26 @@ export async function saveFollowUp(
  * than posted with the form — two people clearing the board at once should agree
  * on the result instead of undoing each other.
  */
-export async function toggleFollowUpDone(formData: FormData): Promise<void> {
+export async function toggleFollowUpDone(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const te = await getTranslations('errors');
+
   const user = await authorize('followup.edit');
-  if (!user) return;
+  if (!user) return actionError(te('forbidden'));
 
   const id = requiredString(formData.get('id'));
-  if (!id) return;
+  if (!id) return actionError(te('generic'));
 
   const item = await prisma.followUp.findUnique({
     where: { id },
     select: { title: true, doneAt: true },
   });
-  if (!item) return;
+  // Gone since the board was drawn — somebody else deleted it. Said out loud
+  // rather than returned in silence: this board is worked by four people at
+  // once, and a press that reports nothing is a press somebody makes twice.
+  if (!item) return actionError(te('gone'));
 
   const done = item.doneAt === null;
 
@@ -170,6 +178,7 @@ export async function toggleFollowUpDone(formData: FormData): Promise<void> {
   });
 
   revalidateAll();
+  return actionOk();
 }
 
 /**
