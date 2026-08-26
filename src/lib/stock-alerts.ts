@@ -33,7 +33,71 @@ export type StockAlertLike = {
   minLimit: number;
   /** Set when an order has gone out. An alert already answered is not an alert. */
   orderedAt: Date | null;
+  /** The day the supplier promised it, when they promised one. */
+  expectedAt: Date | null;
 };
+
+/**
+ * How long an order with no promised date is left alone.
+ *
+ * Plenty of orders go out without a date attached, and inventing one would make
+ * every such row look late the moment it was placed — the same argument
+ * `Work.dueAt` makes for staying optional. But an undated order cannot be
+ * allowed to silence the shelf for ever either, because that is precisely the
+ * order nobody is tracking. A fortnight is long enough that a normal delivery
+ * never trips it and short enough that a forgotten one does.
+ */
+export const ORDER_GRACE_DAYS = 14;
+
+/** Midnight of whatever day this is, so the comparisons are day-to-day. */
+function toDay(value: Date): number {
+  return Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate());
+}
+
+/**
+ * Whether an order has gone past what was promised for it.
+ *
+ * The gap this closes was the sharpest thing about the storage room: `orderedAt`
+ * switched the alarm off, `expectedAt` was collected, stored and printed as a
+ * badge — and **nothing in the app ever compared it to a date.** So marking a
+ * material ordered silenced it until the box physically arrived, and if the box
+ * never arrived it stayed silenced. The act of promising to fix the problem was
+ * what hid it.
+ *
+ * The comparison is the one [`workStatus`](./works.ts) already makes about a lab
+ * case, deliberately: due today is not late, and a promise that has passed is.
+ * A practice reads the two boards the same way and they should not disagree
+ * about what "overdue" means.
+ */
+export function orderOverdue(
+  item: Pick<StockAlertLike, 'orderedAt' | 'expectedAt'>,
+  on: Date,
+): boolean {
+  return orderLateBy(item, on) > 0;
+}
+
+/**
+ * Whole days past the promise, or 0 when nothing has been promised past.
+ *
+ * A number rather than a flag because the row has to print it: *ordered 12 days
+ * ago, still not here* is a sentence somebody can ring a supplier with, and a
+ * bare red dot is not.
+ */
+export function orderLateBy(
+  item: Pick<StockAlertLike, 'orderedAt' | 'expectedAt'>,
+  on: Date,
+): number {
+  if (!item.orderedAt) return 0;
+
+  // With a promised date the deadline is that date. Without one it is the
+  // grace period counted from when the order went out — see `ORDER_GRACE_DAYS`.
+  const deadline = item.expectedAt
+    ? toDay(item.expectedAt)
+    : toDay(item.orderedAt) + ORDER_GRACE_DAYS * 86_400_000;
+
+  const diff = toDay(on) - deadline;
+  return diff > 0 ? Math.round(diff / 86_400_000) : 0;
+}
 
 /** The row as the board reads it, with the record it points back at. */
 export type StockAlert = {
@@ -51,6 +115,17 @@ export type StockAlert = {
   supplierName: string;
   /** How many boxes to ask for, when the owner has stated a figure. */
   orderQty: number | null;
+  /**
+   * Whole days past the promised delivery, or 0.
+   *
+   * Non-zero is the only way a row with an order against it reaches the board at
+   * all, so this doubles as "this row is here because the delivery is late"
+   * rather than "because the shelf is low" — two different rows with two
+   * different verbs, and the reader must not have to work out which is which.
+   */
+  orderLateDays: number;
+  /** What the supplier promised, when they promised anything. For the row's wording. */
+  expectedAt: Date | null;
 };
 
 /**
@@ -96,15 +171,27 @@ export function dismissalHolds(usable: number, dismissal: DismissalLike | null):
  * Should this material appear on the board?
  *
  * Three ways to be silent, and they are different silences: it is not low, it is
- * already on order, or somebody has said "not now" and the shelf has not got
- * worse since.
+ * already on order *and still within its promise*, or somebody has said "not
+ * now" and the shelf has not got worse since.
+ *
+ * The qualification on the second is the whole of L-02. An order used to be a
+ * permanent answer — `orderedAt` set meant silence, full stop — which made the
+ * one thing that could go wrong with an order the one thing the board could not
+ * say. A promise that has passed is not an answer any more, so the row comes
+ * back; what it says when it comes back is different, and `StockAlertList`
+ * handles that.
+ *
+ * A dismissal still outranks an overdue order, and deliberately: "not now" is
+ * somebody looking at this exact row and deciding, which is a more recent
+ * judgement than the order was.
  */
 export function alertVisible(
   item: StockAlertLike,
   dismissal: DismissalLike | null,
+  on: Date,
 ): boolean {
   if (!isLow(item)) return false;
-  if (item.orderedAt !== null) return false;
+  if (item.orderedAt !== null && !orderOverdue(item, on)) return false;
   return !dismissalHolds(item.usable, dismissal);
 }
 
@@ -136,14 +223,24 @@ export type StockAlertCounts = {
   /** Nothing usable at all. Drives the colour, not the number. */
   out: number;
   low: number;
+  /**
+   * How many of those are here because a delivery is late rather than because
+   * the shelf is low. Cuts across `out`/`low` rather than adding to them — a
+   * material can easily be both — so it is not part of the total.
+   */
+  orderLate: number;
 };
 
 export function stockAlertCounts(
-  alerts: ReadonlyArray<Pick<StockAlert, 'severity'>>,
+  alerts: ReadonlyArray<Pick<StockAlert, 'severity' | 'orderLateDays'>>,
 ): StockAlertCounts {
   let out = 0;
-  for (const alert of alerts) if (alert.severity === 'out') out += 1;
-  return { total: alerts.length, out, low: alerts.length - out };
+  let orderLate = 0;
+  for (const alert of alerts) {
+    if (alert.severity === 'out') out += 1;
+    if (alert.orderLateDays > 0) orderLate += 1;
+  }
+  return { total: alerts.length, out, low: alerts.length - out, orderLate };
 }
 
 /** The material's full name, variant included, as one string a row can print. */

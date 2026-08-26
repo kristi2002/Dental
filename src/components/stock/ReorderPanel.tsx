@@ -138,8 +138,23 @@ export async function ReorderPanel({
                         {line.urgent ? <Badge tone="danger">{t('urgent')}</Badge> : null}
                         {/* Already answered: shown, not hidden, so nobody
                             re-orders it and nobody forgets it is still not on
-                            the shelf. */}
-                        {line.orderedAt ? <Badge tone="brand">{t('onOrder')}</Badge> : null}
+                            the shelf.
+
+                            Past its promised date it is not an answer any more,
+                            and painting it the same calm blue was how a
+                            delivery that never came read as one that was on its
+                            way. The reminder board says the same thing in the
+                            same words — three screens showing one order must
+                            not disagree about whether it is late. */}
+                        {line.orderedAt ? (
+                          line.orderLateDays > 0 ? (
+                            <Badge tone="danger">
+                              {t('onOrderLate', { days: line.orderLateDays })}
+                            </Badge>
+                          ) : (
+                            <Badge tone="brand">{t('onOrder')}</Badge>
+                          )
+                        ) : null}
                       </p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[0.92rem] text-ink-soft">
                         {/* Bulk stock is counted on the shelf every few months,

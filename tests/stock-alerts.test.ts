@@ -6,11 +6,21 @@ import {
   alertVisible,
   dismissalHolds,
   isLow,
+  ORDER_GRACE_DAYS,
+  orderLateBy,
+  orderOverdue,
   severityOf,
   sortStockAlerts,
   stockAlertCounts,
   type StockAlert,
 } from '../src/lib/stock-alerts';
+
+/** The day every case below is judged on. */
+const NOW = new Date('2026-08-20T00:00:00.000Z');
+
+function daysBefore(days: number): Date {
+  return new Date(NOW.getTime() - days * 86_400_000);
+}
 
 /** A row with only the fields the case under test cares about. */
 function alert(over: Partial<StockAlert> = {}): StockAlert {
@@ -24,6 +34,8 @@ function alert(over: Partial<StockAlert> = {}): StockAlert {
     severity: 'low',
     supplierName: 'DentalMed Shpk',
     orderQty: null,
+    orderLateDays: 0,
+    expectedAt: null,
     ...over,
   };
 }
@@ -73,30 +85,134 @@ describe('dismissalHolds — an answer expires when the shelf gets worse', () =>
   });
 });
 
-describe('alertVisible — the three different silences', () => {
+describe('orderOverdue — the promise nothing used to check', () => {
+  it('says nothing about a material that was never ordered', () => {
+    assert.equal(orderOverdue({ orderedAt: null, expectedAt: null }, NOW), false);
+    assert.equal(orderLateBy({ orderedAt: null, expectedAt: daysBefore(90) }, NOW), 0);
+  });
+
+  it('leaves an order alone until the promised day has passed', () => {
+    const ordered = daysBefore(5);
+    // Promised tomorrow: not late.
+    assert.equal(
+      orderOverdue({ orderedAt: ordered, expectedAt: new Date('2026-08-21T00:00:00.000Z') }, NOW),
+      false,
+    );
+    // Promised today: still not late. Due today is not overdue — the same rule
+    // `workStatus` applies to a lab case, so the two boards agree.
+    assert.equal(
+      orderOverdue({ orderedAt: ordered, expectedAt: new Date('2026-08-20T00:00:00.000Z') }, NOW),
+      false,
+    );
+    // Promised yesterday: late, by one day.
+    assert.equal(
+      orderLateBy({ orderedAt: ordered, expectedAt: new Date('2026-08-19T00:00:00.000Z') }, NOW),
+      1,
+    );
+  });
+
+  it('counts whole days past the promise', () => {
+    assert.equal(orderLateBy({ orderedAt: daysBefore(30), expectedAt: daysBefore(12) }, NOW), 12);
+  });
+
+  it('gives an order with no promised date the grace period, and no longer', () => {
+    // Inventing a date would make every undated order look late the day it was
+    // placed. Never expiring would let the one nobody is tracking hide forever.
+    assert.equal(
+      orderOverdue({ orderedAt: daysBefore(ORDER_GRACE_DAYS), expectedAt: null }, NOW),
+      false,
+    );
+    assert.equal(
+      orderLateBy({ orderedAt: daysBefore(ORDER_GRACE_DAYS + 1), expectedAt: null }, NOW),
+      1,
+    );
+    assert.equal(
+      orderLateBy({ orderedAt: daysBefore(ORDER_GRACE_DAYS + 9), expectedAt: null }, NOW),
+      9,
+    );
+  });
+
+  it('ignores the time of day on either side', () => {
+    // `orderedAt` is a keystroke and carries an hour; `expectedAt` is stored at
+    // UTC midnight. Comparing them raw would make an order placed at 09:00 late
+    // a few hours before one placed at 17:00 on the same day.
+    assert.equal(
+      orderLateBy(
+        {
+          orderedAt: new Date('2026-08-19T17:45:00.000Z'),
+          expectedAt: new Date('2026-08-19T00:00:00.000Z'),
+        },
+        new Date('2026-08-20T08:30:00.000Z'),
+      ),
+      1,
+    );
+  });
+});
+
+describe('alertVisible — the different silences', () => {
+  const shelf = { usable: 2, minLimit: 10, orderedAt: null, expectedAt: null };
+
   it('shows a low material nobody has answered for', () => {
-    assert.equal(alertVisible({ usable: 2, minLimit: 10, orderedAt: null }, null), true);
+    assert.equal(alertVisible(shelf, null, NOW), true);
   });
 
   it('stays quiet about a material that is not low', () => {
-    assert.equal(alertVisible({ usable: 40, minLimit: 10, orderedAt: null }, null), false);
+    assert.equal(alertVisible({ ...shelf, usable: 40 }, null, NOW), false);
   });
 
   it('stays quiet about one already on its way', () => {
     // Ordering is the completion. Asking again until the box physically arrives
     // is what teaches everyone to skim past the board.
     assert.equal(
-      alertVisible({ usable: 0, minLimit: 10, orderedAt: new Date('2026-08-20') }, null),
+      alertVisible(
+        { ...shelf, usable: 0, orderedAt: daysBefore(2), expectedAt: daysBefore(-5) },
+        null,
+        NOW,
+      ),
       false,
     );
   });
 
+  it('speaks up again once the promised delivery has passed', () => {
+    // The bug this replaces, and the worst of the silences: `orderedAt` alone
+    // shut the row up, so a supplier who never delivered left the material off
+    // the board, out of the count, and reading as dealt with — until somebody
+    // reached for an empty shelf.
+    assert.equal(
+      alertVisible(
+        { ...shelf, usable: 0, orderedAt: daysBefore(20), expectedAt: daysBefore(9) },
+        null,
+        NOW,
+      ),
+      true,
+    );
+  });
+
+  it('speaks up about an undated order once the grace period is spent', () => {
+    assert.equal(
+      alertVisible(
+        { ...shelf, orderedAt: daysBefore(ORDER_GRACE_DAYS), expectedAt: null },
+        null,
+        NOW,
+      ),
+      false,
+    );
+    assert.equal(
+      alertVisible(
+        { ...shelf, orderedAt: daysBefore(ORDER_GRACE_DAYS + 1), expectedAt: null },
+        null,
+        NOW,
+      ),
+      true,
+    );
+  });
+
   it('stays quiet about one waved away, while the shelf holds', () => {
-    assert.equal(alertVisible({ usable: 3, minLimit: 10, orderedAt: null }, { atQuantity: 3 }), false);
+    assert.equal(alertVisible({ ...shelf, usable: 3 }, { atQuantity: 3 }, NOW), false);
   });
 
   it('asks again once a waved-away shelf drops further', () => {
-    assert.equal(alertVisible({ usable: 1, minLimit: 10, orderedAt: null }, { atQuantity: 3 }), true);
+    assert.equal(alertVisible({ ...shelf, usable: 1 }, { atQuantity: 3 }, NOW), true);
   });
 
   it('lets ordering win over a dismissal that has expired', () => {
@@ -104,8 +220,22 @@ describe('alertVisible — the three different silences', () => {
     // because the box is genuinely coming.
     assert.equal(
       alertVisible(
-        { usable: 1, minLimit: 10, orderedAt: new Date('2026-08-20') },
+        { ...shelf, usable: 1, orderedAt: daysBefore(2), expectedAt: daysBefore(-5) },
         { atQuantity: 3 },
+        NOW,
+      ),
+      false,
+    );
+  });
+
+  it('lets a standing dismissal win over an overdue order', () => {
+    // "Not now" is somebody looking at this exact row today and deciding; the
+    // order is older. The board must not talk over the more recent judgement.
+    assert.equal(
+      alertVisible(
+        { ...shelf, usable: 3, orderedAt: daysBefore(20), expectedAt: daysBefore(9) },
+        { atQuantity: 3 },
+        NOW,
       ),
       false,
     );
@@ -169,15 +299,26 @@ describe('sortStockAlerts — worst morning first', () => {
 describe('stockAlertCounts — what the badge and the glance strip read', () => {
   it('splits the pile into empty and merely low', () => {
     const counts = stockAlertCounts([
-      { severity: 'out' },
-      { severity: 'low' },
-      { severity: 'low' },
+      { severity: 'out', orderLateDays: 0 },
+      { severity: 'low', orderLateDays: 0 },
+      { severity: 'low', orderLateDays: 0 },
     ]);
-    assert.deepEqual(counts, { total: 3, out: 1, low: 2 });
+    assert.deepEqual(counts, { total: 3, out: 1, low: 2, orderLate: 0 });
+  });
+
+  it('counts late deliveries across the two severities, not beside them', () => {
+    // A material is usually empty *because* the order is late, so these overlap
+    // by design — adding them to the total would count the same row twice.
+    const counts = stockAlertCounts([
+      { severity: 'out', orderLateDays: 9 },
+      { severity: 'low', orderLateDays: 2 },
+      { severity: 'low', orderLateDays: 0 },
+    ]);
+    assert.deepEqual(counts, { total: 3, out: 1, low: 2, orderLate: 2 });
   });
 
   it('reads an empty board as nought rather than as a gap', () => {
-    assert.deepEqual(stockAlertCounts([]), { total: 0, out: 0, low: 0 });
+    assert.deepEqual(stockAlertCounts([]), { total: 0, out: 0, low: 0, orderLate: 0 });
   });
 });
 

@@ -148,6 +148,7 @@ const line = (over: Partial<ReorderLine> = {}): ReorderLine => ({
   stated: false,
   urgent: true,
   orderedAt: null,
+  orderLateDays: 0,
   expectedAt: null,
   supplierName: '',
   supplierId: '',

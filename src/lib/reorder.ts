@@ -2,6 +2,7 @@ import { addDays, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { usableQuantity } from '@/lib/expiry';
 import { ACTIVE_STOCK } from '@/lib/queries';
+import { orderLateBy } from '@/lib/stock-alerts';
 
 /**
  * What to order, worked out from what was actually used.
@@ -39,6 +40,14 @@ export type ReorderLine = {
    *  answered rather than asked again every morning. */
   orderedAt: string | null;
   expectedAt: string | null;
+  /**
+   * Whole days past the promised delivery, or 0.
+   *
+   * The one thing an order can do wrong, and for a long time the one thing this
+   * list could not say: `orderedAt` sank a line to the bottom and painted it a
+   * calm blue for ever, whether the box turned up or not. See `orderLateBy`.
+   */
+  orderLateDays: number;
   supplierName: string;
   /** Empty for a material nobody has said where to buy. */
   supplierId: string;
@@ -48,7 +57,8 @@ export type ReorderLine = {
 };
 
 export async function getReorderSuggestions(): Promise<ReorderLine[]> {
-  const since = addDays(today(), -WINDOW_DAYS);
+  const now = today();
+  const since = addDays(now, -WINDOW_DAYS);
 
   const [items, used] = await Promise.all([
     prisma.stockItem.findMany({
@@ -102,7 +112,14 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
     const worthSaying = item.orderQty !== null ? urgent : urgent || projected > 0;
     if (!worthSaying) continue;
 
-    const onOrder = item.orderedAt !== null;
+    const orderLateDays = orderLateBy(
+      { orderedAt: item.orderedAt, expectedAt: item.expectedAt },
+      now,
+    );
+    // An order whose promise has passed has stopped being an answer. It goes
+    // back to counting as unanswered everywhere below — the urgency, the sort
+    // and the badge — because the shelf is still empty and nobody is coming.
+    const onOrder = item.orderedAt !== null && orderLateDays === 0;
 
     lines.push({
       id: item.id,
@@ -122,6 +139,7 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
       urgent: urgent && !onOrder,
       orderedAt: item.orderedAt ? item.orderedAt.toISOString() : null,
       expectedAt: item.expectedAt ? item.expectedAt.toISOString() : null,
+      orderLateDays,
       supplierName: item.supplier?.name ?? '',
       supplierId: item.supplierId ?? '',
       supplierPhone: item.supplier?.phone ?? '',
@@ -130,10 +148,11 @@ export async function getReorderSuggestions(): Promise<ReorderLine[]> {
   }
 
   // Most urgent first: soonest to run out, then biggest order. Anything already
-  // ordered sinks below everything still needing a decision.
+  // ordered sinks below everything still needing a decision — unless the
+  // promise has passed, in which case it needs a decision again.
   return lines.sort((a, b) => {
-    const aOrdered = a.orderedAt !== null;
-    const bOrdered = b.orderedAt !== null;
+    const aOrdered = a.orderedAt !== null && a.orderLateDays === 0;
+    const bOrdered = b.orderedAt !== null && b.orderLateDays === 0;
     if (aOrdered !== bOrdered) return aOrdered ? 1 : -1;
     if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
     const aDays = a.daysLeft ?? Number.POSITIVE_INFINITY;

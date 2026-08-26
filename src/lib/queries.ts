@@ -22,6 +22,7 @@ import { departmentOf } from '@/lib/catalog';
 import { usableQuantity } from '@/lib/expiry';
 import {
   alertVisible,
+  orderLateBy,
   severityOf,
   sortStockAlerts,
   type StockAlert,
@@ -713,6 +714,10 @@ export const getStockAlerts = cache(async (): Promise<StockAlert[]> => {
       minLimit: true,
       orderQty: true,
       orderedAt: true,
+      // The promised delivery date. Collected and displayed since orders
+      // existed, and compared to a date by nothing — so an order that never
+      // arrived silenced its material permanently. See `orderOverdue`.
+      expectedAt: true,
       supplier: { select: { name: true } },
       batches: { select: { expiryDate: true, quantity: true, usedQuantity: true } },
       alertDismissal: { select: { atQuantity: true } },
@@ -735,11 +740,19 @@ export const getStockAlerts = cache(async (): Promise<StockAlert[]> => {
     await prisma.stockAlertDismissal.deleteMany({ where: { stockItemId: { in: stale } } });
   }
 
+  const now = today();
+
   const alerts = scored
     .filter(({ item, usable }) =>
       alertVisible(
-        { usable, minLimit: item.minLimit, orderedAt: item.orderedAt },
+        {
+          usable,
+          minLimit: item.minLimit,
+          orderedAt: item.orderedAt,
+          expectedAt: item.expectedAt,
+        },
         item.alertDismissal,
+        now,
       ),
     )
     .map(({ item, usable }) => ({
@@ -752,6 +765,11 @@ export const getStockAlerts = cache(async (): Promise<StockAlert[]> => {
       severity: severityOf({ usable, minLimit: item.minLimit }),
       supplierName: item.supplier?.name ?? '',
       orderQty: item.orderQty,
+      orderLateDays: orderLateBy(
+        { orderedAt: item.orderedAt, expectedAt: item.expectedAt },
+        now,
+      ),
+      expectedAt: item.expectedAt,
     }));
 
   return sortStockAlerts(alerts);

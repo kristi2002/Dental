@@ -41,6 +41,7 @@ import { ACTIVE_STOCK, getStockCategories } from "@/lib/queries";
 import { getReorderSuggestions } from "@/lib/reorder";
 import { photoUrl } from "@/lib/stock-photos";
 import { summariseBatches, usableQuantity } from "@/lib/expiry";
+import { orderLateBy } from "@/lib/stock-alerts";
 import { cn, matches } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -144,7 +145,8 @@ export default async function StockPage({
   const expiringCount = [...expiry.values()].filter(
     (s) => s.level === "SOON",
   ).length;
-  const todayKey = toDateKey(today());
+  const day = today();
+  const todayKey = toDateKey(day);
 
   const { filter, q, category } = await searchParams;
   // `filter=low` is also the dashboard's stock-alert link — keep the value stable.
@@ -453,16 +455,28 @@ export default async function StockPage({
                       tree and rebuilds it on the client, every load. */}
                   {item.orderedAt ? (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Badge tone="brand">
-                        {item.expectedAt
-                          ? t("onOrderBy", {
-                              date: format.dateTime(item.expectedAt, {
-                                day: "numeric",
-                                month: "short",
-                              }),
-                            })
-                          : t("onOrder")}
-                      </Badge>
+                      {/* Late is a different badge, not a differently worded
+                          one. `expectedAt` was printed here from the day it
+                          existed and compared to today by nothing, so this
+                          badge said "on order by 10 Aug" in a calm blue for as
+                          long as the material sat undelivered — which is the
+                          one state it most needed to shout about. */}
+                      {orderLateBy(item, day) > 0 ? (
+                        <Badge tone="danger">
+                          {t("onOrderLate", { days: orderLateBy(item, day) })}
+                        </Badge>
+                      ) : (
+                        <Badge tone="brand">
+                          {item.expectedAt
+                            ? t("onOrderBy", {
+                                date: format.dateTime(item.expectedAt, {
+                                  day: "numeric",
+                                  month: "short",
+                                }),
+                              })
+                            : t("onOrder")}
+                        </Badge>
+                      )}
                       {canEdit ? (
                         <ActionForm
                           action={clearOrdered}

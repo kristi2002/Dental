@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it, type TestContext } from 'node:test';
-import { AppointmentStatus, CancelledBy } from '../src/generated/prisma/enums';
-import { addDays, today } from '../src/lib/dates';
+import {
+  AppointmentStatus,
+  CancelledBy,
+  ContactChannel,
+  ContactPurpose,
+} from '../src/generated/prisma/enums';
+import { addDays, addMonths, today } from '../src/lib/dates';
 import { prisma } from '../src/lib/prisma';
-import { getUnremindedTomorrow } from '../src/lib/queries';
+import { getStockAlerts, getUnremindedTomorrow } from '../src/lib/queries';
+import { getRecalls } from '../src/lib/recalls';
 import { getReliability, getReliabilityMap, NOT_CLINIC_CANCELLED } from '../src/lib/reliability';
 import { findConflicts, OCCUPIES_A_SLOT } from '../src/lib/scheduling';
 
@@ -52,6 +58,9 @@ function needsDatabase(t: TestContext): boolean {
 async function cleanUp(): Promise<void> {
   if (unreachable) return;
   await prisma.patient.deleteMany({ where: { lastName: MARKER } });
+  // Materials hang off no patient, so they need their own sweep. The name is
+  // the marker, which is also what keeps a real storeroom untouched.
+  await prisma.stockItem.deleteMany({ where: { name: MARKER } });
 }
 
 async function makePatient(consent: boolean | null): Promise<string> {
@@ -252,6 +261,137 @@ describe('the query layer — filters that only a database can settle', { skip: 
 
     const conflicts = await findConflicts({ date: day, startTime: '09:15', durationMin: 30 });
     assert.equal(conflicts.length, 0, 'the chair really is free');
+  });
+
+  /**
+   * The recall list's two `where` clauses, which are the only part of that
+   * module a pure test cannot reach. `selectRecalls` is covered exhaustively in
+   * `recalls.test.ts`; what is asserted here is that the query hands it the
+   * right rows in the first place.
+   */
+  it('does not chase a patient who is sitting in the chair', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(null);
+
+    // Long overdue: seen ten months ago on a six-month recall.
+    await prisma.visitRecord.create({
+      data: {
+        patientId,
+        visitDate: addMonths(today(), -10),
+        notes: MARKER,
+        servicesText: 'Mbushje',
+      },
+    });
+
+    // Booked today, and the front desk has pressed Arrived. The old filter
+    // asked for SCHEDULED alone, so this row stopped counting as a booking at
+    // the exact moment the practice became most certain of it.
+    await prisma.appointment.create({
+      data: {
+        patientId,
+        date: today(),
+        startTime: '09:00',
+        status: AppointmentStatus.ARRIVED,
+      },
+    });
+
+    const rows = await getRecalls();
+    assert.ok(
+      !rows.some((row) => row.id === patientId),
+      'a patient in the building is not a patient to ring',
+    );
+  });
+
+  /**
+   * The storage room's silences, asserted where they are actually decided.
+   *
+   * `alertVisible` is covered case by case in `stock-alerts.test.ts`. What only
+   * a database can settle is that `getStockAlerts` reads `expectedAt` at all —
+   * the column was written, stored and printed for as long as orders have
+   * existed, and no query ever selected it for a comparison.
+   */
+  it('keeps a material off the board while its order is still due', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+
+    const item = await prisma.stockItem.create({
+      data: {
+        name: MARKER,
+        quantity: 0,
+        minLimit: 10,
+        orderedAt: addDays(today(), -2),
+        expectedAt: addDays(today(), 5),
+      },
+    });
+
+    const alerts = await getStockAlerts();
+    assert.ok(
+      !alerts.some((alert) => alert.id === item.id),
+      'the box is genuinely coming — asking again is what makes people skim the board',
+    );
+  });
+
+  it('puts a material back on the board once its delivery is overdue', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+
+    const item = await prisma.stockItem.create({
+      data: {
+        name: MARKER,
+        quantity: 0,
+        minLimit: 10,
+        orderedAt: addDays(today(), -20),
+        expectedAt: addDays(today(), -9),
+      },
+    });
+
+    const alerts = await getStockAlerts();
+    const row = alerts.find((alert) => alert.id === item.id);
+
+    // The regression, stated plainly: this row did not exist. Marking a
+    // material ordered switched its alarm off permanently, so a supplier who
+    // never delivered left an empty shelf reading as dealt with.
+    assert.ok(row, 'an order that never arrived is exactly what the board is for');
+    assert.equal(row.orderLateDays, 9);
+    assert.equal(row.severity, 'out');
+  });
+
+  it('holds a patient the contact log says was messaged this week', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(null);
+
+    await prisma.visitRecord.create({
+      data: {
+        patientId,
+        visitDate: addMonths(today(), -10),
+        notes: MARKER,
+        servicesText: 'Mbushje',
+      },
+    });
+
+    // Nothing booked and `lastRecallAt` never stamped: on the old rule this
+    // patient was due, however recently somebody had written to them.
+    assert.ok(
+      (await getRecalls()).some((row) => row.id === patientId),
+      'the fixture must be overdue to begin with, or the assertion below proves nothing',
+    );
+
+    await prisma.contact.create({
+      data: {
+        patientId,
+        channel: ContactChannel.WHATSAPP,
+        purpose: ContactPurpose.RECALL,
+        body: MARKER,
+      },
+    });
+
+    const rows = await getRecalls();
+    assert.ok(
+      !rows.some((row) => row.id === patientId),
+      'opening the message is what the cooldown reads — not only the Contacted button',
+    );
   });
 });
 
