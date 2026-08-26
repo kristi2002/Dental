@@ -39,6 +39,14 @@ every one of them checked against the code rather than inferred from a document.
 | U-01 | "Waiting on the laboratory" offered the patient's number | the `Lab` entity, and a migration that carried every spelling over |
 | F-01 | The patient record could not answer "is my crown back yet" | a **Laboratory** tab, reading the `Work.patientId` relation that was always there |
 | F-02 | No list of the prescriptions the practice had written | `/prescriptions/issued`, and the section reordered around it |
+| L-06 | The dashboard's last unbounded read | the shared candidate query split in two, each narrowed to its own question |
+| A-02 | The outbox carried one kind, and it was the lesser one | `RECALL_DUE`, a weekly `queue-recalls`, and withdrawal by comparison |
+| B-03 | Four verbs could refuse and say nothing | the follow-up toggle and the three queue verbs report |
+| U-02 | A half-written clinical note died on Escape | `discardMessage` on the nine dialogs holding prose |
+| F-03 | Nobody could change their own PIN | `changeOwnPin`, in the account menu |
+| F-04 | The calendar could not be filtered by chair | an operatory filter beside the provider one |
+| F-05 | Statistics had one fixed six-month window | a period switch, defaulting to a year |
+| A-03 | No web app manifest | `src/app/manifest.ts`, named from the practice's own settings |
 
 Batch 1 is covered by pure tests and, where the bug lived in a `where`, by
 assertions in `tests/query-layer.test.ts` — each checked by reintroducing the
@@ -78,8 +86,40 @@ supplied a guard nobody wrote for the occasion: it refused to pass until `Lab`
 was in both the export and the restore, on the grounds that a model no backup
 reads is a model a restored practice loses.
 
-Everything below **Batch 4** in the plan is still open. What remains is B-03,
-A-02, A-03, F-03, F-04, F-05, L-06 and U-02 — the rest of Batch 5.
+**All nineteen findings are closed.**
+
+Batch 5 is verified in the running app for each screen, and its two behavioural
+items against the database directly: the recall job queued two overdue patients,
+declined to duplicate them on a second run inside the same month, and withdrew
+one when that patient was booked. The dialog guard was exercised on a real
+dialog — Escape on a clean form closed it silently, Escape after one typed digit
+asked and left it open on "no".
+
+Two of the batch's fixes were forced by the repository rather than found by
+reading it. `tests/outbox.test.ts` refused to pass until the new cancel reason
+appeared in its own sweep, and `tests/backup.test.ts` had done the same for the
+`Lab` model a batch earlier. Both are tests that exist to catch a category of
+omission rather than a bug, and both earned it.
+
+## What this pass did not close
+
+Named here so the next reader does not have to re-derive it.
+
+- **The `Run now` button has never been click-verified.** See the note above.
+- **`Prescription.body` stays free text**, so the issued list searches by patient
+  and not by drug. Argued on the screen itself: a `LIKE` over prose would miss
+  "Amoxicillin 875" when somebody typed "amoksicilinë", and promising a search
+  the data cannot support is worse than not offering one.
+- **The chair filter does not narrow the waiting list.** Deliberate, and argued
+  in the commit: that list answers whether the practice can take somebody, which
+  any free chair settles.
+- **`WorkLine.lab` keeps its text alongside the new key.** Not debt — it is the
+  snapshot of what the docket said, exactly as `procedure` and `patientName` are.
+- **Near-duplicate laboratory names were not merged.** The migration folds case
+  and whitespace and stops there; deciding "Dental Tech" and "Dentaltech" are one
+  company is a judgement about the practice's suppliers.
+- **`revalidatePath('/', 'layout')`** is at more call sites than ever and remains
+  a deliberate no-op — §8.6 of the last document is still right.
 
 ---
 
