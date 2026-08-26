@@ -107,13 +107,14 @@ Slightly more clicking, but you get Coolify's database backup UI.
    and it carries a **Run now** button, which is the fastest way to tell a clock
    that is not firing from a job that is broken.
 
-   So set `JOBS_SECRET` above, then add three **Scheduled Tasks** to the
+   So set `JOBS_SECRET` above, then add four **Scheduled Tasks** to the
    application in Coolify, all running in the `app` container:
 
    | Frequency | Job |
    | --- | --- |
    | `0 18 * * *` | `queue-appointment-reminders` |
    | `0 7 * * *` | `queue-appointment-reminders` |
+   | `30 7 * * 1` | `queue-recalls` |
    | `15 3 * * 0` | `sweep-orphan-files` |
 
    The reminder job appears twice on purpose. It queues *tomorrow's*

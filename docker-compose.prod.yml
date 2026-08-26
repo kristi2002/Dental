@@ -158,6 +158,9 @@ services:
       # unique dedupe key, so the second run collides and skips rather than
       # sending anybody two of anything.
       REMINDERS_MORNING_SCHEDULE: ${REMINDERS_MORNING_SCHEDULE:-0 7 * * *}
+      # Monday morning, once a week. A recall is urgent over a season rather than
+      # on any particular day, and a queue refilled nightly is read as noise.
+      RECALLS_SCHEDULE: ${RECALLS_SCHEDULE:-30 7 * * 1}
       # Sunday, a quarter past three — after the backup's own verify at 03:30
       # would be worse, so it sits before it and competes with nothing.
       SWEEP_SCHEDULE: ${SWEEP_SCHEDULE:-15 3 * * 0}

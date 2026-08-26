@@ -1,7 +1,7 @@
 import { readdir, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '@/lib/prisma';
-import { queueAppointmentReminders } from '@/lib/messages/queue';
+import { queueAppointmentReminders, queueRecalls } from '@/lib/messages/queue';
 import { referencedStorageKeys } from '@/lib/storage-keys';
 
 /**
@@ -138,6 +138,24 @@ export const JOBS: Record<string, Job> = {
     description: "Queue tomorrow's appointment reminders for somebody to send.",
     everyHours: DAILY,
     run: queueAppointmentReminders,
+  },
+
+  /**
+   * Put the patients nobody has seen for months in front of somebody.
+   *
+   * Weekly, not daily, and the cadence is the argument: a recall is not urgent
+   * on any particular morning — it is urgent over a season — and a queue that
+   * refilled itself every night would be read as noise by the third day. The
+   * recall list has always been there to be opened; this is the practice being
+   * handed it instead of having to remember.
+   *
+   * Sends nothing, like everything else here. `getRecalls` decides who, this
+   * writes a row, and a person decides whether.
+   */
+  'queue-recalls': {
+    description: 'Queue the patients who are overdue for a check-up.',
+    everyHours: WEEKLY,
+    run: queueRecalls,
   },
 
   'sweep-orphan-files': {

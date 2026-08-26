@@ -1,0 +1,12 @@
+-- The outbox gains its second kind.
+--
+-- `MessageKind` had one value, and it was the least consequential of the two
+-- things the practice sends: an appointment reminder is a courtesy about a slot
+-- the patient already agreed to, and it had the clock, the queue, the dedupe and
+-- a recorded reason on every row the rules declined. The recall — somebody
+-- nobody has seen for eight months — had a list a person had to remember to
+-- open.
+--
+-- Adding a value to an enum is additive and non-blocking; nothing reads it until
+-- the job that writes it ships in the same release.
+ALTER TYPE "MessageKind" ADD VALUE IF NOT EXISTS 'RECALL_DUE';

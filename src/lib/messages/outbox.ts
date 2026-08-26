@@ -11,7 +11,7 @@ import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from './email';
  */
 
 /** Mirrors `MessageKind` in the schema, written out so this module stays pure. */
-export type MessageKind = 'APPOINTMENT_REMINDER';
+export type MessageKind = 'APPOINTMENT_REMINDER' | 'RECALL_DUE';
 
 /**
  * The unique column that makes a clock safe to run twice.
@@ -31,8 +31,25 @@ export type MessageKind = 'APPOINTMENT_REMINDER';
  * has to accommodate them or it is the wrong shape.
  */
 export function dedupeKey(kind: MessageKind, ...parts: string[]): string {
-  const prefix: Record<MessageKind, string> = { APPOINTMENT_REMINDER: 'reminder' };
+  const prefix: Record<MessageKind, string> = {
+    APPOINTMENT_REMINDER: 'reminder',
+    RECALL_DUE: 'recall',
+  };
   return [prefix[kind], ...parts].join(':');
+}
+
+/**
+ * Which cycle a recall belongs to — the `2026-08` in `recall:<patientId>:2026-08`.
+ *
+ * The period goes in the key rather than in a column, which is the shape this
+ * function's own doc reserved for exactly this case. A month is the right grain:
+ * it is longer than the thirty-day cooldown a recall already answers to, so a
+ * patient cannot be queued twice for one overdue check-up, and short enough that
+ * somebody still overdue in November is asked about again rather than dropping
+ * out of the queue for ever after one unanswered August.
+ */
+export function recallCycle(now: Date): string {
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /** How far ahead the reminder job looks. Tomorrow, and only tomorrow. */
@@ -61,6 +78,36 @@ export type ReminderCandidate = {
 export type QueueDecision =
   | { queue: true }
   | { queue: false; reason: 'answered' | 'already-contacted' | 'opted-out' | 'no-contact-details' };
+
+/**
+ * Whether a patient the recall list has surfaced is worth queueing.
+ *
+ * Thinner than `shouldQueueReminder` because `selectRecalls` has already done
+ * the deciding — it has excluded anybody booked, snoozed, recently chased or
+ * opted out of recalls entirely. What is left for this to check is what the
+ * recall list deliberately does *not*: consent, and whether there is any way to
+ * reach them at all.
+ *
+ * Consent is not part of the recall list's own rules on purpose — that list is
+ * worked by a person who can see the refusal on the row and ring them about
+ * something else. A queue is worked down without reading, so it must not contain
+ * anybody who said no.
+ */
+export function shouldQueueRecall(candidate: {
+  contactConsent: boolean | null;
+  phone: string;
+  email: string;
+}): QueueDecision {
+  // Explicit `false` only. `null` is "nobody has asked", the honest state of
+  // every record predating the question, and it is not a refusal.
+  if (candidate.contactConsent === false) return { queue: false, reason: 'opted-out' };
+
+  if (!candidate.phone.trim() && !candidate.email.trim()) {
+    return { queue: false, reason: 'no-contact-details' };
+  }
+
+  return { queue: true };
+}
 
 /**
  * Whether a booking is worth queueing a reminder for.
@@ -141,7 +188,15 @@ export type CancelReason =
   /** Nobody got to it in time — see `stillWorthSending`. */
   | 'passed'
   /** Somebody read the row and decided against it. */
-  | 'set-aside';
+  | 'set-aside'
+  /**
+   * A recall whose reason has gone away — they booked, or somebody rang them.
+   *
+   * Its own reason rather than one of the five above, because none of them is
+   * about an appointment: a recall is about an *absence*, and the absence ends
+   * quietly. See `withdrawSettledRecalls`.
+   */
+  | 'no-longer-due';
 
 export const CANCEL_NOTES: Record<CancelReason, string> = {
   rescheduled: 'the appointment moved',
@@ -150,6 +205,7 @@ export const CANCEL_NOTES: Record<CancelReason, string> = {
   deleted: 'the appointment was deleted',
   passed: 'the appointment had already begun',
   'set-aside': 'set aside by hand',
+  'no-longer-due': 'the patient is no longer overdue',
 };
 
 /**
@@ -201,6 +257,7 @@ const NOTE_KEYS: Record<string, string> = {
   [CANCEL_NOTES.deleted]: 'cancelDeleted',
   [CANCEL_NOTES.passed]: 'cancelPassed',
   [CANCEL_NOTES['set-aside']]: 'cancelSetAside',
+  [CANCEL_NOTES['no-longer-due']]: 'cancelNoLongerDue',
   [SENT_NOTES.WHATSAPP]: 'sentWhatsapp',
   [SENT_NOTES.EMAIL]: 'sentEmail',
   [SENT_NOTES.PHONE]: 'sentPhone',

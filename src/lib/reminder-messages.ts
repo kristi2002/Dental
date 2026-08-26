@@ -79,3 +79,64 @@ export async function composeReminder({
     locale,
   };
 }
+
+/**
+ * The text of a recall — "it has been eight months since we last saw you".
+ *
+ * Its own function rather than a branch inside `composeReminder`, because the
+ * two share only their plumbing: one quotes a date and a time the patient has
+ * already agreed to, the other quotes how long it has been since anybody saw
+ * them, and neither set of words fits the other's template.
+ *
+ * The same rule holds for both, and it is the one that matters: the language is
+ * the **patient's**, asked for explicitly, not whichever one the person at the
+ * desk happens to be reading.
+ */
+export async function composeRecall({
+  patientName,
+  phone,
+  email,
+  monthsSince,
+  lastVisit,
+  patientLocale,
+}: {
+  patientName: string;
+  phone: string;
+  email: string;
+  monthsSince: number;
+  /** `YYYY-MM-DD`, or null for somebody who has never been in. */
+  lastVisit: string | null;
+  patientLocale?: string | null;
+}): Promise<ReminderMessage> {
+  const locale = isLocale(patientLocale) ? patientLocale : await getLocale();
+
+  const [t, tr, format] = await Promise.all([
+    getTranslations({ locale, namespace: 'reminders' }),
+    getTranslations({ locale, namespace: 'recalls' }),
+    getFormatter({ locale }),
+  ]);
+
+  const values = {
+    name: patientName,
+    months: monthsSince,
+    last: lastVisit
+      ? format.dateTime(new Date(`${lastVisit}T00:00:00.000Z`), {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : tr('neverVisited'),
+  };
+
+  const body = t('recallWhatsapp', values);
+  const subject = t('recallEmailSubject', values);
+  const mailBody = t('recallEmailBody', values);
+
+  return {
+    whatsapp: phone ? whatsappLink(phone, body) : null,
+    mail: email ? mailtoLink(email, subject, mailBody) : null,
+    body,
+    subject,
+    locale,
+  };
+}

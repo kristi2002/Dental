@@ -1,7 +1,7 @@
-import { CalendarClock, Check, Clock3, Mail, Phone, Undo2 } from 'lucide-react';
+import { BellRing, CalendarClock, Check, Clock3, Mail, Phone, Undo2 } from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { QueueSendLinks } from '@/components/messages/QueueSendLinks';
-import { ActionForm, ReportingActionForm } from '@/components/ui/ActionForm';
+import { ReportingActionForm } from '@/components/ui/ActionForm';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Link } from '@/i18n/navigation';
 import {
@@ -119,6 +119,25 @@ export async function QueueRow({
           ) : null}
 
           {appointment?.serviceName ? <span>{appointment.serviceName}</span> : null}
+
+          {/* A recall has no slot to print, and the thing it is about is how
+              long it has been — which is also what the message quotes back to
+              the patient, so the reader and the recipient see the same fact. */}
+          {message.kind === 'RECALL_DUE' ? (
+            <span className="flex items-center gap-1.5">
+              <BellRing size={15} aria-hidden />
+              {message.lastVisit
+                ? t('lastSeen', {
+                    date: format.dateTime(new Date(`${message.lastVisit}T00:00:00.000Z`), {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    }),
+                  })
+                : t('neverSeen')}
+            </span>
+          ) : null}
+
           <span className="tabular-nums">{patient.phone || t('noPhone')}</span>
         </p>
 
@@ -161,7 +180,7 @@ export async function QueueRow({
             {/* The channel the practice actually knows arrived. A reminder
                 given over the telephone is the most reliable one there is and
                 had nowhere to be recorded from this screen without it. */}
-            <ActionForm
+            <ReportingActionForm
               action={markQueuedMessageCalled}
               values={{ id: message.id, body: reminder.body }}
             >
@@ -169,33 +188,33 @@ export async function QueueRow({
                 <Phone size={17} aria-hidden />
                 {t('called')}
               </button>
-            </ActionForm>
+            </ReportingActionForm>
 
-            <ActionForm action={setQueuedMessageAside} values={{ id: message.id }}>
+            <ReportingActionForm action={setQueuedMessageAside} values={{ id: message.id }}>
               <button type="submit" className="btn btn-ghost btn-sm" title={t('setAside')}>
                 <Clock3 size={17} aria-hidden />
                 <span className="sr-only">{t('setAside')}</span>
               </button>
-            </ActionForm>
+            </ReportingActionForm>
           </>
         ) : mode === 'passed' ? (
-          <ActionForm action={setQueuedMessageAside} values={{ id: message.id }}>
+          <ReportingActionForm action={setQueuedMessageAside} values={{ id: message.id }}>
             <button type="submit" className="btn btn-secondary btn-sm" title={t('dismiss')}>
               <Check size={17} aria-hidden />
               {t('dismiss')}
             </button>
-          </ActionForm>
+          </ReportingActionForm>
         ) : message.resolvedBy ? (
           /* Put back — the undo for a mis-press, and offered only on a row a
              person resolved. A row the clock withdrew was withdrawn because
              what it described stopped being true, and reopening it would send
              somebody a reminder for an appointment that moved. */
-          <ActionForm action={reopenQueuedMessage} values={{ id: message.id }}>
+          <ReportingActionForm action={reopenQueuedMessage} values={{ id: message.id }}>
             <button type="submit" className="btn btn-ghost btn-sm" title={t('putBack')}>
               <Undo2 size={17} aria-hidden />
               {t('putBack')}
             </button>
-          </ActionForm>
+          </ReportingActionForm>
         ) : null}
       </div>
     </li>

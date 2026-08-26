@@ -1763,6 +1763,19 @@ model ScheduledMessage {
 enum MessageKind {
   /// "You have an appointment tomorrow at 10:30."
   APPOINTMENT_REMINDER
+
+  /// "It has been eight months since we last saw you."
+  ///
+  /// The second tenant of a table built for several. Until it existed the queue,
+  /// the clock, the dedupe and the skip-reason on every declined row all served
+  /// the *appointment reminder* — a courtesy about a slot the patient has
+  /// already agreed to — while the recall, which is a patient nobody has seen
+  /// for eight months, had a list somebody had to remember to open.
+  ///
+  /// `dedupeKey` carries the cycle (`recall:<patientId>:2026-08`) rather than
+  /// this table growing a period column, which is the shape `dedupeKey`'s own
+  /// doc comment reserved for it.
+  RECALL_DUE
 }
 
 enum MessageStatus {

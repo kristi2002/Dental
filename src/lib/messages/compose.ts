@@ -1,6 +1,25 @@
 import { confirmationToken, confirmationUrl } from '@/lib/confirmations';
-import { composeReminder, type ReminderMessage } from '@/lib/reminder-messages';
+import { composeRecall, composeReminder, type ReminderMessage } from '@/lib/reminder-messages';
+
 import type { QueuedMessage } from './board';
+
+/**
+ * Whole months since a date, or 0 when there is none.
+ *
+ * Recomputed here rather than carried on the row, for the reason
+ * `ScheduledMessage` stores no body: a queue written on Monday and worked on
+ * Friday must quote the gap as it is when somebody reads it. Zero for a patient
+ * who has never been in, whose message quotes "never" instead of a number.
+ */
+function monthsSince(lastVisit: string | null): number {
+  if (!lastVisit) return 0;
+  const from = new Date(`${lastVisit}T00:00:00.000Z`);
+  const now = new Date();
+  const months =
+    (now.getUTCFullYear() - from.getUTCFullYear()) * 12 +
+    (now.getUTCMonth() - from.getUTCMonth());
+  return Math.max(0, now.getUTCDate() < from.getUTCDate() ? months - 1 : months);
+}
 
 /**
  * The wording for one queued row, built the same way twice.
@@ -22,6 +41,22 @@ export async function composeForQueued(
   fallbackLocale: string,
 ): Promise<ReminderMessage | null> {
   const { patient, appointment } = message;
+
+  // A recall is about an absence rather than a slot, so it has no appointment
+  // and its own wording. Branching on the kind rather than on whether an
+  // appointment happens to be attached: a reminder whose slot was deleted out
+  // from under it must still return null rather than quietly becoming a recall.
+  if (message.kind === 'RECALL_DUE') {
+    return composeRecall({
+      patientName: patient.firstName,
+      phone: patient.phone,
+      email: patient.email,
+      monthsSince: monthsSince(message.lastVisit),
+      lastVisit: message.lastVisit,
+      patientLocale: patient.locale,
+    });
+  }
+
   if (!appointment) return null;
 
   return composeReminder({

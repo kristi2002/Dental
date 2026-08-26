@@ -44,6 +44,16 @@ export type QueuedMessage = {
     startTime: string;
     serviceName: string;
   } | null;
+  /**
+   * When the patient was last in, as `YYYY-MM-DD`, or null for somebody who
+   * never has been.
+   *
+   * Only a recall's wording quotes it — "it has been eight months since we last
+   * saw you" — and it is read here rather than snapshotted onto the row for the
+   * reason this table stores no body at all: a patient who comes in between the
+   * queueing and the sending must not be written to about an absence that ended.
+   */
+  lastVisit: string | null;
 };
 
 const SELECT = {
@@ -56,6 +66,12 @@ const SELECT = {
   resolvedBy: { select: { firstName: true, lastName: true } },
   patient: {
     select: {
+      // What a recall quotes. One row, and only ever read for those.
+      visitRecords: {
+        orderBy: { visitDate: 'desc' as const },
+        take: 1,
+        select: { visitDate: true },
+      },
       id: true,
       firstName: true,
       lastName: true,
@@ -86,6 +102,8 @@ type Row = {
     email: string | null;
     locale: string | null;
     contactConsent: boolean | null;
+    /** The newest visit, or none. See `QueuedMessage.lastVisit`. */
+    visitRecords: Array<{ visitDate: Date }>;
   };
   appointment: { id: string; date: Date; startTime: string; serviceName: string | null } | null;
 };
@@ -117,6 +135,9 @@ function toView(row: Row): QueuedMessage {
           startTime: row.appointment.startTime,
           serviceName: row.appointment.serviceName ?? '',
         }
+      : null,
+    lastVisit: row.patient.visitRecords[0]
+      ? toDateKey(row.patient.visitRecords[0].visitDate)
       : null,
   };
 }
@@ -163,7 +184,9 @@ export async function getSendQueue(): Promise<SendQueue> {
       where: { status: MessageStatus.PENDING },
       select: SELECT,
       // Soonest first: the queue is worked from the top, and the top should be
-      // whoever is due back first.
+      // whoever is due back first. A recall has no appointment at all, so those
+      // sort together at one end on `sendAfter` — which is right, because they
+      // are not about a moment and cannot be late for one.
       orderBy: [{ appointment: { date: 'asc' } }, { sendAfter: 'asc' }],
     }),
     prisma.scheduledMessage.findMany({

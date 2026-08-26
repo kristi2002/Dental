@@ -65,17 +65,24 @@ REMINDERS_SCHEDULE="${REMINDERS_SCHEDULE:-0 18 * * *}"
 # is already working it.
 REMINDERS_MORNING_SCHEDULE="${REMINDERS_MORNING_SCHEDULE:-0 7 * * *}"
 
+# Monday morning, once. A recall is not urgent on any particular day — it is
+# urgent over a season — and a queue that refilled itself every night would be
+# read as noise by Wednesday. Early enough that it is waiting when the week
+# starts, and after the reminder run above so the two do not collide.
+RECALLS_SCHEDULE="${RECALLS_SCHEDULE:-30 7 * * 1}"
+
 # `/proc/1/fd/1` is this process's own stdout — what `docker logs` and Coolify's
 # log view read. Without it a cron job's output goes to a mail spool that does
 # not exist in this image, and every run is silent.
 cat > /etc/crontabs/root <<CRONTAB
 $REMINDERS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-appointment-reminders > /proc/1/fd/1 2>&1
 $REMINDERS_MORNING_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-appointment-reminders > /proc/1/fd/1 2>&1
+$RECALLS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-recalls > /proc/1/fd/1 2>&1
 $SWEEP_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh sweep-orphan-files > /proc/1/fd/1 2>&1
 CRONTAB
 
 log "app: $APP_URL"
-log "schedule: reminders '$REMINDERS_SCHEDULE' and '$REMINDERS_MORNING_SCHEDULE', sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
+log "schedule: reminders '$REMINDERS_SCHEDULE' and '$REMINDERS_MORNING_SCHEDULE', recalls '$RECALLS_SCHEDULE', sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
 
 # --- Reachability -----------------------------------------------------------
 # Not a first run of the job itself: unlike a backup, nothing here is urgent

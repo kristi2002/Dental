@@ -1,11 +1,19 @@
-import { AppointmentStatus, ContactPurpose, MessageStatus } from '@/generated/prisma/enums';
+import {
+  AppointmentStatus,
+  ContactPurpose,
+  MessageKind,
+  MessageStatus,
+} from '@/generated/prisma/enums';
 import { addDays, clinicMinutesNow, toDateKey, today } from '@/lib/dates';
 import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
+import { getRecalls } from '@/lib/recalls';
 import {
   CANCEL_NOTES,
   dedupeKey,
+  recallCycle,
   REMINDER_DAYS_AHEAD,
+  shouldQueueRecall,
   shouldQueueReminder,
   SKIP_NOTES,
   stillWorthSending,
@@ -157,6 +165,106 @@ export async function queueAppointmentReminders(): Promise<string> {
   const skipped = rows.length - pending;
 
   return `${tidied}${appointments.length} booked tomorrow; queued ${count} new (${pending} to send, ${skipped} skipped)`;
+}
+
+/**
+ * Fill the outbox with the patients the recall list is already naming.
+ *
+ * The second tenant of machinery built for several, and the more consequential
+ * one. Until now the *appointment reminder* — a courtesy about a slot the
+ * patient has already agreed to — had the clock, the queue, the dedupe and a
+ * recorded reason on every row the rules declined, while the recall had a list
+ * somebody had to remember to open. A patient nobody has seen for eight months
+ * is the one this practice loses.
+ *
+ * **It decides nothing of its own.** `getRecalls` is the single authority on who
+ * is due, exactly as the recall screen reads it — so the queue and the list
+ * cannot disagree, and the fix that taught that list to read the contact log
+ * (`lastChasedAt`) protects this too. What this adds is the two questions the
+ * recall list deliberately leaves to a person: consent, and whether the practice
+ * has any way to reach them.
+ *
+ * Idempotent by the same construction the reminder job uses — one row per
+ * patient per month, enforced by `dedupeKey` on the table rather than by a
+ * find-then-insert that would race.
+ */
+export async function queueRecalls(): Promise<string> {
+  const withdrawn = await withdrawSettledRecalls();
+
+  const due = await getRecalls();
+  const now = new Date();
+  const cycle = recallCycle(now);
+
+  const rows = due.map((patient) => {
+    const decision = shouldQueueRecall({
+      contactConsent: patient.contactConsent,
+      phone: patient.phone,
+      email: patient.email,
+    });
+
+    return {
+      kind: MessageKind.RECALL_DUE,
+      dedupeKey: dedupeKey('RECALL_DUE', patient.id, cycle),
+      patientId: patient.id,
+      sendAfter: now,
+      ...(decision.queue
+        ? { status: MessageStatus.PENDING }
+        : {
+            status: MessageStatus.SKIPPED,
+            note: SKIP_NOTES[decision.reason],
+            resolvedAt: now,
+          }),
+    };
+  });
+
+  const tidied = withdrawn > 0 ? `withdrew ${withdrawn} no longer due; ` : '';
+  if (rows.length === 0) return `${tidied}nobody is overdue`;
+
+  const { count } = await prisma.scheduledMessage.createMany({
+    data: rows,
+    skipDuplicates: true,
+  });
+
+  const pending = rows.filter((row) => row.status === MessageStatus.PENDING).length;
+  return `${tidied}${due.length} overdue; queued ${count} new (${pending} to send, ${rows.length - pending} skipped)`;
+}
+
+/**
+ * Withdraw queued recalls for patients who are no longer due.
+ *
+ * The counterpart to `cancelScheduledFor`, and it cannot work the same way. A
+ * reminder is about one appointment, so every event that invalidates it — the
+ * slot moves, is cancelled, is answered — has a write to hang the withdrawal
+ * off. A recall is about an *absence*, and absences end quietly: the patient
+ * rings up and books, somebody chases them by hand, somebody snoozes them. Only
+ * the first of those three even touches a table this could hook into.
+ *
+ * So it is settled by comparison rather than by event. Whoever `getRecalls` no
+ * longer names is no longer due, whatever the reason — which keeps one authority
+ * for the whole question instead of a growing list of writes that must each
+ * remember to prune a queue.
+ */
+export async function withdrawSettledRecalls(): Promise<number> {
+  const pending = await prisma.scheduledMessage.findMany({
+    where: { kind: MessageKind.RECALL_DUE, status: MessageStatus.PENDING },
+    select: { id: true, patientId: true },
+  });
+  if (pending.length === 0) return 0;
+
+  const stillDue = new Set((await getRecalls()).map((patient) => patient.id));
+  const settled = pending.filter((row) => !stillDue.has(row.patientId)).map((row) => row.id);
+  if (settled.length === 0) return 0;
+
+  const { count } = await prisma.scheduledMessage.updateMany({
+    where: { id: { in: settled }, status: MessageStatus.PENDING },
+    data: {
+      status: MessageStatus.CANCELLED,
+      note: CANCEL_NOTES['no-longer-due'],
+      resolvedAt: new Date(),
+    },
+  });
+
+  return count;
 }
 
 /**

@@ -7,11 +7,13 @@ import {
   CANCEL_NOTES,
   dedupeKey,
   noteKey,
+  recallCycle,
   SENT_NOTES,
+  shouldQueueRecall,
   shouldQueueReminder,
   SKIP_NOTES,
   stillWorthSending,
-  type ReminderCandidate,
+  type ReminderCandidate
 } from '../src/lib/messages/outbox';
 
 function candidate(over: Partial<ReminderCandidate> = {}): ReminderCandidate {
@@ -253,6 +255,7 @@ describe('notes — every outcome can explain itself', () => {
       'deleted',
       'passed',
       'set-aside',
+      'no-longer-due',
     ] as const;
     for (const reason of reasons) {
       assert.ok(CANCEL_NOTES[reason]?.length > 0, `no note for ${reason}`);
@@ -273,5 +276,71 @@ describe('notes — every outcome can explain itself', () => {
     for (const note of notes) {
       assert.doesNotMatch(note, /^[A-Z]/, `"${note}" reads like a sentence sent to somebody`);
     }
+  });
+});
+
+describe('shouldQueueRecall — what the recall list leaves to a person', () => {
+  const reachable = { contactConsent: null, phone: '069', email: '' };
+
+  it('queues somebody the recall list has already decided is due', () => {
+    // Thin on purpose. `selectRecalls` has already excluded anybody booked,
+    // snoozed, recently chased or opted out of recalls entirely; what is left
+    // for this to ask is only what that list deliberately does not.
+    assert.deepEqual(shouldQueueRecall(reachable), { queue: true });
+  });
+
+  it('refuses somebody who asked not to be contacted', () => {
+    // The recall *list* still shows them — it is worked by a person who can see
+    // the refusal on the row and ring them about something else. A queue is
+    // worked down without reading, so it must not contain them at all.
+    assert.deepEqual(shouldQueueRecall({ ...reachable, contactConsent: false }), {
+      queue: false,
+      reason: 'opted-out',
+    });
+  });
+
+  it('treats "nobody asked" as permission to ask', () => {
+    // Tri-state, and null is the honest state of every record predating the
+    // question — which in a real practice is most of them.
+    assert.equal(shouldQueueRecall({ ...reachable, contactConsent: null }).queue, true);
+    assert.equal(shouldQueueRecall({ ...reachable, contactConsent: true }).queue, true);
+  });
+
+  it('refuses a patient there is no way to reach', () => {
+    assert.deepEqual(shouldQueueRecall({ ...reachable, phone: '  ', email: '' }), {
+      queue: false,
+      reason: 'no-contact-details',
+    });
+  });
+
+  it('takes an email address as a way to reach them', () => {
+    assert.equal(shouldQueueRecall({ ...reachable, phone: '', email: 'a@b.al' }).queue, true);
+  });
+});
+
+describe('recallCycle — one row per patient per cycle', () => {
+  it('is the calendar month, zero-padded', () => {
+    assert.equal(recallCycle(new Date('2026-08-26T00:00:00.000Z')), '2026-08');
+    assert.equal(recallCycle(new Date('2026-01-01T00:00:00.000Z')), '2026-01');
+    assert.equal(recallCycle(new Date('2026-12-31T23:59:59.000Z')), '2026-12');
+  });
+
+  it('builds a key that cannot collide with a reminder', () => {
+    const key = dedupeKey('RECALL_DUE', 'p1', recallCycle(new Date('2026-08-26T00:00:00.000Z')));
+    assert.equal(key, 'recall:p1:2026-08');
+    assert.notEqual(key, dedupeKey('APPOINTMENT_REMINDER', 'p1'));
+  });
+
+  it('gives one patient one row a month and a fresh one the next', () => {
+    // A month is longer than the thirty-day cooldown a recall already answers
+    // to, so nobody is queued twice for one overdue check-up; and short enough
+    // that somebody still overdue in November is asked about again rather than
+    // dropping out for ever after one unanswered August.
+    const august = dedupeKey('RECALL_DUE', 'p1', recallCycle(new Date('2026-08-02T00:00:00.000Z')));
+    const laterAugust = dedupeKey('RECALL_DUE', 'p1', recallCycle(new Date('2026-08-29T00:00:00.000Z')));
+    const september = dedupeKey('RECALL_DUE', 'p1', recallCycle(new Date('2026-09-01T00:00:00.000Z')));
+
+    assert.equal(august, laterAugust);
+    assert.notEqual(august, september);
   });
 });
