@@ -1,0 +1,101 @@
+name: Build and push images
+
+# WHY: dental is 51% of all deploys on the Hetzner box (41 in the 7 days to
+# 2026-08-26) and ~55% of its total build time. `app` is a Next.js build, the
+# 1.5-3 GB class that caused the 2026-08-24 OOM. Building here costs the server
+# nothing.
+#
+# TRIGGER IS MANUAL ON PURPOSE. Coolify still builds these services from source on
+# every push to main. Adding `on: push` now would build each commit twice and push
+# images nothing pulls - exactly the waste that got the autolux-auto pilot disabled
+# on 2026-08-26. Switch to `on: push` in the SAME commit that points
+# docker-compose.prod.yml at these images, not before.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: app
+            dockerfile: Dockerfile
+          - service: jobs
+            dockerfile: docker/jobs/Dockerfile
+          - service: backup
+            dockerfile: docker/backup/Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # automatic, no setup needed
+
+      # GHCR requires a lowercase path. github.repository is kristi2002/Dental.
+      - name: Compute image name
+        id: img
+        run: echo "name=${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')-${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.img.outputs.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false          # Coolify/docker pull is simpler without attestations
+          # NEXT_PUBLIC_* are inlined into the browser bundle at build time, so they
+          # must match what the server currently runs or the deployed app changes
+          # behaviour. These defaults reproduce the values baked into the running
+          # container on 2026-08-26 exactly, so this migration is a no-op for users.
+          #
+          # NOTE: NEXT_PUBLIC_APP_URL is currently https://dental.testdemo.it, which
+          # resolves to Brevo (brand.brevosend.com) and serves nothing - the site is
+          # actually at shehudental.testdemo.it. That mismatch predates this workflow.
+          # It is reproduced deliberately rather than silently corrected here; fix it
+          # by setting the repo variable below, as its own change.
+          build-args: |
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL || 'https://dental.testdemo.it' }}
+            NEXT_PUBLIC_CLINIC_NAME=${{ vars.NEXT_PUBLIC_CLINIC_NAME || 'Klinika Dentare' }}
+          # Layer cache lives in GitHub. Runners are ephemeral, so without this every
+          # run is a cold build.
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Summary
+        run: |
+          echo "### ${{ matrix.service }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
