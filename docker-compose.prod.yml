@@ -16,7 +16,7 @@ services:
         # Inlined into the browser bundle at build time — see the Dockerfile.
         # Change the domain here, not in the runtime environment.
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://shehudental.testdemo.it}
-        NEXT_PUBLIC_CLINIC_NAME: ${NEXT_PUBLIC_CLINIC_NAME:-Klinika Dentare}
+        NEXT_PUBLIC_CLINIC_NAME: ${NEXT_PUBLIC_CLINIC_NAME:-Shehu Dental}
     restart: unless-stopped
     # Mapping form, not the `- KEY=value` list. Coolify re-serialises this file
     # before building, and a bare list entry carrying no `=` (as

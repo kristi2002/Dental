@@ -59,7 +59,7 @@ COPY . .
 # to point the app at another domain, rebuild with a different --build-arg
 # (in Coolify: "Build Variables").
 ARG NEXT_PUBLIC_APP_URL="https://shehudental.testdemo.it"
-ARG NEXT_PUBLIC_CLINIC_NAME="Klinika Dentare"
+ARG NEXT_PUBLIC_CLINIC_NAME="Shehu Dental"
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV NEXT_PUBLIC_CLINIC_NAME=${NEXT_PUBLIC_CLINIC_NAME}
 
