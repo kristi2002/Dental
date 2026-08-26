@@ -981,6 +981,7 @@
     "entity_document": "Skedar",
     "entity_prescription": "Recetë",
     "entity_backup": "Kopje rezervë",
+    "entity_job": "Punë e planifikuar",
     "action_view": "Hapur",
     "action_export": "Eksportuar",
     "entity_work": "Punim",
@@ -1504,6 +1505,37 @@
       "localOnly": "Rezervimet po qëndrojnë në këtë server. Asgjë nuk po kopjohet jashtë tij.",
       "failing": "Ekzekutimi i fundit i rezervimit dështoi."
     }
+  },
+  "jobs": {
+    "title": "Punët e planifikuara",
+    "subtitle": "Çfarë ndodh vetvetiu, dhe nëse ndodhi vërtet.",
+    "runNow": "Nise tani",
+    "lastSuccess": "Herën e fundit që punoi",
+    "lastAttempt": "Përpjekja e fundit",
+    "never": "Asnjëherë",
+    "neverHint": "Kjo nuk është nisur asnjëherë. Ora është një kontejner më vete — nëse nuk është nisur kurrë, ose kodi i saj nuk përputhet me atë të aplikacionit, asgjë nuk do ta nisë ndonjëherë.",
+    "cadence": "{hours, plural, =24 {çdo ditë} =168 {çdo javë} other {çdo # orë}}",
+    "footnote": "Orari ndodhet te kontejneri i punëve, jo në këtë aplikacion. Nisja këtu bën të njëjtën punë, tani.",
+    "name": {
+      "queue-appointment-reminders": "Kujtesat e nesërme",
+      "sweep-orphan-files": "Pastro skedarët e papërdorur"
+    },
+    "hint": {
+      "queue-appointment-reminders": "Gjen kë duhet kujtuar për nesër dhe mbush radhën e dërgimit. Nuk dërgon asgjë.",
+      "sweep-orphan-files": "Heq skedarët e ngarkuar që nuk i përket më asnjë regjistrim."
+    },
+    "reason": {
+      "ok": "Në rregull",
+      "running": "Po punon tani",
+      "never": "Kurrë e nisur",
+      "stale": "Me vonesë",
+      "failing": "Nisja e fundit dështoi",
+      "stalled": "Nuk përfundoi"
+    },
+    "errorDenied": "Nuk keni të drejtë të nisni punë të planifikuara.",
+    "errorUnknown": "Nuk ka punë të tillë.",
+    "errorBusy": "Po punon tashmë. Provoni sërish pas pak.",
+    "errorFailed": "Dështoi: {message}"
   },
   "settings": {
     "title": "Orari i punës",

@@ -981,6 +981,7 @@
     "entity_document": "File",
     "entity_prescription": "Prescription",
     "entity_backup": "Backup",
+    "entity_job": "Scheduled job",
     "action_view": "Opened",
     "action_export": "Exported",
     "entity_work": "Lab work",
@@ -1504,6 +1505,37 @@
       "localOnly": "Backups are staying on this server. Nothing is being copied offsite.",
       "failing": "The last backup run failed."
     }
+  },
+  "jobs": {
+    "title": "Scheduled jobs",
+    "subtitle": "What runs on a clock, and whether it actually ran.",
+    "runNow": "Run now",
+    "lastSuccess": "Last worked",
+    "lastAttempt": "Last attempt",
+    "never": "Never",
+    "neverHint": "This has never run. The clock is a separate container — if it was never started, or its secret does not match the app's, nothing will ever trigger it.",
+    "cadence": "{hours, plural, =24 {every day} =168 {every week} other {every # hours}}",
+    "footnote": "The schedule lives in the jobs container, not in this app. Running one here does the same work, now.",
+    "name": {
+      "queue-appointment-reminders": "Tomorrow's reminders",
+      "sweep-orphan-files": "Tidy up unused files"
+    },
+    "hint": {
+      "queue-appointment-reminders": "Works out who to remind about tomorrow and fills the outbox. It sends nothing.",
+      "sweep-orphan-files": "Removes uploaded files no record points at any more."
+    },
+    "reason": {
+      "ok": "Working",
+      "running": "Running now",
+      "never": "Never run",
+      "stale": "Overdue",
+      "failing": "Last run failed",
+      "stalled": "Did not finish"
+    },
+    "errorDenied": "You may not run scheduled jobs.",
+    "errorUnknown": "There is no such job.",
+    "errorBusy": "It is already running. Try again in a moment.",
+    "errorFailed": "It failed: {message}"
   },
   "settings": {
     "title": "Opening hours",

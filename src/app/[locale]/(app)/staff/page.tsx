@@ -5,6 +5,7 @@ import { RoleBadge } from '@/components/auth/RoleBadge';
 import { BackupCard } from '@/components/staff/BackupCard';
 import { BackupCheckCard } from '@/components/staff/BackupCheckCard';
 import { BackupStatusCard } from '@/components/staff/BackupStatusCard';
+import { JobsCard } from '@/components/staff/JobsCard';
 import { StaffFormDialog } from '@/components/staff/StaffFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
@@ -16,6 +17,7 @@ import { setStaffActive, unlockStaff } from '@/lib/actions/staff';
 import { requirePermission } from '@/lib/auth/guard';
 import { ROLE_ORDER, ROLE_PERMISSIONS } from '@/lib/auth/permissions';
 import { getBackupStatus } from '@/lib/backup-status';
+import { getJobBoard } from '@/lib/jobs/board';
 import { prisma } from '@/lib/prisma';
 import { cn, initials } from '@/lib/utils';
 
@@ -213,6 +215,18 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
             argument: the export below is what somebody takes deliberately, the
             card above is what happens whether anyone remembers or not, and only
             one of those is a backup strategy. */}
+        {/* The clock, above the copies. Both are things that happen with nobody
+            present and both were invisible until somebody built them a screen —
+            but this one is the older gap: the backup grew a status file, while
+            the jobs had a whole table whose own comment claimed it was being
+            read by pages that did not exist.
+
+            Gated on `staff.manage` rather than on `backup.export`, because it
+            is not about backups: it is the deployment reporting on itself, and
+            **Run now** writes rows. This page already requires that permission,
+            so the check is the page's rather than a second one here. */}
+        <JobsCard jobs={await getJobBoard()} />
+
         {currentUser.permissions.includes('backup.export') ? (
           <>
             <BackupStatusCard status={await getBackupStatus()} />

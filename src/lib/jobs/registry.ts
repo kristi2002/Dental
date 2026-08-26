@@ -32,9 +32,31 @@ import { referencedStorageKeys } from '@/lib/storage-keys';
 export type Job = {
   /** What it is for, in one line — shown beside its last run. */
   description: string;
+  /**
+   * How often this must have **worked**, in hours. Not how often the clock
+   * fires it.
+   *
+   * The distinction is the whole of it. The app cannot read the sidecar's
+   * crontab — the schedule lives in `docker/jobs/entrypoint.sh` and every entry
+   * there is overridable per deployment — so this could never be a mirror of it
+   * anyway. What it is instead is the app's own statement of the interval within
+   * which this job going quiet becomes a problem, which is what
+   * `job-status.ts` needs and is a more stable thing than a schedule.
+   *
+   * The reminder queue is the case that makes the difference concrete: it is
+   * triggered twice a day, once in the evening and once first thing, because the
+   * evening run cannot see an evening booking. It is still a **daily** job — one
+   * success a day is the practice's actual requirement, and the second trigger
+   * is a way of meeting it more reliably rather than a doubling of the cadence.
+   */
+  everyHours: number;
   /** Returns the summary to record. Throwing is how a job fails. */
   run: () => Promise<string>;
 };
+
+/** Cadences, named rather than spelled as numbers at each use. */
+const DAILY = 24;
+const WEEKLY = 24 * 7;
 
 /** An upload in flight is not an orphan — the same hour `sweep-orphan-files.ts` waits. */
 const MIN_AGE_MS = 60 * 60 * 1000;
@@ -114,11 +136,13 @@ export const JOBS: Record<string, Job> = {
    */
   'queue-appointment-reminders': {
     description: "Queue tomorrow's appointment reminders for somebody to send.",
+    everyHours: DAILY,
     run: queueAppointmentReminders,
   },
 
   'sweep-orphan-files': {
     description: 'Remove uploaded files that no record points at any more.',
+    everyHours: WEEKLY,
     run: sweepOrphanFiles,
   },
 };

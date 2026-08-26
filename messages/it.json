@@ -981,6 +981,7 @@
     "entity_document": "File",
     "entity_prescription": "Ricetta",
     "entity_backup": "Backup",
+    "entity_job": "Operazione pianificata",
     "action_view": "Aperto",
     "action_export": "Esportato",
     "entity_work": "Lavorazione",
@@ -1504,6 +1505,37 @@
       "localOnly": "I backup restano su questo server. Nulla viene copiato fuori sede.",
       "failing": "L’ultima esecuzione del backup è fallita."
     }
+  },
+  "jobs": {
+    "title": "Operazioni pianificate",
+    "subtitle": "Ciò che avviene da solo, e se è davvero avvenuto.",
+    "runNow": "Avvia ora",
+    "lastSuccess": "Ultima volta riuscita",
+    "lastAttempt": "Ultimo tentativo",
+    "never": "Mai",
+    "neverHint": "Non è mai stata avviata. L'orologio è un contenitore a parte — se non è mai partito, o se la sua chiave non corrisponde a quella dell'app, nulla la avvierà mai.",
+    "cadence": "{hours, plural, =24 {ogni giorno} =168 {ogni settimana} other {ogni # ore}}",
+    "footnote": "La pianificazione risiede nel contenitore delle operazioni, non in questa app. Avviarne una qui fa lo stesso lavoro, subito.",
+    "name": {
+      "queue-appointment-reminders": "Promemoria di domani",
+      "sweep-orphan-files": "Pulisci i file inutilizzati"
+    },
+    "hint": {
+      "queue-appointment-reminders": "Individua chi ricordare per domani e riempie la coda di invio. Non invia nulla.",
+      "sweep-orphan-files": "Rimuove i file caricati a cui non punta più alcun record."
+    },
+    "reason": {
+      "ok": "Funziona",
+      "running": "In esecuzione",
+      "never": "Mai eseguita",
+      "stale": "In ritardo",
+      "failing": "Ultima esecuzione fallita",
+      "stalled": "Non è terminata"
+    },
+    "errorDenied": "Non puoi avviare operazioni pianificate.",
+    "errorUnknown": "Questa operazione non esiste.",
+    "errorBusy": "È già in esecuzione. Riprova tra poco.",
+    "errorFailed": "Non è riuscita: {message}"
   },
   "settings": {
     "title": "Orario di apertura",
