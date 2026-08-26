@@ -1,4 +1,3 @@
-import { cache } from 'react';
 import { ContactPurpose } from '@/generated/prisma/enums';
 import { addMonths, today, toDateKey } from '@/lib/dates';
 import { ACTIVE_PATIENTS } from '@/lib/patient-search';
@@ -120,69 +119,151 @@ export function lastChasedAt(
 }
 
 /**
- * Cached per request: the recalls page asks for both lists in one `Promise.all`,
- * and this is the heaviest query either of them makes. Without `cache()` it runs
- * twice per render for exactly the same rows.
+ * Everything either list needs about one patient.
+ *
+ * A function of `now` rather than a constant, because one of the relations is
+ * itself dated — and named once so the two queries below cannot come back with
+ * differently shaped rows.
  */
-const loadCandidates = cache(async (): Promise<PatientForRecall[]> => {
-  const now = today();
+function candidateSelect(now: Date) {
+  return {
+    id: true,
+    firstName: true,
+    lastName: true,
+    phone: true,
+    email: true,
+    createdAt: true,
+    recallMonths: true,
+    recallSnoozedUntil: true,
+    lastRecallAt: true,
+    contactConsent: true,
+    visitRecords: {
+      orderBy: { visitDate: 'desc' as const },
+      take: 1,
+      // The sentence, not the rows: the follow-up message quotes it back to the
+      // patient in their own words — "how is the upper left filling?"
+      select: { visitDate: true, servicesText: true },
+    },
+    // The other memory of "we already rang them" — see `lastChasedAt`.
+    contacts: {
+      where: { purpose: { in: [...CHASE_PURPOSES] } },
+      orderBy: { createdAt: 'desc' as const },
+      take: 1,
+      select: { createdAt: true },
+    },
+    // Anyone already booked is not overdue, whatever the calendar says.
+    //
+    // `OCCUPIES_A_SLOT` rather than a bare `SCHEDULED`, which is what this read
+    // used to spell by hand — and it was the fourth such array, after the three
+    // `scheduling.ts` gathered into this constant. Omitting `ARRIVED` meant a
+    // patient stopped counting as booked at the exact moment the front desk
+    // confirmed they were in the building, so an overdue patient could surface
+    // on this list while sitting in the chair.
+    appointments: {
+      where: { date: { gte: now }, status: { in: [...OCCUPIES_A_SLOT] } },
+      take: 1,
+      select: { id: true },
+    },
+  };
+}
+
+/** Days to milliseconds, for the two windows below. */
+const DAY_MS = 86_400_000;
+
+/**
+ * Who might be due for a check-up.
+ *
+ * This and the follow-up list used to be **one** query: every active patient,
+ * with three relations each, filtered down in JavaScript afterwards. On the
+ * dashboard — the screen everybody opens first every morning, which asks for it
+ * in the same `Promise.all` as fifteen other things. The patients list was paged
+ * in the Phase 11 work and this was missed; it was the last unbounded read on
+ * that page.
+ *
+ * Splitting it also removes a hazard the shared query's own comment warned
+ * about. `recallMonths: 0` could not be pushed down while one query fed both
+ * lists, because opting out of "your six months are up" is not opting out of the
+ * clinical courtesy call two days after an extraction — filtering it in the
+ * shared query had silently applied one answer to both questions once already.
+ * With two queries, each gate goes where it belongs.
+ *
+ * Every clause here is **exact**: it excludes only rows `selectRecalls` would
+ * have excluded anyway, so the two cannot disagree. What stays in JavaScript is
+ * the one thing SQL cannot express per row — the due date, which is
+ * `recallMonths` months after a reference that is itself either the newest visit
+ * or the day the patient was entered.
+ */
+async function loadRecallCandidates(now: Date): Promise<PatientForRecall[]> {
+  const cooldownFrom = new Date(now.getTime() - CONTACT_COOLDOWN_DAYS * DAY_MS);
 
   return prisma.patient.findMany({
-    // Archiving is the one exclusion both lists share: chasing somebody who has
-    // been filed away is exactly the call that makes either list stop being
-    // trusted.
-    //
-    // `recallMonths: 0` deliberately is *not* here. It is the patient saying
-    // they do not want reminding that their check-up is due, and filtering on it
-    // in the shared query silently applied that answer to a question nobody
-    // asked them — the two-day "how is the tooth" call after an extraction,
-    // which is a clinical courtesy rather than a recall. `getRecalls` applies it
-    // where it belongs, beside the other two recall-only gates.
-    where: ACTIVE_PATIENTS,
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
-      email: true,
-      createdAt: true,
-      recallMonths: true,
-      recallSnoozedUntil: true,
-      lastRecallAt: true,
-      contactConsent: true,
-      visitRecords: {
-        orderBy: { visitDate: 'desc' },
-        take: 1,
-        // The sentence, not the rows: the follow-up message quotes it back to
-        // the patient in their own words — "how is the upper left filling?"
-        select: { visitDate: true, servicesText: true },
-      },
-      // The other memory of "we already rang them" — see `lastChasedAt`.
-      contacts: {
-        where: { purpose: { in: [...CHASE_PURPOSES] } },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        select: { createdAt: true },
-      },
+    where: {
+      // Archiving is the one exclusion both lists share: chasing somebody who
+      // has been filed away is exactly the call that makes either list stop
+      // being trusted.
+      ...ACTIVE_PATIENTS,
+      // Their own answer to "do you want reminding at all".
+      recallMonths: { gt: 0 },
       // Anyone already booked is not overdue, whatever the calendar says.
-      //
-      // `OCCUPIES_A_SLOT` rather than a bare `SCHEDULED`, which is what this
-      // read used to spell by hand — and it was the fourth such array, after
-      // the three `scheduling.ts` gathered into this constant. Omitting
-      // `ARRIVED` meant a patient stopped counting as booked at the exact
-      // moment the front desk confirmed they were in the building, so an
-      // overdue patient could surface on this list while sitting in the chair.
       appointments: {
-        where: { date: { gte: now }, status: { in: [...OCCUPIES_A_SLOT] } },
-        take: 1,
-        select: { id: true },
+        none: { date: { gte: now }, status: { in: [...OCCUPIES_A_SLOT] } },
+      },
+      AND: [
+        // A snooze that has not run out. Written as an `OR` rather than
+        // `{ lte: now }`, because SQL cannot say a null is less than anything —
+        // the same null trap `NOT_CLINIC_CANCELLED` exists for, and here it
+        // would have dropped every patient nobody has ever snoozed, which in a
+        // real practice is very nearly all of them.
+        { OR: [{ recallSnoozedUntil: null }, { recallSnoozedUntil: { lte: now } }] },
+        // Both halves of `lastChasedAt`, pushed down: a patient survives only if
+        // *neither* memory is recent. Same null branch, same reason.
+        { OR: [{ lastRecallAt: null }, { lastRecallAt: { lt: cooldownFrom } }] },
+        {
+          contacts: {
+            none: {
+              purpose: { in: [...CHASE_PURPOSES] },
+              createdAt: { gte: cooldownFrom },
+            },
+          },
+        },
+      ],
+    },
+    select: candidateSelect(now),
+  });
+}
+
+/**
+ * Who was treated in the last few days.
+ *
+ * The half that gains most from the split. The window is two to seven days, so
+ * this is a handful of rows in any practice and used to be the whole table.
+ *
+ * The bounds are derived from the same two constants `selectFollowUps` reads,
+ * because the query must never be *narrower* than the rule: a patient this drops
+ * is a patient the practice never rings, and nothing downstream could notice.
+ * That is the invariant `workScope` states for the register, and it holds here
+ * for the same reason.
+ */
+async function loadFollowUpCandidates(now: Date): Promise<PatientForRecall[]> {
+  return prisma.patient.findMany({
+    where: {
+      ...ACTIVE_PATIENTS,
+      visitRecords: {
+        some: {
+          visitDate: {
+            gte: new Date(now.getTime() - FOLLOW_UP_TO_DAYS * DAY_MS),
+            lte: new Date(now.getTime() - FOLLOW_UP_FROM_DAYS * DAY_MS),
+          },
+        },
       },
     },
+    select: candidateSelect(now),
   });
-});
+}
 
 export async function getRecalls(): Promise<RecallRow[]> {
-  return selectRecalls(await loadCandidates(), today());
+  const now = today();
+  return selectRecalls(await loadRecallCandidates(now), now);
 }
 
 /**
@@ -231,7 +312,8 @@ export function selectRecalls(patients: PatientForRecall[], now: Date): RecallRo
 }
 
 export async function getFollowUps(): Promise<FollowUpRow[]> {
-  return selectFollowUps(await loadCandidates(), today());
+  const now = today();
+  return selectFollowUps(await loadFollowUpCandidates(now), now);
 }
 
 /** The follow-up decision, likewise without the database. See `selectRecalls`. */
