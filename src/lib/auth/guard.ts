@@ -165,7 +165,7 @@ export async function requirePermission(permission: Permission): Promise<Session
       entity: 'session',
       summary: `Blocked: ${permission}`,
     });
-    redirect({ href: '/', locale: await getLocale() });
+    redirect({ href: '/dashboard', locale: await getLocale() });
   }
   return user;
 }

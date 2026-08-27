@@ -6,11 +6,13 @@ import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
 import { FollowUpList } from '@/components/follow-ups/FollowUpList';
 import { QuietenedAlerts } from '@/components/stock/QuietenedAlerts';
 import { StockAlertList } from '@/components/stock/StockAlertList';
+import { AppointmentRequestStatus } from '@/generated/prisma/enums';
 import type { SessionUser } from '@/lib/auth/session';
 import { getBackupStatus } from '@/lib/backup-status';
 import { toDateKey, today } from '@/lib/dates';
 import { bellCounts } from '@/lib/follow-ups';
 import { getUnreadCount } from '@/lib/messages/threads';
+import { prisma } from '@/lib/prisma';
 import {
   clinicDisplayName,
   getAssignableStaff,
@@ -151,11 +153,28 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   // follow-ups are — the bell is drawn on every screen — and gated on
   // `stock.view`, because somebody who may not open the cupboard must not be
   // told what is in it by a badge in the corner.
-  // The one count in the rail. Gated on the permission for the same reason the
-  // bell's are: somebody who may not open the inbox must not be told how much
-  // is in it. Counted rather than stored — see `getUnreadCount`.
-  const unreadMail = user.permissions.includes('message.view') ? await getUnreadCount() : 0;
-  const badges = unreadMail > 0 ? { inbox: unreadMail } : undefined;
+  // The counts in the rail. Each is gated on its own permission for the same
+  // reason the bell's are: somebody who may not open a list must not be told how
+  // much is in it by a number in the corner.
+  //
+  // Two, and the bar for a third is still meant to be high — the test is whether
+  // the number is *somebody else waiting*. A patient's unanswered reply is; so
+  // is a stranger who left their telephone number on the public page and has
+  // heard nothing back, which is the one queue here where nobody has any
+  // relationship with the practice yet and silence reads as being ignored.
+  const [unreadMail, waitingRequests] = await Promise.all([
+    user.permissions.includes('message.view') ? getUnreadCount() : 0,
+    user.permissions.includes('request.view')
+      ? prisma.appointmentRequest.count({ where: { status: AppointmentRequestStatus.NEW } })
+      : 0,
+  ]);
+  const badges =
+    unreadMail > 0 || waitingRequests > 0
+      ? {
+          ...(unreadMail > 0 ? { inbox: unreadMail } : {}),
+          ...(waitingRequests > 0 ? { requests: waitingRequests } : {}),
+        }
+      : undefined;
 
   const canSeeStock = user.permissions.includes('stock.view');
   const canEditStock = user.permissions.includes('stock.edit');

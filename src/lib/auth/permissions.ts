@@ -36,6 +36,13 @@ export const PERMISSIONS = [
   'message.send',
   'waitlist.view',
   'waitlist.edit',
+  // The other end of the waiting list: people who are not patients yet, who
+  // asked to be seen through the practice's public page. Named separately from
+  // `appointment.*` because the two are different acts — placing somebody in the
+  // book is scheduling, and reading an unvetted stranger's name, number and
+  // description of what hurts is correspondence.
+  'request.view',
+  'request.edit',
   'plan.view',
   'plan.edit',
   'work.view',
@@ -93,6 +100,10 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'message.send',
     'waitlist.view',
     'waitlist.edit',
+    // Whoever is nearest the telephone answers it, and in a practice this size
+    // that is as often the nurse as the desk.
+    'request.view',
+    'request.edit',
     'plan.view',
     'plan.edit',
     'work.view',
@@ -121,6 +132,11 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'message.send',
     'waitlist.view',
     'waitlist.edit',
+    // The desk's queue before anybody else's. A request off the public page is
+    // somebody who wants to be rung back and put in the book, which is this
+    // role's whole job — if it belonged to one role and no other, this is it.
+    'request.view',
+    'request.edit',
     // Reading the works register, not writing it. The front desk is who answers
     // "is my crown back yet", so the list has to be open to them; the diagnosis
     // column on it is chart material, which is the line this role does not cross.
@@ -143,6 +159,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'recall.view',
     'message.view',
     'waitlist.view',
+    // Reading the queue, never answering it — the same line this role is drawn
+    // on everywhere else.
+    'request.view',
     'plan.view',
     'work.view',
     'document.view',

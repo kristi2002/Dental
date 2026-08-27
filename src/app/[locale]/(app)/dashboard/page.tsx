@@ -7,6 +7,7 @@ import {
   ListChecks,
   NotebookPen,
   Package,
+  PhoneIncoming,
   ShieldAlert,
   TriangleAlert,
   UserPlus,
@@ -25,7 +26,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { Link } from '@/i18n/navigation';
-import { AlertSeverity, AppointmentStatus } from '@/generated/prisma/enums';
+import { AlertSeverity, AppointmentRequestStatus, AppointmentStatus } from '@/generated/prisma/enums';
 import { requireUser } from '@/lib/auth/guard';
 import { endOfWeek, startOfWeek, toDateKey, today } from '@/lib/dates';
 import { ACTIVE_PATIENTS } from '@/lib/patient-search';
@@ -72,6 +73,7 @@ export default async function DashboardPage({
   const canSeeFollowUps = user.permissions.includes('followup.view');
   const canEditFollowUps = user.permissions.includes('followup.edit');
   const canSeeWorks = user.permissions.includes('work.view');
+  const canSeeRequests = user.permissions.includes('request.view');
 
   const t = await getTranslations('dashboard');
   const ta = await getTranslations('appointments');
@@ -106,6 +108,7 @@ export default async function DashboardPage({
     openFollowUps,
     followUpStaff,
     lateWorks,
+    waitingRequests,
   ] = await Promise.all([
       getAppointmentsBetween(day, day),
       prisma.appointment.count({
@@ -169,6 +172,13 @@ export default async function DashboardPage({
       // promised date that has passed is a fact about the register, and nobody
       // should have to write themselves a note for it.
       canSeeWorks ? getWorksToChase() : Promise.resolve([]),
+      // People who left a number on the practice's public page and have not been
+      // rung back. Counted rather than listed: the names and numbers belong on
+      // `/requests`, and a dashboard that reprints them is a second place for
+      // somebody's telephone number to sit on a screen at reception.
+      canSeeRequests
+        ? prisma.appointmentRequest.count({ where: { status: AppointmentRequestStatus.NEW } })
+        : Promise.resolve(0),
     ]);
 
   // Only what has actually come round. A board that shows next week's lines on
@@ -239,6 +249,31 @@ export default async function DashboardPage({
             />
           ) : null}
         </div>
+      ) : null}
+
+      {/* Somebody who found the practice on its own website, left a telephone
+          number and has heard nothing back.
+          
+          Shown only when there is one, and it says the count rather than the
+          names: the names, the numbers and what each person wrote belong on
+          `/requests`, and a dashboard that reprints them puts a stranger's
+          telephone number on a screen at reception all day. It sits below the
+          medical alerts and above everything else — nothing outranks what
+          changes the treatment, and this outranks every list of the practice's
+          own errands, because the person on the other end of it is waiting. */}
+      {canSeeRequests && waitingRequests > 0 ? (
+        <Card className="mb-6 border-warn">
+          <CardHeader
+            title={t('requestsTitle')}
+            subtitle={t('requestsWaiting', { count: waitingRequests })}
+            icon={<PhoneIncoming size={22} aria-hidden className="text-warn" />}
+            action={
+              <Link href="/requests" className="btn btn-sm btn-primary">
+                {t('requestsOpen')}
+              </Link>
+            }
+          />
+        </Card>
       ) : null}
 
       {/* Before anything else on the page, because it is the only thing here

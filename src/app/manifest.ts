@@ -38,10 +38,16 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     // by us, which at least truncates it the way that platform does everywhere.
     short_name: name,
     description: 'Dental practice organizer',
-    // The locale-less root. The proxy redirects it to whichever language the
-    // browser asks for, so an install made on an Albanian tablet opens Albanian
-    // and the same manifest still serves the Italian locum.
-    start_url: '/',
+    // The locale-less dashboard. The proxy redirects it to whichever language
+    // the browser asks for, so an install made on an Albanian tablet opens
+    // Albanian and the same manifest still serves the Italian locum.
+    //
+    // Not `/` any more: that is the practice's public page now, and a front desk
+    // that taps the home-screen icon wants the day's list, not the page patients
+    // read. `scope` stays at the root because the app spans every locale and
+    // every section beneath it — a narrower scope would kick `/patients` out of
+    // the standalone window and into a browser tab.
+    start_url: '/dashboard',
     scope: '/',
     display: 'standalone',
     // Both match the top of the navigation rail's gradient, so the launch screen

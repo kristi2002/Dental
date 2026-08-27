@@ -36,7 +36,7 @@ type Destination = {
 export const NAV_DESTINATIONS: ReadonlyArray<
   Destination & { children?: ReadonlyArray<Destination> }
 > = [
-  { href: '/', key: 'dashboard', permission: null },
+  { href: '/dashboard', key: 'dashboard', permission: null },
   { href: '/appointments', key: 'appointments', permission: 'appointment.view' },
   { href: '/patients', key: 'patients', permission: 'patient.view' },
   { href: '/plans', key: 'plans', permission: 'plan.view' },
@@ -72,6 +72,14 @@ export const NAV_DESTINATIONS: ReadonlyArray<
   // patient answers when a patient answers, and a reply nobody sees for three
   // days is worse than a recall nobody makes for three days.
   { href: '/inbox', key: 'inbox', permission: 'message.view' },
+  // And the third inbound list, beside the other two. The outbox is what the
+  // practice is about to say, the inbox is what patients said back, and this is
+  // people who are not patients yet — somebody who left a number on the public
+  // page. Top level for the same reason as the others, with one of its own: it
+  // is the only list here where nobody has any relationship with the practice
+  // yet, so a day of silence does not read as a delay, it reads as being
+  // ignored.
+  { href: '/requests', key: 'requests', permission: 'request.view' },
   // Beside the recalls rather than filed anywhere: both are lists the practice
   // works down each morning, and this one is the only thing in the rail that
   // chases the practice rather than a patient. The bell keeps it from ever being

@@ -18,7 +18,8 @@ setup('sign in as the owner', async ({ page }) => {
 
   // The dashboard, not the login screen — `signIn` waits for the redirect, and
   // this asserts the destination rather than merely that navigation happened.
-  await expect(page).toHaveURL(/\/en\/?$/);
+  // `/en/dashboard`, not `/en`: the locale root is the practice's public page.
+  await expect(page).toHaveURL(/\/en\/dashboard$/);
   await expect(page.getByRole('navigation')).toBeVisible();
 
   await page.context().storageState({ path: OWNER_STATE_PATH });

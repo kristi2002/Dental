@@ -30,7 +30,7 @@ export async function Breadcrumbs({ items }: { items: Crumb[] }) {
       <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[0.95rem]">
         <li className="flex items-center">
           <Link
-            href="/"
+            href="/dashboard"
             title={t('dashboard')}
             className="flex min-h-9 items-center gap-1.5 rounded-md px-2 font-semibold text-ink-soft no-underline transition-colors hover:bg-surface hover:text-brand-deep"
           >

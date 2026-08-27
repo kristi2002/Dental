@@ -7,9 +7,16 @@
  */
 import { expect, type Locator, type Page } from '@playwright/test';
 
-/** Every screen the smoke pass walks, with no parameter to fill in. */
+/**
+ * Every *signed-in* screen the smoke pass walks, with no parameter to fill in.
+ *
+ * The practice's public page is deliberately not on this list. It lives at `/`,
+ * it has no session behind it, and a pass that opened it while carrying the
+ * owner's cookie would prove nothing about the thing that matters — that a
+ * stranger can read it. `storefront.spec.ts` opens it signed out instead.
+ */
 export const STATIC_ROUTES: readonly string[] = [
-  '/',
+  '/dashboard',
   '/appointments',
   '/day-sheet',
   '/patients',
@@ -26,6 +33,7 @@ export const STATIC_ROUTES: readonly string[] = [
   '/recalls',
   '/reminders',
   '/inbox',
+  '/requests',
   '/follow-ups',
   '/services',
   '/services/new',
@@ -79,7 +87,9 @@ export async function signIn(
   }
 
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.waitForURL(`**/${locale}`, { timeout: 15_000 });
+  // The dashboard, which lives at `/dashboard` rather than at the locale root —
+  // the root is the practice's public page and signing in never lands there.
+  await page.waitForURL(`**/${locale}/dashboard`, { timeout: 15_000 });
 }
 
 /**

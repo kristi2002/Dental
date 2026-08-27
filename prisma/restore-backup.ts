@@ -134,6 +134,9 @@ const ORDER = [
   'emailThreads',
   'emailMessages',
   'emailAttachments',
+  // Requests off the public page. One optional foreign key — the member of staff
+  // who picked it up — so it only has to come after `staff`, which is first.
+  'appointmentRequests',
   'movements',
   'audit',
 ] as const;
@@ -156,6 +159,7 @@ const MODEL: Record<Key, string> = {
   productBarcodes: 'productBarcode',
   batches: 'stockBatch',
   stockAlertDismissals: 'stockAlertDismissal',
+  appointmentRequests: 'appointmentRequest',
   patients: 'patient',
   appointments: 'appointment',
   visits: 'visitRecord',

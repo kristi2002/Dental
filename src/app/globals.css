@@ -43,6 +43,69 @@
   --color-brand-deep: #0b6f6a;
   --color-brand-soft: #e3f5f3;
 
+  /* --- The storefront's own palette -------------------------------------
+   *
+   * The public page does not wear the software's colours, and that is the
+   * point. A workspace wants cool near-white and no opinion: it is looked at
+   * for seven hours and any warmth in it becomes a stain by four in the
+   * afternoon. A front door is looked at for ninety seconds by somebody who is
+   * nervous about a dentist, and cool near-white is the colour of the waiting
+   * room they are nervous about. So the storefront is warm and the app stays
+   * white — one palette each, chosen for how long anybody has to sit in it.
+   *
+   * Three colours, and the whole scheme is the tension between two of them:
+   *
+   *   navy   deep, cold, unhurried. The hero, the strip, the footer. Blue is
+   *          what a clinic is *allowed* to be — it is the one hue people already
+   *          read as competence — but hospital blue is a mid-tone cyan on white,
+   *          and this is neither. Taken this deep it stops being clinical and
+   *          starts being evening.
+   *   bone   warm paper, and the reason the page never reads as a surgery. Every
+   *          light section is printed on it rather than on white. This is the
+   *          single change that does most of the work: the same layout on
+   *          #ffffff is a waiting room, and on #f4efe7 it is a room.
+   *   gilt   bronze. The one accent, and rationed — a call to action, a rule
+   *          under an eyebrow, the mark on a photograph. Warm metal against cold
+   *          blue is the oldest luxury pairing there is, and it is what keeps
+   *          the navy from going corporate.
+   *
+   * `clay` is a second warm voice for the rare thing gilt should not carry.
+   *
+   * Every value that sits under text is measured. On bone: `bone-ink` 12.7:1,
+   * `bone-ink-soft` 5.9:1, `bone-ink-faint` 5.0:1, `gilt-deep` 5.1:1,
+   * `clay-deep` 4.9:1. On navy: `navy-ink` 12.5:1, `navy-ink-soft` 8.0:1,
+   * `gilt` 5.8:1, `bone` 13.5:1. `navy` set *on* gilt is the same 5.8:1 the
+   * other way about, which is why the primary button is inked in the navy
+   * rather than in white — white on bronze is 2.3:1 and unreadable.
+   *
+   * Two are hairlines and nothing readable may ever be set in either:
+   * `navy-line` (2.0:1 on navy) and `bone-deep` (1.2:1 on bone). And one trap
+   * worth naming: `gilt` on `navy-soft` is 4.4:1 and fails. Bronze type belongs
+   * on the deep navy, not on the lifted one. */
+  --color-bone: #f4efe7;
+  --color-bone-soft: #fbf8f3;
+  --color-bone-deep: #e6ded2;
+  --color-bone-ink: #1b2a3e;
+  --color-bone-ink-soft: #4e5d70;
+  --color-bone-ink-faint: #5c6877;
+
+  --color-navy: #12253f;
+  --color-navy-soft: #1d3a5e;
+  --color-navy-line: #2f5480;
+  --color-navy-ink: #dee8f4;
+  --color-navy-ink-soft: #a3bedc;
+
+  /* Bronze, in three weights: `gilt` for fills, rules and icons and for text on
+   * navy; `gilt-deep` for bronze *text* on bone, where the bright one is 2.1:1
+   * and hopeless; `gilt-soft` for the tint a quiet panel sits on. */
+  --color-gilt: #c0995c;
+  --color-gilt-deep: #7d6023;
+  --color-gilt-soft: #f0e4cd;
+
+  /* Terracotta. `clay` fills, `clay-deep` is the one that may carry words. */
+  --color-clay: #b96c4e;
+  --color-clay-deep: #9e5335;
+
   /* Peach — the "new record" accent. Too light to carry white text, so
    * anything on it is inked. */
   --color-accent: #f5a262;
@@ -64,6 +127,25 @@
   --font-sans:
     var(--font-poppins), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
+
+  /* The display stack **without** Prata, which is deliberate and was a bug once.
+   *
+   * This is what makes Tailwind emit a `font-display` utility at all, and a
+   * `@theme` entry lands on `:root`. Prata's variable does not: `next/font`
+   * defines `--font-prata` on the element carrying `prata.variable`, which is
+   * the storefront's wrapper and nothing above it.
+   *
+   * Writing `var(--font-prata), …` here therefore looked right and silently
+   * failed. A custom property's nested `var()` is resolved where the property is
+   * *declared*, not where it is used — so `--font-display` computed at `:root`
+   * with no `--font-prata` in scope became invalid at computed-value time, the
+   * whole `font-family` was dropped, and every heading on the public page
+   * inherited Poppins from `body`. It looked like the font had not loaded; the
+   * font had loaded perfectly and the variable never reached it.
+   *
+   * So `:root` gets a stack that is valid on its own, and `.site-display` below
+   * re-declares this variable on the one element that also has `--font-prata`. */
+  --font-display: 'Iowan Old Style', Georgia, 'Times New Roman', serif;
 
   --radius-card: 0.875rem;
 
@@ -121,6 +203,182 @@
 }
 
 @layer components {
+  /* --- The storefront's display face -----------------------------------
+   *
+   * Worn by the one element that also carries `prata.variable`, which is what
+   * makes this work: a custom property's nested `var()` resolves against the
+   * element it is declared on, so `--font-prata` has to be in scope *here*
+   * rather than merely somewhere below. See the note on `--font-display` above
+   * for the version of this that did not work.
+   *
+   * The consequence is the nice one: on every signed-in screen `--font-display`
+   * is still the `:root` stack, `.font-display` is a serif nobody sets, and the
+   * app never downloads a typeface it does not use. */
+  .site-display {
+    --font-display: var(--font-prata), 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  }
+
+  /* --- The section scale ------------------------------------------------
+   *
+   * Three steps, and the point of writing them down is that there were
+   * effectively none before. Every section heading on this page was its own
+   * hand-tuned `clamp()` and they all landed between 2.6rem and 3.2rem on a
+   * desktop, against a 4.15rem hero — a range of about 1.2× across the entire
+   * page. A scale that flat is not a hierarchy; it is seven headings of
+   * roughly the same importance, which is exactly how the page read.
+   *
+   * So: 4.6 / 3.7 / 2.4, ratios of 1.24 and 1.54. Wide enough that a reader
+   * can tell at a glance which sections are the argument and which are the
+   * apparatus.
+   *
+   * **Only three sections lead.** The work the practice does, the person who
+   * does it, and where to find them. Everything else — the concern picker, the
+   * trip planner, the gallery, the Instagram grid — is a tool or an aside and
+   * is set a full step down. Making all seven large would have been the same
+   * mistake in a louder key.
+   *
+   * `text-wrap: balance` on both, because a display serif breaking one word
+   * onto its own line is the commonest way a large heading goes wrong, and it
+   * happens in a different place in each of three languages.
+   */
+  .type-lead,
+  .type-section {
+    font-family: var(--font-display);
+    font-weight: 400;
+    text-wrap: balance;
+  }
+
+  .type-lead {
+    font-size: clamp(2.3rem, 5.4vw, 3.7rem);
+    line-height: 1.04;
+    /* -0.02em, not the -0.05em a display serif invites. Prata is already
+       tightly fitted; past about -0.03em its terminals start to touch. */
+    letter-spacing: -0.02em;
+  }
+
+  .type-section {
+    font-size: clamp(1.7rem, 3vw, 2.4rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+  }
+
+  /* --- The scroll reveal ------------------------------------------------
+   *
+   * Sections rise slightly as they come into view. Done in CSS, with
+   * `animation-timeline: view()`, and the reason is a bug worth remembering.
+   *
+   * This was a Motion component first: `initial={{opacity: 0}}` plus
+   * `whileInView`. Motion renders `initial` as an inline style **on the server**,
+   * so the HTML shipped with `opacity:0` on every card and the content only
+   * appeared once JavaScript had booted, hydrated and observed the element.
+   * On a clinic's public page that is a blank page for anybody on a slow
+   * connection, and a permanently blank one for anybody whose JavaScript failed.
+   * Worse, the reduced-motion branch swapped `motion.li` for a plain `li`, and
+   * React hydration reused the existing node without clearing the inline style it
+   * had not written — so the readers who had explicitly asked for less movement
+   * were the ones left looking at nothing at all.
+   *
+   * Written this way none of that is possible. The content is visible in the
+   * HTML; the animation is something a browser layers on top if it can. Firefox
+   * and anything older simply show the finished page, which was always the
+   * acceptable outcome.
+   *
+   * `--reveal-step` staggers a row: each card is handed a slightly later slice of
+   * the scroll range, so four of them arrive in sequence rather than together.
+   * There is no timer anywhere — the "delay" is distance, which is why it stays
+   * in step no matter how fast the page is scrolled. */
+  .reveal {
+    /* Deliberately no `opacity: 0` here. See above. */
+    --reveal-step: 0%;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .reveal {
+        animation: reveal-rise linear both;
+        animation-timeline: view();
+        animation-range: entry calc(4% + var(--reveal-step)) entry calc(58% + var(--reveal-step));
+      }
+    }
+  }
+
+  @keyframes reveal-rise {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* --- The brand strip -------------------------------------------------
+   *
+   * A band of the practice's own words sliding past, between the hero and the
+   * treatments. CSS rather than JavaScript on purpose: a transform animated by
+   * the compositor runs on its own thread and cannot be made to stutter by
+   * anything React is doing, where the same effect driven by a scroll handler or
+   * a `requestAnimationFrame` loop is the single most common reason a marketing
+   * page janks on a mid-range phone. There is no library here and nothing to
+   * hydrate.
+   *
+   * The trick is that the track holds the list **twice** and travels exactly
+   * −50%. At that point the second copy is standing precisely where the first
+   * began, so the reset is invisible and the loop is seamless. Both copies are
+   * in the DOM, which is why the whole strip is `aria-hidden` where it is used —
+   * everything it says is said properly elsewhere on the page, and a screen
+   * reader should not have to sit through it twice.
+   *
+   * `width: max-content` is what stops the flex track wrapping at the viewport
+   * and collapsing the whole effect into a stack. */
+  .marquee {
+    display: flex;
+    /* `clip`, not `hidden`. The track inside is now pushed along by a `view()`
+     * timeline as the band crosses the screen — see `.marquee-drag` — and
+     * `hidden` would make this element that timeline's scroll container and
+     * freeze the push at a constant. The clipping is identical. */
+    overflow: clip;
+    /* Faded at both ends, so the words arrive and leave rather than being cut
+     * off against a hard edge. */
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    flex: none;
+    align-items: center;
+    animation: marquee-slide var(--marquee-duration, 38s) linear infinite;
+  }
+
+  /* **It never pauses.** An earlier version stopped the track on hover and on
+   * focus-within, reasoning that slowing down to read one phrase is a real
+   * impulse. In use it was the opposite of that: the band sits directly under a
+   * pointer travelling from the navigation to the page, so it froze every time
+   * anybody moved the mouse downward — and a strip that stutters whenever the
+   * cursor crosses it reads as broken rather than as considerate. The words are
+   * each set out properly a screen away with a description attached, so nothing
+   * here is the only copy of anything, and there is nothing to stop for. */
+
+  @keyframes marquee-slide {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  /* Asked for less movement, given none: the strip becomes a static row of the
+   * same words, which still reads correctly because it was never the motion
+   * that carried the meaning. */
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-track {
+      animation: none;
+    }
+  }
+
   .card {
     @apply rounded-[var(--radius-card)] border border-line bg-surface shadow-card;
   }
@@ -714,4 +972,1994 @@
   @page {
     margin: 14mm;
   }
+}
+
+/* ======================================================================
+ * The storefront's motion
+ * ======================================================================
+ *
+ * Everything below belongs to the public page and to nothing else. It is
+ * gathered here rather than scattered through the components for one reason:
+ * the page has a small number of effects, used deliberately, and a list is the
+ * only way to keep it that way. A flourish invented inside a component is a
+ * flourish nobody counts.
+ *
+ * Three rules hold for all of it.
+ *
+ * **The finished state is the base state.** Every rule that hides something
+ * lives inside `@supports (animation-timeline: …)`, so a browser without
+ * scroll-driven animations renders the completed page rather than a blank one.
+ * This is not theoretical: the first version of the scroll reveal shipped
+ * `opacity: 0` in the server HTML and left the page empty for anybody whose
+ * JavaScript had not arrived. See `.reveal` above for the whole story.
+ *
+ * **Reduced motion means none.** Not slower — none. Each block below sits
+ * inside `prefers-reduced-motion: no-preference`, and what is left when they
+ * all drop out is a page that still says everything it said.
+ *
+ * **No JavaScript drives any of it.** The two exceptions on the whole page are
+ * the gallery carousel and the pointer glow, and both are enhancements laid on
+ * top of something that works without them.
+ */
+
+/*
+ * Custom properties only interpolate if the browser has been told their type;
+ * an unregistered one holds its start value to the halfway mark and then snaps.
+ * These three are what the masthead condenses along.
+ *
+ * **`initial-value` is in pixels, and it has to be.** A registered property's
+ * initial value must be *computationally independent* — it is resolved once,
+ * with no element and therefore no font-size in scope, so `rem`, `em`, `%` and
+ * the viewport units are all forbidden for a `<length>`. A rule that breaks
+ * this is not clamped or approximated; it is **invalid and dropped entirely**,
+ * which means the property silently goes back to being unregistered.
+ *
+ * That is not a hypothetical. These two were written `0.7rem` and `2.6rem`
+ * first, and the symptom was maddeningly specific: the veil beside them faded
+ * perfectly — it is a `<number>`, and `1` is computationally independent — while
+ * the lockup sat at 78px until exactly half the scroll range had gone by and
+ * then jumped to 44px in a single frame. Two properties on the same animation,
+ * one smooth and one discrete, is the fingerprint of a dropped `@property`.
+ *
+ * 12px and 44px are `0.7rem` and `2.6rem` at this document's 17px root, which is
+ * pinned in `@layer base` and is what makes the equivalence safe to rely on.
+ * They only ever apply when the animation is not running — an unsupported
+ * browser, or reduced motion — so they are the *condensed* state, which is the
+ * one a static masthead should be in.
+ */
+@property --masthead-pad {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 12px;
+}
+@property --masthead-logo {
+  syntax: '<length>';
+  inherits: true;
+  /* 2.1rem at this document's 17px root — the condensed height below. It was
+   * 44px (2.6rem) until the hero grew a nameplate worth looking at; the bar's
+   * lockup is a running head now rather than the cover. */
+  initial-value: 36px;
+}
+@property --masthead-veil {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+/*
+ * The two-tier masthead's four. Same rules as the three above and the same trap:
+ * a `<length>`'s `initial-value` must be computationally independent, so these
+ * are in pixels and not in `rem`.
+ *
+ * Every initial value here is the **condensed** state — no utility row, no
+ * frame — which is what a browser with no scroll timeline should be looking at.
+ * A permanent two-tier letterhead is a worse fallback than a compact bar, and an
+ * `initial-value` is what gets used when the animation is not running.
+ */
+@property --masthead-util {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+@property --masthead-util-fade {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@property --masthead-frame {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@property --masthead-frame-pad {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+@layer components {
+  /* --- The masthead ----------------------------------------------------
+   *
+   * At the top of the page the practice's lockup is 4.6rem tall on nothing at
+   * all, floating over the hero photograph the way a name is set on a magazine
+   * cover. Two hundred pixels of scrolling later it is a 2.6rem mark on a bar.
+   * Nothing listens to a scroll event: the whole thing is one animation whose
+   * timeline *is* the document's scroll position, so it runs in the compositor
+   * and cannot be made to stutter by anything React is doing.
+   *
+   * The base state is the condensed one and the tall state is added by the
+   * `@supports` block, which is the right way round — a browser with no scroll
+   * timeline gets an ordinary compact sticky header rather than a 4.6rem bar
+   * permanently covering the top of the page.
+   */
+  .masthead-bar {
+    padding-block: var(--masthead-pad);
+  }
+
+  .masthead-logo {
+    height: var(--masthead-logo);
+    width: auto;
+  }
+
+  /* The bar's own ground, faded in as the header leaves the hero. At the top of
+   * the page there is nothing behind the lockup but the photograph. */
+  .masthead-veil {
+    opacity: var(--masthead-veil);
+  }
+
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .masthead {
+        animation: masthead-condense linear both;
+        animation-timeline: scroll(root block);
+        animation-range: 0 240px;
+      }
+    }
+  }
+
+  /*
+   * A lockup 78px tall is a masthead on a laptop and a third of the screen on a
+   * phone, so the resting size has to differ by viewport. The obvious way to
+   * write that is `clamp()` in the `from` frame — and it silently does not work.
+   *
+   * A registered custom property interpolates only between two values the
+   * browser can subtract, and `clamp(3.1rem, 7.5vw, 4.6rem)` against a plain
+   * `2.6rem` is not such a pair: the animation falls back to *discrete*
+   * interpolation, which holds the start value to the halfway mark and then
+   * snaps to the end. Measured at 1440×900 it did exactly that — 78px at
+   * scroll 0, still 78px at 119px of scroll, 44px at 120px — while the veil
+   * beside it faded perfectly smoothly, because a `<number>` had no such
+   * problem. The result was a lockup that jumped a third of its height in one
+   * frame, halfway through a gesture that was supposed to be continuous.
+   *
+   * So: literal lengths at both ends, and the keyframes redefined for a phone.
+   * Redeclaring `@keyframes` of the same name inside a media query replaces it
+   * wholesale, which is exactly what is wanted here.
+   */
+  @keyframes masthead-condense {
+    from {
+      --masthead-pad: 1.05rem;
+      --masthead-logo: 3.4rem;
+      --masthead-veil: 0;
+      --masthead-util: 2rem;
+      --masthead-util-fade: 1;
+      --masthead-frame: 0.55;
+      --masthead-frame-pad: 0.55rem;
+    }
+    to {
+      --masthead-pad: 0.7rem;
+      --masthead-logo: 2.1rem;
+      --masthead-veil: 1;
+      --masthead-util: 0rem;
+      --masthead-util-fade: 0;
+      --masthead-frame: 0;
+      --masthead-frame-pad: 0rem;
+    }
+  }
+
+  /* 68px of resting masthead on a phone rather than 135px, and the lockup in it
+   * is 2.4rem rather than the 4.6rem it gets on a desktop.
+   *
+   * It was 3.1rem until the hero grew a nameplate, and that is what forced the
+   * change: at 3.1rem the bar's lockup measured 53px and the hero's measured 36,
+   * so the *smaller* of the two was the one meant to be the cover. Two copies of
+   * the same artwork at nearly the same size, forty pixels apart, reads as a
+   * mistake rather than as a hierarchy — and there is no room on a 390px screen
+   * to fix it by growing the hero's, so the bar's gives way instead.
+   *
+   * That is the right way round anyway. The masthead-at-rest idea — a 4.6rem
+   * letterhead floating on the picture — was always a desktop idea; a phone has
+   * never had the width for it. On a phone the hero's nameplate is the
+   * letterhead and the bar is a bar, which is what it condenses to two hundred
+   * pixels later on every other screen.
+   *
+   * The figure is not arbitrary: it is what the hero's top padding is measured
+   * against, and the two have to agree or the nameplate starts underneath the
+   * bar.
+   *
+   * The four two-tier properties are deliberately **not** restated here, and
+   * redeclaring `@keyframes` replaces the rule wholesale, so below 640px they
+   * hold their `initial-value` — the condensed state — for the whole scroll.
+   * That is correct rather than an oversight: there is no utility row and no
+   * plaque frame on a phone, both are painted only from `sm` and `lg`, so
+   * animating them here would be animating nothing. */
+  @media (max-width: 640px) {
+    @keyframes masthead-condense {
+      from {
+        --masthead-pad: 0.8rem;
+        --masthead-logo: 2rem;
+        --masthead-veil: 0;
+      }
+      to {
+        --masthead-pad: 0.6rem;
+        --masthead-logo: 1.75rem;
+        --masthead-veil: 1;
+      }
+    }
+  }
+
+  /* --- The two tiers ----------------------------------------------------
+   *
+   * The utility row's height *is* a scroll-driven property, so the row is not
+   * hidden and shown — it is continuously between 2rem and nothing, and the bar
+   * above it shrinks by exactly as much at exactly the same rate. Nothing here
+   * reflows in steps and nothing is toggled: there is one animation and the
+   * whole masthead is downstream of it.
+   *
+   * `overflow: clip` so the telephone number is cut off by the collapsing box
+   * rather than overflowing it, and `clip` rather than `hidden` for the reason
+   * given under `.drift` — this is an ancestor of nothing on a `view()` timeline
+   * today, and the rule holds anyway.
+   *
+   * **Only from `lg`.** Between `sm` and `lg` there is no navigation row for the
+   * utility row to sit above, so it is the only row there is and collapsing it
+   * would take the telephone number away from exactly the screens — tablets,
+   * small laptops — where the hero's own call button has already scrolled off.
+   */
+  @media (min-width: 1024px) {
+    .masthead-util {
+      height: var(--masthead-util);
+      opacity: var(--masthead-util-fade);
+      overflow: clip;
+    }
+
+    /* Bronze rather than the navy line the rest of the chrome uses. It is a
+     * rule inside the practice's own nameplate, which is the one place on this
+     * page the accent belongs at hairline weight. */
+    .masthead-rule {
+      height: 1px;
+      background: var(--color-gilt);
+      opacity: calc(var(--masthead-util-fade) * 0.4);
+    }
+  }
+
+  /*
+   * The plaque. The lockup in a gilt frame tall enough to cross the hairline
+   * between the tiers, which is what makes it read as set *into* the bar rather
+   * than placed beside it — the rule starts where the frame ends.
+   *
+   * The border is declared at every width and its colour carries the alpha, so
+   * the box never changes width as it fades: 1px of transparent border occupies
+   * exactly as much as 1px of bronze. Animating `border-width` instead would
+   * shift the lockup half a pixel per frame for the whole condense.
+   *
+   * `lg` only. Below it the lockup is already most of the bar and a frame around
+   * it is a box drawn round a box.
+   */
+  @media (min-width: 1024px) {
+    .masthead-plaque {
+      display: block;
+      border: 1px solid rgb(192 153 92 / var(--masthead-frame));
+      border-radius: 0.9rem;
+      padding: var(--masthead-frame-pad);
+    }
+  }
+
+  /*
+   * The booking pill.
+   *
+   * It was a square slab running full-height into the corner of the screen for
+   * one draft — see the note in `SiteHeader` for why that came out. What is here
+   * now is the hero's own primary button at bar scale: same bronze, same
+   * roundness, same arrow that steps forward under the cursor, so the control a
+   * reader met three seconds ago in the middle of the screen is recognisably the
+   * same control when it follows them up into the bar.
+   *
+   * `align-self: center` rather than stretching: the bar's height is a
+   * scroll-driven property that runs from 135px to 72px, and a pill that grew to
+   * fill it would be a lozenge at the top of the page and a button by the time
+   * anybody read anything.
+   */
+  .masthead-cta {
+    align-self: center;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.6rem;
+    padding-inline: 1.35rem;
+    border-radius: 999px;
+    background: var(--color-gilt);
+    color: var(--color-navy);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      background-color 200ms ease,
+      translate 200ms cubic-bezier(0.22, 0.68, 0.24, 1);
+  }
+
+  .masthead-cta:hover {
+    background: color-mix(in oklab, var(--color-gilt) 88%, white);
+    translate: 0 -1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .masthead-cta:hover {
+      translate: 0 0;
+    }
+  }
+
+  /* --- The hero's moving picture ---------------------------------------
+   *
+   * Three photographs crossfading on a twenty-four second cycle, each drifting
+   * slowly across its own frame. It is a film loop assembled out of stills, and
+   * that is a choice rather than a compromise: a real video would be two or
+   * three megabytes, would need a poster frame to avoid a grey rectangle on a
+   * slow connection, and would be the single heaviest thing this self-hosted
+   * deploy serves. Three WebPs already on disk cost a fraction of that between
+   * them, the first paints as the LCP element, and what a visitor actually
+   * perceives — a room that is alive rather than photographed — is the same.
+   *
+   * Each frame holds for about eight seconds and takes one to hand over. Faster
+   * and the page flickers; slower and the second frame arrives after the reader
+   * has gone.
+   *
+   * `alternate` on the drift is what stops the reset being visible — the image
+   * walks out and walks back rather than snapping to its start.
+   */
+  .cinema-frame {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .cinema-frame img {
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    transform: scale(1.06);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    /* Only the frames after the first are hidden, and only here. The first one
+     * is opaque in the base state, so it is what a reduced-motion reader — and
+     * anybody whose CSS animations never run — is left looking at. */
+    .cinema-frame + .cinema-frame {
+      opacity: 0;
+    }
+
+    .cinema-frame {
+      animation: cinema-hold 24s linear infinite;
+    }
+
+    .cinema-frame:nth-child(2) {
+      animation-delay: 8s;
+    }
+
+    .cinema-frame:nth-child(3) {
+      animation-delay: 16s;
+    }
+
+    .cinema-frame img {
+      animation: cinema-drift 24s ease-in-out infinite alternate;
+    }
+
+    .cinema-frame:nth-child(2) img {
+      animation-direction: alternate-reverse;
+    }
+  }
+
+  @keyframes cinema-hold {
+    0% {
+      opacity: 0;
+    }
+    4% {
+      opacity: 1;
+    }
+    33% {
+      opacity: 1;
+    }
+    37% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes cinema-drift {
+    from {
+      transform: scale(1.06) translate3d(0, 0, 0);
+    }
+    to {
+      transform: scale(1.16) translate3d(-1.5%, -1.5%, 0);
+    }
+  }
+
+  /* --- The headline, arriving -------------------------------------------
+   *
+   * The one thing on this page that animates on a timer rather than on scroll,
+   * and it is the headline because the headline is the only element guaranteed
+   * to be on screen when the page paints. Each part is handed an `--i` and the
+   * delay is computed from it, so the eyebrow, the two lines and the paragraph
+   * under them rise in sequence rather than together.
+   *
+   * 700ms and 18px. Long enough to be felt, short enough that somebody who came
+   * here for a telephone number is not waiting on a transition.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .rise {
+      animation: rise-in 700ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
+      animation-delay: calc(var(--i, 0) * 110ms);
+    }
+  }
+
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 18px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* --- The swash, drawn ------------------------------------------------
+   *
+   * The practice's own line, and now it writes itself as the reader arrives at
+   * it: the stroke is dashed to its full length and the offset is walked to
+   * zero across the section's entry. It is the logo's most distinctive gesture
+   * performed rather than printed, which is worth doing exactly where the mark
+   * already earns its place and nowhere else.
+   *
+   * The dasharray only exists inside the `@supports`. Set unconditionally it
+   * would leave the line invisible in every browser that cannot animate it.
+   */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .swash-draw {
+        stroke-dasharray: 1400;
+        animation: swash-write linear both;
+        animation-timeline: view();
+        animation-range: entry 15% cover 42%;
+      }
+    }
+  }
+
+  @keyframes swash-write {
+    from {
+      stroke-dashoffset: 1400;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* --- The slow drift ---------------------------------------------------
+   *
+   * A photograph creeps very slightly closer as it crosses the screen. It is
+   * the page's only parallax, and the restraint is the point: the effect works
+   * because it is below the threshold at which anybody notices it happening,
+   * and reads as depth rather than as a photograph being zoomed at them.
+   *
+   * 1 to 1.055 across the whole time the element is in view — which, on a
+   * section that takes two seconds to scroll past, is about two pixels a
+   * second on a 600px image. The first draft ran to 1.14 and looked like a
+   * slideshow transition stuck halfway.
+   *
+   * `cover` rather than `entry`: the range is the element's entire pass across
+   * the viewport, so the drift is continuous and never finishes while the
+   * picture is still being looked at. `entry` would complete the whole
+   * movement in the first third and then hold, which is exactly the jerk this
+   * is meant to avoid.
+   *
+   * **The base state is `scale(1)`**, as everywhere else on this page: the
+   * transform only exists inside the `@supports`, so a browser without
+   * scroll-driven animations draws the photograph at its natural size rather
+   * than frozen mid-zoom. `.drift-clip` is what stops the growth escaping the
+   * rounded corner it sits in, and it carries the radius and the border so the
+   * image beneath it can be a plain rectangle.
+   *
+   * ---
+   *
+   * **`overflow: clip`, and never `hidden`. This is the trap on this whole
+   * page.**
+   *
+   * `view()` measures an element against its *nearest ancestor scroll
+   * container*, and `overflow: hidden` makes an element one — it is scrollable,
+   * merely not by the user. So a `.drift` image inside an `overflow: hidden`
+   * box gets a timeline whose scrollport is the box it exactly fills and never
+   * moves within. The progress is constant, and the animation sits frozen at
+   * whatever that constant works out to: this shipped for a few minutes at
+   * `scale(1.0275)`, a permanent five-percent enlargement of every photograph,
+   * which looks like nothing at all going wrong.
+   *
+   * `overflow: clip` clips identically and is *not* a scroll container, so the
+   * timeline resolves to the document where it belongs. Support arrived well
+   * before scroll-driven animations did, so anything that can run `view()` can
+   * do this.
+   *
+   * The same fault was already sitting in three places that predate the drift,
+   * and all three are fixed: `Treatments` and `SocialGrid` wrap their reveals in
+   * a section that was `overflow-hidden` for the sake of a watermark, and
+   * `Swash` animates a stroke inside an `<svg>`, whose root has `overflow:
+   * hidden` by default. Every scroll reveal in the treatment grid was doing
+   * nothing whatsoever.
+   *
+   * Before adding `overflow-hidden` anywhere on this page, check whether it is
+   * about to become an ancestor of something with a `view()` timeline.
+   *
+   * ---
+   *
+   * `will-change` is deliberately absent. It would promote every drifting
+   * photograph to its own compositor layer for the whole life of the page, to
+   * save a repaint on a transform the compositor already handles.
+   */
+  .drift-clip {
+    overflow: clip;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .drift {
+        animation: drift-in linear both;
+        animation-timeline: view();
+        animation-range: cover 0% cover 100%;
+      }
+    }
+  }
+
+  @keyframes drift-in {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(1.055);
+    }
+  }
+
+  /* --- The floating booking button --------------------------------------
+   *
+   * `BookFab` toggles the `hidden` attribute rather than an opacity, so the
+   * control is genuinely absent — out of the tab order and out of the
+   * accessibility tree — whenever it is not on screen. Tailwind's preflight
+   * gives `[hidden]` a `display: none !important`, which is what lets the
+   * utility classes on the element sit alongside it without fighting.
+   *
+   * That also gives the entrance for free: an element coming back from
+   * `display: none` restarts its animations, so this plays every time the
+   * button returns rather than once on mount. No JavaScript is involved in the
+   * movement — the component decides *whether*, the stylesheet decides *how*.
+   *
+   * Reduced motion drops the travel and the fade entirely rather than
+   * shortening them. The button appearing instantly is a perfectly good
+   * outcome; it is a control, not a flourish.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .fab {
+      animation: fab-in 260ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
+    }
+  }
+
+  @keyframes fab-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 14px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* --- The booking drawer ------------------------------------------------
+   *
+   * A `<dialog>` that arrives from the right rather than appearing.
+   *
+   * `@starting-style` is what makes an entrance animation possible on an
+   * element that goes from `display: none` to the top layer in one step: it
+   * gives the browser a "before" to interpolate from, which is exactly what a
+   * transition on a newly-displayed element has never had. `display` and
+   * `overlay` are in `transition-behavior: allow-discrete` so the element stays
+   * painted for the length of the exit instead of vanishing on the first frame.
+   *
+   * The backdrop fades on its own timeline; animating it with the panel makes
+   * the whole thing feel like one sheet of paper being slid over the page.
+   *
+   * Reduced motion keeps the fade and drops the travel — the panel still needs
+   * to announce that something arrived, and a modal that simply exists where
+   * nothing was is more disorienting than a 40ms crossfade, not less.
+   */
+  .drawer {
+    transition:
+      translate 320ms cubic-bezier(0.22, 0.68, 0.24, 1),
+      opacity 220ms ease-out,
+      display 320ms allow-discrete,
+      overlay 320ms allow-discrete;
+    translate: 0 0;
+    opacity: 1;
+  }
+
+  .drawer:not([open]) {
+    translate: 100% 0;
+    opacity: 0;
+  }
+
+  @starting-style {
+    .drawer[open] {
+      translate: 100% 0;
+      opacity: 0;
+    }
+  }
+
+  .drawer::backdrop {
+    transition:
+      opacity 260ms ease-out,
+      display 260ms allow-discrete,
+      overlay 260ms allow-discrete;
+    opacity: 1;
+  }
+
+  .drawer:not([open])::backdrop {
+    opacity: 0;
+  }
+
+  @starting-style {
+    .drawer[open]::backdrop {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .drawer,
+    .drawer:not([open]) {
+      translate: 0 0;
+    }
+
+    @starting-style {
+      .drawer[open] {
+        translate: 0 0;
+      }
+    }
+  }
+
+  /* --- The pointer glow -------------------------------------------------
+   *
+   * A soft brass light that follows the cursor across the treatment grid. The
+   * co-ordinates come from one `pointermove` listener on the grid rather than
+   * one per card — see `GlowGrid` — and land here as two custom properties.
+   *
+   * `@media (hover: hover)` matters more than it looks. Without it a thumb tap
+   * on a phone leaves the glow stuck wherever the finger last was, which reads
+   * as a rendering fault. On a touch screen there is no pointer to follow and
+   * this simply does not exist.
+   *
+   * **The mask is not decoration.** A pseudo-element paints after its own
+   * element's children, so an unmasked glow lands on top of the card's heading
+   * and description — which are white on a dark gradient, and the whole point of
+   * the effect is that it *lightens*. The first build of this washed a bronze
+   * haze straight through the type every time the cursor reached the bottom of a
+   * card, taking white-on-near-black down toward white-on-mid-brown. The mask
+   * fades the light out across the middle of the card, so it lands on the
+   * photograph, which is what it was for, and never on a word.
+   */
+  @media (hover: hover) {
+    .glow-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 400ms ease;
+      background: radial-gradient(
+        16rem 16rem at var(--glow-x, 50%) var(--glow-y, 50%),
+        rgb(192 153 92 / 0.34),
+        transparent 68%
+      );
+      mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 74%);
+    }
+
+    .glow-card:hover::after,
+    .glow-card:focus-within::after {
+      opacity: 1;
+    }
+  }
+
+
+  /* --- The status rail ---------------------------------------------------
+   *
+   * The strip of warm paper under the film, and the last thing above the fold.
+   * It was a plain cream band with a hairline on top for as long as the hero was
+   * a photograph; now that the hero is a moving picture running edge to edge,
+   * the join between the two needs to be built rather than merely drawn — the
+   * film has to stop *on* something.
+   *
+   * Four layers do that, and none of them is a border.
+   *
+   * **A ledge.** The rail casts a shadow *upward* into the bottom of the film,
+   * so the picture reads as resting on it rather than being cut off by it. This
+   * is the one shadow on the storefront that points up, and that is the whole
+   * point of it: light on this page comes from the top left, so a surface lit
+   * from above throws its edge shadow onto whatever is behind it.
+   *
+   * **The bronze thread.** A two-pixel gradient rule along the top edge, fading
+   * out before either end so it never meets the screen's sides. It is the same
+   * hairline as the masthead's reading line, at the other end of the screen —
+   * the page opens and closes its first screen on the same bronze stroke.
+   *
+   * **A ground with a direction.** Cream is a flat fill and reads as one; a very
+   * short gradient from the lighter paper down to the darker gives the band a
+   * top and a bottom, which is what makes 56 pixels of it look like a surface
+   * rather than a gap.
+   *
+   * **The grain** the navy sections already carry, at a third of the strength.
+   * Paper has tooth; this is where the palette's warm-paper claim either reads
+   * or does not.
+   */
+  .status-rail {
+    background:
+      linear-gradient(180deg, var(--color-bone-soft) 0%, var(--color-bone) 62%, var(--color-bone) 100%);
+    box-shadow: 0 -22px 34px -26px rgb(9 20 36 / 0.75);
+  }
+
+  .status-rail::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 2px;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--color-gilt) 16%,
+      var(--color-gilt) 84%,
+      transparent
+    );
+    opacity: 0.6;
+  }
+
+  .status-rail::after {
+    content: '';
+    position: absolute;
+    inset: 2px 0 0;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* The rail's contents sit above both pseudo-elements. */
+  .status-rail > * {
+    position: relative;
+  }
+
+  /*
+   * The answer, as a badge rather than as a sentence.
+   *
+   * "Open now, until 13:00" is the single most useful line the storefront has —
+   * it is the one thing on the page that stops being true while nothing about
+   * the practice changes — and it was set in the same weight as the hours beside
+   * it, so it read as the first half of a pair rather than as the answer to a
+   * question. A pill separates them: one is a status, the other is a detail
+   * about it.
+   *
+   * `data-tone` comes from `OpenStatus`. Open is tinted in the practice's own
+   * pale bronze and shows a border of it; the two shut states stay on white and
+   * make no claim. A closed sign should be quieter than an open one.
+   */
+  .status-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    border: 1px solid var(--color-bone-deep);
+    border-radius: 999px;
+    background: #fff;
+    padding: 0.4rem 0.95rem 0.4rem 0.8rem;
+    font-size: 0.93rem;
+    font-weight: 700;
+    line-height: 1.2;
+    box-shadow: 0 1px 2px rgb(27 42 62 / 0.06);
+  }
+
+  .status-line[data-tone='open'] {
+    border-color: color-mix(in oklab, var(--color-gilt) 45%, var(--color-bone-deep));
+    background: var(--color-gilt-soft);
+  }
+
+  /*
+   * Today's hours, with a rule between them and the badge.
+   *
+   * `tabular-nums` because these are four clock times in a row and proportional
+   * digits make "08:00 – 13:00, 14:00 – 19:00" wobble; the rail is the one place
+   * on the storefront where numbers are set as data rather than as prose.
+   *
+   * The divider only exists from `sm`. The row wraps below that, and a rule that
+   * has wrapped to the start of its own line is a rule pointing at nothing.
+   */
+  .status-hours {
+    color: var(--color-bone-ink-soft);
+    font-size: 0.93rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.005em;
+  }
+
+  @media (min-width: 640px) {
+    .status-hours {
+      position: relative;
+      padding-left: 1.15rem;
+    }
+
+    .status-hours::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      height: 1.05em;
+      width: 1px;
+      translate: 0 -50%;
+      background: var(--color-bone-deep);
+    }
+  }
+
+  /* A named closure — a public holiday, the August week. It keeps the tint the
+   * open badge uses and drops the weight, because it is an explanation rather
+   * than a status. */
+  .status-closure {
+    border-radius: 0.6rem;
+    background: var(--color-gilt-soft);
+    padding: 0.2rem 0.7rem;
+    font-size: 0.88rem;
+    color: var(--color-bone-ink);
+  }
+
+  /*
+   * "See the week" — a link that behaves like the section links in the masthead
+   * rather than like body copy with an underline.
+   *
+   * The rule under it is drawn with a pseudo-element rather than
+   * `text-decoration`, which is what lets it grow from the left on hover instead
+   * of simply changing colour. `gilt-deep` because this is bronze *type* on
+   * cream, where the bright one is 2.1:1 and hopeless — the same rule the
+   * palette records for every other bronze word on a light ground.
+   */
+  .status-week {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding-bottom: 0.25rem;
+    color: var(--color-gilt-deep);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+
+  .status-week::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.35;
+    transform-origin: left center;
+    transition:
+      scale 260ms cubic-bezier(0.22, 0.68, 0.24, 1),
+      opacity 260ms ease;
+  }
+
+  .status-week:hover::after,
+  .status-week:focus-visible::after {
+    opacity: 1;
+    scale: 1.001 2;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .status-week::after {
+      transition: none;
+    }
+  }
+
+  /* --- The scroll cue ---------------------------------------------------
+   *
+   * One small bobbing arrow at the foot of a hero that fills the screen. It is
+   * there because a full-height hero's one real failure mode is a reader who
+   * does not realise there is a page underneath it.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .cue {
+      animation: cue-bob 2.6s ease-in-out infinite;
+    }
+  }
+
+  @keyframes cue-bob {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(0, 7px, 0);
+    }
+  }
+
+  /* --- The reading line -------------------------------------------------
+   *
+   * A hairline of bronze across the foot of the masthead, as long as the page
+   * has been read. It is the same timeline the masthead already condenses on —
+   * `scroll(root block)` — so it costs one more animation on a compositor that
+   * is running that one anyway, and nothing at all in JavaScript.
+   *
+   * It earns its place on this page specifically because the page is long,
+   * unsegmented and has no pagination: eleven sections of continuous scroll with
+   * no chapter headings and no "3 of 8". A reader deciding whether to keep going
+   * has, without this, no way to tell whether the telephone number is one screen
+   * away or six.
+   *
+   * **The base state is absent, not full**, which is the one place on this page
+   * where "the finished state is the base state" has to be read carefully. The
+   * finished state of a progress bar is a completed bar, and a completed bar
+   * painted across the top of an unscrolled page is a lie about where the reader
+   * is. So the rule that makes it visible lives inside the `@supports`: a
+   * browser that cannot track the scroll shows no indicator, which is exactly
+   * what it showed yesterday.
+   *
+   * It also solves a smaller problem for free. At the very top of the page the
+   * masthead is deliberately transparent and has no edge at all; the line grows
+   * out of nothing as the veil behind it fades in, so the bar acquires its
+   * bottom rule at the same moment it acquires its ground.
+   */
+  .masthead-progress {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2px;
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0;
+    background: linear-gradient(90deg, var(--color-gilt-deep), var(--color-gilt));
+  }
+
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .masthead-progress {
+        opacity: 1;
+        animation: reading-line linear both;
+        animation-timeline: scroll(root block);
+      }
+    }
+  }
+
+  @keyframes reading-line {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  /* --- The hero, leaving -------------------------------------------------
+   *
+   * Two speeds where there was one. The photographs sink a little slower than
+   * the page and grow slightly as they go; the type over them lifts a little
+   * faster and fades out before it reaches the masthead. Between them they give
+   * the top of the page the one thing a flat scroll cannot: the sense that the
+   * picture is *behind* the words rather than printed on the same sheet.
+   *
+   * `scroll(root block)` rather than `view()`, and that is not a preference —
+   * the hero is `overflow-hidden`, which makes it a scroll container, so a
+   * `view()` timeline on anything inside it would measure against a box the
+   * element never moves within and sit frozen. The whole trap is written up
+   * under `.drift`. Naming the document's scroll explicitly steps around it, and
+   * it is the right timeline anyway: this is an animation about the hero's
+   * relationship to the top of the page, and the top of the page is what
+   * `scroll(root)` measures.
+   *
+   * **`svh`, for the same reason the hero is `min-h-svh`.** A range written in
+   * `vh` is measured against the browser chrome retracted, so on a phone the
+   * fade would still have a fifth of its travel left at the moment the hero had
+   * gone.
+   *
+   * The numbers are small on purpose. 3.5% of travel and 8% of scale on the
+   * stage — the frames are already drifting on their own eight-second cycle, and
+   * a parallax large enough to notice on top of that reads as two effects
+   * fighting rather than as depth. The scale exists only to keep the stage
+   * covering its box while it sinks: 8% of growth puts 4% of headroom above the
+   * top edge, which is more than the 3.5% it travels down, so no gap can open.
+   * Change one of those two numbers and the other has to move with it.
+   */
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .hero-park {
+        animation: hero-park linear both;
+        animation-timeline: scroll(root block);
+        animation-range: 0 100svh;
+      }
+
+      /* Ends before the stage does. The type is centred in the hero, so it
+       * clears the top of the screen with a third of the section still showing —
+       * carrying its fade all the way to 100svh would leave the headline at half
+       * opacity while it was still the largest thing on the page. */
+      .hero-lift {
+        animation: hero-lift linear both;
+        animation-timeline: scroll(root block);
+        animation-range: 8svh 78svh;
+      }
+    }
+  }
+
+  @keyframes hero-park {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(0, 3.5%, 0) scale(1.08);
+    }
+  }
+
+  /*
+   * The travel runs the whole range and **the fade does not start until 40% of
+   * it has gone**, which is a correction to the first version rather than a
+   * refinement. Fading linearly across the range put the headline, the pills and
+   * the booking button at half opacity while the hero still filled the top half
+   * of the screen — the primary call to action on the page, greyed out, in front
+   * of somebody who had scrolled four hundred pixels and might well scroll back.
+   * A departing element may fade; an element still being read may not.
+   *
+   * 40% of `8svh 78svh` is 36svh, which is about where the copy block's top edge
+   * reaches the masthead. After that it is genuinely on its way off and the fade
+   * is what it looks like.
+   */
+  @keyframes hero-lift {
+    from {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+    40% {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+      transform: translate3d(0, -11%, 0);
+    }
+  }
+
+  /* --- The headline, written ---------------------------------------------
+   *
+   * The page's one piece of kinetic typography, and it is one piece because that
+   * is the whole of the technique's worth: a headline whose lines rise out from
+   * behind their own baseline is a moment, and the same gesture repeated on
+   * every heading down the page is a tic.
+   *
+   * Each line is a clipping box with the type inside it, and the type starts one
+   * line-height below its own box — so what the reader sees is not a block
+   * fading in but two lines being *set*, in order, out of the navy. It is the
+   * oldest trick in title sequences and it costs two spans.
+   *
+   * `overflow: clip`, never `hidden`, everywhere on this page — see `.drift`.
+   * Here it happens not to matter, because nothing inside is on a `view()`
+   * timeline, but a rule with one exception is a rule nobody follows.
+   *
+   * **The padding is load-bearing.** A clipping box drawn to the line box cuts
+   * the descenders off the type inside it — in Albanian the headline ends in
+   * "juaj" and the tail of the j was being sliced flat. The padding gives the box
+   * the room back and the negative margin takes it out of the layout again, so
+   * the two lines still sit at their designed leading.
+   *
+   * On a timer rather than on scroll, because it shares `--i` with everything
+   * else in the hero and for the reason given under `.rise`: the headline is the
+   * only thing on this page guaranteed to be on screen when it paints, so there
+   * is no scroll position to hang it on.
+   */
+  /* --- The film, darkened ------------------------------------------------
+   *
+   * The hero's footage is a white room, and white type has to sit on top of it.
+   * The obvious answer is a heavier scrim, and it is the wrong one: a wash dark
+   * enough to hold a headline is dark enough to hide the film, and a hero video
+   * nobody can see is 1.6MB of nothing.
+   *
+   * So the picture is darkened rather than covered. At 55% brightness the room's
+   * shapes are all still there — the chair, the unit, the light over it — they
+   * are simply in the page's own register instead of six stops brighter than
+   * everything around them. The desaturation is what stops the remaining
+   * highlights reading as a different colour temperature from the navy they now
+   * sit in.
+   *
+   * On the outer box rather than on `.hero-park`, which carries the parallax: a
+   * `filter` establishes a containing block, and putting one on the animated
+   * element is the kind of interaction that works until somebody adds a third
+   * thing to it.
+   */
+  .hero-film {
+    filter: brightness(0.55) saturate(0.62) contrast(1.04);
+  }
+
+  .hero-line {
+    display: block;
+    overflow: clip;
+    padding-bottom: 0.16em;
+    margin-bottom: -0.16em;
+  }
+
+  .hero-line-ink {
+    display: block;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-line-ink {
+      animation: line-set 820ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
+      animation-delay: calc(var(--i, 0) * 110ms);
+    }
+  }
+
+  @keyframes line-set {
+    from {
+      transform: translate3d(0, 104%, 0);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  /* --- The light in the dark sections ------------------------------------
+   *
+   * The navy on this page is one flat colour over three large sections, and a
+   * flat field is the one thing a screen renders worse than paper does: on paper
+   * it is ink with a texture under it, on a screen it is a rectangle of exactly
+   * one value. So the navy gets a light source and a grain, which is what the
+   * eye reads as a surface rather than as a fill.
+   *
+   * The light is two radial gradients — one cold and high, one bronze and low,
+   * the same two colours the whole page is built from — drifting across the
+   * section on a seventy-second cycle. Seventy seconds is chosen so that nothing
+   * is ever *seen* to move: a reader who scrolls past in four seconds gets a
+   * still, and a reader who stops to read a paragraph looks up to a section lit
+   * slightly differently from the one they started in.
+   *
+   * `alternate` rather than a loop, so there is no reset to be caught.
+   *
+   * **The scale is what keeps it honest.** The layer travels up to 4% in each
+   * direction, so it has to be at least 8% oversized or its own edge walks into
+   * frame — which, on a gradient that fades to transparent, shows up as a soft
+   * vertical band rather than as an obvious fault. 1.12 at the near end.
+   */
+  .aurora {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(42rem 30rem at 16% 8%, rgb(47 84 128 / 0.5), transparent 64%),
+      radial-gradient(34rem 26rem at 84% 82%, rgb(192 153 92 / 0.14), transparent 66%);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .drift-light {
+      animation: light-wander 70s ease-in-out infinite alternate;
+    }
+  }
+
+  @keyframes light-wander {
+    from {
+      transform: translate3d(-3%, -2%, 0) scale(1.12);
+    }
+    to {
+      transform: translate3d(4%, 3%, 0) scale(1.2);
+    }
+  }
+
+  /* --- The grain ---------------------------------------------------------
+   *
+   * Fractal noise at four and a half per cent, over the dark sections only.
+   *
+   * It is there to do to the navy what halftone does to ink: break the field up
+   * enough that the gradients above it stop banding. That is not a cosmetic
+   * complaint — a 42rem radial gradient across a 1440px section in a colour this
+   * dark is exactly the case eight-bit colour cannot resolve, and the seams
+   * between its steps are plainly visible on a good monitor. A per-pixel dither
+   * is the standard fix and this is one.
+   *
+   * Generated by the browser from an inline `feTurbulence` rather than shipped
+   * as an image: it is about four hundred bytes of markup instead of a file, it
+   * is resolution-independent, and it is rasterised once and then tiled by the
+   * compositor.
+   *
+   * It does not move. A grain that crawls is a film effect and this page is not
+   * pretending to be footage; a still grain is a paper effect, which is what the
+   * rest of the palette is already doing.
+   */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* --- The cards, catching the light -------------------------------------
+   *
+   * The treatment grid already tracks the pointer — it has done since the glow
+   * went in, from one delegated listener on the container that writes straight
+   * onto the card's style object without going near React state. This is the
+   * same two numbers spent a second time: the card tips very slightly toward
+   * wherever the cursor is, so the light and the geometry agree about where it
+   * is coming from.
+   *
+   * **On an inner plate, not on the card.** The card itself is a `.reveal`, and
+   * a `view()` animation with `fill: both` holds its transform for the entire
+   * life of the page — so a `transform` declared on the same element would be
+   * overridden and simply never appear. The plate is a plain wrapper inside the
+   * clip with nothing else on it.
+   *
+   * **The transition is on the resting state and removed on hover**, which is
+   * the opposite of how a hover transition is usually written and is the only
+   * arrangement that works here. The custom properties change sixty times a
+   * second while the cursor crosses the card; a transition left in place would
+   * be re-interpolating toward a target that had already moved, and the card
+   * would swim behind the pointer half a second late. So: instant while
+   * tracking, and a 420ms settle when the pointer leaves and the rule stops
+   * applying.
+   *
+   * 3.2 degrees. Enough that the row of cards is visibly not flat, far short of
+   * the twelve or fifteen degrees a "3D tilt card" usually ships with — at that
+   * angle the photograph inside distorts and the heading goes soft, and a
+   * clinic's page has just told the reader that its photographs cannot be
+   * trusted to sit still.
+   *
+   * `hover: hover` for the same reason the glow has it: on a touch screen there
+   * is no pointer to lean toward, and a card left tilted where a thumb last
+   * landed reads as a rendering fault.
+   */
+  .tilt-plate {
+    position: relative;
+  }
+
+  @media (hover: hover) {
+    @media (prefers-reduced-motion: no-preference) {
+      .tilt-plate {
+        transition: transform 420ms cubic-bezier(0.22, 0.68, 0.24, 1);
+      }
+
+      /* The 3% is not styling, it is coverage. A plate rotated inside a box it
+       * exactly fills recedes at the far edge — under a 900px perspective and
+       * 3.2 degrees that is about one and a half per cent of the card's height,
+       * and what shows through the gap is the card's own navy ground in a thin
+       * strip down one side. Scaling the plate past its clip closes it. */
+      .glow-card:hover .tilt-plate,
+      .glow-card:focus-within .tilt-plate {
+        transition: none;
+        transform: perspective(900px) rotateX(calc(var(--tilt-y, 0) * -3.2deg))
+          rotateY(calc(var(--tilt-x, 0) * 3.2deg)) scale(1.03);
+      }
+    }
+  }
+
+  /* --- The strip, pushed -------------------------------------------------
+   *
+   * The band of phrases has always slid at a constant thirty-eight seconds a
+   * lap, which is a decoration playing to itself. This adds a second, slower
+   * translation *underneath* the loop, driven by the strip's own pass across the
+   * viewport — so scrolling down shoves the words along faster than they were
+   * going, stopping hands them back to their own pace, and scrolling up drags
+   * them back.
+   *
+   * It is the difference between a band that moves and a band that responds, and
+   * it costs one wrapper: two nested transforms, both on the compositor, neither
+   * aware of the other.
+   *
+   * **One direction only.** The push runs 0 to −12rem and never positive,
+   * because a positive offset slides the track's leading edge to the right of
+   * where it starts and opens a gap at the left of the band that the mask is not
+   * wide enough to hide. Left is always safe: there is a second copy of every
+   * phrase behind the first, which is what the loop is built out of.
+   *
+   * This is also why `.marquee` is `overflow: clip` and not `hidden` — see
+   * `.drift`. As `hidden` it would be this element's scroll container, the
+   * `view()` timeline would resolve against a box the track never moves within,
+   * and the push would sit frozen at whatever constant that worked out to.
+   */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .marquee-drag {
+        display: flex;
+        width: max-content;
+        animation: marquee-push linear both;
+        animation-timeline: view();
+        animation-range: cover 0% cover 100%;
+      }
+    }
+  }
+
+  @keyframes marquee-push {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-12rem, 0, 0);
+    }
+  }
+}
+
+@layer components {
+  /* --- The app's furniture, wearing the storefront's palette ------------
+   *
+   * `RequestForm` is built out of `.card`, `.field-label`, `.field-input` and
+   * `SubmitButton`, all of which are the software's own components and all of
+   * which are drawn in the software's cool white and teal. On a warm cream page
+   * that reads as a form somebody pasted in from a different site.
+   *
+   * The alternative was a second set of form primitives for the public page.
+   * That is how a codebase ends up with two inputs that disagree about padding
+   * and only one of which got the fix for the Safari date field — the storefront
+   * form and the app's forms should be the same control in different clothes,
+   * because they *are* the same control.
+   *
+   * So the overrides live here, keyed off `.site-display`, which is already on
+   * the storefront's wrapper and on nothing else. Two class names of specificity
+   * against one is enough to win without a single `!important`, and every
+   * behaviour — the focus handling, the disabled state, the date field's
+   * suppressed picker — is inherited rather than reimplemented.
+   *
+   * Note the field's ground stays white while the card it sits in is cream. An
+   * input the same colour as its card is an input people do not see, and on a
+   * form whose whole job is to be filled in by somebody who is nervous, the box
+   * needs to look like a box. */
+  .site-display .card {
+    @apply border-bone-deep bg-bone-soft;
+  }
+
+  .site-display .field-label {
+    @apply text-bone-ink;
+  }
+
+  .site-display .field-input {
+    @apply border-bone-deep bg-white text-bone-ink
+      hover:border-bone-ink-faint focus:border-gilt-deep
+      disabled:bg-bone disabled:text-bone-ink-faint;
+  }
+
+  .site-display .field-input::placeholder {
+    color: var(--color-bone-ink-soft);
+  }
+
+  .site-display .btn-secondary {
+    @apply border-bone-deep bg-bone-soft text-bone-ink hover:border-gilt hover:bg-gilt-soft;
+  }
+
+  /* --- Visiting: the week, and the ways to reach a person ----------------
+   *
+   * This section had three cards stacked in it — the opening hours in one, the
+   * bay photograph in another, the form in a third — with four flat rows of
+   * icon-and-link floating between them. Three surfaces of identical weight is
+   * not a hierarchy, it is a filing cabinet, and it left the single most
+   * valuable thing on the page (a telephone number a nervous person can press)
+   * looking exactly like the email address nobody uses.
+   *
+   * So: the week loses its box and becomes a plain ruled list on the section's
+   * own ground; the two things a visitor actually *does* become a pair of
+   * tiles; and the address and the email drop to reference weight underneath.
+   * One surface, three levels.
+   */
+
+  /* The week, as a list rather than a table in a box.
+   *
+   * `border-collapse` plus a hairline on every row but the first is the whole
+   * of it — a ruled list reads as editorial where a bordered box reads as the
+   * staff screen this same data is also drawn on. `tabular-nums` matters more
+   * than it looks: seven rows of times whose colons do not line up is the
+   * difference between a schedule and a paragraph. */
+  .hours-list {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .hours-list tr + tr > * {
+    border-top: 1px solid var(--color-bone-deep);
+  }
+
+  .hours-list th,
+  .hours-list td {
+    padding-block: 0.8rem;
+  }
+
+  .hours-list td {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--color-bone-ink-soft);
+  }
+
+  .hours-list th {
+    text-align: left;
+    font-weight: 400;
+    color: var(--color-bone-ink-soft);
+  }
+
+  /* Today. Filled rather than striped down one edge — a coloured bar on the
+   * left of a row is the "side-stripe" reflex, and a fill says the same thing
+   * without pretending to be a scrollbar. The row also carries a chip naming
+   * the day, because `aria-current` is announced and colour is not. */
+  .hours-list [aria-current] > * {
+    background: var(--color-gilt-soft);
+    border-top-color: transparent;
+    color: var(--color-bone-ink);
+    font-weight: 700;
+  }
+
+  .hours-list [aria-current] th {
+    border-start-start-radius: 0.6rem;
+    border-end-start-radius: 0.6rem;
+    padding-inline-start: 0.85rem;
+  }
+
+  .hours-list [aria-current] td {
+    border-start-end-radius: 0.6rem;
+    border-end-end-radius: 0.6rem;
+    padding-inline-end: 0.85rem;
+  }
+
+  /* Narrow screens stack the pair.
+   *
+   * "08:00 – 13:00, 14:00 – 19:00" is twenty-eight characters and it does not
+   * fit beside a weekday in a 350px column — it wrapped mid-range, so every row
+   * was two lines tall and the second line was a homeless "19:00" pushed to the
+   * right margin. Stacked, the day is a heading and the times sit under it on
+   * one line, which is also how somebody reads a schedule out loud.
+   *
+   * The rules move with the layout: in a stacked row the hairline belongs above
+   * the day and nowhere else, or every entry gets a line through its middle.
+   */
+  @media (width < 30rem) {
+    .hours-list th,
+    .hours-list td {
+      display: block;
+      padding-block: 0;
+      text-align: left;
+    }
+
+    .hours-list th {
+      padding-top: 0.7rem;
+      font-weight: 600;
+      color: var(--color-bone-ink);
+    }
+
+    .hours-list td {
+      padding-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+
+    .hours-list tr + tr > td {
+      border-top: 0;
+    }
+
+    .hours-list [aria-current] th {
+      border-radius: 0.6rem 0.6rem 0 0;
+      padding-top: 0.75rem;
+    }
+
+    .hours-list [aria-current] td {
+      border-radius: 0 0 0.6rem 0.6rem;
+      padding-inline: 0.85rem;
+    }
+  }
+
+  .hours-today-chip {
+    display: inline-block;
+    margin-inline-start: 0.6rem;
+    border-radius: 999px;
+    background: var(--color-gilt);
+    padding: 0.1rem 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-navy);
+    vertical-align: 0.08em;
+  }
+
+  /* The two things a visitor does.
+   *
+   * Deliberately the heaviest objects in the column: on a clinic's page the
+   * telephone number is the conversion, and it had been sharing a type size and
+   * a row height with the email address. The lift on hover is the same 2px the
+   * page's buttons use, so these read as controls rather than as panels.
+   *
+   * A border *and* a soft shadow on the same element is the "ghost card" tell,
+   * so there is a border and no shadow at rest; hovering brings the shadow and
+   * the border goes bronze. One of the two, never both as decoration. */
+  .contact-tile {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-height: 3.75rem;
+    border: 1px solid var(--color-bone-deep);
+    border-radius: 0.85rem;
+    background: var(--color-bone-soft);
+    padding: 0.85rem 1.1rem;
+    text-decoration: none;
+    color: var(--color-bone-ink);
+    transition:
+      border-color 180ms ease-out,
+      transform 180ms cubic-bezier(0.22, 0.68, 0.24, 1),
+      box-shadow 180ms ease-out;
+  }
+
+  @media (hover: hover) {
+    .contact-tile:hover {
+      border-color: var(--color-gilt);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lift);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .contact-tile {
+      transition: border-color 180ms ease-out;
+    }
+
+    .contact-tile:hover {
+      transform: none;
+    }
+  }
+
+  .contact-tile-label {
+    display: block;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-bone-ink-faint);
+  }
+
+  .contact-tile-value {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 1.02rem;
+    font-weight: 700;
+  }
+
+  /* Reference weight: the address and the email are things somebody copies, not
+   * things they press in a hurry. Quieter than the tiles by size and colour,
+   * and still a comfortable target. */
+  .contact-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 1rem;
+    color: var(--color-bone-ink-soft);
+  }
+
+  .contact-line a {
+    color: var(--color-bone-ink);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: var(--color-bone-deep);
+    transition: text-decoration-color 160ms ease-out;
+  }
+
+  .contact-line a:hover {
+    text-decoration-color: var(--color-gilt-deep);
+  }
+
+  /* The app rings focus in teal, which on this page is a colour that appears
+   * nowhere else and reads as a stray. Bronze is the storefront's own, and
+   * `gilt-deep` rather than `gilt` because a focus ring has to clear 3:1
+   * against the surface it is drawn on and the bright one does not.
+   *
+   * The dark sections are untouched: every control on navy already asks for
+   * `focus-visible:outline-white` at its own call site, because no colour in
+   * this palette rings clearly enough against #12253f. */
+  .site-display :focus-visible {
+    outline-color: var(--color-gilt-deep);
+  }
+}
+
+/* --- The four pages the masthead grew into --------------------------------
+ *
+ * Everything below belongs to the deep pages — treatments, the practice, the
+ * place, visiting — and every one of them follows the same two rules the rest of
+ * this stylesheet does, because they are the rules that stop a page of effects
+ * becoming a page that fails.
+ *
+ * **The finished state is the base state.** Every animation here lives inside
+ * `@supports (animation-timeline: view())` and a reduced-motion guard, and what
+ * is declared outside is what the element looks like when it has finished. A
+ * browser that cannot drive an animation from scroll position draws a full
+ * meter, a drawn line and a lit node rather than an empty one — which is the
+ * difference between an enhancement and a page that ships blank.
+ *
+ * **Scroll-driven, not scroll-triggered.** These run on the document's own
+ * scroll offset in the compositor, so they run backwards when the reader scrolls
+ * back up and they cost no JavaScript at all. Nothing in this section observes
+ * anything.
+ */
+@layer components {
+  /* --- The timing meter -------------------------------------------------
+   *
+   * Two bars under each treatment: how many appointments, how many days. The
+   * width is handed in as `--fill` by the component, which works it out as a
+   * fraction of the longest any treatment takes — see `TIMING_SCALE`.
+   *
+   * The growth is a `scaleX` and not an animated `width`, which matters here in
+   * a way it usually does not: there are two of these per entry and eight
+   * entries, so a page scroll would otherwise be laying out sixteen elements a
+   * frame. Scaling a horizontal gradient stretches it, which is invisible on a
+   * six-pixel bar and is the whole reason this can be a compositor job.
+   *
+   * `overflow: clip` on the track, never `hidden` — the fill inside is on a
+   * `view()` timeline, and `hidden` would make the track its scroll container
+   * and freeze it. The whole argument is on `.drift`.
+   */
+  .meter {
+    --fill: 0%;
+    position: relative;
+    height: 0.375rem;
+    overflow: clip;
+    border-radius: 999px;
+    background: var(--color-bone-deep);
+  }
+
+  /* On navy the track has to be lighter than the ground rather than darker. */
+  .meter-dark {
+    background: color-mix(in oklab, var(--color-navy-line) 65%, transparent);
+  }
+
+  .meter-fill {
+    display: block;
+    height: 100%;
+    width: var(--fill);
+    border-radius: inherit;
+    transform-origin: left;
+    background: linear-gradient(90deg, var(--color-gilt-deep), var(--color-gilt));
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .meter-fill {
+        animation: meter-fill linear both;
+        animation-timeline: view();
+        /* Finishes early — a bar still growing when the reader has finished the
+           paragraph beside it reads as a page that is behind. */
+        animation-range: entry 30% cover 32%;
+      }
+    }
+  }
+
+  @keyframes meter-fill {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  /* --- The first visit, as a thread -------------------------------------
+   *
+   * Five numbered steps down a hairline, and the hairline draws itself as the
+   * section is read while each node warms from cream to bronze as it arrives.
+   *
+   * **Both lines fade out at the bottom rather than stopping.** The track has to
+   * run from the first node's centre to the last one's, and CSS cannot know
+   * where the last node's centre is — the final step's text is however many
+   * lines it is in whichever of three languages the page is in. A line that runs
+   * to the bottom of the list and dissolves over the last fifth is right at
+   * every height, and reads as deliberate rather than as arithmetic that nearly
+   * worked.
+   *
+   * The bronze is a second element over the grey rather than a colour change, so
+   * the undrawn part of the route stays visible: a reader should be able to see
+   * there are more steps below before they scroll to them.
+   */
+  .thread {
+    position: relative;
+    /* Every offset in this block is derived from this one number. */
+    --thread-node: 2.375rem;
+    --thread-line: calc(var(--thread-node) / 2 - 0.5px);
+  }
+
+  .thread::before,
+  .thread-draw {
+    content: '';
+    position: absolute;
+    left: var(--thread-line);
+    top: calc(var(--thread-node) / 2);
+    bottom: 0;
+    width: 1px;
+  }
+
+  .thread::before {
+    background: linear-gradient(
+      180deg,
+      var(--color-bone-deep),
+      var(--color-bone-deep) 78%,
+      transparent
+    );
+  }
+
+  .thread-draw {
+    transform-origin: top;
+    background: linear-gradient(180deg, var(--color-gilt), var(--color-gilt) 78%, transparent);
+  }
+
+  .thread-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--thread-node) minmax(0, 1fr);
+    gap: 0 1.25rem;
+    align-items: start;
+  }
+
+  .thread-node {
+    display: grid;
+    place-items: center;
+    width: var(--thread-node);
+    height: var(--thread-node);
+    border: 1px solid var(--color-bone-deep);
+    border-radius: 999px;
+    background: var(--color-bone);
+    color: var(--color-bone-ink-faint);
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .thread-draw {
+        animation: thread-write linear both;
+        animation-timeline: view();
+        /* The list is taller than a screen, so the range is most of its pass:
+           the line should still be arriving when the fourth step is read. */
+        animation-range: entry 45% cover 80%;
+      }
+
+      .thread-node {
+        animation: thread-node-lit linear both;
+        animation-timeline: view();
+        /* A node lights as it comes up off the bottom of the screen, a little
+           before the line reaches it — the light leads and the route follows,
+           rather than the two arriving together and reading as one switch being
+           thrown. */
+        animation-range: entry 55% entry 95%;
+      }
+    }
+  }
+
+  @keyframes thread-write {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+
+  @keyframes thread-node-lit {
+    from {
+      border-color: var(--color-bone-deep);
+      background: var(--color-bone);
+      color: var(--color-bone-ink-faint);
+    }
+    to {
+      border-color: var(--color-gilt);
+      background: var(--color-gilt-soft);
+      color: var(--color-gilt-deep);
+    }
+  }
+
+  /* --- The route between the three ways in ------------------------------
+   *
+   * A dashed bronze rule running behind the "getting here" cards, at the height
+   * of their icons. It is behind them and the cards are opaque, so what is
+   * actually visible is the dashes in the two gutters — which is exactly the
+   * look intended, and is why the inset does not have to be computed from the
+   * grid's own arithmetic. Three points on one route, drawn left to right as the
+   * section arrives.
+   *
+   * `lg`-only at the call site: below that the cards are stacked, and a
+   * horizontal line across a column is a line joining nothing.
+   */
+  .route-draw {
+    position: absolute;
+    inset-inline: 0;
+    height: 1px;
+    transform-origin: left;
+    opacity: 0.6;
+    background: repeating-linear-gradient(90deg, var(--color-gilt) 0 6px, transparent 6px 13px);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .route-draw {
+        animation: route-run linear both;
+        animation-timeline: view();
+        animation-range: entry 25% cover 45%;
+      }
+    }
+  }
+
+  @keyframes route-run {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  /* --- A tile arriving in the wall --------------------------------------
+   *
+   * The gallery page's mosaic is remounted whenever the filter changes, so this
+   * runs on a real event — a reader pressing "rooms" — rather than on scroll,
+   * and it is on a timer for that reason. Everything else on this site that
+   * moves is driven by scroll position; this is the one place where the thing
+   * being animated is a response to a press.
+   *
+   * 45ms a step and 480ms a tile. Nine tiles is 360ms of stagger, which is long
+   * enough to read as a sequence and short enough that the last one is not still
+   * arriving when the reader has started looking at the first.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .tile-in {
+      animation: tile-in 480ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
+      animation-delay: calc(var(--i, 0) * 45ms);
+    }
+  }
+
+  @keyframes tile-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 12px, 0) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* --- What a short screen gives up ---------------------------------------
+ *
+ * The hero is `min-h-svh`, which sets a floor and not a ceiling: put more in
+ * it than the screen holds and it simply grows, and the status rail — the
+ * whole point of which is to be the last thing above the fold — drops below
+ * it. That is the fault this rebuild exists to fix, so it cannot be allowed
+ * back in through a viewport nobody tested.
+ *
+ * 844px of iPhone holds everything. 640px of an older Android does not, and
+ * the arithmetic is not close: the eyebrow, two lines of display serif, four
+ * lines of lede, the chips, two stacked buttons, the rating line and the rail
+ * come to about 750px before the masthead is paid for.
+ *
+ * So on a screen shorter than 720px the two pieces that are genuinely
+ * supplementary come out. The chips are four shortcuts to a section three
+ * screens down, reachable by scrolling. The rating line is said again, in
+ * full and with its source, in the practice section. Neither is the hero's
+ * argument; the headline, the lede, the two buttons and the opening hours are,
+ * and all five survive.
+ *
+ * Height only, deliberately — a 1440×700 laptop is short too, and the same
+ * arithmetic bites it. Above `lg` the rating is a floating card outside the
+ * flow, so only the chips are affected there. */
+/* --- The hero on a short screen ----------------------------------------
+ *
+ * The hero has one rule and it is a hard one: **one screen, nothing cut off.**
+ * The trouble with that rule is that a screen is not one height. A 1440×900
+ * laptop and a 1366×768 laptop differ by 132 pixels of vertical space and by
+ * nothing else that matters, and the column — nameplate, town, two lines of
+ * display serif, a paragraph, four pills, two buttons and a rating — does not
+ * get 132 pixels shorter on its own.
+ *
+ * So there are three tiers, and every number in them was measured against the
+ * fold at fourteen viewport sizes rather than chosen:
+ *
+ *   **Below 760px** the chips and the rating go. They are the two things on the
+ *   page that are said again elsewhere — the pills are shortcuts to a grid three
+ *   screens down, and the rating is repeated in the footer — so they are what a
+ *   short screen can afford to lose. This threshold used to be 720px and moved
+ *   up with the nameplate: at 720 a 360×740 phone kept both and ran eighty
+ *   pixels past the fold.
+ *
+ *   **Below 800px and below 700px** the rhythm itself compacts, in two steps.
+ *   The gaps between the parts are the only thing in this column that can shrink
+ *   without changing what it says, and they carry more of the height than any
+ *   single element does: on a 375×667 phone the four visible gaps came to 81
+ *   pixels against a 20-pixel overflow.
+ *
+ * The one size this still does not fit is 320×568 — an iPhone SE of the first
+ * generation. It did not fit before the nameplate either (660px of column
+ * against 568 of screen with the nameplate removed entirely), because the lede
+ * alone wraps to seven lines at that width. The status rail goes below the fold
+ * there and the page is otherwise correct, which is the right way round: the
+ * fold is a design goal and the sentence explaining what this practice is is
+ * not negotiable.
+ */
+@media (max-height: 760px) {
+  .hero-extra {
+    display: none;
+  }
+}
+
+@media (max-height: 800px) {
+  .hero-column > * + * {
+    margin-top: 0.7rem;
+  }
+
+  /* The gap between the nameplate's band and the words' band compacts with
+   * everything else. It is the largest single space in the hero, so it is also
+   * the cheapest one to take pixels from. */
+  .hero-band {
+    padding-top: 1.4rem;
+  }
+}
+
+@media (max-height: 700px) {
+  .hero-column > * + * {
+    margin-top: 0.4rem;
+  }
+
+  /* The nameplate's floor is 4.6rem, set by a phone's *width* — below that the
+   * lockup stops being a nameplate at all. A short screen is a different
+   * constraint and gets a different answer: 3.7rem is still nearly twice the
+   * 2rem the bar carries at rest, so the hierarchy survives, and it buys the
+   * pixels a 360×640 screen does not otherwise have.
+   *
+   * Two class names of specificity, which is what it takes to win against the
+   * `h-[clamp(…)]` utility on the element itself. */
+  .hero-column .hero-mark img {
+    height: 3.7rem;
+  }
+
+  .hero-band {
+    padding-top: 0.9rem;
+  }
+}
+
+/* The fourth and last tier, and it exists for exactly one screen: 320×568, an
+ * iPhone SE of the first generation. Three tiers got the hero to within ten
+ * pixels of the fold there and stopped; this closes it.
+ *
+ * It is worth the block rather than being written off as a dead size. The hero's
+ * rule is that the status rail — the one line telling a visitor whether the door
+ * is open right now — sits above the fold, and ten pixels is a silly reason for
+ * the oldest phone still in use in Vlorë to be the one that cannot see it. */
+@media (max-height: 620px) {
+  .hero-column > * + * {
+    margin-top: 0.3rem;
+  }
+
+  .hero-column .hero-mark img {
+    height: 3.1rem;
+  }
+
+  .hero-band {
+    padding-top: 0.4rem;
+  }
+
+  /* The two buttons are 55px tall each and wrap to two rows at this width, so
+   * they are 110 of the 568 pixels available — the largest single item in the
+   * hero and the last place left to find any. 46px still clears the 44px
+   * minimum a touch target is required to have, so nothing is being traded away
+   * except air. */
+  .hero-actions > a {
+    min-height: 2.7rem;
+    padding-inline: 1.25rem;
+    font-size: 0.95rem;
+  }
+
 }

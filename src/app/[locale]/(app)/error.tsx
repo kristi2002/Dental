@@ -54,7 +54,7 @@ export default function AppError({
           <RotateCcw size={20} aria-hidden />
           {t('crashedRetry')}
         </button>
-        <Link href="/" className="btn">
+        <Link href="/dashboard" className="btn">
           {t('backHome')}
         </Link>
       </div>

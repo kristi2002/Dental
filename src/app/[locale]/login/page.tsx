@@ -24,7 +24,7 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
 
   // Already signed in — no reason to show the pad again.
   if (await getCurrentUser()) {
-    redirect({ href: '/', locale });
+    redirect({ href: '/dashboard', locale });
   }
 
   // A database with nobody in it cannot be signed into, and an empty picker is

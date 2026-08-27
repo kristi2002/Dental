@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { AppointmentStatus, ToothNumbering } from '@/generated/prisma/enums';
@@ -8,11 +8,36 @@ import { authorize, recordAudit, requireUser } from '@/lib/auth/guard';
 import { DEFAULT_WEEK, rangesFor } from '@/lib/clinic-hours';
 import { timeToMinutes, toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
+import { SITE_CACHE_TAG } from '@/lib/site';
 import { optionalString, requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
+/**
+ * Everything this screen can change, dropped from every cache that holds it.
+ *
+ * The path revalidation covers the app's own rendered pages. The tag is the
+ * public storefront, whose opening hours, closures and telephone number are held
+ * for five minutes by `unstable_cache` — and `revalidatePath` does not touch
+ * those, because they are keyed by tag rather than by route. Without this line a
+ * practice that corrects its Saturday hours would watch its own front page go on
+ * quoting the old ones, reload twice, and reasonably conclude the site is
+ * broken.
+ *
+ * `updateTag` rather than `revalidateTag`, which in Next 16 are no longer the
+ * same gesture: `revalidateTag` marks an entry stale and lets the next request
+ * be served the old value while a fresh one is fetched behind it, which is the
+ * wrong half of the trade here. `updateTag` expires it outright and makes the
+ * next request wait — read-your-own-writes, which is exactly what somebody who
+ * has just pressed Save is entitled to. It is only callable from a Server
+ * Action, and every caller in this file is one.
+ *
+ * Called by every action in this file rather than only by the two that touch
+ * hours and the profile. Which settings feed the front page is not something the
+ * next person editing this file should have to know.
+ */
 function revalidateAll() {
   revalidatePath('/', 'layout');
+  updateTag(SITE_CACHE_TAG);
 }
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;

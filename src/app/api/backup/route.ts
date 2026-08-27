@@ -102,6 +102,7 @@ export async function POST(request: Request) {
     emailMessages,
     emailAttachments,
     stockAlertDismissals,
+    appointmentRequests,
     auditTotal,
   ] = await Promise.all([
     prisma.staffUser.findMany({
@@ -217,20 +218,28 @@ export async function POST(request: Request) {
     // settled. The fastest way to teach a dentist to ignore a stock alert is to
     // show them one they have already dismissed.
     prisma.stockAlertDismissal.findMany(),
+    // What came in through the practice's public page and has not been rung back
+    // yet. The only table here written by somebody who is not a patient and not
+    // a member of staff, and the only one whose rows represent a person waiting
+    // for a telephone call — losing them loses people who asked to be seen and
+    // have no idea the practice never got the message.
+    prisma.appointmentRequest.findMany(),
     prisma.auditLog.count(),
   ]);
 
   const payload = JSON.stringify(
     {
       format: 'dentorganizer-backup',
-      // v7 adds the dismissed stock alerts — the shelf decisions somebody has
-      // already made. v6 added the correspondence — threads, messages and the
+      // v8 adds the requests off the practice's public page — people who asked
+      // to be seen and have not been rung back. v7 added the dismissed stock
+      // alerts — the shelf decisions somebody has already made. v6 added the
+      // correspondence — threads, messages and the
       // rows naming their attachments. v5 added the message outbox; v4 the files
       // pinned to a follow-up; v3 the laboratory register, the follow-up board,
       // stock products and the template↔treatment links. An older file still
       // restores — the restore skips a key it does not find — it simply carries
       // none of those.
-      version: 7,
+      version: 8,
       exportedAt: new Date().toISOString(),
       exportedBy: user.fullName,
       note: 'Staff PIN hashes and uploaded files are not included — see README.',
@@ -279,6 +288,7 @@ export async function POST(request: Request) {
         emailMessages,
         emailAttachments,
         stockAlertDismissals,
+        appointmentRequests,
       },
     },
     null,

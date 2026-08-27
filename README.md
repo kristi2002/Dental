@@ -10,6 +10,8 @@ every screen doing one obvious thing.
 
 | Area | What it does |
 | --- | --- |
+| **Public page** | The practice's own storefront at `/` and the four pages the masthead links to — every treatment in full with what it costs in visits and days, the practice and what a first visit is like, the rooms as a filterable wall, and where to find them. Opening hours read live from the appointment book, and a request form. Indexable; the rest of the app is not |
+| **Requests** | What came in through that form: name, number, and which of the three languages it was written in, so whoever rings back knows what to speak |
 | **Dashboard** | Today's schedule, recalls due, low-stock alerts, one-tap "New patient" / "New appointment" |
 | **Today** | One morning brief — the day's list, free gaps, who to call, what's low — to print or send to the group chat |
 | **Appointments** | Day (hour grid), Week (7 columns) and List (month agenda) views |
@@ -31,6 +33,94 @@ every screen doing one obvious thing.
 | **Backup** | Records and uploaded files copied offsite twice a day, encrypted, with a weekly automated restore drill — plus an owner-only export for a copy by hand |
 
 Full interface in **Albanian (default)**, **English** and **Italian**.
+
+## The public page
+
+`/{locale}` is the practice's storefront — the page a patient finds. The
+software lives at `/{locale}/dashboard` and everything under it still requires a
+sign-in; the storefront is the only part of this deployment that does not, and
+the only part `robots.txt` allows a crawler to index.
+
+It is five pages, and the four beyond the front page are the ones the masthead
+links to:
+
+| Page | What it answers |
+| --- | --- |
+| `/{locale}` | Who this practice is, in one screen and one scroll |
+| `/{locale}/treatments` | All eight, one entry each — what actually happens, how many appointments, how many days it keeps you in Vlorë |
+| `/{locale}/practice` | Dr. Shehu, how the records are kept, what the first visit is like step by step, and the three languages |
+| `/{locale}/gallery` | The rooms, the equipment and the people, as a wall you can filter |
+| `/{locale}/visit` | Opening hours, address, how to reach Vlorë by air, sea and road — and the request form |
+
+`src/lib/site-paths.ts` is the single list those five are drawn from; `robots.ts`
+and `sitemap.ts` both read it, so a page can never be published in one and
+refused in the other. `/{locale}/visit#request` is where every "book a visit"
+link on the site points — with JavaScript it opens as a panel in place, without
+it the browser lands on the real form.
+
+It is built inside the app rather than beside it for one reason: **there is no
+second copy of anything.** Opening hours come from the same `ClinicHours` rows
+the free-slot search offers appointments from, and a closure entered for a public
+holiday closes the public page too. The telephone number, email and address are
+the `ClinicProfile` fields the prescription letterhead prints — set them in
+**Settings → clinic profile**, not in a content file. A practice that starts
+closing at two on Saturdays changes one screen and the public page is already
+telling the truth.
+
+Editorial copy — headlines, treatment blurbs — is in `messages/*.json` under
+`site`, in all three languages, so it can be translated without touching code.
+`tests/messages.test.ts` fails if one language falls behind.
+
+What the page needs before it goes live:
+
+- **Photographs.** Everything in `public/site/` is free-licence stock, credited
+  in `src/components/site/photos.ts`. There is deliberately **no portrait** — a
+  stock face under a real dentist's name is a fabricated person. Drop the
+  practice's own images in at the same paths and clear the `source` field.
+- **The telephone number.** Whatever is in `ClinicProfile.phone` is what the page
+  dials. Confirm it.
+- **`NEXT_PUBLIC_APP_URL`**, which is a *build* variable: the canonical URL,
+  `hreflang` alternates, the sitemap and the social card are all built from it,
+  and without it they are simply absent.
+
+Requests from the form land in `AppointmentRequest` and are worked on
+`/{locale}/requests`, oldest first — the reverse of every other list here,
+because a request that has been sitting two days is the urgent one. Nothing is
+booked automatically: somebody rings back and puts them in the calendar.
+
+### Motion, and what happens without it
+
+The page moves in three places: the brand strip between the hero and the
+treatments, the hero's two-rate parallax, and a rise as each section comes into
+view. Two of the three are CSS — the strip is a compositor-driven `translate3d`
+loop, and the reveals use `animation-timeline: view()`. Only the hero parallax
+and the gallery carousel ship JavaScript (`motion` and `embla-carousel-react`,
+about 51KB over the wire between them).
+
+**Nothing on the page is hidden until JavaScript runs**, and there is a test
+holding that line. The reveals were a Motion `whileInView` component to begin
+with, which server-rendered `opacity:0` onto every card: the page left the server
+invisible below the hero, and stayed that way for readers with
+`prefers-reduced-motion` set, because the reduced-motion branch swapped the
+element type and React reused the DOM node without clearing a style it had not
+written. `e2e/storefront.spec.ts` now asserts against the raw HTML that no
+`opacity:0` reaches the browser, and separately that a reduced-motion reader gets
+a fully visible page and a stopped strip.
+
+Where `animation-timeline` is unsupported the browser simply shows the finished
+page, which is the correct outcome rather than a fallback to apologise for.
+
+### The Instagram section is not a feed
+
+`instagram.com/shehu.dental` is behind a login wall — the profile returns a
+sign-in shell to anybody not signed in, and the public JSON endpoints are gone —
+so the six squares are local placeholder images, and the section says so on the
+page in all three languages. The app's CSP (`frame-src 'none'`, `connect-src
+'self'`, `img-src 'self'`) rules out the official embed, a client-side fetch and
+even hotlinking a thumbnail, so a link-out with local images is the only honest
+build as well as the only possible one. To make it real: export six squares from
+the account into `public/site/s-1…6.webp`, null their `source` in `photos.ts`,
+and delete `site.social.placeholder` from `messages/*.json`.
 
 ## Roles and permissions
 
@@ -258,7 +348,8 @@ prisma/
   schema.prisma      StaffUser, AuditLog, Patient, Appointment, VisitRecord,
                      VisitService, ToothRecord, StockItem, StockMovement,
                      Service, ServiceMaterial, WaitlistEntry, TreatmentPlan,
-                     PatientAlert, Contact, ClinicHours, Closure
+                     PatientAlert, Contact, ClinicHours, Closure,
+                     AppointmentRequest
   seed.ts            Demo data
   migrations/              Migration history. `0_init` is the baseline.
   migrate-teeth-fdi.ts     One-off: Universal 1–32 → FDI tooth numbers

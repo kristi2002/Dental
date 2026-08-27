@@ -185,7 +185,7 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
   );
 
   // Throws internally — must stay outside any try/catch.
-  redirect({ href: '/', locale: await getLocale() });
+  redirect({ href: '/dashboard', locale: await getLocale() });
 }
 
 /**
@@ -265,7 +265,7 @@ export async function createFirstOwner(
   // Straight in — asking somebody to type the PIN they just chose, on the next
   // screen, would be ceremony rather than security.
   await createSession(id);
-  redirect({ href: '/', locale: await getLocale() });
+  redirect({ href: '/dashboard', locale: await getLocale() });
 }
 
 export async function signOut(): Promise<void> {

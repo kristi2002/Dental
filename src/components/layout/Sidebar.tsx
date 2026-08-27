@@ -15,6 +15,7 @@ import {
   Package,
   PanelLeftClose,
   PanelLeftOpen,
+  PhoneIncoming,
   Pill,
   Send,
   Stethoscope,
@@ -44,6 +45,7 @@ const ICONS: Record<string, LucideIcon> = {
   recalls: BellRing,
   outbox: Send,
   inbox: Inbox,
+  requests: PhoneIncoming,
   followUps: AlarmClock,
   services: Stethoscope,
   serviceCategories: Tags,
@@ -109,11 +111,12 @@ function RailRow({
   /**
    * A number worth interrupting somebody for. Zero draws nothing.
    *
-   * Only the inbox has one today, and the bar for a second is meant to be high:
-   * a rail where four rows carry counts is a rail where none of them is read.
-   * The test is whether the number represents *somebody else waiting* — a
-   * patient's unanswered reply does, a list of things the practice could get
-   * round to does not, which is why the recalls and the outbox have none.
+   * Two rows carry one, and the bar for a third is meant to stay high: a rail
+   * where four rows carry counts is a rail where none of them is read. The test
+   * is whether the number represents *somebody else waiting* — a patient's
+   * unanswered reply does, and so does a stranger who left their number on the
+   * public page and has heard nothing back. A list of things the practice could
+   * get round to does not, which is why the recalls and the outbox have none.
    */
   badge?: number;
   /** Set only on a section heading: whether its list is showing. */
@@ -288,8 +291,13 @@ export function Sidebar({
   // screen a section opens on sits beside siblings whose paths it is the prefix
   // of, so on `/stock/labels` it would otherwise light up next to the shelf
   // actually being looked at.
+  //
+  // There used to be a third case here for `/`, which was the dashboard's own
+  // href and the prefix of every other row in this rail. The dashboard lives at
+  // `/dashboard` now — `/` is the practice's public page, which this rail never
+  // links to — so the ordinary segment rule covers it like everything else.
   const isCurrent = (href: string, exact = false) =>
-    exact || href === '/'
+    exact
       ? pathname === href
       : pathname === href || pathname.startsWith(`${href}/`);
 
@@ -439,7 +447,7 @@ export function Sidebar({
         </button>
 
         <Link
-          href="/"
+          href="/dashboard"
           className="flex min-w-0 flex-1 items-center gap-2 no-underline"
           aria-label={clinicName}
         >
@@ -487,7 +495,7 @@ export function Sidebar({
           )}
         >
           <Link
-            href="/"
+            href="/dashboard"
             aria-label={clinicName}
             className={cn(
               'flex min-w-0 flex-1 items-center gap-2.5 no-underline focus-visible:outline-white',

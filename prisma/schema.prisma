@@ -70,6 +70,10 @@ model StaffUser {
   followUpsClosed      FollowUp[]            @relation("FollowUpCompleter")
   stockAlertsDismissed StockAlertDismissal[]
 
+  /// Requests off the public page that this person picked up. See
+  /// `AppointmentRequest`.
+  requestsHandled AppointmentRequest[] @relation("AppointmentRequestHandler")
+
   @@index([active])
 }
 
@@ -2069,4 +2073,88 @@ model StockAlertDismissal {
   dismissedBy   StaffUser? @relation(fields: [dismissedById], references: [id], onDelete: SetNull)
 
   @@index([dismissedById])
+}
+
+/// Somebody who has not been here yet, asking to be seen.
+///
+/// The first row in this database written by a person the practice has never
+/// met. Everything else here is authored by staff, or derived from a patient who
+/// already has a file; this is the public page's one write, and it is shaped
+/// accordingly — no relation to `Patient`, no clinical column, and nothing on
+/// the form that invites a stranger to type a diagnosis into an
+/// unauthenticated box.
+///
+/// **It is deliberately not an `Appointment`.** An appointment is a promise the
+/// practice has made and the calendar is answerable for; this is a request that
+/// somebody at the desk still has to read, ring back and place. Writing straight
+/// into the book would let anybody with a browser fill a working day, and would
+/// put slots in front of the dentist that nobody had agreed to.
+model AppointmentRequest {
+  id String @id @default(uuid())
+
+  /// One field, not a first name and a last one. Somebody typing on a phone
+  /// should be able to write what they are called and move on; the desk splits
+  /// it properly at the point a real record is created.
+  name String
+
+  /// The only channel that reliably reaches a person here, and so the only one
+  /// that is required. Stored exactly as it was typed — normalising a number
+  /// whose country is unknown is how a valid Italian mobile becomes unreachable.
+  phone String
+
+  email String?
+
+  /// What they asked for, in their own words.
+  ///
+  /// Length is capped in the action rather than by the column: a database error
+  /// is not a sentence anybody can act on, and the form has to be able to say
+  /// "that is longer than this box takes" in the language the page is in.
+  message String?
+
+  /// Which treatment they picked off the page, by the key the page offers rather
+  /// than a `Service` id.
+  ///
+  /// The catalogue is priced, renamed and reorganised for the practice's own
+  /// convenience; the public list is a handful of words that stay put. Pinning
+  /// one to the other would let a tidy-up on the catalogue screen silently
+  /// change what the storefront says, and would leak the practice's internal
+  /// naming to anybody reading the form's HTML.
+  topic String?
+
+  /// The language the page was in when this was written.
+  ///
+  /// The single most useful column here. This practice works in Albanian,
+  /// Italian and English, and a good share of the people who fill this in are
+  /// choosing between clinics in three countries — whoever rings back needs to
+  /// know which language to open in before they dial.
+  locale String @default("sq")
+
+  status AppointmentRequestStatus @default(NEW)
+
+  /// Who picked it up, and when. Kept rather than cleared: a request that was
+  /// answered is the evidence that it was answered.
+  handledAt   DateTime?
+  handledById String?
+  handledBy   StaffUser? @relation("AppointmentRequestHandler", fields: [handledById], references: [id], onDelete: SetNull)
+
+  /// What the desk wrote after ringing back.
+  staffNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The desk's own query: what is still open, **oldest first**. A request that
+  /// has been sitting for two days is more urgent than one that arrived this
+  /// morning, which is the reverse of how every other list in this app is read.
+  @@index([status, createdAt])
+}
+
+enum AppointmentRequestStatus {
+  /// Nobody has picked it up yet.
+  NEW
+  /// Somebody rang back. Whether it turned into an appointment is the calendar's
+  /// business, not this table's.
+  CONTACTED
+  /// Dealt with, or not worth chasing — either way it leaves the list.
+  CLOSED
 }

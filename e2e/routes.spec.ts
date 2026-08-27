@@ -32,7 +32,7 @@ test.describe('every screen opens', () => {
   for (const route of STATIC_ROUTES) {
     test(route, async ({ page }) => {
       const errors = collectConsoleErrors(page);
-      const response = await page.goto(`/sq${route === '/' ? '' : route}`);
+      const response = await page.goto(`/sq${route}`);
 
       // The page itself, not a redirect to the login screen — a guard that
       // wrongly refuses the Owner would otherwise read as a pass.
@@ -67,8 +67,8 @@ for (const locale of ['en', 'it'] as const) {
   test(`${locale} renders the sampled screens`, async ({ page }) => {
     const errors = collectConsoleErrors(page);
 
-    for (const route of ['/', '/patients', '/patients/new', '/stock', '/settings']) {
-      const response = await page.goto(`/${locale}${route === '/' ? '' : route}`);
+    for (const route of ['/dashboard', '/patients', '/patients/new', '/stock', '/settings']) {
+      const response = await page.goto(`/${locale}${route}`);
       expect(response?.status(), `${locale}${route}`).toBe(200);
       await expect(heading(page), `${locale}${route} has no heading`).toBeVisible();
     }
