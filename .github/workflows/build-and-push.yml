@@ -5,13 +5,15 @@ name: Build and push images
 # 1.5-3 GB class that caused the 2026-08-24 OOM. Building here costs the server
 # nothing.
 #
-# TRIGGER IS MANUAL ON PURPOSE. Coolify still builds these services from source on
-# every push to main. Adding `on: push` now would build each commit twice and push
-# images nothing pulls - exactly the waste that got the autolux-auto pilot disabled
-# on 2026-08-26. Switch to `on: push` in the SAME commit that points
-# docker-compose.prod.yml at these images, not before.
+# docker-compose.prod.yml now references these images instead of building, and
+# Coolify auto-deploy is OFF for dental - so this workflow is the only thing that
+# produces a deployable artifact, and the deploy job below is what ships it. That
+# ordering matters: with auto-deploy on, Coolify's webhook fires the instant you push
+# and pulls the PREVIOUS :latest, because this build has not finished yet.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -99,3 +101,26 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------- deploy
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deploy
+        # Read secrets through env and test them in the shell. The `secrets` context
+        # is NOT allowed in a step-level `if:` - using it there makes the whole
+        # workflow file invalid and every run fails in 0 seconds. Learned the hard way
+        # in kristi2002/Gestione-Immobiliare; do not "tidy" this into an if:.
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_URL: ${{ vars.COOLIFY_URL || 'https://coolify.testdemo.it' }}
+          COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID || 'xjujrcnsuj6bu4s9gql6tx9u' }}
+        run: |
+          if [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::warning::COOLIFY_TOKEN not set - images are published but nothing deployed them. Click Deploy on dental in Coolify, or add the secret to make this automatic."
+            exit 0
+          fi
+          echo "Triggering deploy of $COOLIFY_APP_UUID at $COOLIFY_URL"
+          curl -fsSL -X GET             -H "Authorization: Bearer $COOLIFY_TOKEN"             "$COOLIFY_URL/api/v1/deploy?uuid=$COOLIFY_APP_UUID&force=false"
+          echo "Deploy requested."
