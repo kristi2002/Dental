@@ -188,6 +188,38 @@ quietly add an owner to a practice already in use.
 
 ---
 
+## Images are built in CI, not on the server
+
+Since 2026-08-27 `docker-compose.prod.yml` does **not** build. It pulls
+`ghcr.io/kristi2002/dental-{app,jobs,backup}:latest`, produced by
+`.github/workflows/build-and-push.yml` on every push to `main`.
+
+Why: the server is a 2 vCPU / 3.8 GB box hosting 13 projects. The `app` image is a
+Next.js build needing 1.5-3 GB, against roughly 1.4 GB of free memory. On 2026-08-24 a
+build of another project exhausted host memory and the kernel OOM killer destroyed an
+unrelated project's database. Building here removes that risk entirely, and took the
+deploy from 243s to 98s.
+
+**Coolify auto-deploy is deliberately OFF for this app.** With it on, Coolify's webhook
+fires the moment you push and pulls `:latest` before CI has finished building it, so it
+would deploy the previous image every single time. The workflow's `deploy` job triggers
+Coolify once the images exist.
+
+### What has to be configured
+
+| Where | Name | Value |
+| --- | --- | --- |
+| GitHub repo **variables** | `NEXT_PUBLIC_APP_URL` | `https://shehudental.testdemo.it` |
+| GitHub repo **variables** | `NEXT_PUBLIC_CLINIC_NAME` | the clinic's name |
+| GitHub repo **secret** | `COOLIFY_TOKEN` | a Coolify API token with the `deploy` ability |
+
+The `NEXT_PUBLIC_*` values moved to repository variables because they are inlined at
+build time - they now belong with the build, not with the runtime environment. See
+"Build-time versus runtime configuration" below.
+
+Without `COOLIFY_TOKEN` the pipeline still builds and publishes; it just warns and stops
+short of deploying, so shipping is one click in Coolify.
+
 ## Build-time versus runtime configuration
 
 `NEXT_PUBLIC_*` values are compiled into the JavaScript sent to the browser. They
