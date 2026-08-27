@@ -9,14 +9,16 @@
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        # Inlined into the browser bundle at build time — see the Dockerfile.
-        # Change the domain here, not in the runtime environment.
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://shehudental.testdemo.it}
-        NEXT_PUBLIC_CLINIC_NAME: ${NEXT_PUBLIC_CLINIC_NAME:-Shehu Dental}
+    # Built by .github/workflows/build-and-push.yml, not on the server.
+    #
+    # WHY: this is a Next.js build — 1.5-3 GB of peak memory on a host with ~1.4 GB
+    # free. It is the class of build that OOM-killed an unrelated project's database
+    # on 2026-08-24. dental was 51% of all deploys and ~55% of server build time.
+    #
+    # NEXT_PUBLIC_* are inlined at BUILD time, so they now live as repository
+    # variables on kristi2002/Dental, not here. Changing them requires a rebuild;
+    # editing the runtime environment does nothing.
+    image: ghcr.io/kristi2002/dental-app:latest
     restart: unless-stopped
     # Mapping form, not the `- KEY=value` list. Coolify re-serialises this file
     # before building, and a bare list entry carrying no `=` (as
@@ -142,9 +144,7 @@ services:
   # The clock. Holds no credential that reaches the database and no copy of the
   # app — it waits, then asks the app to do the work. See `docker/jobs/`.
   jobs:
-    build:
-      context: .
-      dockerfile: docker/jobs/Dockerfile
+    image: ghcr.io/kristi2002/dental-jobs:latest
     restart: unless-stopped
     environment:
       JOBS_SECRET: ${SERVICE_PASSWORD_64_JOBSSECRET}
@@ -184,9 +184,7 @@ services:
         condition: service_healthy
 
   backup:
-    build:
-      context: .
-      dockerfile: docker/backup/Dockerfile
+    image: ghcr.io/kristi2002/dental-backup:latest
     restart: unless-stopped
     environment:
       # Same URL the app uses. The scripts strip Prisma's `?schema=`, which
