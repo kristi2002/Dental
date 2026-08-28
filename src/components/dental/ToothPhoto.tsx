@@ -11,7 +11,10 @@ import { cn } from '@/lib/utils';
  * let a dentist mark one.
  *
  * **All of it is placeholder, and the licence is now known.** The sixteen files
- * were cut out of a stock illustration that arrived in the repository root as
+ * are cut by `scripts/cut-tooth-photos.mjs` — which finds the teeth on the page,
+ * derives each matte from the poster's own white rather than tracing one, and
+ * prints the map below to be pasted back here — out of a stock illustration that
+ * arrived in the repository root as
  * `2301.i203.015.F.m004.c9 · human teeth dental anatomy realistic set` — a
  * 5000×3250 render, with the Illustrator EPS beside it. It is a Freepik free
  * vector, *Dental anatomy chart with permanent human teeth realistic vector
@@ -36,8 +39,9 @@ import { cn } from '@/lib/utils';
  * cannot quietly become the practice's own.
  *
  * **There are sixteen files for thirty-two teeth, because the source only ever
- * drew sixteen.** Tooth 16 and tooth 26 in it differ by 0.9 of 255 across the
- * 83,000 pixels they share — the same picture placed twice, not mirrored. So
+ * drew sixteen.** Tooth 16 and tooth 26 in it differ by 0.6 of 255 across the
+ * 154,000 pixels they share, where mirroring one onto the other is 13.7 out —
+ * the same picture placed twice, not mirrored. So
  * the files are named for what they are, `<arch>-<kind>`, and `side` flips the
  * left half. Anatomically that flip is required rather than cosmetic: 16 and 26
  * *are* mirror images, and shipping the same bitmap for both puts mesial where
@@ -49,8 +53,8 @@ import { cn } from '@/lib/utils';
  * is not the chart. Every tooth in the source is drawn to nearly one length —
  * longest over shortest is 1.09×, where the drawn set is 1.63× — so the canine
  * comes out shorter than the central incisor beside it rather than the longest
- * tooth in the arch, and the upper lateral incisor is drawn 123 wide against the
- * canine's 121, which is backwards. None of that matters for one tooth at
+ * tooth in the arch, and the upper lateral incisor is drawn 155 wide against the
+ * canine's 151, which is backwards. None of that matters for one tooth at
  * 200px on a page; all of it matters in a row of thirty-two being read for
  * findings.
  *
@@ -86,32 +90,34 @@ type PhotoFile = { src: string; width: number; height: number };
  * other half — a path in this map with no file behind it.
  *
  * **Every file is at one common scale**, so the widths below are true relative
- * sizes: a first molar really is 206 wide where a lower central incisor is 108,
- * because that is the ratio in the source. Size a row of these by *width* and
+ * sizes: a first molar really is 257 wide where a lower central incisor is 135,
+ * because that is the ratio in the source — and it is the source's own ratio
+ * rather than a resampled one, since every file is cut at the poster's native
+ * scale and none is resized on the way out. Size a row of these by *width* and
  * they stay in proportion to each other. Size them by height and they do not —
  * the source draws every tooth to nearly the same length, so equal heights make
  * an incisor and a third molar look the same size, which they are not.
  */
 const PHOTOS: Record<ToothArch, Record<ToothKind, PhotoFile>> = {
   upper: {
-    CENTRAL_INCISOR: { src: '/teeth/upper-central-incisor.webp', width: 143, height: 415 },
-    LATERAL_INCISOR: { src: '/teeth/upper-lateral-incisor.webp', width: 123, height: 391 },
-    CANINE: { src: '/teeth/upper-canine.webp', width: 121, height: 400 },
-    FIRST_PREMOLAR: { src: '/teeth/upper-first-premolar.webp', width: 155, height: 393 },
-    SECOND_PREMOLAR: { src: '/teeth/upper-second-premolar.webp', width: 149, height: 396 },
-    FIRST_MOLAR: { src: '/teeth/upper-first-molar.webp', width: 206, height: 383 },
-    SECOND_MOLAR: { src: '/teeth/upper-second-molar.webp', width: 206, height: 393 },
-    THIRD_MOLAR: { src: '/teeth/upper-third-molar.webp', width: 195, height: 400 },
+    CENTRAL_INCISOR: { src: '/teeth/upper-central-incisor.webp', width: 179, height: 515 },
+    LATERAL_INCISOR: { src: '/teeth/upper-lateral-incisor.webp', width: 155, height: 485 },
+    CANINE: { src: '/teeth/upper-canine.webp', width: 151, height: 495 },
+    FIRST_PREMOLAR: { src: '/teeth/upper-first-premolar.webp', width: 194, height: 488 },
+    SECOND_PREMOLAR: { src: '/teeth/upper-second-premolar.webp', width: 185, height: 491 },
+    FIRST_MOLAR: { src: '/teeth/upper-first-molar.webp', width: 257, height: 475 },
+    SECOND_MOLAR: { src: '/teeth/upper-second-molar.webp', width: 257, height: 487 },
+    THIRD_MOLAR: { src: '/teeth/upper-third-molar.webp', width: 244, height: 496 },
   },
   lower: {
-    CENTRAL_INCISOR: { src: '/teeth/lower-central-incisor.webp', width: 108, height: 385 },
-    LATERAL_INCISOR: { src: '/teeth/lower-lateral-incisor.webp', width: 102, height: 382 },
-    CANINE: { src: '/teeth/lower-canine.webp', width: 121, height: 402 },
-    FIRST_PREMOLAR: { src: '/teeth/lower-first-premolar.webp', width: 155, height: 395 },
-    SECOND_PREMOLAR: { src: '/teeth/lower-second-premolar.webp', width: 149, height: 398 },
-    FIRST_MOLAR: { src: '/teeth/lower-first-molar.webp', width: 206, height: 383 },
-    SECOND_MOLAR: { src: '/teeth/lower-second-molar.webp', width: 206, height: 393 },
-    THIRD_MOLAR: { src: '/teeth/lower-third-molar.webp', width: 195, height: 399 },
+    CENTRAL_INCISOR: { src: '/teeth/lower-central-incisor.webp', width: 135, height: 478 },
+    LATERAL_INCISOR: { src: '/teeth/lower-lateral-incisor.webp', width: 127, height: 474 },
+    CANINE: { src: '/teeth/lower-canine.webp', width: 151, height: 497 },
+    FIRST_PREMOLAR: { src: '/teeth/lower-first-premolar.webp', width: 194, height: 488 },
+    SECOND_PREMOLAR: { src: '/teeth/lower-second-premolar.webp', width: 185, height: 493 },
+    FIRST_MOLAR: { src: '/teeth/lower-first-molar.webp', width: 257, height: 475 },
+    SECOND_MOLAR: { src: '/teeth/lower-second-molar.webp', width: 257, height: 486 },
+    THIRD_MOLAR: { src: '/teeth/lower-third-molar.webp', width: 244, height: 493 },
   },
 };
 

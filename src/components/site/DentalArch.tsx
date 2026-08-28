@@ -34,7 +34,7 @@ import { type ToothKind } from '@/lib/teeth';
  * on. Every other image is a room, an instrument, a face, or the bay at Vlorë.
  *
  * **Navy is not a preference, it is the only ground this artwork has.** The
- * teeth are ivory, roughly `#f0e6d5` through the crowns; the storefront's cream
+ * teeth are ivory, roughly `#eee7e2` through the crowns; the storefront's cream
  * is `#f4efe7`. Composited on `bone` they very nearly vanish, and the shading
  * that does survive reads as a smudge rather than as a tooth. On `navy` the same
  * files are luminous. That was measured by compositing the cut files on both
@@ -103,14 +103,21 @@ const QUADRANT: readonly ToothKind[] = [
  *
  * `HEAD` and `FOOT` are the air above the highest root and below the lowest
  * crown. They are generous on purpose: the outer molars are rotated a full
- * `SPLAY`, which lifts one corner about thirty units clear of their own box, and
- * an ornament cropped tight against its own extremities reads as a mistake
- * rather than as a bleed.
+ * `SPLAY`, which lifts one corner about twenty-five units clear of their own
+ * box, and an ornament cropped tight against its own extremities reads as a
+ * mistake rather than as a bleed.
+ *
+ * **All three are in the cut's units, so all three move when the cut does.**
+ * They were 190, 126 and 72 against the hand-cut files; re-cutting at the
+ * poster's native scale made every tooth 1.25× larger, and these are scaled by
+ * exactly that. Left alone they would have been a fifth too small for the teeth
+ * around them — not an error anything would report, just a flatter arch and a
+ * tighter crop than the ones chosen here.
  */
-const DROP = 190;
+const DROP = 237;
 const SPLAY = 19;
-const HEAD = 126;
-const FOOT = 72;
+const HEAD = 157;
+const FOOT = 90;
 
 /**
  * Every tooth's place in the arch, resolved once at module load.
@@ -121,8 +128,8 @@ const FOOT = 72;
  * No layout arithmetic is left at render time and none of it is in CSS.
  *
  * **The widths are load-bearing, and `ToothPhoto` explains why**: the sixteen
- * files came off one poster at one scale, so a first molar really is 206 wide
- * where a central incisor is 143. Laying the row out by width is what keeps a
+ * files came off one poster at one scale, so a first molar really is 257 wide
+ * where a central incisor is 179. Laying the row out by width is what keeps a
  * molar molar-sized. Laying it out by an equal share of the container — the
  * obvious `flex-1` — would make every tooth the same width, which is both wrong
  * for a mouth and the exact tell that gives a diagram away.
