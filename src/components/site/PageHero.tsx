@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import type { CSSProperties, ReactNode } from 'react';
 import { Ambience } from '@/components/site/Ambience';
+import { srcSetFor, type SitePhoto } from '@/components/site/photos';
 import { Watermark } from '@/components/site/Watermark';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -48,6 +49,13 @@ export async function PageHero({
   children,
   /** An optional figure to the right of the type, from `lg` up. */
   aside,
+  /**
+   * A photograph to run edge to edge behind the whole band.
+   *
+   * Optional, and the band works without it exactly as it did before — a page
+   * that has no photograph worth the width should not be given a weak one.
+   */
+  photo,
   className,
 }: {
   eyebrow: string;
@@ -55,6 +63,7 @@ export async function PageHero({
   lede?: string;
   children?: ReactNode;
   aside?: ReactNode;
+  photo?: SitePhoto;
   className?: string;
 }) {
   const t = await getTranslations('site');
@@ -71,6 +80,45 @@ export async function PageHero({
         className,
       )}
     >
+      {/*
+       * The photograph, and the two gradients that make type survivable on it.
+       *
+       * **A picture behind a headline is a contrast problem before it is a
+       * decoration.** White text on an unmodified photograph is legible over
+       * whichever part of it happens to be dark and illegible everywhere else,
+       * and which part that is changes with the crop at every viewport width.
+       * So the image never appears at full strength: it is dimmed globally, and
+       * then a second gradient pours navy in from the left — the side the type
+       * is on — so the words always sit on near-solid colour while the right of
+       * the band keeps the picture.
+       *
+       * The vertical gradient underneath is doing a different job: it lands the
+       * band on whatever follows it, so the photograph stops *on* the next
+       * section rather than being cut off by it.
+       *
+       * `object-cover` with no art direction is deliberate — these are 4:3 and
+       * 16:9 files behind a band that is much wider than it is tall at every
+       * size, so the crop is always the middle of the picture, which is where
+       * every one of these has its subject.
+       */}
+      {photo ? (
+        <div aria-hidden className="absolute inset-0">
+          {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
+          <img
+            src={photo.src}
+            srcSet={srcSetFor(photo)}
+            width={photo.width}
+            height={photo.height}
+            alt=""
+            decoding="async"
+            sizes="100vw"
+            className="h-full w-full scale-105 object-cover opacity-75"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-navy from-8% via-navy/78 via-42% to-navy/15" />
+          <div className="absolute inset-0 bg-gradient-to-t from-navy from-1% via-transparent via-48% to-navy/55" />
+        </div>
+      ) : null}
+
       <Ambience />
 
       {/* The lamp the front page's hero uses, at the same angle. Two navy bands

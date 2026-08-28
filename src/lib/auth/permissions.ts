@@ -183,9 +183,30 @@ export function roleHas(role: Role, permission: Permission): boolean {
   return ROLE_PERMISSIONS[role].includes(permission);
 }
 
-/** True when the role may change *anything* — drives "you are viewing only" hints. */
+/**
+ * The verbs that mean a role can change something.
+ *
+ * Named rather than matched as `.edit`-or-`.delete` suffixes, which is what this
+ * used to do and which quietly answered "no" for three of the verbs in
+ * `PERMISSIONS`. Nothing is wrong today — READONLY holds none of them — but the
+ * shape was: a role granted only `recall.send` would have been labelled "you are
+ * viewing only" on every screen while being able to message patients, and
+ * `staff.manage` would have read the same way.
+ *
+ * `export` is deliberately absent. Taking a copy of the practice's data is a
+ * read, however consequential, and the banner this drives is about whether the
+ * screen in front of somebody can be edited.
+ */
+const CHANGING_ACTIONS = new Set(['edit', 'delete', 'send', 'manage']);
+
+/** The verb at the end of a `resource.action` name — `patient.medical.edit` → `edit`. */
+function actionOf(permission: Permission): string {
+  return permission.slice(permission.lastIndexOf('.') + 1);
+}
+
+/** True when the role may change *nothing* — drives "you are viewing only" hints. */
 export function roleIsReadOnly(role: Role): boolean {
-  return !ROLE_PERMISSIONS[role].some((p) => p.endsWith('.edit') || p.endsWith('.delete'));
+  return !ROLE_PERMISSIONS[role].some((p) => CHANGING_ACTIONS.has(actionOf(p)));
 }
 
 export { Role };

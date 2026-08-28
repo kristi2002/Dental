@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { parseDateKey } from '@/lib/dates';
 import { MAX_FILE_BYTES } from '@/lib/file-constants';
 import { deleteStoredFile, storeFile } from '@/lib/files';
 import { suggestMaterials, type MaterialSuggestion } from '@/lib/material-history';
@@ -18,10 +19,6 @@ function revalidateAll() {
   revalidatePath('/', 'layout');
 }
 
-/** `YYYY-MM-DD` out of a date input, as the UTC midnight the rest of the app uses. */
-function parseDay(raw: string | null): Date | null {
-  return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
-}
 
 /**
  * What this practice usually spends on these treatments — see
@@ -755,11 +752,11 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
   const quantity = Math.max(0, toInt(formData.get('quantity'), 0));
   if (!itemId || quantity <= 0) return actionError(t('fillRequired'));
 
-  const expiryDate = parseDay(optionalString(formData.get('expiryDate')));
-  const manufacturedAt = parseDay(optionalString(formData.get('manufacturedAt')));
+  const expiryDate = parseDateKey(optionalString(formData.get('expiryDate')));
+  const manufacturedAt = parseDateKey(optionalString(formData.get('manufacturedAt')));
   // Blank means "arrived today" rather than "unknown": a delivery being recorded
   // is a delivery that happened, and the common case should not need a keystroke.
-  const purchasedAt = parseDay(optionalString(formData.get('purchasedAt'))) ?? new Date();
+  const purchasedAt = parseDateKey(optionalString(formData.get('purchasedAt'))) ?? new Date();
 
   try {
     await prisma.$transaction([
@@ -882,7 +879,7 @@ export async function markOrdered(formData: FormData): Promise<void> {
   if (!id) return;
 
   const raw = optionalString(formData.get('expectedAt'));
-  const expectedAt = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
+  const expectedAt = parseDateKey(raw);
 
   const item = await prisma.stockItem.update({
     where: { id },
@@ -919,7 +916,7 @@ export async function markSupplierOrdered(formData: FormData): Promise<void> {
   if (ids.length === 0) return;
 
   const raw = optionalString(formData.get('expectedAt'));
-  const expectedAt = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
+  const expectedAt = parseDateKey(raw);
 
   // Only the ones still waiting for a decision: re-stamping something already on
   // order would push its expected date forward for no reason.

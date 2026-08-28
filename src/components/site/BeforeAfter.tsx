@@ -34,7 +34,7 @@ export async function BeforeAfter() {
   const photo = TREATMENT_PHOTOS.whitening;
 
   return (
-    <section id="compare" className="scroll-mt-20 bg-bone px-5 py-20 sm:px-8 sm:py-24">
+    <section id="compare" className="scroll-mt-20 px-5 py-20 sm:px-8 sm:py-24">
       <div className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-16">
         <Reveal>
           <h2 className="type-section max-w-[16ch] text-bone-ink">{t('compare.title')}</h2>

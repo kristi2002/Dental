@@ -6,6 +6,9 @@ import type { CSSProperties, KeyboardEvent } from 'react';
 import { useRef, useState } from 'react';
 import { Lightbox } from '@/components/site/Lightbox';
 import { PhotoMark } from '@/components/site/PhotoMark';
+import { Reveal } from '@/components/site/Reveal';
+import { SectionEyebrow } from '@/components/site/SectionEyebrow';
+import { trackPointer } from '@/components/site/GlowGrid';
 import { GALLERY, GALLERY_GROUPS, type GalleryGroup } from '@/components/site/photos';
 import { cn } from '@/lib/utils';
 
@@ -16,10 +19,20 @@ import { cn } from '@/lib/utils';
  * A carousel and a wall answer different questions and it is worth being clear
  * which is which. The reel on the front page says *this is a real place* to
  * somebody who is scrolling past on their way to the telephone number; it is
- * glanceable, it moves, and nobody is expected to reach slide nine. This page is
- * for the reader who stopped — who wants to see the rooms, or wants to know what
- * the equipment looks like before they sit in front of it — and for them a reel
- * is a bad deal: nine things behind an arrow they have to press eight times.
+ * glanceable, it moves, and nobody is expected to reach slide nine. This is for
+ * the reader who stopped — who wants to see the rooms, or wants to know what the
+ * equipment looks like before they sit in front of it — and for them a reel is a
+ * bad deal: nine things behind an arrow they have to press eight times.
+ *
+ * **It was a route of its own — `/gallery`, "The place" — and is now a section
+ * of the practice page.** The two read as the same destination and largely were:
+ * both opened on the same photograph of the same treatment room, both under a
+ * heading inviting the reader to look around, and the practice page's own
+ * subject is what this surgery is like. A single-location clinic does not have
+ * two of those. What the merge costs is the page hero this used to sit under,
+ * which is why the heading below is part of the component now; what it buys is a
+ * masthead slot, and one page that answers "what is this place" instead of two
+ * that split the answer.
  *
  * So: everything at once, in a mosaic, with three filters over it. The filters
  * are the feature. "Rooms", "people", "care" is where these nine actually fall —
@@ -84,12 +97,29 @@ export function PhotoWall() {
   }
 
   return (
-    <section id="wall" className="scroll-mt-20 bg-bone px-5 py-16 sm:px-8 sm:py-20">
+    <section id="wall" className="scroll-mt-20 px-5 py-16 sm:px-8 sm:py-20">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="flex flex-wrap items-end justify-between gap-6">
+        {/* The heading the page hero used to supply.
+            This was a route of its own until the photographs were folded into
+            the practice page, and a `PageHero` above it carried the title and
+            the lede. As a section it has to carry its own, or the wall arrives
+            as a row of four unexplained filter pills. */}
+        <Reveal>
+          <SectionEyebrow className="text-gilt-deep">{t('gallery.eyebrow')}</SectionEyebrow>
+
+          <h2 className="type-section mt-5 max-w-[18ch] text-bone-ink">
+            {t('gallery.wallTitle')}
+          </h2>
+
+          <p className="mt-5 max-w-[56ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+            {t('gallery.wallLede')}
+          </p>
+        </Reveal>
+
+        <div className="mt-12 flex flex-wrap items-end justify-between gap-6">
           <div
             role="tablist"
-            aria-label={t('pages.place.filterLabel')}
+            aria-label={t('gallery.filterLabel')}
             // Scrolls sideways on a phone rather than wrapping to two lines —
             // the same call the concern picker's row makes.
             className="-mr-5 flex gap-2 overflow-x-auto pr-5 pb-1 [scrollbar-width:none] sm:mr-0 sm:pr-0"
@@ -119,7 +149,7 @@ export function PhotoWall() {
                       : 'border-bone-deep bg-bone-soft text-bone-ink-soft hover:border-gilt hover:text-bone-ink',
                   )}
                 >
-                  {t(`pages.place.filters.${choice}`)}
+                  {t(`gallery.filters.${choice}`)}
                 </button>
               );
             })}
@@ -129,7 +159,7 @@ export function PhotoWall() {
               a reader who cannot see it change, and "3 photographs" is the whole
               of what happened. */}
           <p aria-live="polite" className="text-[0.92rem] text-bone-ink-faint tabular-nums">
-            {t('pages.place.count', { count: shown.length })}
+            {t('gallery.count', { count: shown.length })}
           </p>
         </div>
 
@@ -143,6 +173,7 @@ export function PhotoWall() {
           // out of a grid: the two wide tiles take two cells across and two down,
           // and dense packing back-fills the holes they leave rather than
           // stranding a gap at the end of each row.
+          onPointerMove={trackPointer}
           className="mt-9 grid auto-rows-[9.5rem] grid-flow-dense grid-cols-2 gap-3 sm:auto-rows-[11rem] sm:grid-cols-3 lg:grid-cols-4 lg:gap-4"
         >
           {shown.map((photo, index) => (
@@ -158,28 +189,56 @@ export function PhotoWall() {
                 type="button"
                 onClick={() => setOpen(index)}
                 aria-label={t('gallery.openImage', { name: t(`gallery.alt.${photo.key}`) })}
-                className="group relative block size-full overflow-hidden rounded-xl bg-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gilt-deep"
+                className="glow-card group relative block size-full overflow-hidden rounded-xl bg-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gilt-deep"
               >
-                {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
-                <img
-                  src={photo.src}
-                  width={photo.width}
-                  height={photo.height}
-                  alt={t(`gallery.alt.${photo.key}`)}
-                  loading="lazy"
-                  decoding="async"
-                  sizes="(min-width: 1024px) 320px, 45vw"
-                  className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-                />
+                {/* The plate the lean is applied to. It cannot be the `li` —
+                    that carries `tile-in`, which animates a transform of its own
+                    — and it cannot be the button, which is the hover target the
+                    rule keys off. Same three-layer arrangement as the treatment
+                    grid, for the same reason. */}
+                <div className="tilt-plate size-full">
+                  {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
+                  <img
+                    src={photo.src}
+                    width={photo.width}
+                    height={photo.height}
+                    alt={t(`gallery.alt.${photo.key}`)}
+                    loading="lazy"
+                    decoding="async"
+                    sizes="(min-width: 1024px) 320px, 45vw"
+                    className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                  />
 
-                <PhotoMark />
+                  <PhotoMark />
 
-                <span
-                  aria-hidden
-                  className="absolute inset-0 grid place-items-center bg-navy/35 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                >
-                  <Expand size={24} className="text-white" />
-                </span>
+                  {/*
+                   * The caption, on glass, sliding up from the bottom edge.
+                   *
+                   * The wall was nine unlabelled photographs with a grey scrim
+                   * and an expand icon over whichever one the cursor was on —
+                   * which told a reader that the tile could be opened and
+                   * nothing whatever about what they were looking at. Every one
+                   * of these already has a description written for its `alt`
+                   * text and its lightbox; this puts that description on the
+                   * tile, where somebody scanning the wall can actually use it.
+                   *
+                   * `translate-y-full` to `translate-y-0` rather than a fade:
+                   * on a wall of nine tiles a fade reads as the image changing,
+                   * and a panel arriving from off the bottom edge reads as a
+                   * panel.
+                   */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-0 bottom-0 translate-y-full transition-transform duration-300 ease-out group-hover:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:transition-none"
+                  >
+                    <span className="glass-card m-2 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left">
+                      <Expand size={15} className="shrink-0 text-gilt" />
+                      <span className="min-w-0 truncate text-[0.85rem] font-semibold text-white">
+                        {t(`gallery.alt.${photo.key}`)}
+                      </span>
+                    </span>
+                  </span>
+                </div>
               </button>
             </li>
           ))}

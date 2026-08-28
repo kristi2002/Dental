@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import { parseScan, type ScanFormat } from '@/lib/barcode';
 import { authorize, recordAudit } from '@/lib/auth/guard';
-import { today } from '@/lib/dates';
+import { parseDateKey, today } from '@/lib/dates';
 import { parseMoney } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { parseStockLabel, stockLabelPath } from '@/lib/stock-labels';
@@ -16,10 +16,6 @@ function revalidateAll() {
   revalidatePath('/', 'layout');
 }
 
-/** `YYYY-MM-DD` out of a date input, as the UTC midnight the rest of the app uses. */
-function parseDay(raw: string | null): Date | null {
-  return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
-}
 
 const isoDay = (value: Date | null | undefined) => value?.toISOString().slice(0, 10) ?? null;
 
@@ -312,7 +308,7 @@ export async function commitScan(_prev: ActionState, formData: FormData): Promis
           continue;
         }
 
-        const expiryDate = parseDay(line.expiryDate ?? null);
+        const expiryDate = parseDateKey(line.expiryDate ?? null);
         const lotNumber = line.lotNumber?.trim() || null;
         const unitPrice = parseMoney(line.unitPrice ?? null);
 
@@ -325,7 +321,7 @@ export async function commitScan(_prev: ActionState, formData: FormData): Promis
               itemId: line.itemId,
               lotNumber,
               expiryDate,
-              manufacturedAt: parseDay(line.manufacturedAt ?? null),
+              manufacturedAt: parseDateKey(line.manufacturedAt ?? null),
               purchasedAt: new Date(),
               unitPrice,
               quantity: line.quantity,

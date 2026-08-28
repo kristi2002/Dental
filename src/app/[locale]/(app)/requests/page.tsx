@@ -1,4 +1,4 @@
-import { CalendarPlus, Inbox, Languages, Mail, MessageCircle, Phone } from 'lucide-react';
+import { CalendarClock, CalendarPlus, Inbox, Languages, Mail, MessageCircle, Phone } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { RequestNote } from '@/components/requests/RequestNote';
@@ -73,6 +73,8 @@ export default async function RequestsPage({
       email: true,
       message: true,
       topic: true,
+      preferredDate: true,
+      preferredTime: true,
       locale: true,
       status: true,
       staffNote: true,
@@ -174,6 +176,34 @@ export default async function RequestsPage({
                     </a>
                   ) : null}
                 </div>
+
+                {/* --- What day they asked for ------------------------------
+                 *
+                 * The two questions this screen used to have to ring back and
+                 * ask. They are a preference and nothing more — no slot is held
+                 * and the calendar knows nothing about this row — so they are
+                 * set as a line of reference text rather than as anything that
+                 * looks like a booking.
+                 *
+                 * `CalendarClock` rather than `CalendarCheck` for the same
+                 * reason: a tick beside a date on a desk screen is how somebody
+                 * comes to believe the appointment already exists.
+                 */}
+                {request.preferredDate ? (
+                  <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[1rem] text-ink-soft">
+                    <CalendarClock size={17} aria-hidden className="shrink-0 text-brand-dark" />
+                    <span className="font-semibold text-ink">{t('preferredDay')}</span>
+                    <span className="font-semibold text-ink first-letter:uppercase">
+                      {format.dateTime(request.preferredDate, { dateStyle: 'full' })}
+                    </span>
+                    <span>
+                      ·{' '}
+                      {request.preferredTime === 'morning' || request.preferredTime === 'afternoon'
+                        ? ts(`book.half.${request.preferredTime}`)
+                        : ts('book.half.any')}
+                    </span>
+                  </p>
+                ) : null}
 
                 {request.message ? (
                   <p className="mt-4 rounded-lg bg-paper px-4 py-3 text-[1rem] whitespace-pre-line text-ink">

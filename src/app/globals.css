@@ -334,10 +334,8 @@
    * and collapsing the whole effect into a stack. */
   .marquee {
     display: flex;
-    /* `clip`, not `hidden`. The track inside is now pushed along by a `view()`
-     * timeline as the band crosses the screen — see `.marquee-drag` — and
-     * `hidden` would make this element that timeline's scroll container and
-     * freeze the push at a constant. The clipping is identical. */
+    /* `clip`, not `hidden` — the clipping is identical, and `hidden` would make
+     * this a scroll container for no reason anybody wants. */
     overflow: clip;
     /* Faded at both ends, so the words arrive and leave rather than being cut
      * off against a hard edge. */
@@ -1301,6 +1299,31 @@
     }
   }
 
+  /* --- The page you are already on -------------------------------------
+   *
+   * Booking is a route rather than a drawer, so for the first time this pill has
+   * a destination the reader can be standing on. Filled, it goes on offering a
+   * page they are looking at; and the bar's one piece of orientation — telling
+   * you where you stand — is spent on nothing.
+   *
+   * So on `/book` the fill comes out and the bronze moves to the edge. It stays
+   * a link, and deliberately: hidden, the bar visibly loses an item on one route
+   * out of six and reads as a rendering fault; disabled, a reader at the foot of
+   * a long form loses the quickest way back to the top of it.
+   *
+   * `:not([aria-current='false'])` because that is a real value meaning "not
+   * this one" — the same rule the app's segmented controls follow, and the
+   * reason `BookCta` passes `undefined` rather than `false`. */
+  .masthead-cta[aria-current]:not([aria-current='false']) {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--color-gilt);
+    color: var(--color-gilt);
+  }
+
+  .masthead-cta[aria-current]:not([aria-current='false']):hover {
+    background: rgb(192 153 92 / 0.12);
+  }
+
   /* --- The hero's moving picture ---------------------------------------
    *
    * Three photographs crossfading on a twenty-four second cycle, each drifting
@@ -1675,6 +1698,123 @@
     .glow-card:hover::after,
     .glow-card:focus-within::after {
       opacity: 1;
+    }
+  }
+
+  /* --- Glass ---------------------------------------------------------------
+   *
+   * A panel that sits *on* a photograph rather than instead of one.
+   *
+   * Every card on this site used to be one of two things: a photograph with a
+   * dark gradient and type on it, or an opaque cream box. Both are flat, and a
+   * page made only of them has one plane — everything is either the background
+   * or painted directly onto it. This is the third thing, and the whole of its
+   * job is to add a plane: a translucent sheet held slightly above the picture,
+   * with the picture blurred and dimmed behind it.
+   *
+   * **`backdrop-filter` is the effect; the background tint is the fallback.**
+   * A browser without backdrop support paints the tint alone, which is a
+   * legible frosted panel rather than a broken one — the text contrast is
+   * carried by the tint, not by the blur, and that ordering is deliberate. Never
+   * lower the tint's alpha to "let more photograph through": what it lets
+   * through on a failing browser is the photograph at full contrast under the
+   * body copy.
+   *
+   * **Two borders, not one.** A hairline of white along the top edge and a
+   * darker one underneath is how a real pane of glass catches a light that comes
+   * from above — which on this page it does, from the top left, the same lamp
+   * `.drift-light` and the treatment cards' ledge shadow are lit by. A single
+   * uniform border reads as a rectangle drawn around a blur.
+   *
+   * The shadow is two-stop for the same reason it is everywhere else here: a
+   * tight dark one for the contact edge and a wide soft one for the height. One
+   * shadow can say "there is an edge" or "this is floating"; it takes two to say
+   * both.
+   */
+  .glass-card {
+    position: relative;
+    border-radius: 1rem;
+    background: rgb(255 255 255 / 0.1);
+    border: 1px solid rgb(255 255 255 / 0.16);
+    border-top-color: rgb(255 255 255 / 0.34);
+    box-shadow:
+      0 1px 2px rgb(9 18 32 / 0.18),
+      0 18px 44px rgb(9 18 32 / 0.28);
+  }
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .glass-card {
+      -webkit-backdrop-filter: blur(18px) saturate(1.25);
+      backdrop-filter: blur(18px) saturate(1.25);
+      background: rgb(255 255 255 / 0.07);
+    }
+  }
+
+  /* The same pane over a cream ground: the light version inverts which way the
+   * glass is tinted, because a white sheet over warm paper is invisible and a
+   * faintly darker one is what actually reads as a surface laid on top. */
+  .glass-card-bone {
+    background: rgb(255 255 255 / 0.55);
+    border-color: rgb(27 42 62 / 0.08);
+    border-top-color: rgb(255 255 255 / 0.9);
+    box-shadow:
+      0 1px 2px rgb(55 71 79 / 0.05),
+      0 14px 34px rgb(55 71 79 / 0.1);
+  }
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .glass-card-bone {
+      -webkit-backdrop-filter: blur(14px) saturate(1.15);
+      backdrop-filter: blur(14px) saturate(1.15);
+      background: rgb(255 255 255 / 0.42);
+    }
+  }
+
+  /* --- The lean, for panels rather than photographs ------------------------
+   *
+   * `.tilt-plate` above tilts the *contents* of a card whose own box is held by
+   * a `Reveal` animation. A glass panel has no inner plate to lean — the panel
+   * itself is the thing — so this is the same 3.2 degrees applied to the element
+   * directly, plus the one thing a flat plate does not need: a lift.
+   *
+   * `translateZ` rather than a bigger scale. Scaling a glass panel scales its
+   * blur radius with it and the frost visibly coarsens as the cursor arrives;
+   * pushing it toward the viewer in the same perspective the rotation already
+   * establishes moves it without touching the filter.
+   *
+   * The shadow deepens on the same transition. A card that leans without its
+   * shadow moving is a picture of a leaning card — the shadow is most of what
+   * makes the eye read height rather than skew.
+   */
+  @media (hover: hover) {
+    @media (prefers-reduced-motion: no-preference) {
+      .tilt-panel {
+        transition:
+          transform 420ms cubic-bezier(0.22, 0.68, 0.24, 1),
+          box-shadow 420ms cubic-bezier(0.22, 0.68, 0.24, 1);
+        transform: perspective(900px);
+      }
+
+      .tilt-panel:hover,
+      .tilt-panel:focus-within {
+        transition: none;
+        transform: perspective(900px) rotateX(calc(var(--tilt-y, 0) * -3.2deg))
+          rotateY(calc(var(--tilt-x, 0) * 3.2deg)) translateZ(14px);
+      }
+
+      .glass-card.tilt-panel:hover,
+      .glass-card.tilt-panel:focus-within {
+        box-shadow:
+          0 2px 4px rgb(9 18 32 / 0.22),
+          0 30px 60px rgb(9 18 32 / 0.38);
+      }
+
+      .glass-card-bone.tilt-panel:hover,
+      .glass-card-bone.tilt-panel:focus-within {
+        box-shadow:
+          0 2px 4px rgb(55 71 79 / 0.07),
+          0 24px 50px rgb(55 71 79 / 0.16);
+      }
     }
   }
 
@@ -2249,49 +2389,377 @@
     }
   }
 
-  /* --- The strip, pushed -------------------------------------------------
+  /* --- The strip is not pushed -------------------------------------------
    *
-   * The band of phrases has always slid at a constant thirty-eight seconds a
-   * lap, which is a decoration playing to itself. This adds a second, slower
-   * translation *underneath* the loop, driven by the strip's own pass across the
-   * viewport — so scrolling down shoves the words along faster than they were
-   * going, stopping hands them back to their own pace, and scrolling up drags
-   * them back.
+   * There used to be a second translation under the loop here, driven by the
+   * band's own pass across the viewport on a `view()` timeline: scrolling down
+   * shoved the words along faster, scrolling up dragged them back. It read well
+   * in one continuous downward scroll and badly in every other case, which is
+   * most of them. Scrolling up reversed the words against their own loop, and
+   * the small back-and-forth of a trackpad, a rubber-band overscroll or a
+   * momentum settle showed up as a twitch — the band visibly hesitating and
+   * changing its mind while the reader was doing nothing in particular.
    *
-   * It is the difference between a band that moves and a band that responds, and
-   * it costs one wrapper: two nested transforms, both on the compositor, neither
-   * aware of the other.
-   *
-   * **One direction only.** The push runs 0 to −12rem and never positive,
-   * because a positive offset slides the track's leading edge to the right of
-   * where it starts and opens a gap at the left of the band that the mask is not
-   * wide enough to hide. Left is always safe: there is a second copy of every
-   * phrase behind the first, which is what the loop is built out of.
-   *
-   * This is also why `.marquee` is `overflow: clip` and not `hidden` — see
-   * `.drift`. As `hidden` it would be this element's scroll container, the
-   * `view()` timeline would resolve against a box the track never moves within,
-   * and the push would sit frozen at whatever constant that worked out to.
+   * A strip whose direction depends on which way the last flick went is not
+   * responsive, it is unsteady. One constant lap, always the same way, is what
+   * this is now: `.marquee-track` and nothing on top of it.
    */
-  @supports (animation-timeline: view()) {
-    @media (prefers-reduced-motion: no-preference) {
-      .marquee-drag {
-        display: flex;
-        width: max-content;
-        animation: marquee-push linear both;
-        animation-timeline: view();
-        animation-range: cover 0% cover 100%;
+
+  /* --- The light in the cream sections -----------------------------------
+   *
+   * `.aurora` gave the navy a light source because a large flat field of one
+   * colour is the thing a screen renders worst. The cream sections have
+   * precisely the same problem and had none of the fix: `bg-bone` over nine
+   * hundred vertical pixels is one value, and the whole middle of the front
+   * page — the treatments, the practice, the gallery, the planner — was four of
+   * those stacked with hairlines between them.
+   *
+   * What changes is what the light is made of. On navy it is a cold blue high
+   * and a bronze low, because the section is being lit from outside the
+   * palette's dark end. On bone it has to arrive from the warm end or it reads
+   * as a stain: bronze first, a trace of terracotta opposite it, and one very
+   * cold navy low down to stop the whole thing going sepia. That navy is five
+   * per cent and it is the only reason this is a lit room rather than a coffee
+   * ring.
+   *
+   * The numbers are an order of magnitude below the navy's. There the light is
+   * doing real work — a 42rem gradient at half opacity — because a dark ground
+   * shows everything and forgives it. Here the ground is warm paper, the eye
+   * picks up a two per cent shift in it immediately, and anything that reads as
+   * a *shape* rather than as unevenness has already gone too far.
+   *
+   * Same contract as `.aurora`: the caller must be `relative` and
+   * `overflow-clip`, or a 40rem gradient hangs itself off the section and
+   * washes its neighbour.
+   */
+  .aurora-bone {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(40rem 30rem at 14% 4%, rgb(192 153 92 / 0.18), transparent 62%),
+      radial-gradient(32rem 26rem at 90% 38%, rgb(185 108 78 / 0.07), transparent 64%),
+      radial-gradient(36rem 28rem at 58% 100%, rgb(18 37 63 / 0.05), transparent 66%);
+  }
+
+  /* The second drift, whose only job is to not be the first one.
+   *
+   * Two sections lit on the same seventy-second cycle are two sections lit
+   * identically — they started together, at page load, and neither is ever seen
+   * to move. Scrolling from one into the next then crosses a hairline with the
+   * same light on both sides of it, which is the flat field this layer exists to
+   * break, arrived at by a longer road.
+   *
+   * Ninety-six seconds against seventy, travelling the other way. The two share
+   * no common period anybody could sit through, so any two adjacent sections are
+   * lit differently at every moment of the page's life, and the alternation is
+   * free — it is which class the section asks for.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .drift-light-slow {
+      animation: light-wander-back 96s ease-in-out infinite alternate;
+    }
+  }
+
+  @keyframes light-wander-back {
+    from {
+      transform: translate3d(3%, 2%, 0) scale(1.18);
+    }
+    to {
+      transform: translate3d(-4%, -3%, 0) scale(1.1);
+    }
+  }
+
+  /* Grain on paper, at two thirds of what the navy takes.
+   *
+   * The dark sections need their four and a half per cent because they are
+   * dithering a gradient that genuinely bands at eight bits. Cream is not that
+   * case: the same noise at the same strength there does not break banding, it
+   * greys the paper — and the single thing `bone` is on this page for is that it
+   * is warm. Three per cent gives the surface a tooth without cooling it.
+   */
+  .grain-paper::after {
+    opacity: 0.03;
+  }
+
+  /* --- The word behind the section ---------------------------------------
+   *
+   * One very large word in the display serif, at five per cent, hung off the
+   * edge of a section. The oldest device in printing, and the page already runs
+   * its sibling — `Watermark` puts the practice's own tooth behind six sections
+   * at the same weight. This is the same idea spent on language instead of on
+   * artwork, which is exactly why the two never appear in one section: two
+   * watermarks behind the same heading is not twice as much printing, it is a
+   * smudge.
+   *
+   * Three things separate this from a heading somebody forgot to style, and all
+   * three are load-bearing.
+   *
+   * **It is in a language the page is not written in.** The site is read in
+   * Albanian, Italian and English, and a watermark in any of the three is the
+   * section's own headline printed a second time in grey. Latin belongs to none
+   * of them and to medicine generally, so it reads as provenance rather than as
+   * repetition — and it is the same word in all three locales, which is the
+   * reason these sit at the call site and not in `messages/`. A watermark that
+   * needed translating would be a fourth voice to keep in step for no gain.
+   *
+   * **It bleeds.** Wholly inside the section it is a headline; half off the edge
+   * it is printing. Hanging it past one side is the caller's job, and
+   * `white-space: nowrap` is what makes that survivable — without it a long word
+   * wraps inside the section's own padding and the effect collapses into two
+   * grey lines.
+   *
+   * **It sits under the content and over the light**, so the drifting warmth
+   * passes beneath the letters rather than across them.
+   *
+   * `line-height: 0.72`, because default leading on a 9rem serif reserves about
+   * three rem of air above the caps that nothing will ever occupy — and that air
+   * is what decides where the word appears to sit. Set tight, the call site is
+   * positioning letters instead of a line box.
+   *
+   * Upright rather than italic, and that is a constraint and not a preference:
+   * Prata ships one weight and no italic file, so `font-style: italic` here
+   * would be the browser shearing the regular by twelve degrees. A synthetic
+   * oblique on a high-contrast serif thins the wrong strokes, and at five per
+   * cent over cream the thin ones stop existing altogether — the word goes from
+   * faint to broken.
+   */
+  .ghost-word {
+    position: absolute;
+    font-family: var(--font-display);
+    font-size: clamp(4.5rem, 13vw, 11rem);
+    line-height: 0.72;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  /* --- The eyebrow --------------------------------------------------------
+   *
+   * The hero has had one of these since it was written — a bronze rule, a gap,
+   * then four words in caps at 0.28em — and no other section on this page had
+   * anything above its heading at all. So the front page opened in a magazine's
+   * voice and then spent nine sections in a brochure's, where every band starts
+   * cold with a large serif and no statement of what it is.
+   *
+   * This is that register promoted out of the hero rather than a new one
+   * invented alongside it, which is the whole point: the page's rule is that a
+   * flourish used once is a flourish, and the fix for one wanted twice is to
+   * name it, not to draw it again slightly differently and end up with two.
+   *
+   * 0.24em rather than the hero's 0.28em. The hero's line is four words on film
+   * with nothing near it; these sit a few rem above a 3.7rem serif, and at the
+   * wider tracking the eyebrow stops introducing the heading and starts
+   * competing with it for the same measure.
+   *
+   * **Which bronze is not a choice.** On cream the text has to be `gilt-deep`
+   * (5.1:1) — the bright one is 2.1:1 there and hopeless — and on navy it has to
+   * be `gilt` (5.8:1), because `gilt-deep` on navy is 1.4:1. The rule beside it
+   * may be the bright bronze on both, being decoration and carrying no contrast
+   * requirement at all. The caller passes the text colour; both figures are in
+   * the palette note at the top of this file.
+   */
+  .type-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+  }
+
+  /* --- The bronze button, filling ----------------------------------------
+   *
+   * The page's primary action is a bronze pill, and it has hovered by lifting
+   * half a step since the day it was written. That is a perfectly good default,
+   * and it is the same default every rounded button on the web has — which on
+   * the one control this entire page exists to get pressed is a waste of the
+   * only place a little theatre is genuinely earned.
+   *
+   * So the navy rises into it. A block the size of the button waits just below
+   * it with a curved top edge; on hover it travels up and flattens. The curve
+   * going to nothing as it arrives is the whole of why this reads as liquid
+   * rather than as a wipe, and dropping the `border-radius` half of the
+   * transition to save a line is the usual way the effect gets ruined.
+   *
+   * **And nothing else.** The shine sweep that normally ships with this pattern
+   * is deliberately absent. A glint travelling across "Book a visit" on a
+   * dentist's page is a sales technique, and this is the button somebody who is
+   * nervous about a dentist has to press: it should feel like a door opening,
+   * not like a promotion.
+   *
+   * The label inverts with the fill — navy on bronze at rest (5.8:1), bone on
+   * navy once filled (13.5:1), both measured and both in the palette note. The
+   * failure this has to avoid is the label being left in navy over the navy,
+   * which is why the colour transition is shorter than the fill's rather than
+   * longer: the type has finished changing before the ground beneath it has.
+   * The arrow follows for free, being a `currentColor` stroke.
+   *
+   * **The two colours are utilities in the markup, not declarations here**, and
+   * that is not a style preference — it is the only arrangement that works.
+   * Tailwind emits `@layer components` before `@layer utilities`, so a `color`
+   * set on `.cta-fill:hover` loses outright to the `text-navy` sitting on the
+   * same element. Written that way the fill rose perfectly and the label stayed
+   * navy on navy: a bronze pill that went blank when you pointed at it, with no
+   * error anywhere and nothing in the DOM to suggest why. So this rule owns the
+   * *motion* of the colour and the markup owns the colour itself, which is also
+   * where anyone reading `bg-gilt text-navy` would look for it.
+   *
+   * `isolation: isolate` is what makes `z-index: -1` safe. Without it the
+   * pseudo-element goes behind this element's *stacking context* rather than
+   * behind its content — which on an anchor with a background means behind the
+   * page, invisible, and the effect silently does nothing at all.
+   *
+   * `overflow: clip` and not `hidden`, as everywhere on this page. Nothing here
+   * is on a `view()` timeline today, but the rule is cheap to keep and the
+   * failure it prevents is the one nobody finds. See the note on `.drift`.
+   *
+   * `:focus-visible` fills it too: a keyboard arriving at this control gets the
+   * same answer a pointer does. The storefront's focus ring is drawn outside the
+   * pill and is unaffected by anything happening within it.
+   */
+  .cta-fill {
+    position: relative;
+    isolation: isolate;
+    overflow: clip;
+  }
+
+  .cta-fill::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    /* Bled a pixel on every side. The pill's bronze is painted under a radius
+     * the browser antialiases, and a fill stopping exactly at the box leaves a
+     * bronze hairline tracing the navy once it has arrived. */
+    inset: -1px;
+    background: var(--color-navy);
+    border-radius: 46% 46% 0 0;
+    transform: translateY(101%);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .cta-fill {
+      transition:
+        color 260ms ease,
+        transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .cta-fill::before {
+      transition:
+        transform 520ms cubic-bezier(0.16, 1, 0.3, 1),
+        border-radius 520ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* The half-step lift the button already had, kept and moved in here so the
+     * markup carries one class instead of three utilities that have to agree
+     * with it. Guarded on `hover: hover` for the usual reason: a thumb leaves no
+     * pointer behind, and a button left raised where one last landed reads as a
+     * rendering fault rather than as feedback. */
+    @media (hover: hover) {
+      .cta-fill:hover {
+        transform: translateY(-2px);
       }
     }
   }
 
-  @keyframes marquee-push {
-    from {
-      transform: translate3d(0, 0, 0);
+  @media (hover: hover) {
+    .cta-fill:hover::before {
+      transform: translateY(0);
+      border-radius: 0;
     }
-    to {
-      transform: translate3d(-12rem, 0, 0);
-    }
+  }
+
+  .cta-fill:focus-visible::before {
+    transform: translateY(0);
+    border-radius: 0;
+  }
+
+  /* --- Where a dark section meets the page -------------------------------
+   *
+   * The storefront is one continuous sheet of cream now, with three opaque navy
+   * blocks laid across it and the footer closing it off. Every one of those
+   * blocks met the cream at a hard horizontal line — nine hundred pixels of
+   * `#f4efe7` stopping dead against `#12253f`, six times down the document. That
+   * is not a section boundary, it is a guillotine, and it is most of why the
+   * page read as a stack of separate things rather than as one long one.
+   *
+   * The fix is not to fade the navy into the cream. A dark-to-light ramp across
+   * a boundary produces a band of mud in the middle — there is no colour between
+   * these two that belongs to this palette — and it looks like a mistake at
+   * every width. What is done instead is to light the navy *from the page*: the
+   * top and bottom edges of a dark block carry a warm bronze wash that falls off
+   * over eight rem, so the block is at its darkest in the middle and brightest
+   * exactly where the cream is. The eye reads the cream as spilling onto it,
+   * which is the same continuity a printed page gets from ink sitting on paper
+   * rather than from paper being cut.
+   *
+   * Bronze rather than white, and that is the whole trick. A white wash lifts
+   * the navy toward grey and the section goes cold and washed out at both ends;
+   * `gilt` at eight per cent lifts it toward the one warm colour the palette
+   * already contains, so the edge reads as light rather than as fog — and it is
+   * the same bronze the cream side is lit with. One light source, two grounds.
+   *
+   * Below the `.aurora` deliberately: `::before` and `::after` paint ahead of an
+   * element's children, so the drifting light passes over these rather than
+   * under them, and the two compose instead of one flattening the other.
+   *
+   * Nothing readable sits in the first eight rem of any of these sections — the
+   * padding is `py-20` at minimum and the wash is at its strongest in the first
+   * rem or two — so no contrast figure in the palette note moves. It is checked
+   * where it matters: `navy-ink` on the lifted navy at the very edge is still
+   * 11.4:1, against 12.5:1 on the flat.
+   */
+  .seam {
+    position: relative;
+  }
+
+  .seam::before,
+  .seam::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    height: 8rem;
+    pointer-events: none;
+  }
+
+  .seam::before {
+    top: 0;
+    background: linear-gradient(to bottom, rgb(192 153 92 / 0.08), transparent);
+  }
+
+  .seam::after {
+    bottom: 0;
+    background: linear-gradient(to top, rgb(192 153 92 / 0.08), transparent);
+  }
+
+  /* The footer only has a page above it. A wash along its bottom edge would be
+   * lighting it from the browser chrome, which is nothing. */
+  .seam-top::after {
+    content: none;
+  }
+
+  /* The arch's ends dissolved into the ground rather than cut off against it.
+   *
+   * `DentalArch` is a full-bleed ornament whose outermost teeth are third
+   * molars, and a third molar stopping dead against a hard edge reads as a
+   * photograph cropped badly rather than as an ornament running past its frame.
+   * Fading them out is what makes it the second thing.
+   *
+   * The same device as `.marquee`, and deliberately the same one — the
+   * storefront's rule is that a flourish invented inside a component is a
+   * flourish nobody counts. It fades over a wider band here, 13% against the
+   * marquee's 8%, because a molar is a far larger object than a word and takes
+   * longer to disappear convincingly.
+   *
+   * Ending in `transparent` rather than in navy is what lets the arch be capped
+   * at `max-w-[88rem]` on a wide monitor without the cap being visible: what
+   * shows either side of it is the band's own ground, not a second one painted
+   * to match. */
+  .dental-arch {
+    mask-image: linear-gradient(90deg, transparent, #000 13%, #000 87%, transparent);
   }
 }
 
@@ -2471,6 +2939,125 @@
     vertical-align: 0.08em;
   }
 
+  /* --- The week, as a board ---------------------------------------------
+   *
+   * `.hours-list` above is the same seven rows at reading weight, ruled, on
+   * cream — one fact among several in a column. This is the version for the
+   * page somebody opened *to find out when the door is open*: navy, spaced,
+   * every day a plate of its own. `OpeningHours` is the only caller.
+   *
+   * **Separated borders and a row gap rather than collapsed rules.** A ruled
+   * list is what an editorial column does; a board is a stack of objects, and a
+   * stack wants air between them rather than a hairline through them.
+   * `border-spacing` is the only way a table gets that — which is also why
+   * every fill below is set on the cells: a `<tr>` in a separated-border table
+   * paints nothing at all.
+   *
+   * `tabular-nums` matters more than it looks. Seven rows of times whose colons
+   * do not line up is the difference between a schedule and a paragraph.
+   */
+  .hours-board {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 0.4rem;
+  }
+
+  .hours-board th,
+  .hours-board td {
+    background: rgb(255 255 255 / 0.045);
+    padding: 1rem 1.2rem;
+    /* Transparent at rest and coloured only on today's row. It is declared on
+       both cells rather than on the `th` alone so the stacked layout below
+       keeps its two blocks on one left edge. */
+    border-inline-start: 2px solid transparent;
+  }
+
+  .hours-board th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--color-navy-ink);
+    border-start-start-radius: 0.75rem;
+    border-end-start-radius: 0.75rem;
+  }
+
+  .hours-board td {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-navy-ink-soft);
+    border-start-end-radius: 0.75rem;
+    border-end-end-radius: 0.75rem;
+  }
+
+  /* A day the practice is shut is drawn rather than dropped: a board with holes
+   * where the Sundays should be reads as broken, not as closed. It recedes
+   * instead — less fill, and the word in the same soft ink as the times it
+   * stands in for. */
+  .hours-board [data-closed] th,
+  .hours-board [data-closed] td {
+    background: rgb(255 255 255 / 0.02);
+    color: var(--color-navy-ink-soft);
+  }
+
+  /* Today, lit — the one plate on the board that is not a tint of the ground.
+   * `gilt-soft` on `navy` is the strongest pair this palette has, and the row a
+   * reader is looking for first should be findable from across the room.
+   *
+   * The bronze left edge is the only place on this site a side stripe is
+   * allowed. The rule elsewhere is that a coloured bar down one side of a row
+   * is the reflex to avoid because it pretends to be a scrollbar; on something
+   * deliberately shaped like a departure board it is the marker on the row
+   * that is next, which is the object being imitated. */
+  .hours-board [aria-current] th,
+  .hours-board [aria-current] td {
+    background: var(--color-gilt-soft);
+    color: var(--color-navy);
+    font-weight: 700;
+  }
+
+  .hours-board [aria-current] th {
+    border-inline-start-color: var(--color-gilt);
+  }
+
+  /* The chip names the day in words, because colour is not announced and
+   * `aria-current` is not read by every combination. Inverted against the lit
+   * row: the cream chip is bronze on cream, and bronze on `gilt-soft` is bronze
+   * on bronze. */
+  .hours-board .hours-today-chip {
+    background: var(--color-navy);
+    color: var(--color-gilt-soft);
+  }
+
+  /* Narrow screens stack the pair, for the reason `.hours-list` does:
+   * "08:00 – 13:00, 14:00 – 19:00" is twenty-eight characters and does not fit
+   * beside a weekday in a 350px column — it wrapped mid-range and left a
+   * homeless "19:00" against the right margin. Stacked, the day is a heading
+   * and the times sit under it, which is also how a schedule is read aloud. */
+  @media (width < 30rem) {
+    .hours-board th,
+    .hours-board td {
+      display: block;
+      text-align: left;
+    }
+
+    .hours-board th {
+      padding-block: 0.85rem 0;
+      border-radius: 0.75rem 0.75rem 0 0;
+      font-weight: 600;
+    }
+
+    .hours-board td {
+      padding-block: 0.3rem 0.9rem;
+      border-radius: 0 0 0.75rem 0.75rem;
+      font-size: 0.98rem;
+    }
+
+    /* The marker runs the height of both blocks once they are stacked, or it
+       stops halfway down the plate it is marking. */
+    .hours-board [aria-current] td {
+      border-inline-start-color: var(--color-gilt);
+    }
+  }
+
   /* The two things a visitor does.
    *
    * Deliberately the heaviest objects in the column: on a clinic's page the
@@ -2553,6 +3140,146 @@
 
   .contact-line a:hover {
     text-decoration-color: var(--color-gilt-deep);
+  }
+
+  /* --- The trip planner, as an instrument -------------------------------
+   *
+   * `TripPlanner` is the one thing on this storefront a reader operates rather
+   * than reads, and it had been dressed as neither: eleven pills in a ragged
+   * cloud beside the app's default white card. The rules below are the two
+   * halves of the panel it is now — the row a treatment is ticked on, and the
+   * gauges that answer.
+   */
+
+  /* One treatment, as a row.
+   *
+   * A row and not a pill, and the difference is not decoration. Eleven pills of
+   * eleven widths cannot be arranged into anything but a ragged cloud — and
+   * worse, they read as pick-one, which is the shape a filter bar uses. A
+   * fixed-height row with a tick in it is the same rectangle every time, and it
+   * says pick-several before it is pressed rather than after. */
+  .trip-option {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 3.1rem;
+    border: 1px solid var(--color-bone-deep);
+    border-radius: 0.7rem;
+    background: var(--color-bone);
+    padding: 0.5rem 0.95rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--color-bone-ink-soft);
+    cursor: pointer;
+    transition:
+      border-color 0.18s ease,
+      background-color 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .trip-option:hover {
+    border-color: var(--color-gilt);
+    color: var(--color-bone-ink);
+  }
+
+  /* The ring goes on the row, because the input inside it is `sr-only` and a
+   * ring drawn on a clipped 1px box is a ring nobody can see. Without this a
+   * keyboard user tabbing through eleven treatments has no indication at all of
+   * where they are. */
+  .trip-option:has(:focus-visible) {
+    outline: 2px solid var(--color-gilt-deep);
+    outline-offset: 2px;
+  }
+
+  .trip-option[data-on] {
+    border-color: color-mix(in oklab, var(--color-gilt) 55%, var(--color-bone-deep));
+    background: var(--color-gilt-soft);
+    color: var(--color-bone-ink);
+  }
+
+  /* The tick, drawn rather than set as a glyph: a check character sits on its
+   * font's own baseline, no two families agree where that is, and it therefore
+   * never centres in a box this small. Two borders rotated is the same mark at
+   * any size and in any language. */
+  .trip-tick {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 1.2rem;
+    height: 1.2rem;
+    border: 1.5px solid var(--color-bone-deep);
+    border-radius: 0.35rem;
+    background: var(--color-surface);
+    transition:
+      border-color 0.18s ease,
+      background-color 0.18s ease;
+  }
+
+  .trip-tick::after {
+    content: '';
+    width: 0.5rem;
+    height: 0.26rem;
+    /* Optical, not geometric: a tick centred on its bounding box reads low,
+       because the mark's mass is in its long arm. */
+    margin-block-start: -0.14rem;
+    border-inline-start: 2px solid var(--color-bone-soft);
+    border-block-end: 2px solid var(--color-bone-soft);
+    transform: rotate(-45deg);
+    opacity: 0;
+  }
+
+  .trip-option[data-on] .trip-tick {
+    border-color: var(--color-gilt-deep);
+    background: var(--color-gilt-deep);
+  }
+
+  .trip-option[data-on] .trip-tick::after {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .trip-option,
+    .trip-tick {
+      transition: none;
+    }
+  }
+
+  /* The three gauges on the read-out.
+   *
+   * Hairlines between them rather than boxes around them: three bordered cards
+   * inside a panel that is already a box is exactly the nesting this section was
+   * rebuilt to stop doing. `minmax(0, 1fr)` and not `1fr`, or the longest label
+   * — "Days in Vlorë" — sets the column width and the three stop being equal. */
+  .trip-gauges {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .trip-gauges > * + * {
+    border-inline-start: 1px solid var(--color-navy-line);
+    padding-inline-start: 1.1rem;
+  }
+
+  .trip-gauges > *:not(:last-child) {
+    padding-inline-end: 0.75rem;
+  }
+
+  /* Below about 26rem of panel, three columns put "Appointments" on three lines
+   * and the read-out stops being readable at a glance, which is the only thing
+   * it is for. Two above one is the arrangement that keeps the columns equal. */
+  @media (width < 26rem) {
+    .trip-gauges {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      row-gap: 1.6rem;
+    }
+
+    /* First in its own row now, so the rule that separated it from the gauge to
+       its left is separating it from nothing. */
+    .trip-gauges > :nth-child(3) {
+      border-inline-start: 0;
+      padding-inline-start: 0;
+    }
   }
 
   /* The app rings focus in teal, which on this page is a colour that appears
@@ -2831,6 +3558,83 @@
       transform: none;
     }
   }
+
+  /* --- The spine, drawn ---------------------------------------------------
+   *
+   * The vertical counterpart of `.swash-draw`, for the rail that runs down the
+   * middle of a treatment's steps and joins them into one thing.
+   *
+   * It has to be a `scaleY` on a plain element rather than a dashed stroke,
+   * because the rail's length is the height of three cards of unknown copy and
+   * an SVG would need that number in advance. `transform-origin: top` grows it
+   * downward, so the line arrives ahead of the reader rather than meeting them
+   * halfway.
+   *
+   * `cover 0% cover 62%` and not the full pass: the rail is as tall as the
+   * section, so a range running to `cover 100%` would only finish drawing as the
+   * section left the screen -- the line would be permanently short of the last
+   * node, which reads as a rendering fault rather than as an animation.
+   *
+   * The base state is the finished line, as everywhere else here: the transform
+   * exists only inside the `@supports`, so a browser without scroll-driven
+   * animations draws a complete rail instead of nothing at all.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .spine-draw {
+        transform-origin: top;
+        animation: spine-grow linear both;
+        animation-timeline: view();
+        animation-range: cover 0% cover 62%;
+      }
+    }
+  }
+
+  @keyframes spine-grow {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+
+  /* --- The veil over a step card's photograph ------------------------------
+   *
+   * A photograph behind a cream card rather than under white type on top of it,
+   * which is the one card treatment this site did not have. Everything else here
+   * that puts words on a picture darkens the picture to near-navy and sets the
+   * words in white; that is right for a card whose subject *is* the photograph,
+   * and wrong for a card whose subject is a paragraph.
+   *
+   * So the picture is washed back to a texture -- it gives the card a ground and
+   * a temperature and is never asked to carry meaning -- and the type sits on
+   * warm paper at full contrast. The opacity lifts on hover, which is the whole
+   * interaction: the card admits what it is a picture of.
+   *
+   * **The contrast floor is the veil, not the photograph.** The cream sheet over
+   * it is opaque at the bottom where the copy sits and only thins toward the top
+   * where the picture is allowed to show, so raising the image on hover cannot
+   * take body text below its contrast -- there is no photograph under the words
+   * at either state.
+   */
+  .veil-photo {
+    opacity: 0.62;
+    transition: opacity 520ms cubic-bezier(0.22, 0.68, 0.24, 1);
+  }
+
+  @media (hover: hover) {
+    .veil-card:hover .veil-photo,
+    .veil-card:focus-within .veil-photo {
+      opacity: 0.82;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .veil-photo {
+      transition: none;
+    }
+  }
 }
 
 /* --- What a short screen gives up ---------------------------------------
@@ -2962,4 +3766,487 @@
     font-size: 0.95rem;
   }
 
+}
+
+/* --- The booking page -----------------------------------------------------
+ *
+ * Everything below belongs to `/book` — the month grid, the half-day chips and
+ * the two panels either side of them — and it follows the same two rules the
+ * rest of this stylesheet does.
+ *
+ * **The finished state is the base state.** Every animation here sits inside a
+ * reduced-motion guard, and what is declared outside is what the element looks
+ * like when it has stopped moving. A browser that runs none of them draws a
+ * complete, legible calendar rather than a blank one.
+ *
+ * **Nothing that carries meaning is carried by motion or by colour alone.** A
+ * day the practice is shut is dimmer *and* struck through *and* announced with
+ * `aria-disabled`; a chosen day is filled *and* is the only cell with a halo
+ * *and* is a checked radio the browser reports. That is not belt-and-braces, it
+ * is the difference between a calendar and a decoration: this grid is the one
+ * surface on the storefront where getting the state wrong sends somebody to a
+ * locked door.
+ */
+@layer components {
+  /* --- The plate the calendar sits on -----------------------------------
+   *
+   * A single warm surface with an edge that catches the light at the top left,
+   * which is where every other lamp on this page comes from — `.drift-light`,
+   * the treatment cards' ledge shadow and the hero's own radial all agree on
+   * that corner, and a panel lit from anywhere else reads as pasted in.
+   *
+   * The border is a gradient rather than a colour, and it is drawn with two
+   * backgrounds and `border-box` / `padding-box` clipping rather than with a
+   * pseudo-element. That matters here specifically: the grid inside is a live
+   * radio group, and an absolutely positioned overlay across it is one
+   * `pointer-events` mistake away from a calendar nobody can click.
+   *
+   * Two shadows, as everywhere in this file. One shadow can say "there is an
+   * edge" or "this is floating"; it takes two to say both.
+   */
+  .book-plate {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(180deg, var(--color-bone-soft) 0%, #fffdf9 46%, var(--color-bone-soft) 100%)
+        padding-box,
+      linear-gradient(
+          145deg,
+          var(--color-gilt) 0%,
+          var(--color-bone-deep) 38%,
+          var(--color-bone-deep) 72%,
+          rgb(192 153 92 / 0.55) 100%
+        )
+        border-box;
+    box-shadow:
+      0 1px 2px rgb(27 42 62 / 0.05),
+      0 22px 48px -28px rgb(27 42 62 / 0.35);
+  }
+
+  /* The paper's tooth, at the strength the status rail carries it. A flat cream
+   * rectangle is a swatch; this is what makes it read as a card stock. On the
+   * plate rather than on the cells, so the texture is continuous across the grid
+   * instead of restarting in forty-two squares. */
+  .book-plate::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Everything in the plate sits above the grain. */
+  .book-plate > * {
+    position: relative;
+  }
+
+  /* --- The two month arrows ---------------------------------------------
+   *
+   * Deliberately quiet at rest and unmistakable under a pointer. They are the
+   * only controls in the panel that are not a day, and a pair of filled buttons
+   * flanking the month name would compete with the forty-two cells the reader is
+   * actually there to press.
+   *
+   * 2.75rem is 44 CSS pixels at this page's 17px root — the smallest a touch
+   * target is allowed to be, and the reason these are not the 2rem their visual
+   * weight would suggest. */
+  .book-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: none;
+    border-radius: 999px;
+    color: var(--color-bone-ink-soft);
+    transition:
+      background-color 180ms ease-out,
+      color 180ms ease-out;
+  }
+
+  @media (hover: hover) {
+    .book-step:hover:not(:disabled) {
+      background: var(--color-gilt-soft);
+      color: var(--color-bone-ink);
+    }
+  }
+
+  /* Kept in the layout rather than removed. The arrows flank the month name, and
+   * one of them vanishing at either end of the window would shift the caption
+   * sideways by 44px on the very press that reached the edge. */
+  .book-step:disabled {
+    cursor: not-allowed;
+    color: var(--color-bone-ink-faint);
+    opacity: 0.35;
+  }
+
+  /* --- A month, arriving -------------------------------------------------
+   *
+   * The grid is keyed on the month, so React replaces the whole node on every
+   * press and this runs again. It slides in from the side the reader came from —
+   * forward from the right, back from the left — which is the one piece of
+   * feedback that says "you have moved" rather than "something changed".
+   *
+   * 260ms and 8px. Short enough that a reader paging through to November is not
+   * waiting on it, small enough that the numerals do not blur.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .book-month {
+      animation: book-month-in 260ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
+    }
+
+    .book-month[data-direction='previous'] {
+      animation-name: book-month-in-back;
+    }
+  }
+
+  @keyframes book-month-in {
+    from {
+      opacity: 0;
+      transform: translate3d(8px, 0, 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes book-month-in-back {
+    from {
+      opacity: 0;
+      transform: translate3d(-8px, 0, 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* --- One day -----------------------------------------------------------
+   *
+   * The `label` is the cell and the `span` inside it is the face. Two elements
+   * rather than one because the radio has to be a real focusable input
+   * somewhere, and the tidy trick of `display: none` would take it out of the
+   * tab order and out of the accessibility tree — which is most of what a radio
+   * group was chosen for.
+   *
+   * So the input is stretched invisibly across the cell instead. It keeps the
+   * whole square as a click target, it keeps the browser's own roving focus, and
+   * `.day-input:focus-visible + .day-face` is what draws the ring — an adjacent
+   * sibling selector rather than `:has()`, which is supported everywhere this
+   * page runs and is still not worth depending on for something this
+   * load-bearing.
+   */
+  .day {
+    position: relative;
+    display: block;
+  }
+
+  .day-input {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    margin: 0;
+    cursor: pointer;
+    opacity: 0;
+    /* `appearance: none` so that no browser paints its own radio dot under the
+     * numeral in a mode that ignores opacity. */
+    appearance: none;
+  }
+
+  .day-face {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Square cells, sized by the column. A calendar whose rows are shorter than
+     * they are wide reads as a table of numbers; a square is what makes it a
+     * date. */
+    aspect-ratio: 1;
+    border: 1px solid transparent;
+    border-radius: 0.7rem;
+    font-size: 0.98rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-bone-ink);
+    transition:
+      background-color 160ms ease-out,
+      border-color 160ms ease-out,
+      color 160ms ease-out,
+      box-shadow 220ms ease-out,
+      transform 220ms cubic-bezier(0.22, 0.68, 0.24, 1);
+  }
+
+  /* A day in the month either side of the one on screen, or past the end of the
+   * window. Drawn rather than left blank so the grid keeps its shape at the
+   * corners, and faint enough that it never reads as a choice. */
+  .day[data-state='outside'] .day-face {
+    color: var(--color-bone-ink-faint);
+    opacity: 0.3;
+  }
+
+  /* Shut. Hatched and struck through as well as dimmed, because a grid whose
+   * only difference between "open" and "closed" is twenty per cent of lightness
+   * is a grid that fails the first time somebody reads it on a phone in the
+   * sun. */
+  .day[data-state='closed'] .day-face {
+    color: var(--color-bone-ink-faint);
+    background: repeating-linear-gradient(
+      135deg,
+      transparent 0 5px,
+      rgb(27 42 62 / 0.045) 5px 6px
+    );
+    text-decoration: line-through;
+    text-decoration-color: rgb(27 42 62 / 0.35);
+    cursor: not-allowed;
+  }
+
+  .day[data-state='open'] .day-face {
+    background: rgb(255 255 255 / 0.75);
+    border-color: var(--color-bone-deep);
+  }
+
+  @media (hover: hover) {
+    .day[data-state='open']:hover .day-face {
+      background: var(--color-gilt-soft);
+      border-color: var(--color-gilt);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 14px -6px rgb(27 42 62 / 0.35);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .day[data-state='open']:hover .day-face {
+      transform: none;
+    }
+  }
+
+  /* Today. A bronze dot under the numeral rather than a ring: at this size a
+   * ring is hard to tell from the focus outline, and the two answer different
+   * questions. The same decision the app's own `Calendar` made, in the
+   * storefront's colour. */
+  .day[data-today] .day-face::after {
+    content: '';
+    position: absolute;
+    bottom: 0.28rem;
+    left: 50%;
+    width: 0.25rem;
+    height: 0.25rem;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: var(--color-gilt-deep);
+  }
+
+  /* Chosen. Navy fill and a bronze halo — the one saturated object in the panel,
+   * which is what makes a glance at the grid answer "which day did I pick"
+   * without reading a single numeral. */
+  .day[data-state='chosen'] .day-face {
+    background: var(--color-navy);
+    border-color: var(--color-navy);
+    color: #fff;
+    font-weight: 700;
+    box-shadow:
+      0 0 0 3px rgb(192 153 92 / 0.35),
+      0 10px 22px -10px rgb(18 37 63 / 0.7);
+  }
+
+  .day[data-state='chosen'][data-today] .day-face::after {
+    background: var(--color-gilt);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .day[data-state='chosen'] .day-face {
+      animation: day-pop 320ms cubic-bezier(0.22, 0.68, 0.24, 1);
+    }
+  }
+
+  /* A single settle, not a bounce. The cell overshoots by four per cent and
+   * comes back — enough to be felt as a press being answered, far short of the
+   * spring that would make a clinic's form feel like a toy. */
+  @keyframes day-pop {
+    0% {
+      transform: scale(0.9);
+    }
+    55% {
+      transform: scale(1.04);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  /* The keyboard, drawn on the face rather than on the invisible input that
+   * actually has focus. Bronze and outside the box, matching every other focus
+   * ring on the storefront. */
+  .day-input:focus-visible + .day-face {
+    outline: 3px solid var(--color-gilt-deep);
+    outline-offset: 2px;
+  }
+
+  /* --- The plaque under the grid ----------------------------------------
+   *
+   * What was chosen, and what time the practice is open that day. It is always
+   * present — before a day is picked it says so — because a panel appearing from
+   * nowhere under a calendar is a layout shift on the one press the whole page
+   * is built around.
+   */
+  .book-chosen {
+    border: 1px solid var(--color-bone-deep);
+    background: linear-gradient(
+      160deg,
+      var(--color-gilt-soft) 0%,
+      var(--color-bone-soft) 62%
+    );
+  }
+
+  /* --- Morning, afternoon, either ---------------------------------------
+   *
+   * The same label-over-input construction as a day, at chip size. Three of
+   * them, and at most one is ever ticked.
+   */
+  .half {
+    position: relative;
+    display: block;
+  }
+
+  .half-input {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    margin: 0;
+    cursor: pointer;
+    opacity: 0;
+    appearance: none;
+  }
+
+  .half-face {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--color-bone-deep);
+    border-radius: 999px;
+    background: var(--color-bone-soft);
+    padding-inline: 1.1rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-bone-ink);
+    transition:
+      background-color 160ms ease-out,
+      border-color 160ms ease-out,
+      color 160ms ease-out;
+  }
+
+  @media (hover: hover) {
+    .half[data-state='open']:hover .half-face {
+      border-color: var(--color-gilt);
+      background: var(--color-gilt-soft);
+    }
+  }
+
+  .half[data-state='chosen'] .half-face {
+    border-color: var(--color-navy);
+    background: var(--color-navy);
+    color: #fff;
+  }
+
+  /* A half-day the practice is not open for. Shown rather than removed: three
+   * chips becoming two is a row that changes width every time a day is picked,
+   * and "we do not open on Saturday afternoon" is itself the answer to the
+   * question the reader was about to ask. */
+  .half[data-state='closed'] .half-face {
+    border-style: dashed;
+    background: transparent;
+    color: var(--color-bone-ink-faint);
+    text-decoration: line-through;
+    text-decoration-color: rgb(27 42 62 / 0.3);
+  }
+
+  .half[data-state='closed'] .half-input,
+  .half-input:disabled {
+    cursor: not-allowed;
+  }
+
+  /* The whole set goes quiet until a day has been chosen. The `fieldset` is
+   * `disabled`, which already blocks the inputs; this is what says so. */
+  fieldset:disabled .half-face {
+    opacity: 0.5;
+  }
+
+  .half-input:focus-visible + .half-face {
+    outline: 3px solid var(--color-gilt-deep);
+    outline-offset: 2px;
+  }
+
+  /* --- The column the details are in ------------------------------------
+   *
+   * A surface, so the form reads as the second half of a pair rather than as
+   * loose fields beside a card. Lighter than the calendar's plate and with no
+   * gradient border: two panels competing for the same edge treatment is how a
+   * two-column layout stops having a subject.
+   */
+  .book-panel {
+    border: 1px solid var(--color-bone-deep);
+    background: var(--color-bone-soft);
+    box-shadow:
+      0 1px 2px rgb(27 42 62 / 0.04),
+      0 18px 40px -30px rgb(27 42 62 / 0.3);
+  }
+
+  /* --- "01 · When" ------------------------------------------------------
+   *
+   * The two steps are numbered because the page is two columns on a desktop and
+   * one long scroll on a phone, and the order is only obvious in the first of
+   * those. Small capitals in the storefront's own eyebrow treatment rather than
+   * a progress bar: nothing here is a wizard, both halves are visible at once,
+   * and a bar implying otherwise would be describing a page that does not exist.
+   */
+  .book-step-label {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-bone-ink-faint);
+  }
+
+  .book-step-number {
+    display: inline-flex;
+    min-width: 2rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--color-gilt-soft);
+    padding: 0.22rem 0.55rem;
+    font-family: var(--font-display);
+    font-size: 0.92rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--color-gilt-deep);
+  }
+
+  /* --- The confirmation --------------------------------------------------
+   *
+   * The form is replaced in place by this, so it is the only thing on the screen
+   * at that moment and it can afford to be a room rather than a card. A wash of
+   * the practice's bronze from above, on the same warm sheet the calendar sits
+   * on.
+   */
+  .book-sent {
+    border: 1px solid var(--color-bone-deep);
+    background:
+      radial-gradient(70% 90% at 50% -10%, var(--color-gilt-soft), transparent 70%),
+      var(--color-bone-soft);
+    box-shadow:
+      0 1px 2px rgb(27 42 62 / 0.04),
+      0 26px 60px -34px rgb(27 42 62 / 0.4);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .book-sent {
+      animation: rise-in 620ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
+    }
+  }
 }

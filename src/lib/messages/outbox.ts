@@ -1,4 +1,4 @@
-import { timeToMinutes } from '@/lib/dates';
+import { addDays, timeToMinutes } from '@/lib/dates';
 import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from './email';
 
 /**
@@ -52,8 +52,33 @@ export function recallCycle(now: Date): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-/** How far ahead the reminder job looks. Tomorrow, and only tomorrow. */
+/**
+ * How far *ahead* the reminder job looks. Tomorrow, and no further.
+ *
+ * The window it actually reads is `today() … today() + this`, because the
+ * morning run has to be able to catch a slot booked late yesterday evening for
+ * this morning — see `queueAppointmentReminders`. So this is the far edge only;
+ * the near edge is always today.
+ */
 export const REMINDER_DAYS_AHEAD = 1;
+
+/**
+ * The days the reminder job reads, given the moment it runs at.
+ *
+ * A decision rather than a query, so it lives here with the other rules and can
+ * be tested without a database — and so the property that matters is stated
+ * once: **the window always starts at today**, whatever hour the clock fires at.
+ *
+ * That is the whole of the fix for the gap the two triggers were meant to close
+ * between them. `today()` rolls over overnight, so a window of `today() + 1`
+ * alone means the 18:00 Monday run and the 07:00 Tuesday run cover different
+ * days — Tuesday and Wednesday — and a slot booked late on Monday for Tuesday
+ * morning is read by neither. Anchoring the near edge to today makes the morning
+ * run a genuine second look at the day in front of it.
+ */
+export function reminderWindow(today: Date): { from: Date; to: Date } {
+  return { from: today, to: addDays(today, REMINDER_DAYS_AHEAD) };
+}
 
 /**
  * Everything the decision needs about one booking, and nothing else.

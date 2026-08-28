@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { ClinicLogo } from '@/components/brand/ClinicLogo';
 import { HeroStage } from '@/components/site/HeroStage';
 import { OpenStatus } from '@/components/site/OpenStatus';
+import { Link } from '@/i18n/navigation';
 import type { SiteContact, SiteHours } from '@/lib/site';
 
 /**
@@ -224,9 +225,21 @@ export async function Hero({
                 style={{ '--i': 4 } as React.CSSProperties}
                 className="rise hero-actions mt-6 flex flex-wrap items-center gap-3"
               >
-                <a
-                  href="#request"
-                  className="group inline-flex min-h-13 items-center sm:min-h-14 gap-2.5 rounded-full bg-gilt px-7 text-[1.02rem] font-bold text-navy no-underline transition-transform hover:-translate-y-0.5 focus-visible:outline-white motion-reduce:hover:translate-y-0"
+                {/* `cta-fill` carries the hover outright — the navy rising into
+                    the pill, and the half-step lift this button already had. It
+                    replaces the three utilities that used to do the last of
+                    those, because a transform declared in the component class
+                    and a `hover:-translate-y-0.5` utility are two rules fighting
+                    over one property and the utility layer always wins.
+                    That same precedence is why the label's two colours stay
+                    here as utilities rather than moving into the class with
+                    everything else: `text-navy` beats a `color` set on
+                    `.cta-fill:hover`, and the first version of this had the
+                    label going navy-on-navy — a bronze pill that turned blank
+                    when you pointed at it. See `.cta-fill` in globals.css. */}
+                <Link
+                  href="/book"
+                  className="cta-fill group inline-flex min-h-13 items-center sm:min-h-14 gap-2.5 rounded-full bg-gilt px-7 text-[1.02rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
                 >
                   {t('hero.book')}
                   <ArrowRight
@@ -234,7 +247,7 @@ export async function Hero({
                     aria-hidden
                     className="transition-transform group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
                   />
-                </a>
+                </Link>
 
                 {/* Only when there is a number behind it. A `tel:` to nothing is
                     a dead button, and on a desktop with nothing registered for

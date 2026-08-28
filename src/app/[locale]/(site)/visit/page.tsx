@@ -1,47 +1,66 @@
-import { ArrowRight, MapPin } from 'lucide-react';
+import { ArrowRight, MapPin, Phone } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { BrandStrip } from '@/components/site/BrandStrip';
-import { Directions } from '@/components/site/Directions';
+import { ClinicMap } from '@/components/site/ClinicMap';
 import { OpenStatus } from '@/components/site/OpenStatus';
+import { OpeningHours } from '@/components/site/OpeningHours';
 import { PageHero } from '@/components/site/PageHero';
-import { PHOTOS, srcSetFor } from '@/components/site/photos';
-import { TripPlanner } from '@/components/site/TripPlanner';
-import { VisitUs } from '@/components/site/VisitUs';
+import { PHOTOS } from '@/components/site/photos';
+import { WhyUs } from '@/components/site/WhyUs';
+import { Link } from '@/i18n/navigation';
 import { getSiteData } from '@/lib/site';
 import { sitePageMetadata } from '@/lib/site-meta';
 
 /**
- * Where the practice is, when it is open, how to get there, and the form.
+ * The practice, the week, the town, and where the door is.
  *
- * The front page carries all of this in one section at the bottom, which is the
- * right amount for a page whose job is to introduce the practice. It is the
- * wrong amount for the reader who has already decided — and for the share of
+ * The front page carries the whole of this in one section at the bottom, which
+ * is the right amount for a page whose job is to introduce the practice. It is
+ * the wrong amount for the reader who has already decided — and for the share of
  * this practice's patients who are deciding whether to get on a boat, "Rruga e
  * Re, Vlorë" and a week of opening hours is not an answer to anything they are
  * asking.
  *
- * So the whole of `VisitUs` is here unchanged — the same seven rows out of
- * `ClinicHours`, the same telephone tiles, the same request form owning
- * `id="request"` — and underneath it the two things the front page has no room
- * for: how people actually reach Vlorë, and what a course of treatment does to
- * the length of the trip.
+ * **It stopped being only a contact page.** Everything on this route was
+ * logistics: hours, a telephone number, three ways into the city. That assumes a
+ * decision the commonest reader here has not made — somebody who arrived from a
+ * search for a dentist in Vlorë and is comparing three of them. So the page now
+ * argues before it directs. `WhyUs` states the practice's case, `OpeningHours`
+ * gives the week the weight it has on a page somebody opened to read it, and
+ * `ClinicMap` ends on the pin rather than on a street name.
  *
- * **This page owns `#request`.** Every "book a visit" on the site now points at
- * `/visit#request`, which lands here with no JavaScript at all; with JavaScript,
- * `BookDrawer` catches the click and opens the form as a panel wherever the
- * reader happens to be. That is why the form is on this route and not, say, on
- * its own: a fragment needs a page to live on, and the page a booking link
- * should fall back to is the one that also answers "where are you and when are
- * you open".
+ * **Then it stopped being two pages.** `Directions`, `TripPlanner` and
+ * `VloreCity` were here and are now on `/abroad`, because this route had been
+ * answering two readers who want almost nothing in common: one in Vlorë who
+ * needs an address and today's hours, and one in Bari working out whether an
+ * implant is worth two crossings of the Adriatic. The local was scrolling past
+ * ferry routes; the traveller was scrolling past a timetable. The full argument
+ * is on that route; what stays here is the half a contact page is for, and a
+ * line pointing the other reader at the page written for them.
+ *
+ * **The order is the order the questions get asked in:** why you, when are you
+ * open, where exactly are you. Grounds alternate through it so no two dark
+ * bands touch.
+ *
+ * **`BrandStrip` is deliberately gone from this route.** It is the practice's
+ * six phrases as a marquee, and `WhyUs` now makes four of those six as an
+ * argument with reasons under them. A page that states its case and then slides
+ * the same case past in a band is a page agreeing with itself out loud.
+ *
+ * **This page used to own `#request`, and no longer does.** Every "book a visit"
+ * on the site pointed at `/visit#request` and landed on a form at the foot of
+ * this route. Booking is a page now — `/book`, with the practice's own calendar
+ * on it — and what stands in the form's place here is the door to it. The
+ * argument for the move is written up in `(site)/book/page.tsx`; the short
+ * version is that the most valuable URL a clinic has is the one it can print on
+ * a card, and a fragment inside a contact page is not it.
  *
  * **There is no closing call-to-action band, and its absence is deliberate.**
  * Every other page ends with one because there is nothing else to do at the foot
- * of them. This page *is* the call to action: it holds the form, the telephone
- * number, the WhatsApp link and the address. A band underneath asking a reader
- * to get in touch, four hundred pixels below the box they would get in touch
- * with, is the kind of thing that makes a site feel like it is selling rather
- * than answering.
+ * of them. This page carries the telephone number and the address in the
+ * opening band, and a button under `WhyUs`. A band underneath asking a reader
+ * to get in touch is the kind of thing that makes a site feel like it is
+ * selling rather than answering.
  *
  * `dynamic = 'force-dynamic'` for the same reason the front page carries it and
  * no other: the open/closed sentence in the opening band has to be true at the
@@ -63,7 +82,7 @@ export async function generateMetadata({
     path: '/visit',
     title: t('pages.visit.metaTitle'),
     description: t('pages.visit.metaDescription'),
-    image: PHOTOS.vloreBay,
+    image: PHOTOS.surgeryWide,
   });
 }
 
@@ -90,29 +109,12 @@ export default async function VisitPage({
         eyebrow={t('nav.visit')}
         title={t('pages.visit.title')}
         lede={t('pages.visit.lede')}
-        aside={
-          /*
-           * The wide crop of the treatment room — the one photograph in the set
-           * that has never appeared on the site, because until now it existed
-           * only as the social card. It is the right one here: a reader on the
-           * "where are you" page is deciding whether to come, and the room is
-           * the thing they are coming to.
-           */
-          <figure className="drift-clip rounded-2xl border border-white/10 shadow-lift">
-            {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
-            <img
-              src={PHOTOS.surgeryWide.src}
-              srcSet={srcSetFor(PHOTOS.surgeryWide)}
-              sizes="(min-width: 1024px) 460px, calc(100vw - 2.5rem)"
-              width={PHOTOS.surgeryWide.width}
-              height={PHOTOS.surgeryWide.height}
-              alt={t('practice.surgeryAlt')}
-              loading="lazy"
-              decoding="async"
-              className="drift block aspect-16/10 w-full object-cover"
-            />
-          </figure>
-        }
+        // The room rather than the bay. `vloreBay` moved to `/abroad` with
+        // the sections it illustrates — its own note in `photos.ts` reserves it
+        // for "where the page talks about travelling here" — and two routes
+        // opening on one photograph is the collision `/gallery` and `/practice`
+        // were merged to end.
+        photo={PHOTOS.surgery}
       >
         <div className="flex flex-col gap-5">
           {/*
@@ -133,9 +135,9 @@ export default async function VisitPage({
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5 px-5 py-4">
                 <OpenStatus live={hours.live} initial={hours.now} />
 
-                {/* Down the page rather than to another one: the week is on
-                    this route, a few hundred pixels below. */}
-                <a href="#visit" className="status-week group">
+                {/* Down the page rather than to another one: the week has a
+                    section of its own on this route, two below. */}
+                <a href="#hours" className="status-week group">
                   {t('hours.seeWeek')}
                   <ArrowRight
                     size={13}
@@ -167,25 +169,68 @@ export default async function VisitPage({
               ) : null}
             </p>
           ) : null}
+
+          {contact.telHref ? (
+            <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[1.02rem] text-navy-ink">
+              <Phone size={18} aria-hidden className="shrink-0 text-gilt" />
+              <a
+                href={contact.telHref}
+                className="font-semibold text-white underline underline-offset-4 focus-visible:outline-white"
+              >
+                {contact.phone}
+              </a>
+            </p>
+          ) : null}
         </div>
       </PageHero>
 
-      {/* The same component the front page renders: one set of opening hours,
-          one telephone number, one form. A second copy of any of the three is a
-          second copy to keep true. */}
-      <VisitUs contact={contact} hours={hours} />
+      {/* First after the opening band, because it answers the question the
+          reader who found this page in a search result is actually holding:
+          not where are you, but why you. */}
+      <WhyUs />
 
-      <Directions />
+      {/* The week, navy, with its own heading — the section the rail above
+          links down to. On the front page the same seven rows are a ruled list
+          in a column, which is the right weight when the hours are one fact
+          among several; on the page somebody opened to read them, they are the
+          subject. See `OpeningHours` for why there is no second status rail
+          inside it. */}
+      {hours ? <OpeningHours hours={hours} /> : null}
 
-      {/* Navy, between the two cream sections that would otherwise run together
-          — and the six phrases land well here, after the practical detail rather
-          than before it. */}
-      <BrandStrip />
+      {/*
+       * The way across to `/abroad`, in the place the three sections it now
+       * holds used to sit.
+       *
+       * A rule and a sentence rather than a section, and that is the point: a
+       * reader who is already in Vlorë should be able to pass this without
+       * reading it, and a reader who is not should not have to find the
+       * masthead to discover the page exists. A full band here would be this
+       * page arguing for a different one.
+       */}
+      <section className="px-5 sm:px-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-10 gap-y-5 border-t border-bone-deep py-11">
+          <p className="max-w-[52ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+            {t('pages.visit.fromAbroad')}
+          </p>
 
-      {/* Last, because it is the one thing on this page a reader has to have
-          decided something before they can use. Its own button goes back up to
-          the form above with the first treatment they ticked already filled in. */}
-      <TripPlanner />
+          <Link
+            href="/abroad"
+            className="group inline-flex min-h-11 shrink-0 items-center gap-2 text-[1rem] font-semibold text-bone-ink no-underline underline-offset-4 transition-colors hover:text-gilt-deep hover:underline"
+          >
+            {t('nav.abroad')}
+            <ArrowRight
+              size={17}
+              aria-hidden
+              className="transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+            />
+          </Link>
+        </div>
+      </section>
+
+      {/* Last, as the reader asked for it: the pin, and the two links that hand
+          the same address to whatever they navigate with. Cream, so the page
+          does not end on a dark band butted against the navy footer. */}
+      <ClinicMap contact={contact} />
     </>
   );
 }

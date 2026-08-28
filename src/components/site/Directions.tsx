@@ -49,15 +49,15 @@ export async function Directions() {
       id="getting-here"
       // `clip` and never `hidden`: the drawn rule and the drifting photograph
       // below are both on `view()` timelines. See the note on `.drift`.
-      className="relative scroll-mt-20 overflow-clip bg-bone-soft px-5 py-20 sm:px-8 sm:py-24"
+      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
     >
       <div className="mx-auto w-full max-w-6xl">
         <Reveal>
           <h2 className="type-section max-w-[18ch] text-bone-ink">
-            {t('pages.visit.getting.title')}
+            {t('pages.abroad.getting.title')}
           </h2>
           <p className="mt-5 max-w-[56ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
-            {t('pages.visit.getting.lede')}
+            {t('pages.abroad.getting.lede')}
           </p>
         </Reveal>
 
@@ -84,10 +84,10 @@ export async function Directions() {
                 </span>
 
                 <h3 className="mt-5 text-[1.14rem] font-bold text-bone-ink">
-                  {t(`pages.visit.getting.${route.key}.title`)}
+                  {t(`pages.abroad.getting.${route.key}.title`)}
                 </h3>
                 <p className="mt-2.5 text-[1rem] leading-relaxed text-bone-ink-soft">
-                  {t(`pages.visit.getting.${route.key}.body`)}
+                  {t(`pages.abroad.getting.${route.key}.body`)}
                 </p>
               </Reveal>
             ))}
@@ -116,7 +116,7 @@ export async function Directions() {
             />
           </div>
           <figcaption className="mt-4 max-w-[62ch] text-[0.95rem] leading-relaxed text-bone-ink-soft">
-            {t('pages.visit.getting.bayCaption')}
+            {t('pages.abroad.getting.bayCaption')}
           </figcaption>
         </Reveal>
       </div>

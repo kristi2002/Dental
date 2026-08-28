@@ -27,8 +27,11 @@ export const TREATMENT_KEYS = [
   'fillings',
   'rootCanal',
   'crowns',
-  'implants',
+  'veneers',
   'extraction',
+  'oralSurgery',
+  'implants',
+  'dentures',
   'orthodontics',
   'whitening',
 ] as const;
@@ -44,7 +47,7 @@ export type Treatment = {
 };
 
 /**
- * The eight, in the order they are shown.
+ * The eleven, in the order they are shown.
  *
  * There were six for as long as the section was built out of the app's own
  * dental chart: `ToothGlyph` models eight tooth states and only six of them
@@ -54,9 +57,37 @@ export type Treatment = {
  * people arriving from abroad they are the reason for the trip. With
  * photographs there is nothing to be short of, and they are cards like the rest.
  *
+ * **Three more were added from the practice's own printed list**, which is the
+ * only source here that is actually authoritative about what this clinic does:
+ * `veneers` (Faseta), `oralSurgery` (Kirurgji orale) and `dentures` (Protezim).
+ * The eight above were written from the app's tooth states and inherited that
+ * list's blind spots — a removable denture is not a state a tooth can be in, so
+ * it was never modelled and therefore never offered, which is exactly the wrong
+ * reason for a service to be missing from a practice's website.
+ *
+ * Two entries on that printed list are deliberately *not* separate keys.
+ * "Implantologji" is `implants`, and "Punime porcelani, zirkoni" is a material
+ * rather than a treatment — it is what `crowns` and `veneers` are made of, and
+ * it is named in both of their bodies. A card headed with a material is a card a
+ * patient cannot match to anything they came here worried about.
+ *
+ * **`extraction` and `oralSurgery` are both here and they are not duplicates.**
+ * The first is a tooth coming out, which is what a patient searches for and the
+ * words they use for it; the second is the surgical work around it — impacted
+ * teeth, and the bone grafting an implant sometimes needs first. Folding the
+ * plain one into the clinical one would file the most-searched treatment on this
+ * page under a name nobody types.
+ *
  * Ordered roughly by how a mouth is worked through rather than by price: what is
- * checked, what is repaired, what is replaced, then what is straightened and
- * brightened. A list that opens with implants is a price list.
+ * checked, what is repaired, what is removed, what is replaced, then what is
+ * straightened and brightened. A list that opens with implants is a price list.
+ *
+ * **The count is load-bearing for the grid.** `Treatments.tsx` gives the lead
+ * card a two-column span at every width that has two columns, so the section
+ * occupies `n + 1` cells; eleven treatments is twelve cells, which is six exact
+ * rows of two and four exact rows of three. Eight worked for the same reason and
+ * nine, ten or twelve would each leave a hole under the last row at one width or
+ * the other. A twelfth treatment means revisiting that span, not just this list.
  */
 export const TREATMENTS: readonly Treatment[] = TREATMENT_KEYS.map((key) => ({ key }));
 
@@ -93,6 +124,38 @@ export const REQUEST_LIMITS = {
 } as const;
 
 /**
+ * Half a day, and the option of not minding.
+ *
+ * The booking page's calendar asks which *day* suits, and this asks the only
+ * follow-up question a practice can usefully answer before it has looked at the
+ * book. It is deliberately not a list of times: offering 09:20 on a public form
+ * is a promise nobody has checked, and the desk would then be ringing back to
+ * take it away again.
+ *
+ * `'any'` is the default and is never stored — the column holds null for it, so
+ * "they did not mind" and "they were never asked" are the same row, which is
+ * exactly right for a field that is optional on the form and absent from every
+ * request written before it existed.
+ */
+export const PREFERRED_TIMES = ['morning', 'afternoon'] as const;
+
+export type PreferredTime = (typeof PREFERRED_TIMES)[number];
+
+export function isPreferredTime(value: string): value is PreferredTime {
+  return (PREFERRED_TIMES as readonly string[]).includes(value);
+}
+
+/**
+ * Noon, in minutes since midnight, on the clinic's own clock.
+ *
+ * The line the booking page splits a day's open stretches at, so "morning" is
+ * offered only on a day that has some morning open and "afternoon" only on one
+ * that does not shut at one. A practice working 14:00–19:00 on a Wednesday
+ * should not be handed a request asking for Wednesday morning.
+ */
+export const MIDDAY_MINUTES = 12 * 60;
+
+/**
  * "What brings you in?" — the six reasons somebody opens a dentist's website.
  *
  * This is the page's interactive way into the treatment list, and it is
@@ -115,7 +178,12 @@ export const REQUEST_LIMITS = {
 export const CONCERNS = [
   { key: 'missing', treatments: ['implants', 'crowns'], topic: 'implants' },
   { key: 'pain', treatments: ['rootCanal', 'fillings'], topic: 'rootCanal' },
-  { key: 'looks', treatments: ['whitening', 'crowns'], topic: 'whitening' },
+  // `veneers` replaced `crowns` here the moment it existed as a treatment of its
+  // own. Somebody who dislikes how their teeth look is asking a cosmetic
+  // question, and the honest pair for that is whitening or veneers; a crown is
+  // what you fit when a tooth is broken, and offering it as an answer to "I
+  // don't like how they look" is how a website talks somebody into a bur.
+  { key: 'looks', treatments: ['whitening', 'veneers'], topic: 'whitening' },
   { key: 'crooked', treatments: ['orthodontics'], topic: 'orthodontics' },
   { key: 'gums', treatments: ['checkup'], topic: 'checkup' },
   { key: 'overdue', treatments: ['checkup'], topic: 'checkup' },
@@ -126,6 +194,164 @@ export const CONCERNS = [
 }[];
 
 export type ConcernKey = (typeof CONCERNS)[number]['key'];
+
+/**
+ * What to offer a reader at the bottom of one treatment's own page.
+ *
+ * Each treatment now has a page to itself, and a page a stranger lands on from a
+ * search result is a dead end unless it says where to go next. Two each, and
+ * they are **clinical neighbours rather than upsells**: what the same mouth
+ * usually needs alongside this, or the other honest answer to the same problem.
+ *
+ * That distinction is the whole reason this is a hand-written table and not
+ * something derived from `CONCERNS`. Deriving it would produce the treatments
+ * that share a *marketing* entry point, which is how a page about an extraction
+ * ends up recommending whitening. These pairs are the ones a dentist would
+ * actually say in the room — an extraction leads to what fills the gap, a root
+ * canal leads to the crown that protects it afterwards.
+ *
+ * Keys only, no wording: both ends are already written in `messages`, and a
+ * label here would be a fourth place to translate the name of a treatment.
+ */
+export const TREATMENT_RELATED = {
+  checkup: ['fillings', 'whitening'],
+  fillings: ['rootCanal', 'crowns'],
+  // The crown is not decoration on a root-filled molar; what is left of it is
+  // thinner than it was, which is what `detail.rootCanal` already tells them.
+  rootCanal: ['crowns', 'fillings'],
+  crowns: ['veneers', 'implants'],
+  veneers: ['whitening', 'crowns'],
+  extraction: ['implants', 'oralSurgery'],
+  oralSurgery: ['implants', 'extraction'],
+  implants: ['crowns', 'oralSurgery'],
+  dentures: ['implants', 'crowns'],
+  orthodontics: ['veneers', 'checkup'],
+  whitening: ['veneers', 'checkup'],
+} as const satisfies Record<TreatmentKey, readonly TreatmentKey[]>;
+
+/**
+ * The steps each treatment is broken into on its own page — three, always.
+ *
+ * A count rather than a list of contents: the wording lives in `messages` under
+ * `pages.treatment.steps.<key>.<one|two|three>`, and what this constant fixes is
+ * that every treatment is described in the same *shape*. Three is what makes the
+ * eleven pages read as one site — a treatment given five steps and the next given
+ * two is two people writing, and the reader feels it before they can name it.
+ *
+ * Three is also honest for all eleven. Every treatment here genuinely has a
+ * before, a during and an after — what is examined and agreed, what happens in
+ * the chair, and what the patient leaves with — and none of them needed padding
+ * or squeezing to fit it.
+ */
+export const TREATMENT_STEPS = ['one', 'two', 'three'] as const;
+
+export type TreatmentStepKey = (typeof TREATMENT_STEPS)[number];
+
+/**
+ * Which of three shapes a treatment's own page is built in.
+ *
+ * **The eleven pages under `/treatments/` were one page eleven times.** Same
+ * bands in the same order on every one of them -- opening, paragraph, three
+ * steps, timings, neighbours -- with the treatment's name and one photograph
+ * swapped in. That is defensible as a system and it is wrong as a set of pages:
+ * a reader who follows two of them in a row has read the same page twice, and a
+ * practice whose page about whitening is laid out identically to its page about
+ * oral surgery is telling the reader it has nothing particular to say about
+ * either.
+ *
+ * The fix is not eleven bespoke layouts -- that is eleven places to make the
+ * next change. It is that **the order of the bands is an argument about the
+ * reader**, and the eleven treatments here have three genuinely different
+ * readers:
+ *
+ *   `direct` -- the treatment is done and finished inside a couple of days, so
+ *   the reader's question is *what happens*. The steps come first, drawn as a
+ *   chain across the page, and the timings are a footnote at the end because
+ *   there is barely anything to plan around.
+ *
+ *   `journey` -- the treatment is staged over months or over a second trip, so
+ *   the reader's first question is not clinical at all, it is *how long does
+ *   this keep me here*. The timings come immediately after the opening, before
+ *   anything else, and the steps are drawn down a vertical spine, which is the
+ *   shape of a thing that happens in stages rather than in an afternoon.
+ *
+ *   `showcase` -- the reader is choosing rather than being treated, and what
+ *   they want to see is the work and the place. The mosaic comes up the page,
+ *   ahead of the steps, and the timings sit where they belong for somebody who
+ *   has already decided they like the look of it: last.
+ *
+ * The assignment is clinical, not decorative, and it should be read against
+ * `TREATMENT_TIMING` -- every `journey` treatment there has a non-zero `months`
+ * or a stay of four days and up, and every `direct` one is a single trip of two
+ * days or less. `crowns` is the one judgement call: it is a two-visit
+ * laboratory job with a month's tail, which would make it a `journey`, but what
+ * a patient is actually choosing when they read that page is what the finished
+ * tooth will look like. It is filed with the cosmetic work on purpose.
+ */
+export const TREATMENT_MOVEMENTS = ['direct', 'journey', 'showcase'] as const;
+
+export type TreatmentMovement = (typeof TREATMENT_MOVEMENTS)[number];
+
+export const TREATMENT_MOVEMENT = {
+  checkup: 'direct',
+  fillings: 'direct',
+  rootCanal: 'journey',
+  crowns: 'showcase',
+  veneers: 'showcase',
+  extraction: 'direct',
+  oralSurgery: 'journey',
+  implants: 'journey',
+  dentures: 'journey',
+  orthodontics: 'showcase',
+  whitening: 'showcase',
+} as const satisfies Record<TreatmentKey, TreatmentMovement>;
+
+/**
+ * The URL each treatment's own page lives at, under `/treatments/`.
+ *
+ * Written out rather than derived from the key by a camelCase-to-kebab
+ * transform. The transform would produce all eleven of these correctly today,
+ * and that is exactly the problem: a URL that is computed is a URL that silently
+ * changes the day somebody renames a key, and a published address that changes
+ * is a 404 in somebody's search results and in whatever they bookmarked. Spelled
+ * out, renaming the key is a compile error here and a decision somebody has to
+ * make on purpose.
+ *
+ * **English, in all three languages.** `routing.ts` prefixes every path with the
+ * locale and defines no localized `pathnames`, so `/sq/treatments` is already the
+ * Albanian route; the segment under it stays in the same vocabulary as the four
+ * pages above it rather than being the one part of the site that is translated
+ * into the URL bar.
+ */
+export const TREATMENT_SLUGS = {
+  checkup: 'checkup',
+  fillings: 'fillings',
+  rootCanal: 'root-canal',
+  crowns: 'crowns-and-bridges',
+  veneers: 'veneers',
+  extraction: 'extraction',
+  oralSurgery: 'oral-surgery',
+  implants: 'implants',
+  dentures: 'dentures',
+  orthodontics: 'orthodontics',
+  whitening: 'whitening',
+} as const satisfies Record<TreatmentKey, string>;
+
+/** `/treatments/root-canal`, under whatever locale the caller is in. */
+export function treatmentPath(key: TreatmentKey): string {
+  return `/treatments/${TREATMENT_SLUGS[key]}`;
+}
+
+/**
+ * The treatment a URL segment names, or null.
+ *
+ * Null rather than a throw: the caller is a route handling whatever a stranger
+ * typed, and the correct answer to `/treatments/wisdom-teeth` is a 404 page
+ * rather than a 500.
+ */
+export function treatmentBySlug(slug: string): TreatmentKey | null {
+  return TREATMENT_KEYS.find((key) => TREATMENT_SLUGS[key] === slug) ?? null;
+}
 
 /**
  * How long each treatment takes, for somebody deciding whether to book a flight.
@@ -165,8 +391,15 @@ export const TREATMENT_TIMING = {
   fillings: { visits: [1, 2], days: [1, 2], months: [0, 0] },
   rootCanal: { visits: [1, 2], days: [2, 3], months: [0, 0] },
   crowns: { visits: [2, 3], days: [4, 6], months: [0, 1] },
-  implants: { visits: [2, 3], days: [3, 4], months: [3, 6] },
+  veneers: { visits: [2, 3], days: [4, 6], months: [0, 1] },
   extraction: { visits: [1, 1], days: [1, 2], months: [0, 0] },
+  oralSurgery: { visits: [1, 2], days: [2, 4], months: [0, 1] },
+  implants: { visits: [2, 3], days: [3, 4], months: [3, 6] },
+  // The longest stay on the page, and it moves the scale under every other bar
+  // — which is the behaviour `TIMING_SCALE` is computed for rather than a
+  // problem with it. A full denture is impressions, a bite, a try-in in wax and
+  // a fit, and none of those four can be collapsed into the same afternoon.
+  dentures: { visits: [4, 5], days: [7, 10], months: [1, 2] },
   orthodontics: { visits: [2, 2], days: [2, 3], months: [12, 24] },
   whitening: { visits: [1, 2], days: [1, 2], months: [0, 0] },
 } as const satisfies Record<TreatmentKey, TreatmentTiming>;
@@ -327,4 +560,51 @@ export function priceFloor(
   if (found.some((price) => price.currency !== currency)) return null;
 
   return { total: found.reduce((sum, price) => sum + price.from, 0), currency };
+}
+
+/**
+ * What the practice guarantees on the work it does, and for how long.
+ *
+ * ⚠️ **Empty, and it ships empty** — the same call as `TREATMENT_PRICES` above,
+ * for a sharper version of the same reason. A price printed without authority is
+ * a quotation the practice would be held to; a guarantee printed without
+ * authority is a *contract term*, and in every market this site is translated
+ * for it is one a patient could enforce. "Implants guaranteed 10 years" is four
+ * words on a page and a decade of liability, and it is not a decision a
+ * codebase gets to make on a dentist's behalf.
+ *
+ * Nor is it guessable from anything already here. The practice's warranty may be
+ * per treatment, may be conditional on the patient attending check-ups, and may
+ * simply not exist in writing yet — and each of those three is a different page.
+ *
+ * So `Aftercare` renders the four things the practice demonstrably *does* —
+ * every one of them already claimed elsewhere on this site or shipped in the
+ * clinic application itself — and renders the guarantee block only when there is
+ * something here to render. An empty table means that block does not appear;
+ * nothing is implied and nothing is hedged.
+ *
+ * To turn it on: fill in the treatments Dr. Shehu is willing to stand behind in
+ * writing, set `GUARANTEES_REVIEWED`, and leave out anything whose terms are
+ * genuinely case-by-case. A partial table is correct and expected — a crown with
+ * a term and a filling without one says something true.
+ */
+export type TreatmentGuarantee = {
+  /** Whole years, from the day the work is fitted. Never "up to". */
+  years: number;
+};
+
+export const TREATMENT_GUARANTEES: Partial<Record<TreatmentKey, TreatmentGuarantee>> = {};
+
+/**
+ * When the practice last confirmed the terms above — shown beside them, for the
+ * reason `PRICES_REVIEWED` exists: a term with no date is a term nobody can
+ * rely on.
+ *
+ * `null` while `TREATMENT_GUARANTEES` is empty.
+ */
+export const GUARANTEES_REVIEWED: string | null = null;
+
+/** Whether there is a guarantee block to render at all. */
+export function hasGuarantees(): boolean {
+  return Object.keys(TREATMENT_GUARANTEES).length > 0 && GUARANTEES_REVIEWED !== null;
 }

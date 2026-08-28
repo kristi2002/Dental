@@ -7,8 +7,11 @@ import {
   endOfMonth,
   endOfWeek,
   fromDateKey,
+  isDateKey,
+  isTimeOfDay,
   minutesToTime,
   monthGrid,
+  parseDateKey,
   startOfWeek,
   timeToMinutes,
   toDateKey,
@@ -89,5 +92,89 @@ describe('age', () => {
     assert.equal(age(utc('2000-08-11'), now), 26);
     assert.equal(age(utc('2000-08-12'), now), 26);
     assert.equal(age(utc('2000-08-13'), now), 25);
+  });
+});
+
+/**
+ * The shape of a date is not the same question as whether the day exists, and
+ * the gap between them is where a booking lands on a day nobody chose.
+ */
+describe('isDateKey — a real day, not merely a well-shaped string', () => {
+  it('accepts an ordinary day', () => {
+    assert.equal(isDateKey('2026-08-31'), true);
+  });
+
+  it('accepts the 29th of February in a leap year', () => {
+    assert.equal(isDateKey('2024-02-29'), true);
+  });
+
+  /**
+   * The three that matter, and the reason a `NaN` check is not enough on its
+   * own: only the first of these is an Invalid Date. JavaScript rolls the other
+   * two forward — the 30th of February becomes the 2nd of March, and the 29th
+   * in a common year becomes the 1st — and hands back a date that looks fine.
+   */
+  it('refuses a month and day that cannot exist', () => {
+    assert.equal(isDateKey('9999-99-99'), false);
+  });
+
+  it('refuses the 30th of February, which JavaScript would roll to March', () => {
+    assert.equal(isDateKey('2026-02-30'), false);
+  });
+
+  it('refuses the 29th of February in a common year', () => {
+    assert.equal(isDateKey('2026-02-29'), false);
+  });
+
+  it('refuses anything not of the shape at all', () => {
+    for (const bad of ['', '2026-8-31', '31-08-2026', '2026/08/31', 'today', '2026-08-31T00:00']) {
+      assert.equal(isDateKey(bad), false, `accepted ${JSON.stringify(bad)}`);
+    }
+  });
+});
+
+describe('isTimeOfDay — a time on a 24-hour clock', () => {
+  it('accepts the ends of the day and a padded hour', () => {
+    for (const good of ['00:00', '9:30', '09:30', '23:59']) {
+      assert.equal(isTimeOfDay(good), true, `refused ${good}`);
+    }
+  });
+
+  /**
+   * The regression. `99:99` passed the shape test the write paths used, and
+   * `timeToMinutes` turns it into 6039 — past the end of the day, so the slot
+   * sorts after everything and falls outside every opening-hours window.
+   */
+  it('refuses an hour or a minute that is not on the clock', () => {
+    for (const bad of ['99:99', '24:00', '23:60', '25:30']) {
+      assert.equal(isTimeOfDay(bad), false, `accepted ${bad}`);
+    }
+  });
+
+  it('refuses anything not of the shape at all', () => {
+    for (const bad of ['', '9', '9:5', '09:30:00', 'noon']) {
+      assert.equal(isTimeOfDay(bad), false, `accepted ${JSON.stringify(bad)}`);
+    }
+  });
+});
+
+describe('parseDateKey — null for a blank field and for a bad one alike', () => {
+  it('parses a real day to UTC midnight', () => {
+    assert.equal(parseDateKey('2026-08-31')?.toISOString(), '2026-08-31T00:00:00.000Z');
+  });
+
+  it('gives null for nothing', () => {
+    assert.equal(parseDateKey(null), null);
+    assert.equal(parseDateKey(undefined), null);
+    assert.equal(parseDateKey(''), null);
+  });
+
+  /**
+   * The point of it. The idiom this replaced returned an *Invalid Date* here
+   * rather than null, and that travelled on into a query or a write.
+   */
+  it('gives null rather than an Invalid Date for a day that does not exist', () => {
+    assert.equal(parseDateKey('2026-02-30'), null);
+    assert.equal(parseDateKey('9999-99-99'), null);
   });
 });

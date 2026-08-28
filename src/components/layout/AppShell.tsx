@@ -66,10 +66,16 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
 
   // A section stays in the rail even when every one of its sub-screens is out of
   // reach — the sub-screens are the extras, not the reason the section is there.
+  //
+  // `group` rides along untouched. The rail rules a heading in wherever it
+  // changes, which is what makes the headings survive this filter for free: a
+  // block whose every row a role may not open loses its heading with them,
+  // because no surviving row ever names that group.
   const items = NAV_DESTINATIONS.filter(({ permission }) => allowed(permission)).map(
-    ({ href, key, children }) => ({
+    ({ href, key, group, children }) => ({
       href,
       key,
+      group,
       children: children
         ?.filter(({ permission }) => allowed(permission))
         .map(({ href, key, exact }) => ({ href, key, exact })),

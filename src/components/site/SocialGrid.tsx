@@ -34,7 +34,7 @@ export async function SocialGrid() {
   const t = await getTranslations('site');
 
   return (
-    <section className="relative overflow-clip bg-navy px-5 py-20 text-white sm:px-8 sm:py-28">
+    <section className="seam relative overflow-clip bg-navy px-5 py-20 text-white sm:px-8 sm:py-28">
       <Ambience />
       <Watermark className="-bottom-40 -left-28 w-[32rem] text-white/[0.045]" />
 

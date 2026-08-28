@@ -6,7 +6,7 @@ import { redirect } from '@/i18n/navigation';
 import { AppointmentStatus, ToothNumbering } from '@/generated/prisma/enums';
 import { authorize, recordAudit, requireUser } from '@/lib/auth/guard';
 import { DEFAULT_WEEK, rangesFor } from '@/lib/clinic-hours';
-import { timeToMinutes, toDateKey, today } from '@/lib/dates';
+import { isDateKey, timeToMinutes, toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { SITE_CACHE_TAG } from '@/lib/site';
 import { optionalString, requiredString } from '@/lib/utils';
@@ -174,7 +174,7 @@ export async function saveClosure(_prev: ActionState, formData: FormData): Promi
   const from = requiredString(formData.get('from'));
   const to = optionalString(formData.get('to')) ?? from;
 
-  if (!reason || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+  if (!reason || !isDateKey(from) || !isDateKey(to)) {
     return actionError(t('fillRequired'));
   }
 

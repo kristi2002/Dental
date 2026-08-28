@@ -3,11 +3,70 @@
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { fromDateKey, isDateKey } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit } from '@/lib/rate-limit';
-import { isRequestTopic, REQUEST_LIMITS } from '@/lib/site-content';
+import { getBookingWindow } from '@/lib/site';
+import {
+  isPreferredTime,
+  isRequestTopic,
+  MIDDAY_MINUTES,
+  REQUEST_LIMITS,
+} from '@/lib/site-content';
 import { optionalString, requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
+
+/**
+ * The day and the half-day, checked against the practice's own week.
+ *
+ * Both fields are optional, and "they did not say" is the commonest answer:
+ * the calendar can be skipped, and a browser with no JavaScript reaches the
+ * submit button without ever having paged it. So a missing value is a null and
+ * never an error.
+ *
+ * **A value that is present is checked rather than trusted**, and not because
+ * anybody expects a stranger to forge a date. The honest case is a tab left
+ * open: somebody picks Friday, goes to dinner, and presses the button after
+ * midnight on a page whose window no longer contains it — or after the practice
+ * has entered a closure over that week. Writing the date anyway would put a day
+ * the surgery is shut on the desk's list as though the visitor had asked for it,
+ * and the desk would ring back to correct a mistake the page made. Saying "that
+ * day has gone, pick another" is the version that keeps the form's own promise.
+ *
+ * The half-day is checked against the *chosen day's* real open stretches for the
+ * same reason, and simply dropped rather than refused when it does not fit: a
+ * morning that has stopped existing is a detail the desk can settle on the
+ * telephone, where a day that has stopped existing is a wasted call. It is also
+ * dropped when no day was given — "mornings, on no particular day" is not a
+ * preference this practice can act on before it has spoken to somebody.
+ */
+async function readPreferredDay(
+  formData: FormData,
+): Promise<{ date: Date | null; half: string | null } | 'unavailable'> {
+  const key = optionalString(formData.get('preferredDate'));
+  if (!key) return { date: null, half: null };
+  if (!isDateKey(key)) return 'unavailable';
+
+  // Null when the database is unreachable. The request itself is still worth
+  // taking — that is the whole point of a form whose only required fields are a
+  // name and a number — so the day is dropped and the call back asks for it.
+  const window = await getBookingWindow();
+  if (!window) return { date: null, half: null };
+
+  const day = window.days.find((entry) => entry.date === key);
+  if (!day || !day.open) return 'unavailable';
+
+  const wanted = optionalString(formData.get('preferredTime'));
+  const half =
+    wanted && isPreferredTime(wanted) &&
+    day.ranges.some((range) =>
+      wanted === 'morning' ? range.start < MIDDAY_MINUTES : range.end > MIDDAY_MINUTES,
+    )
+      ? wanted
+      : null;
+
+  return { date: fromDateKey(key), half };
+}
 
 /**
  * The one write on this app that nobody has to sign in to perform.
@@ -19,11 +78,13 @@ import { actionError, actionOk, type ActionState } from './types';
  *
  * So the guards are different in kind, and there are four of them:
  *
- *  1. **It cannot reach anything.** The action writes one row into
- *     `AppointmentRequest` and reads nothing at all. There is no patient lookup,
- *     no "do we know this number", no branch whose timing could answer a
- *     question about who is already on file. A stranger's only observable
- *     outcome is "accepted" or "try again later".
+ *  1. **It cannot reach anything a stranger cannot already see.** The action
+ *     writes one row into `AppointmentRequest`, and the only thing it reads is
+ *     `getBookingWindow` — the practice's opening hours and its closures, which
+ *     are printed on the page this form is on. There is no patient lookup, no
+ *     "do we know this number", no branch whose timing could answer a question
+ *     about who is already on file. A stranger's only observable outcome is
+ *     "accepted", "pick another day", or "try again later".
  *  2. **It is throttled per address**, on the same in-memory bucket the
  *     confirmation link uses. Four an hour is far above what a person filling in
  *     a form needs and far below what makes a table worth spamming.
@@ -69,12 +130,17 @@ export async function requestAppointment(
 
   const topic = optionalString(formData.get('topic'));
 
+  const preferred = await readPreferredDay(formData);
+  if (preferred === 'unavailable') return actionError(t('book.dayGone'));
+
   await prisma.appointmentRequest.create({
     data: {
       name,
       phone,
       email: optionalString(formData.get('email')),
       message: optionalString(formData.get('message')),
+      preferredDate: preferred.date,
+      preferredTime: preferred.half,
       // Anything the form did not offer is dropped rather than stored: `topic`
       // is rendered back to the desk through `messages`, and a key with no
       // translation behind it would show up on their screen as the raw string

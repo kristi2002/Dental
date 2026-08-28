@@ -3,7 +3,7 @@ import { PUBLIC_PATHS } from '@/lib/site-paths';
 import { locales } from '@/i18n/routing';
 
 /**
- * Five pages are public. Everything else is a clinic's records system.
+ * Six pages are public. Everything else is a clinic's records system.
  *
  * Until the storefront shipped there was no `robots.txt` at all, which was
  * survivable only because every screen behind `/[locale]/(app)` bounces a
@@ -13,8 +13,9 @@ import { locales } from '@/i18n/routing';
  * confirmation links carry a signature in the path.
  *
  * So the default is now "no", and the storefront is the exception — the front
- * page and the four pages the masthead links to, in each of the three languages,
- * which is the same list `sitemap.ts` publishes. It has to be the same list:
+ * page, the four pages the masthead links to and the booking page beside them,
+ * in each of the three languages, which is the same list `sitemap.ts`
+ * publishes. It has to be the same list:
  * a page in the sitemap that this file refuses is a page a crawler is told about
  * and then told not to fetch, and it resolves that by dropping the entry
  * silently. `lib/site-paths.ts` is the one place either of them reads.

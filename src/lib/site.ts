@@ -5,9 +5,11 @@ import {
   rangesFor,
   scheduleFor,
   WEEKDAY_ORDER,
+  type ClosureRange,
   type DayHours,
+  type OpenRange,
 } from '@/lib/clinic-hours';
-import { CLINIC_TIME_ZONE, toDateKey, today } from '@/lib/dates';
+import { addDays, CLINIC_TIME_ZONE, fromDateKey, toDateKey, today } from '@/lib/dates';
 import { telLink, whatsappChatLink } from '@/lib/reminders';
 import { openStateAt, type LiveHours, type OpenState } from '@/lib/site-open';
 import {
@@ -83,6 +85,46 @@ export type SiteHours = {
    * clock, without a request. See `lib/site-open.ts`.
    */
   live: LiveHours;
+};
+
+/**
+ * One day of the booking calendar.
+ *
+ * Plain JSON and nothing but — no `Date` anywhere. This crosses two boundaries
+ * that both flatten one: `unstable_cache` serializes what it stores, and the
+ * calendar itself is a client component, so every field here rides the RSC
+ * payload into the browser. A date is a `YYYY-MM-DD` key on both sides, which
+ * is also what the form posts and what the action parses back.
+ */
+export type SiteBookingDay = {
+  /** `YYYY-MM-DD`, at UTC midnight like every calendar day in this app. */
+  date: string;
+  /** Whether the practice is open at all — the only thing the grid greys out. */
+  open: boolean;
+  /** `"08:00 – 13:00, 14:00 – 19:00"`, empty on a day it is shut. */
+  hours: string;
+  /**
+   * Named only when a *closure* is the reason.
+   *
+   * The weekly pattern needs no excuse — nobody expects a note explaining
+   * Sunday — but "Easter Monday" is worth printing, because a visitor looking at
+   * a greyed-out Tuesday in April otherwise assumes the site is broken.
+   */
+  closure: string | null;
+  /**
+   * The open stretches, in minutes since midnight. What the half-day chips are
+   * derived from: a day that shuts at one o'clock offers no afternoon.
+   */
+  ranges: OpenRange[];
+};
+
+export type SiteBookingWindow = {
+  /** Today, on the clinic's clock. Nothing before it is offered. */
+  from: string;
+  /** The last day offered, inclusive. */
+  to: string;
+  /** Every day from `from` to `to`, in order, open and shut alike. */
+  days: SiteBookingDay[];
 };
 
 export type SiteData = {
@@ -291,6 +333,113 @@ export const getSiteHours = cache(async (): Promise<SiteHours | null> => {
     if (!now) return null;
 
     return { week: ordered, now, live };
+  } catch {
+    return null;
+  }
+});
+
+/**
+ * How far ahead the booking calendar lets somebody point.
+ *
+ * Eight weeks. Long enough for the half of this practice's patients who are
+ * booking a flight or a ferry before they book a dentist, and short enough that
+ * the answer stays honest: this is a *preference*, not a slot, and a form
+ * offering a date five months out invites a certainty nobody has.
+ *
+ * It is also, deliberately, the size of the payload. Every day in the window
+ * rides the RSC payload into the browser so the grid can page a month without a
+ * round trip; fifty-six small objects is a few kilobytes, and a year of them
+ * would be a page weight nobody agreed to.
+ */
+export const BOOKING_WINDOW_DAYS = 56;
+
+/**
+ * The two tables the calendar is drawn from, cached beside everything else the
+ * public page reads.
+ *
+ * Closures come back as date **keys** rather than as `Date`s, for the reason
+ * `readHours` gives above: `unstable_cache` serializes what it stores, so a
+ * `Date` put in comes back a string and the arithmetic downstream quietly stops
+ * working. They are rebuilt into real dates in `getBookingWindow`, which is
+ * where a `Date` is wanted and where nothing is cached.
+ *
+ * Only practice-wide closures are kept. One dentist's leave is not a day the
+ * door is shut, and a public calendar greying out a Tuesday because a
+ * hygienist is in Greece would be both wrong and a small leak about who is
+ * away.
+ */
+const readBookingSource = unstable_cache(
+  async () => {
+    const [week, closures] = await Promise.all([getClinicWeek(), getClosures()]);
+
+    return {
+      week,
+      closures: closures
+        .filter((closure) => !closure.staffUserId)
+        .map((closure) => ({
+          from: toDateKey(closure.from),
+          to: toDateKey(closure.to),
+          reason: closure.reason,
+        })),
+    };
+  },
+  ['site-booking'],
+  { revalidate: SITE_REVALIDATE_SECONDS, tags: [SITE_CACHE_TAG] },
+);
+
+/**
+ * The next eight weeks, each day marked open or shut.
+ *
+ * **The window is computed per request and only its inputs are cached**, which
+ * is the same split `getSiteHours` makes and for a sharper reason here: a cached
+ * *window* would still start at yesterday for up to five minutes after midnight,
+ * and the one thing a booking calendar may not do is offer a day that has been
+ * and gone.
+ *
+ * Every day goes through `scheduleFor` — the same function the free-slot search
+ * and the day grid use. There is deliberately no second implementation of "is
+ * the practice open on this date" anywhere in this codebase, because a public
+ * page greying out a Saturday the staff screen offers appointments on is the
+ * exact bug that arrangement exists to make impossible.
+ *
+ * Shut days are returned rather than filtered out. The grid draws a month, not a
+ * list, and a calendar with holes in it where Sundays should be is not a
+ * calendar — it also has to be able to say *why* a Tuesday in April is
+ * unavailable, and that answer only exists on the day itself.
+ *
+ * Null when the database could not be reached, for the reason `SiteData.hours`
+ * is: the page then asks for a telephone call rather than showing a grid of
+ * guesses. `DEFAULT_WEEK` is a reasonable stand-in for an unconfigured practice
+ * and a lie on a public page.
+ */
+export const getBookingWindow = cache(async (): Promise<SiteBookingWindow | null> => {
+  try {
+    const { week, closures } = await readBookingSource();
+
+    // Back into `Date`s on this side of the cache, so `scheduleFor` can be the
+    // one thing that decides what a closure covers.
+    const ranges: ClosureRange[] = closures.map((closure) => ({
+      from: fromDateKey(closure.from),
+      to: fromDateKey(closure.to),
+      reason: closure.reason,
+      staffUserId: null,
+    }));
+
+    const from = today();
+    const days: SiteBookingDay[] = Array.from({ length: BOOKING_WINDOW_DAYS }, (_, offset) => {
+      const date = addDays(from, offset);
+      const schedule = scheduleFor(date, week, ranges);
+
+      return {
+        date: toDateKey(date),
+        open: !schedule.closed,
+        hours: describeRanges(schedule.ranges),
+        closure: schedule.closureReason,
+        ranges: schedule.ranges,
+      };
+    });
+
+    return { from: toDateKey(from), to: days[days.length - 1].date, days };
   } catch {
     return null;
   }

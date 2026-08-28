@@ -1,5 +1,6 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import {
@@ -13,6 +14,7 @@ import { verifyConfirmationToken } from '@/lib/confirmations';
 import { today, toDateKey } from '@/lib/dates';
 import { cancelScheduledFor } from '@/lib/messages/queue';
 import { prisma } from '@/lib/prisma';
+import { CONFIRM_RATE, confirmBucket, rateLimit } from '@/lib/rate-limit';
 import { requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
@@ -29,6 +31,13 @@ export async function respondToAppointment(
   formData: FormData,
 ): Promise<ActionState> {
   const t = await getTranslations('confirm');
+
+  // Before the token is looked at, and on the same bucket the page spends from.
+  // The page's limiter was the only one, and a server action is reachable
+  // without ever loading the page it belongs to — so this is the door a guesser
+  // would actually have used. See `CONFIRM_RATE`.
+  const limit = rateLimit(confirmBucket(await headers()), CONFIRM_RATE);
+  if (!limit.allowed) return actionError(t('tooMany'));
 
   const token = requiredString(formData.get('token'));
   const coming = requiredString(formData.get('answer')) === 'yes';

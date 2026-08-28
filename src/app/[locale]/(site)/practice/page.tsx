@@ -7,6 +7,7 @@ import { HowWeWork } from '@/components/site/HowWeWork';
 import { Languages } from '@/components/site/Languages';
 import { PageHero } from '@/components/site/PageHero';
 import { PHOTOS } from '@/components/site/photos';
+import { PhotoWall } from '@/components/site/PhotoWall';
 import { Practice } from '@/components/site/Practice';
 import { getSiteContact } from '@/lib/site';
 import { sitePageMetadata } from '@/lib/site-meta';
@@ -29,12 +30,24 @@ import { sitePageMetadata } from '@/lib/site-meta';
  * with a person's name and is a better section than the headshot would have
  * been.
  *
- * **Every section here is shared with the front page except two.** `Practice`
+ * **This absorbed `/gallery`, and the two were one page pretending to be two.**
+ * "The place" opened on `PHOTOS.surgery` under "Have a proper look around";
+ * this one opens on `PHOTOS.surgery` under a heading about the same practice.
+ * Both answered *what is this place like* — one in prose and one in
+ * photographs — and a clinic with a single address does not have two answers to
+ * that. `PhotoWall` is the whole of what that page was; it is a section here,
+ * carrying the heading its `PageHero` used to give it. `SocialGrid` was dropped
+ * rather than moved, because the front page already renders it, and
+ * `BeforeAfter` went to the whitening page, which is the treatment it is
+ * actually about.
+ *
+ * **Every section here is shared with the front page except three.** `Practice`
  * and `HowWeWork` are the same components rendering the same words in both
  * places, deliberately: a second copy of what the practice says about itself is
  * a second copy to keep true. What this page adds is the material there was
- * never room for — the first visit, taken apart step by step, and the three
- * languages given more than a line in a table.
+ * never room for — the first visit taken apart step by step, the nine
+ * photographs laid out rather than reeled past, and the three languages given
+ * more than a line in a table.
  */
 
 /**
@@ -87,27 +100,7 @@ export default async function PracticePage({
         eyebrow={t('nav.practice')}
         title={t('pages.practice.title')}
         lede={t('pages.practice.lede')}
-        aside={
-          /*
-           * The instruments, not a face. It is the one bright photograph in the
-           * set and it is sitting on the darkest ground on the site, which is
-           * why it is this one and not the treatment room: an empty surgery shot
-           * in daylight disappears into navy at this size.
-           */
-          <figure className="drift-clip mx-auto max-w-[22rem] rounded-2xl border border-white/10 lg:ml-auto">
-            {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
-            <img
-              src={PHOTOS.heroDetail.src}
-              width={PHOTOS.heroDetail.width}
-              height={PHOTOS.heroDetail.height}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              sizes="(min-width: 1024px) 352px, 80vw"
-              className="drift block aspect-square w-full object-cover"
-            />
-          </figure>
-        }
+        photo={PHOTOS.surgery}
       >
         <ul className="flex flex-wrap gap-2.5">
           {['four', 'five'].map((key) => (
@@ -126,6 +119,12 @@ export default async function PracticePage({
       <Practice />
 
       <FirstVisit />
+
+      {/* The nine photographs, which had a route of their own until this merge.
+          They land after the first visit rather than before it because the
+          order is an argument: who does the work, then what the appointment is,
+          then the rooms it happens in. Photographs first is a brochure. */}
+      <PhotoWall />
 
       <HowWeWork />
 

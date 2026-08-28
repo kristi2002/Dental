@@ -3,7 +3,7 @@ import { PUBLIC_PATHS } from '@/lib/site-paths';
 import { locales, routing } from '@/i18n/routing';
 
 /**
- * Fifteen URLs: the five public pages, in each of the three languages they are
+ * Eighteen URLs: the six public pages, in each of the three languages they are
  * written in.
  *
  * Nothing else in this app belongs in a sitemap — every other route is either
@@ -12,8 +12,8 @@ import { locales, routing } from '@/i18n/routing';
  * be a list of things a crawler is being asked to try and refused.
  *
  * The list of what *is* public lives in `lib/site-paths.ts`, which `robots.ts`
- * reads too. Two hand-maintained lists of the same five paths is how a page ends
- * up in the sitemap and refused by the robots file at the same time — a
+ * reads too. Two hand-maintained lists of the same paths is how a page ends up
+ * in the sitemap and refused by the robots file at the same time — a
  * contradiction a crawler resolves by ignoring the sitemap entry.
  *
  * The `alternates` block is the half that matters. Without it a search engine

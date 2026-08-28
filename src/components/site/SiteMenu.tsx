@@ -1,12 +1,13 @@
 'use client';
 
-import { ArrowRight, Menu, Phone, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, Menu, Phone, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { SITE_PAGES } from '@/components/site/site-pages';
 import { Link, usePathname } from '@/i18n/navigation';
 import type { SiteContact } from '@/lib/site';
+import { TREATMENT_KEYS, treatmentPath } from '@/lib/site-content';
 import { cn } from '@/lib/utils';
 
 /**
@@ -19,7 +20,7 @@ import { cn } from '@/lib/utils';
  * stopped being survivable the moment they became routes. Three quarters of this
  * site would have been reachable on a phone only through the footer.
  *
- * So: one button, and a panel. The same `<dialog>` treatment as `BookDrawer`,
+ * So: one button, and a panel. A real `<dialog>` opened with `showModal()`,
  * for the same reasons — `showModal()` brings the focus trap, the top layer, the
  * inert page behind it and Escape, which is four things a hand-rolled panel
  * gets to reimplement and usually gets at least one of wrong.
@@ -42,6 +43,20 @@ export function SiteMenu({ contact }: { contact: SiteContact }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
 
+  /**
+   * Whether the eleven treatments are showing, and it starts open when the
+   * reader is already inside that section.
+   *
+   * Somebody on `/treatments/implants` who opens this menu is, far more often
+   * than not, looking for a different treatment — so making them press a
+   * chevron to see the list they are demonstrably browsing is a press for
+   * nothing. Everywhere else it starts closed, because four rows is the shape
+   * of this menu and fifteen is a scroll.
+   */
+  const [showTreatments, setShowTreatments] = useState(() =>
+    pathname.startsWith('/treatments'),
+  );
+
   // A route change has to shut it. Without this, pressing a link inside the
   // panel navigates underneath a modal that stays open over the new page — the
   // single most common bug in a drawer-shaped navigation, and invisible in
@@ -59,7 +74,7 @@ export function SiteMenu({ contact }: { contact: SiteContact }) {
           setOpen(true);
         }}
         aria-label={t('pages.menu.open')}
-        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-navy-ink transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-white lg:hidden"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-navy-ink transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-white xl:hidden"
       >
         <Menu size={21} aria-hidden />
       </button>
@@ -94,34 +109,111 @@ export function SiteMenu({ contact }: { contact: SiteContact }) {
             <ul>
               {SITE_PAGES.map((page, index) => {
                 const current = pathname === page.href || pathname.startsWith(`${page.href}/`);
+                const hasPanel = page.href === '/treatments';
 
                 return (
                   <li key={page.href} className="border-b border-navy-line/70 last:border-b-0">
-                    <Link
-                      href={page.href}
-                      aria-current={current ? 'page' : undefined}
-                      // Keyed to whether the panel has been opened at all, so
-                      // the stagger replays on every open rather than once on
-                      // mount. An element returning from `display: none`
-                      // restarts its animations; this is only here to give the
-                      // first open one to restart from.
-                      className={cn(
-                        'flex min-h-14 items-center justify-between gap-4 font-display text-[1.45rem] no-underline transition-colors',
-                        open && 'rise',
-                        current ? 'text-gilt' : 'text-white hover:text-gilt',
-                      )}
-                      style={{ '--i': `${index}` } as CSSProperties}
-                    >
-                      {t(`nav.${page.key}`)}
-                      <ArrowRight size={18} aria-hidden className="shrink-0 text-gilt" />
-                    </Link>
+                    {/*
+                     * The row is a link and — on the treatments row — a separate
+                     * toggle beside it, rather than one control doing both.
+                     *
+                     * A `<button>` inside an `<a>` is not valid HTML, and the
+                     * version where the whole row toggles instead of navigating
+                     * loses the index page on exactly the screens where it is
+                     * most useful: a phone reader who wants "everything you do"
+                     * rather than one treatment. So the word is still the link
+                     * it always was, and the chevron beside it is its own
+                     * control with its own name.
+                     */}
+                    <div className="flex items-center">
+                      <Link
+                        href={page.href}
+                        aria-current={current ? 'page' : undefined}
+                        // Keyed to whether the panel has been opened at all, so
+                        // the stagger replays on every open rather than once on
+                        // mount. An element returning from `display: none`
+                        // restarts its animations; this is only here to give the
+                        // first open one to restart from.
+                        className={cn(
+                          'flex min-h-14 flex-1 items-center justify-between gap-4 font-display text-[1.45rem] no-underline transition-colors',
+                          open && 'rise',
+                          current ? 'text-gilt' : 'text-white hover:text-gilt',
+                        )}
+                        style={{ '--i': `${index}` } as CSSProperties}
+                      >
+                        {t(`nav.${page.key}`)}
+                        {hasPanel ? null : (
+                          <ArrowRight size={18} aria-hidden className="shrink-0 text-gilt" />
+                        )}
+                      </Link>
+
+                      {hasPanel ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowTreatments((was) => !was)}
+                          aria-expanded={showTreatments}
+                          aria-controls="menu-treatments"
+                          aria-label={t('nav.toggleTreatments')}
+                          className="-mr-2 inline-flex size-12 shrink-0 items-center justify-center rounded-full text-gilt transition-colors hover:bg-white/10 focus-visible:outline-white"
+                        >
+                          <ChevronDown
+                            size={20}
+                            aria-hidden
+                            className={cn(
+                              'transition-transform duration-200 motion-reduce:transition-none',
+                              showTreatments && 'rotate-180',
+                            )}
+                          />
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {/*
+                     * Unmounted rather than hidden, which is the opposite of the
+                     * call the desktop panel makes and right for the opposite
+                     * reason. There it stays in the DOM so eleven links are not
+                     * laid out at the moment the cursor arrives; here the reader
+                     * has already pressed a control and is waiting, the drawer
+                     * scrolls, and eleven invisible rows inside a scroll
+                     * container are eleven rows of empty space to scroll past.
+                     */}
+                    {hasPanel && showTreatments ? (
+                      <ul id="menu-treatments" className="pb-3">
+                        {TREATMENT_KEYS.map((key) => {
+                          const href = treatmentPath(key);
+                          const here = pathname === href;
+
+                          return (
+                            <li key={key}>
+                              <Link
+                                href={href}
+                                aria-current={here ? 'page' : undefined}
+                                className={cn(
+                                  'flex min-h-12 items-center justify-between gap-3 border-l-2 pl-4 text-[1.02rem] font-semibold no-underline transition-colors',
+                                  here
+                                    ? 'border-gilt text-gilt'
+                                    : 'border-navy-line text-navy-ink hover:border-gilt hover:text-white',
+                                )}
+                              >
+                                {t(`treatments.${key}.title`)}
+                                <ArrowRight
+                                  size={15}
+                                  aria-hidden
+                                  className="shrink-0 text-gilt/60"
+                                />
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
                   </li>
                 );
               })}
             </ul>
 
             <Link
-              href="/visit#request"
+              href="/book"
               className="mt-8 flex min-h-13 items-center justify-center gap-2.5 rounded-full bg-gilt px-6 text-[1rem] font-bold text-navy no-underline focus-visible:outline-gilt-soft"
             >
               {t('nav.book')}

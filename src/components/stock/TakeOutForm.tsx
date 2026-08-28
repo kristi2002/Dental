@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { PackageMinus } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useId } from "react";
-import { useFormStatus } from "react-dom";
-import { takeStock } from "@/lib/actions/stock";
-import { useRecoveredForm } from "@/lib/form-recovery";
+import { PackageMinus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useId } from 'react';
+import { useFormStatus } from 'react-dom';
+import { takeStock } from '@/lib/actions/stock';
+import { useRecoveredForm } from '@/lib/form-recovery';
 
 /**
  * "Six of these went today."
@@ -33,7 +33,7 @@ export function TakeOutForm({
   /** How many boxes are on the shelf. The action refuses more; so does the input. */
   max: number;
 }) {
-  const t = useTranslations("stock");
+  const t = useTranslations('stock');
   const uid = useId();
   const { state, formAction, formRef } = useRecoveredForm(takeStock);
 
@@ -53,10 +53,10 @@ export function TakeOutForm({
           max={max}
           step={1}
           className="field-input w-16 shrink-0 px-2 py-1.5 text-center tabular-nums"
-          placeholder={t("takeOutPlaceholder")}
-          aria-label={t("takeOutLabel")}
+          placeholder={t('takeOutPlaceholder')}
+          aria-label={t('takeOutLabel')}
         />
-        <TakeOutButton label={t("takeOut")} />
+        <TakeOutButton label={t('takeOut')} />
       </form>
 
       {state.status === "error" ? (

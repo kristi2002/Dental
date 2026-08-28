@@ -150,6 +150,18 @@ export const HERO_FILM: HeroFilm | null = {
 
 const unsplash = (id: string) => `https://unsplash.com/photos/${id}`;
 
+/**
+ * The other free-licence source this page draws on, and the one the hero's film
+ * already came from — free for commercial use, no attribution required.
+ *
+ * It is here because the three treatments added from the practice's printed list
+ * had no usable photograph on Unsplash: a search for dentures and for veneers
+ * returns mostly Premium-licensed frames, and a premium asset on a real clinic's
+ * website is a licence nobody bought. Same rule as every row in this file — a
+ * placeholder until the practice photographs its own bench and its own tray.
+ */
+const pexels = (id: string) => `https://www.pexels.com/photo/${id}/`;
+
 /** Named singles: the hero, and the two the practice section still uses. */
 export const PHOTOS = {
   /**
@@ -252,17 +264,77 @@ export const TREATMENT_PHOTOS = {
     height: 600,
     source: unsplash('1776406987595-ba14f3510c07'),
   },
-  implants: {
-    src: '/site/t-implants.webp',
+  /**
+   * A shade guide, cropped close on the porcelain tabs.
+   *
+   * Chosen over the obvious thing — a finished smile — because the page already
+   * has two of those and because a shade guide is what the copy beside it
+   * actually describes: the colour is matched against the teeth either side, in
+   * the room, rather than picked off a chart. It is also the one photograph in
+   * this set with no mouth in it, which on a cosmetic treatment is the harder
+   * and better choice.
+   *
+   * **The first frame tried here was the wrong photograph and the card said so
+   * immediately.** It was the same subject shot high-key on white, and against
+   * ten photographs with real tonal mass it read as a card whose image had
+   * failed to load — the gradient the title sits on needs something underneath
+   * it to darken, and a white background gives it nothing. This one carries the
+   * grey of the bench below the guide and a soft out-of-focus surgery above it,
+   * which is what makes it a photograph in that grid rather than a cut-out.
+   *
+   * The crop lifts the row of tabs to the upper third for the same reason: the
+   * bottom of every card in that section belongs to the gradient, so whatever
+   * the card is *of* has to sit above it.
+   */
+  veneers: {
+    src: '/site/t-veneers.webp',
     width: 800,
     height: 600,
-    source: unsplash('1771442873035-474765b40ac6'),
+    source: pexels('6812494'),
   },
   extraction: {
     src: '/site/t-extraction.webp',
     width: 800,
     height: 600,
     source: unsplash('1588776814546-daab30f310ce'),
+  },
+  /**
+   * A surgical tray laid out on drapes — burs, elevators, forceps, sutures.
+   *
+   * **Preparation rather than procedure**, which is the rule the hero's film
+   * note sets out and the one that matters most on this particular card. Oral
+   * surgery is the treatment on this page a reader is most likely to be
+   * frightened of, and the honest way to photograph it is the half that shows
+   * care being taken: instruments counted out on a clean field, nobody in the
+   * chair, no anatomy anywhere in frame.
+   */
+  oralSurgery: {
+    src: '/site/t-oralsurgery.webp',
+    width: 800,
+    height: 600,
+    source: pexels('33172527'),
+  },
+  implants: {
+    src: '/site/t-implants.webp',
+    width: 800,
+    height: 600,
+    source: unsplash('1771442873035-474765b40ac6'),
+  },
+  /**
+   * A technician at the bench, shot over the shoulder — trays, shade bottles,
+   * the furnace behind.
+   *
+   * Wider than `crowns` on purpose. That one is hands and a prosthesis in close
+   * up, and the two sit two rows apart in the same grid; a second pair of hands
+   * holding a second prosthesis would read as the same photograph printed twice,
+   * which is the specific way a wall of eleven images looks broken. This one is
+   * the room the work happens in rather than the work.
+   */
+  dentures: {
+    src: '/site/t-dentures.webp',
+    width: 800,
+    height: 600,
+    source: pexels('7788493'),
   },
   orthodontics: {
     src: '/site/t-orthodontics.webp',
@@ -324,6 +396,219 @@ export const GALLERY: readonly (SitePhoto & {
   { key: 'light', src: '/site/g-light.webp', width: 900, height: 600, source: unsplash('1698749778813-ad5f2814e50f'), group: 'rooms' },
   { key: 'young', src: '/site/g-young.webp', width: 900, height: 600, source: unsplash('1611695434369-a8f5d76ceb7b'), group: 'people' },
 ];
+
+/**
+ * One photograph per step of the first visit, for the panel that follows the
+ * cursor down that list.
+ *
+ * **All five are already on the site**, and that is deliberate rather than
+ * lazy. The section is five short paragraphs about an hour in a chair; five
+ * *new* photographs to illustrate it would be five more stock images to caption,
+ * license and eventually replace, for a panel that is decoration — it is
+ * `aria-hidden`, and every word it illustrates is already written beside it.
+ *
+ * Chosen to be distinguishable at a glance rather than literal. A reader moving
+ * down the list should see the picture change; they should not have to work out
+ * what a photograph of a plan would even be. So: a person, a mouth being looked
+ * at, the scanner that makes the record, radiographs being read, and somebody
+ * who has finished and is pleased about it.
+ *
+ * **Declared after `GALLERY` and not beside `TREATMENT_PHOTOS`**, because it
+ * reads from it. A `const` is in its temporal dead zone until the line that
+ * declares it runs, so the tidier-looking placement higher up this file throws
+ * `Cannot access 'GALLERY' before initialization` the moment the module is
+ * imported — at render, on the server, for a photograph.
+ */
+export const FIRST_VISIT_PHOTOS: Record<string, SitePhoto> = {
+  listen: GALLERY.find((photo) => photo.key === 'portrait')!,
+  examine: TREATMENT_PHOTOS.checkup,
+  record: GALLERY.find((photo) => photo.key === 'scanner')!,
+  // The one that is a stretch, and the least bad of the options: a clinician
+  // reading radiographs on a screen is the moment before the plan exists, which
+  // is closer than anything else here to a photograph of deciding.
+  plan: TREATMENT_PHOTOS.rootCanal,
+  decide: GALLERY.find((photo) => photo.key === 'laugh')!,
+};
+
+/**
+ * A gallery photograph by name, so the sets below can be written as prose
+ * rather than as index arithmetic.
+ *
+ * Throws rather than returning undefined. Every call site is a module-level
+ * constant, so a typo here fails the moment the module is imported -- on the
+ * server, at the first render -- rather than rendering a treatment page with
+ * one hole in its mosaic that nobody notices until a patient does.
+ */
+function gallery(key: string): SitePhoto {
+  const photo = GALLERY.find((entry) => entry.key === key);
+  if (!photo) throw new Error(`photos.ts: no gallery photograph named "${key}"`);
+  return photo;
+}
+
+/**
+ * Every photograph on one treatment's own page, beyond the one in its hero.
+ *
+ * **The complaint this answers was that those eleven pages were one page.**
+ * Each carried a single picture -- the same file the card on the front page
+ * uses, run behind the opening band -- and then four screens of type on cream.
+ * A practice's page about veneers and its page about an extraction looked
+ * identical, which is the exact opposite of what somebody who searched for one
+ * of them came for.
+ *
+ * So each treatment gets a set of its own, and the set is the page's structure
+ * rather than decoration bolted onto it: `steps` are the three grounds the
+ * "how it goes" cards are built on, and `wall` is the mosaic that breaks the
+ * page's middle.
+ *
+ * **These are drawn from the pool this site already ships and not from eleven
+ * new downloads.** Every file here is already licensed, already cropped, already
+ * converted and already recorded above with its source -- and the whole set on
+ * disk is under a megabyte, which is the number that stops being true the moment
+ * somebody adds fifty-five more images to make eleven pages look busy. Files
+ * recur *between* pages, which nobody reading one of them can see; what matters
+ * is what recurs *on* one, and no treatment's `steps` and `wall` share a
+ * photograph.
+ *
+ * The one repetition that is deliberate: a treatment's own picture -- the file
+ * its card on the front page uses, and the one running behind its opening band
+ * -- appears again as the middle step, because the middle step is the treatment
+ * and that is what the photograph is of. Two treatments' pages also show a
+ * neighbour's picture again in the "usually alongside this" pair at the very
+ * bottom, four screens down, where it is a link to another page rather than an
+ * illustration of this one.
+ *
+ * The `steps` triples are ordered to the shape `TREATMENT_STEPS` fixes -- what
+ * is looked at, what happens in the chair, what you leave with -- so the
+ * pictures move through the appointment in the same order the words do: a scan
+ * or an examination, then the work or the bench, then a room or somebody who has
+ * finished. Where a treatment has no honest picture of its middle step, the
+ * instruments or the lamp stand in; neither claims anything.
+ *
+ * **Still placeholders, every one.** The rule at the top of this file has not
+ * changed and this constant does not weaken it: nothing here is Shehu Dental,
+ * the pages carry `how.illustrative` under the mosaic saying so, and swapping in
+ * the practice's own photography is a matter of replacing files at the paths
+ * already named above rather than of touching this table.
+ */
+export type TreatmentPhotoSet = {
+  /** One ground per step, in the order the steps are told. */
+  steps: readonly [SitePhoto, SitePhoto, SitePhoto];
+  /** The mosaic in the middle of the page. Five, and the first one leads it. */
+  wall: readonly [SitePhoto, SitePhoto, SitePhoto, SitePhoto, SitePhoto];
+};
+
+export const TREATMENT_GALLERY = {
+  checkup: {
+    steps: [gallery('scanner'), TREATMENT_PHOTOS.checkup, gallery('laugh')],
+    wall: [
+      PHOTOS.surgery,
+      gallery('instruments'),
+      gallery('roomBright'),
+      gallery('sterile'),
+      gallery('light'),
+    ],
+  },
+  fillings: {
+    steps: [TREATMENT_PHOTOS.checkup, TREATMENT_PHOTOS.fillings, gallery('laugh')],
+    wall: [
+      gallery('roomOrange'),
+      gallery('instruments'),
+      PHOTOS.heroDetail,
+      gallery('sterile'),
+      gallery('young'),
+    ],
+  },
+  rootCanal: {
+    steps: [TREATMENT_PHOTOS.rootCanal, gallery('light'), TREATMENT_PHOTOS.crowns],
+    wall: [
+      PHOTOS.surgery,
+      gallery('scanner'),
+      gallery('instruments'),
+      gallery('sterile'),
+      gallery('roomBright'),
+    ],
+  },
+  crowns: {
+    steps: [gallery('scanner'), TREATMENT_PHOTOS.crowns, TREATMENT_PHOTOS.veneers],
+    wall: [
+      TREATMENT_PHOTOS.dentures,
+      gallery('instruments'),
+      PHOTOS.surgery,
+      gallery('laugh'),
+      gallery('roomBright'),
+    ],
+  },
+  veneers: {
+    steps: [TREATMENT_PHOTOS.veneers, TREATMENT_PHOTOS.crowns, gallery('laugh')],
+    wall: [
+      PHOTOS.heroSmile,
+      TREATMENT_PHOTOS.whitening,
+      gallery('portrait'),
+      gallery('young'),
+      PHOTOS.surgery,
+    ],
+  },
+  extraction: {
+    steps: [TREATMENT_PHOTOS.rootCanal, TREATMENT_PHOTOS.extraction, gallery('laugh')],
+    wall: [
+      PHOTOS.surgery,
+      gallery('instruments'),
+      gallery('sterile'),
+      gallery('roomOrange'),
+      PHOTOS.heroDetail,
+    ],
+  },
+  oralSurgery: {
+    steps: [gallery('scanner'), TREATMENT_PHOTOS.oralSurgery, gallery('roomBright')],
+    wall: [
+      gallery('sterile'),
+      gallery('instruments'),
+      gallery('light'),
+      PHOTOS.surgery,
+      TREATMENT_PHOTOS.extraction,
+    ],
+  },
+  implants: {
+    steps: [gallery('scanner'), TREATMENT_PHOTOS.implants, TREATMENT_PHOTOS.crowns],
+    wall: [
+      TREATMENT_PHOTOS.oralSurgery,
+      gallery('sterile'),
+      PHOTOS.surgery,
+      gallery('laugh'),
+      gallery('roomBright'),
+    ],
+  },
+  dentures: {
+    steps: [TREATMENT_PHOTOS.checkup, TREATMENT_PHOTOS.dentures, gallery('young')],
+    wall: [
+      TREATMENT_PHOTOS.crowns,
+      gallery('instruments'),
+      PHOTOS.surgery,
+      gallery('portrait'),
+      gallery('roomOrange'),
+    ],
+  },
+  orthodontics: {
+    steps: [gallery('scanner'), TREATMENT_PHOTOS.orthodontics, gallery('young')],
+    wall: [
+      PHOTOS.heroSmile,
+      gallery('laugh'),
+      gallery('portrait'),
+      gallery('roomBright'),
+      TREATMENT_PHOTOS.whitening,
+    ],
+  },
+  whitening: {
+    steps: [TREATMENT_PHOTOS.veneers, TREATMENT_PHOTOS.whitening, gallery('laugh')],
+    wall: [
+      PHOTOS.heroSmile,
+      gallery('portrait'),
+      gallery('young'),
+      PHOTOS.surgery,
+      gallery('light'),
+    ],
+  },
+} as const satisfies Record<TreatmentKey, TreatmentPhotoSet>;
 
 /**
  * The squares in the social grid.

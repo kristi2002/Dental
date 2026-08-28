@@ -1,3 +1,4 @@
+import { ArrowUpRight } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AskAbout } from '@/components/site/AskAbout';
@@ -10,8 +11,14 @@ import { Swash } from '@/components/site/Swash';
 import { TimingMeter } from '@/components/site/TimingMeter';
 import { TreatmentIndex } from '@/components/site/TreatmentIndex';
 import { Watermark } from '@/components/site/Watermark';
+import { Link } from '@/i18n/navigation';
 import { getSiteContact } from '@/lib/site';
-import { TREATMENT_KEYS, TREATMENT_TIMING, type TreatmentKey } from '@/lib/site-content';
+import {
+  TREATMENT_KEYS,
+  TREATMENT_TIMING,
+  treatmentPath,
+  type TreatmentKey,
+} from '@/lib/site-content';
 import { sitePageMetadata } from '@/lib/site-meta';
 import { cn } from '@/lib/utils';
 
@@ -156,8 +163,24 @@ async function TreatmentEntry({
             {String(index + 1).padStart(2, '0')} / {String(TREATMENT_KEYS.length).padStart(2, '0')}
           </p>
 
+          {/*
+           * The heading is the link to the treatment's own page, and it is the
+           * heading rather than a "read more" under the paragraph on purpose:
+           * a screen reader listing this page's headings gets eleven links to
+           * eleven pages, which is the table of contents this page actually is.
+           */}
           <h2 className="type-section mt-3 max-w-[16ch] text-bone-ink">
-            {t(`treatments.${treatmentKey}.title`)}
+            <Link
+              href={treatmentPath(treatmentKey)}
+              className="group inline-flex items-start gap-2 text-bone-ink no-underline transition-colors hover:text-gilt-deep focus-visible:outline-gilt-deep"
+            >
+              {t(`treatments.${treatmentKey}.title`)}
+              <ArrowUpRight
+                size={22}
+                aria-hidden
+                className="mt-2 shrink-0 text-gilt opacity-0 transition-opacity group-hover:opacity-100"
+              />
+            </Link>
           </h2>
 
           <p className="mt-5 max-w-[52ch] text-[1.08rem] leading-relaxed text-bone-ink">
@@ -170,7 +193,20 @@ async function TreatmentEntry({
 
           <TimingMeter timing={TREATMENT_TIMING[treatmentKey]} className="mt-8" />
 
-          <AskAbout topic={treatmentKey} label={t('pages.treatments.ask')} className="mt-8" />
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <AskAbout topic={treatmentKey} label={t('pages.treatments.ask')} />
+
+            {/* The second way through to the same page, for the reader who is
+                not ready to press a booking button — which on a survey page is
+                most of them. */}
+            <Link
+              href={treatmentPath(treatmentKey)}
+              className="inline-flex min-h-12 items-center gap-2 rounded-full border border-bone-deep px-5 text-[0.95rem] font-semibold text-bone-ink no-underline transition-colors hover:border-gilt hover:text-gilt-deep focus-visible:outline-gilt-deep"
+            >
+              {t('pages.treatment.more')}
+              <ArrowUpRight size={17} aria-hidden className="text-gilt-deep" />
+            </Link>
+          </div>
         </Reveal>
       </div>
     </section>
@@ -190,50 +226,21 @@ export default async function TreatmentsPage({
 
   return (
     <>
+      {/*
+       * The count is interpolated rather than written into the sentence.
+       *
+       * It read "Eight treatments" in three languages for as long as there were
+       * eight, and the day a ninth was added that headline was wrong in three
+       * languages at once with nothing to catch it — a translated string is
+       * exactly where a fact goes stale unnoticed. `TREATMENT_KEYS.length` is the
+       * same list the entries below are rendered from, so the number and the
+       * page cannot disagree.
+       */}
       <PageHero
         eyebrow={t('nav.treatments')}
-        title={t('pages.treatments.title')}
-        lede={t('pages.treatments.lede')}
-        aside={
-          /*
-           * Four of the eight photographs, offset into a loose mosaic. It is a
-           * table of contents rather than a picture: the reader sees at a glance
-           * that this page is about work rather than about a building, and the
-           * files are in the cache by the time they reach the entries.
-           *
-           * `aria-hidden` throughout — every one of these is captioned properly
-           * further down, and announcing four decorative crops before the first
-           * heading is four things a screen reader has to get past.
-           */
-          <ul aria-hidden className="grid grid-cols-2 gap-3 sm:gap-4">
-            {(['checkup', 'implants', 'orthodontics', 'whitening'] as const).map((key, index) => {
-              const photo = TREATMENT_PHOTOS[key];
-              return (
-                <li
-                  key={key}
-                  className={cn(
-                    'drift-clip rounded-xl border border-white/10',
-                    // The second column drops half a step, so the four read as a
-                    // composition rather than as a grid of four.
-                    index % 2 === 1 && 'translate-y-5 sm:translate-y-7',
-                  )}
-                >
-                  {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
-                  <img
-                    src={photo.src}
-                    width={photo.width}
-                    height={photo.height}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    sizes="(min-width: 1024px) 240px, 45vw"
-                    className="drift block aspect-square w-full object-cover"
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        }
+        title={t('pages.treatments.title', { count: TREATMENT_KEYS.length })}
+        lede={t('pages.treatments.lede', { count: TREATMENT_KEYS.length })}
+        photo={TREATMENT_PHOTOS.implants}
       >
         <ul className="flex flex-wrap gap-2.5">
           {['one', 'two', 'three'].map((key) => (

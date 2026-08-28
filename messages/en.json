@@ -19,13 +19,14 @@
     },
     "nav": {
       "treatments": "Treatments",
+      "toggleTreatments": "Show treatments",
       "practice": "The practice",
       "visit": "Visit us",
+      "abroad": "From abroad",
       "book": "Book a visit",
       "sections": "Page sections",
       "skipToContent": "Skip to content",
-      "staffSignIn": "Staff sign-in",
-      "gallery": "The place"
+      "staffSignIn": "Staff sign-in"
     },
     "pages": {
       "breadcrumb": "Breadcrumb",
@@ -39,9 +40,9 @@
       },
       "treatments": {
         "metaTitle": "Treatments in Vlorë",
-        "metaDescription": "Every treatment at our practice in Vlorë — check-ups, fillings, root canal treatment, crowns, implants, extractions, braces and whitening — with how many appointments each one takes and how long it keeps you here.",
-        "title": "Eight treatments, and what each one asks of you.",
-        "lede": "The same eight the front page lists, with the part that would not fit on a card: what actually happens, how many appointments it takes, and how many days it keeps you in Vlorë.",
+        "metaDescription": "Every treatment at our practice in Vlorë — check-ups, fillings, root canal treatment, crowns, veneers, extractions, oral surgery, implants, dentures, braces and whitening — with how many appointments each one takes and how long it keeps you here.",
+        "title": "{count} treatments, and what each one asks of you.",
+        "lede": "The same {count} the front page lists, with the part that would not fit on a card: what actually happens, how many appointments it takes, and how many days it keeps you in Vlorë.",
         "indexLabel": "Jump to a treatment",
         "ask": "Ask about this",
         "detail": {
@@ -49,15 +50,18 @@
           "fillings": "The decayed part is removed and the tooth is rebuilt in a composite matched to the shade of your own enamel, layer by layer, and set hard with a lamp. It is done under local anaesthetic and you can eat as soon as you leave. A tooth treated early is a filling; the same tooth left alone becomes a root canal.",
           "rootCanal": "When decay reaches the nerve the tooth is not lost — the canals are cleaned out, shaped and sealed to the tip of the root. It is done under anaesthetic, and it is the treatment that ends the pain rather than the one that causes it. A back tooth is usually crowned afterwards, because what is left of it is thinner than it was.",
           "crowns": "A crown is made in a laboratory from an impression or a scan and covers what is left of the tooth. It is tried in before it is cemented, and the shade is chosen against the teeth either side of it rather than out of a catalogue. A bridge is the same work carrying a false tooth across a gap.",
-          "implants": "A titanium root is placed where the missing one was and then left alone while the bone grows onto it — that is the wait, and it is the part no clinic can shorten. Months later the crown goes on top. It is the only treatment here that replaces the root as well as the tooth, which is why the teeth either side of the gap are left untouched.",
+          "veneers": "A layer of porcelain about as thick as a fingernail, made in the laboratory and bonded to the front of the tooth. It is what we reach for when the colour will not come back with whitening, or when a tooth is small, worn or chipped. Very little enamel is removed, and in some cases none at all — but what is removed does not grow back, so which of the two your case is gets said before the work starts rather than after.",
           "extraction": "Sometimes there is nothing left worth saving, and a wisdom tooth is more often in the way than in trouble. It is done under local anaesthetic, and what matters as much as the extraction itself is what you do for the two days after it — which you get in writing rather than said at the door.",
+          "oralSurgery": "The surgical work that takes more than a straightforward extraction: wisdom teeth still under the gum or inside the bone, fractured roots, and adding bone when what you have will not hold an implant. It is done under local anaesthetic and planned from an X-ray beforehand rather than worked out as it goes. You leave with written instructions and a review appointment already booked.",
+          "implants": "A titanium root is placed where the missing one was and then left alone while the bone grows onto it — that is the wait, and it is the part no clinic can shorten. Months later the crown goes on top. It is the only treatment here that replaces the root as well as the tooth, which is why the teeth either side of the gap are left untouched.",
+          "dentures": "When too many teeth are gone for a bridge, a denture replaces them and rests on the gums or on the teeth that remain. It is built in stages — impression, bite, a try-in in wax, then the finished one — and the wax try-in is there precisely so you can see the shape and the colour and change them while nothing has been cut. It takes more appointments than anything else on this page, and the first weeks are practice: speaking and eating with it is a habit that arrives.",
           "orthodontics": "Fixed braces or clear aligners, depending on how far the teeth have to move and what you are willing to wear while they do it. You see the plan before the first bracket is fitted. It is the one treatment here measured in months rather than days, and most of those months are spent at home rather than in the chair.",
           "whitening": "In the chair in one appointment, or with trays made for you to use at home over a week or two. It lifts the colour out of the enamel and takes nothing off it. Crowns and fillings do not change shade, so anything at the front is matched afterwards rather than before."
         }
       },
       "practice": {
         "metaTitle": "The practice",
-        "metaDescription": "Dr. Votim Shehu's practice in Vlorë: how the first visit goes, how the records are kept, how instruments are sterilised, and the three languages the practice works in.",
+        "metaDescription": "Dr. Votim Shehu's practice in Vlorë: how the first visit goes, the rooms and the equipment in photographs, how the records are kept, and the three languages the practice works in.",
         "title": "A practice that writes everything down.",
         "lede": "Who does the work, what happens in the first hour, and the two things that are true of every appointment here whatever you came in for.",
         "first": {
@@ -94,25 +98,55 @@
           "it": "A short flight from the other side of the Adriatic, and a good share of our patients make it."
         }
       },
-      "place": {
-        "metaTitle": "The place",
-        "metaDescription": "The rooms, the equipment and the people at our dental practice in Vlorë, in photographs — and a look at what whitening actually changes.",
-        "title": "Have a proper look around.",
-        "lede": "The rooms you would sit in, the equipment that would be used, and the people who use it. Filter the set if you would rather see one than the other.",
-        "filterLabel": "Which photographs to show",
-        "filters": {
-          "all": "Everything",
-          "rooms": "The rooms",
-          "people": "People",
-          "care": "The care"
-        },
-        "count": "{count, plural, =0 {No photographs} one {# photograph} other {# photographs}}"
-      },
       "visit": {
         "metaTitle": "Visit us in Vlorë",
-        "metaDescription": "Opening hours, address, telephone and WhatsApp for our dental practice on Rruga e Re in Vlorë — and how to reach the city by air, by sea and by road.",
+        "metaDescription": "Opening hours, address, telephone and WhatsApp for our dental practice on Rruga e Re in Vlorë, and where to find us on the map.",
         "title": "Come and see us.",
-        "lede": "When we are open, how to reach us, and a form that puts you on the list for a call back. It does not book the appointment itself — we agree the day and the time on the telephone.",
+        "lede": "What the practice is like, when the door is open, and exactly where to find it. When you are ready to fix a day, booking has a page of its own.",
+        "fromAbroad": "Coming from Italy, the UK or further? How you reach Vlorë, how long each treatment keeps you here, and what happens once you have flown home are on a page of their own.",
+        "clinic": {
+          "eyebrow": "Why here",
+          "title": "What makes the trip worth it.",
+          "lede": "Four things that are true of every appointment at this practice, whether you live two streets away or landed this morning.",
+          "plan": {
+            "title": "The plan and the price, in writing",
+            "body": "You leave the first visit knowing what is to be done, how many appointments it takes and what it costs. It does not change along the way without being said out loud."
+          },
+          "languages": {
+            "title": "Albanian, Italian, English",
+            "body": "The work is explained in the language you think in. No interpreter and no nodding along — which matters most in the appointment where you are being asked to decide something."
+          },
+          "record": {
+            "title": "An electronic record, tooth by tooth",
+            "body": "Your chart is kept per tooth, so what was found last year is on the screen this year. If you are treated here across two trips, the second starts where the first stopped."
+          },
+          "clean": {
+            "title": "Sterilised between patients",
+            "body": "Instruments are cleaned, packed and sterilised after every use, and single-use items are exactly that. It is the floor rather than a feature — but it is the question people are too polite to ask."
+          }
+        },
+        "hours": {
+          "eyebrow": "Opening hours",
+          "title": "The week, as the door actually opens.",
+          "lede": "These seven rows are the practice's own hours, read from the same place the appointment book reads them. Change the surgery's hours and this page has already changed.",
+          "caption": "Opening hours, Monday to Sunday",
+          "note": "Open does not mean free. The hours here are when somebody is at the desk; which of those hours are still unbooked is what the booking page asks about.",
+          "breakNote": "Where a day shows two stretches, the practice closes between them for lunch."
+        },
+        "map": {
+          "eyebrow": "On the map",
+          "title": "Where to point the taxi.",
+          "lede": "Rruga e Re runs through the middle of Vlorë. The pin below is the door; the buttons beside it hand the same address to whatever you navigate with.",
+          "directions": "Get directions",
+          "privacy": "The map is served by Google, so loading this section tells Google you were here. Everything else on this site comes from nobody but us — if you would rather keep it that way, the two links above do the same job and only reach Google if you press one.",
+          "frameTitle": "Map showing {clinic} on Rruga e Re, Vlorë"
+        }
+      },
+      "abroad": {
+        "metaTitle": "Coming from abroad",
+        "metaDescription": "Dental treatment in Vlorë for patients travelling from Italy, the UK and further: how many appointments and how many days each treatment takes, the three ways into the city, and what happens once you have flown home.",
+        "title": "The journey, and what comes after it.",
+        "lede": "How many appointments each treatment takes and how many days that keeps you here, the three ways into Vlorë, and what the practice does once you have gone home again.",
         "getting": {
           "title": "Three ways into Vlorë.",
           "lede": "A good share of the people who sit in this chair did not start the day in Albania. Tell us how you are travelling and when you arrive, and the appointments are fitted around the journey rather than the other way about.",
@@ -129,6 +163,201 @@
             "body": "Vlorë is on the coast road, and patients drive in from Tirana, from the south and from the Greek border. If you are coming a long way for a first appointment, write to us before you set off rather than after."
           },
           "bayCaption": "Vlorë sits on the bay. It is the one photograph on this site genuinely taken here, which is why it is used where the page talks about travelling rather than as decoration."
+        },
+        "city": {
+          "eyebrow": "The town",
+          "title": "Vlorë, if you have never been.",
+          "lede": "A working port on the Albanian coast, and the town this practice has always been in. Most patients who fly in make a few days of it rather than turning straight round.",
+          "seas": {
+            "title": "Where two seas meet",
+            "body": "Vlorë sits at the point the Adriatic gives way to the Ionian. It is why the water changes colour halfway down the bay, and why the coast south of the town looks nothing like the coast north of it."
+          },
+          "history": {
+            "title": "Where the country began",
+            "body": "Albania declared its independence here, in 1912, and the town has the flag, the square and the museum to say so. If you have an afternoon between appointments, the old town and the waterfront are within a walk of each other."
+          },
+          "riviera": {
+            "title": "The Riviera starts above the town",
+            "body": "The coast road climbs out of Vlorë and over the pass, and the beaches people mean when they say the Albanian Riviera are on the other side of it. It is the stretch worth a spare day, if you have one."
+          },
+          "note": "None of this is why anybody chooses a dentist, and it is not offered as though it were. It is here because a first appointment abroad is a trip as well as a treatment, and it is fair to know what the place is."
+        }
+      },
+      "book": {
+        "metaTitle": "Book a visit in Vlorë",
+        "metaDescription": "Choose a day from our own calendar — the days it shows are days the practice is genuinely open — leave your telephone number, and we ring you back during opening hours to agree the hour.",
+        "title": "Tell us when suits you.",
+        "lede": "The calendar on this page is our own week, read from the same rows the surgery is run from. Nothing is booked by choosing a day: it is what we ring you back about."
+      },
+      "treatment": {
+        "stepsTitle": "How it goes",
+        "stepsLede": "The three steps every treatment here has: what is looked at first, what happens in the chair, and what you leave with.",
+        "timingTitle": "How long it keeps you",
+        "timingLede": "Appointments, days in Vlorë, and months from start to finish.",
+        "concernsTitle": "People come to this when:",
+        "relatedTitle": "Usually alongside this",
+        "relatedLede": "Not a sales list — what most often goes with this, or the other honest answer to the same problem.",
+        "backToAll": "All treatments",
+        "prev": "Previous treatment",
+        "next": "Next treatment",
+        "more": "Read more",
+        "lookTitle": "Where it happens",
+        "lookLede": "The chair, the instruments, the bench behind them and the people who use them — the part of a treatment a paragraph cannot show you.",
+        "steps": {
+          "checkup": {
+            "one": {
+              "title": "The look",
+              "body": "Every tooth, the gums around them, and an X-ray wherever something does not show from the outside."
+            },
+            "two": {
+              "title": "The clean",
+              "body": "Scale and staining come off with ultrasonics, including where the brush never reaches."
+            },
+            "three": {
+              "title": "The plan",
+              "body": "You leave with the order of work: what now, what can wait, and what is only kept under watch."
+            }
+          },
+          "fillings": {
+            "one": {
+              "title": "Anaesthetic",
+              "body": "Only the tooth being worked on, and we wait until you feel nothing."
+            },
+            "two": {
+              "title": "Clearing the decay",
+              "body": "All of the affected part comes out; what is left underneath is sound tooth."
+            },
+            "three": {
+              "title": "Rebuilding",
+              "body": "Composite goes in layer by layer in the shade of your enamel and is cured. You can eat as soon as you leave."
+            }
+          },
+          "rootCanal": {
+            "one": {
+              "title": "Diagnosis",
+              "body": "The X-ray shows how far the infection has gone and how many canals the tooth has."
+            },
+            "two": {
+              "title": "Cleaning the canals",
+              "body": "Under anaesthetic. The canals are cleaned, shaped and sealed to the tip of the root."
+            },
+            "three": {
+              "title": "Covering it",
+              "body": "The tooth is closed, and on a back tooth a crown usually follows it."
+            }
+          },
+          "crowns": {
+            "one": {
+              "title": "Preparation",
+              "body": "The tooth is shaped and an impression or a scan taken; you leave with a temporary crown."
+            },
+            "two": {
+              "title": "The laboratory",
+              "body": "The crown is made in porcelain or zirconia, and the shade is chosen against the teeth beside it."
+            },
+            "three": {
+              "title": "Try-in and fit",
+              "body": "It is tried before it is cemented. If the bite or the colour does not convince, it goes back."
+            }
+          },
+          "veneers": {
+            "one": {
+              "title": "Agreeing the shape",
+              "body": "Colour and shape are settled together, and how much enamel comes off is said beforehand."
+            },
+            "two": {
+              "title": "Impression and laboratory",
+              "body": "The veneers are made in porcelain on your own impression, not from a stock shell."
+            },
+            "three": {
+              "title": "Bonding",
+              "body": "Tried one at a time, then bonded. You bite normally from that day."
+            }
+          },
+          "extraction": {
+            "one": {
+              "title": "The X-ray",
+              "body": "The root and what sits around it are seen before anything is touched."
+            },
+            "two": {
+              "title": "The extraction",
+              "body": "Under local anaesthetic. You feel pressure, not pain; if you feel pain, we stop."
+            },
+            "three": {
+              "title": "The first two days",
+              "body": "The instructions come in writing, and a number to call if something is not right."
+            }
+          },
+          "oralSurgery": {
+            "one": {
+              "title": "Planning",
+              "body": "The X-ray shows where the tooth is or how much bone there is, and the work is settled before it starts."
+            },
+            "two": {
+              "title": "The procedure",
+              "body": "Local anaesthetic, one appointment. It takes longer than a simple extraction, not worse."
+            },
+            "three": {
+              "title": "Review",
+              "body": "Stitches and healing are looked at in an appointment booked before you leave."
+            }
+          },
+          "implants": {
+            "one": {
+              "title": "Will the bone hold it",
+              "body": "The X-ray shows how much bone there is. If there is not enough, grafting comes first."
+            },
+            "two": {
+              "title": "Placing it",
+              "body": "The titanium root goes in under local anaesthetic, and then the bone is given time."
+            },
+            "three": {
+              "title": "The crown",
+              "body": "Three to six months later the crown goes on top. That is the second visit, usually the second trip."
+            }
+          },
+          "dentures": {
+            "one": {
+              "title": "Impression and bite",
+              "body": "The shape of the gums and the way the jaws close are both recorded."
+            },
+            "two": {
+              "title": "The wax try-in",
+              "body": "You see it and try it before anything is final. Changes happen here."
+            },
+            "three": {
+              "title": "Fitting and adjustment",
+              "body": "It is fitted, then adjusted after the first week; sore spots are expected rather than a surprise."
+            }
+          },
+          "orthodontics": {
+            "one": {
+              "title": "The plan",
+              "body": "Impressions, photographs and an X-ray, then the route the teeth will take — before the first bracket goes on."
+            },
+            "two": {
+              "title": "The movement",
+              "body": "Fixed braces or aligners, with a check every few weeks. Most of it happens away from the chair."
+            },
+            "three": {
+              "title": "The retainer",
+              "body": "When it is finished, the retainer is what holds it. Without one they drift slowly back."
+            }
+          },
+          "whitening": {
+            "one": {
+              "title": "The check first",
+              "body": "Whitening is not done over decay or inflamed gums; those are dealt with first."
+            },
+            "two": {
+              "title": "The whitening",
+              "body": "In the clinic within one appointment, or with trays made for you to take home."
+            },
+            "three": {
+              "title": "Keeping it",
+              "body": "The new shade is measured and recorded. Crowns and fillings do not whiten, so they are matched afterwards."
+            }
+          }
         }
       }
     },
@@ -137,7 +366,7 @@
       "titleLead": "Your smile,",
       "titleTurn": "in safe hands.",
       "lede": "Complete dental care in Vlorë — a precise diagnosis, a treatment plan in writing, and the price agreed at the first visit.",
-      "ledeShort": "You leave the first visit knowing the plan and the price.",
+      "ledeShort": "“Be true to your teeth, and they won't be false to you.”",
       "book": "Book a visit",
       "ratingSource": "Rated on Google",
       "ratingCount": "Over 29 reviews"
@@ -151,6 +380,7 @@
       "seeWeek": "See the week"
     },
     "treatments": {
+      "eyebrow": "What we do",
       "title": "The work, shown rather than hidden.",
       "lede": "From the next check-up to an implant. For each one we tell you how many visits it takes and what it costs — before we start, not at the end.",
       "checkup": {
@@ -169,13 +399,25 @@
         "title": "Crowns and bridges",
         "body": "When little of the tooth is left, a crown covers what remains. Made in the laboratory and tried in before it is fitted."
       },
-      "implants": {
-        "title": "Implants",
-        "body": "A titanium root where the missing one was, and a crown on top of it. The closest thing to the tooth you had."
+      "veneers": {
+        "title": "Veneers",
+        "body": "Thin porcelain shells over the front of the tooth. The shape and the colour change; the tooth underneath stays."
       },
       "extraction": {
         "title": "Extractions",
         "body": "When there is nothing left to save, wisdom teeth included. Under anaesthetic, with clear instructions for afterwards."
+      },
+      "oralSurgery": {
+        "title": "Oral surgery",
+        "body": "Teeth still buried in bone, broken roots, and the bone an implant needs first. Local anaesthetic, one appointment."
+      },
+      "implants": {
+        "title": "Implants",
+        "body": "A titanium root where the missing one was, and a crown on top of it. The closest thing to the tooth you had."
+      },
+      "dentures": {
+        "title": "Dentures",
+        "body": "A full or partial denture where too many teeth are missing for a bridge. Tried in wax before anything is final."
       },
       "orthodontics": {
         "title": "Orthodontics",
@@ -187,6 +429,7 @@
       }
     },
     "concerns": {
+      "eyebrow": "Where to start",
       "title": "What brings you in?",
       "usually": "Usually:",
       "ask": "Ask about this",
@@ -218,6 +461,7 @@
       "hint": "Six reasons people come to us. Pick the one that sounds like you."
     },
     "practice": {
+      "eyebrow": "The practice",
       "dentist": "Dr. Votim Shehu",
       "dentistRole": "Dentist · founder of the practice",
       "bodyOne": "The practice runs on one rule: nobody leaves without knowing what is going to be done, how many visits it takes and what it costs. You get the plan in writing, and it does not change along the way without being said out loud.",
@@ -233,6 +477,7 @@
       }
     },
     "how": {
+      "eyebrow": "How we work",
       "title": "How the work is done.",
       "lede": "Two things that are true of every appointment here, whatever you came in for.",
       "record": {
@@ -246,6 +491,7 @@
       "illustrative": "Illustrative photographs. Pictures of the practice are on the way."
     },
     "visit": {
+      "eyebrow": "Find us",
       "title": "Rruga e Re, Vlorë.",
       "hoursTitle": "Opening hours",
       "closed": "Closed",
@@ -258,9 +504,14 @@
       "todayLabel": "Today",
       "callLabel": "Telephone",
       "whatsappLabel": "WhatsApp",
-      "whatsappValue": "Message us"
+      "whatsappValue": "Message us",
+      "bookEyebrow": "Book",
+      "bookTitle": "Pick a day, and we ring you back.",
+      "bookBody": "Our own calendar is on the booking page — the days it offers are days the practice is open. Choose one, leave a number, and we agree the hour on the telephone.",
+      "bookOrCall": "Or ring us on"
     },
     "trip": {
+      "eyebrow": "Planning the trip",
       "title": "How long would it keep you here?",
       "lede": "Tick what you are asking about and we will show how many appointments it takes, how many days it keeps you in Vlorë, and whether that is one trip or two.",
       "pick": "What are you asking about?",
@@ -273,11 +524,36 @@
       "ask": "Ask us about this",
       "caveat": "An indication, not a quote. What it actually takes depends on the examination — and you get the plan, how many visits, how long and what it costs, in writing at the first visit.",
       "fromPrice": "From {amount}",
-      "pricesReviewed": "Prices last checked {date}. The figure agreed at your first visit is the one that counts."
+      "pricesReviewed": "Prices last checked {date}. The figure agreed at your first visit is the one that counts.",
+      "tripsLabel": "Trips",
+      "clear": "Clear all"
+    },
+    "aftercare": {
+      "eyebrow": "After the treatment",
+      "title": "And when you have flown home.",
+      "lede": "It is the question that decides whether somebody books at all, and the one a website usually leaves out. Nothing here is promised for the occasion — it is what the practice already does, written down.",
+      "instructions": {
+        "title": "Written instructions before you leave",
+        "body": "What to do, what to avoid and for how long — on paper, in the language you were treated in. Not a leaflet in Albanian handed to somebody who does not read Albanian."
+      },
+      "checkIn": {
+        "title": "We write to you a few days later",
+        "body": "A message asking how you are getting on, sent from the practice's own follow-up board rather than left to somebody remembering. If anything hurts or does not feel right, you reply to it and we take it from there."
+      },
+      "record": {
+        "title": "Your record goes where you go",
+        "body": "Kept electronically, tooth by tooth, with the plan and what was actually done. Ask for it and it is sent — to you, or to a dentist at home who needs to know what is in your mouth."
+      },
+      "wrong": {
+        "title": "If something is wrong, say so early",
+        "body": "Ring or write, in whichever of the three languages you were treated in. The practice's own follow-up message ends on exactly that offer and means it: we would far rather hear about it early than at your next check-up."
+      },
+      "guaranteeTitle": "What the practice stands behind",
+      "guaranteeLede": "In writing, treatment by treatment, counted from the day the work is fitted.",
+      "years": "{count, plural, one {# year} other {# years}}",
+      "guaranteeReviewed": "Terms last confirmed {date}. What is written into your own plan is the version that counts."
     },
     "form": {
-      "title": "Ask for an appointment",
-      "lede": "Fill in two fields and we ring you back. This form does not book the appointment itself — we agree the day and the time on the telephone.",
       "name": "Your name",
       "phone": "Telephone number",
       "phoneHint": "This is where we ring you, or message you on WhatsApp.",
@@ -295,13 +571,61 @@
       "missing": "We need a name and a telephone number.",
       "tooLong": "One of the fields is too long. Shorten it a little and try again."
     },
+    "book": {
+      "eyebrow": "Book a visit",
+      "lede": "Two steps, and neither of them books the appointment on its own. Pick a day that suits you and tell us how to reach you; we ring back during opening hours and agree the hour between us.",
+      "stepWhen": "When",
+      "stepWho": "Who",
+      "whenTitle": "Pick a day.",
+      "whenLede": "The greyed-out days are days we are shut. Nothing is reserved by choosing one — it is what we open the telephone call with.",
+      "whoTitle": "And how we reach you.",
+      "whoLede": "A name and a number is all we need. The rest only helps us come to the call already knowing what it is about.",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "dayLegend": "Which day would suit you?",
+      "gridHint": "Only the days the practice is open can be chosen, and choosing one reserves nothing — we ring you back to agree the hour.",
+      "closedDay": "Closed",
+      "closedNote": "Shut this month:",
+      "openThatDay": "We are open {hours}",
+      "noDayTitle": "No particular day",
+      "noDayBody": "Leave it as it is and we will find a day together on the telephone.",
+      "halfTitle": "Morning or afternoon?",
+      "half": {
+        "any": "Either",
+        "morning": "Morning",
+        "afternoon": "Afternoon"
+      },
+      "dayGone": "That day can no longer be asked for. Pick another one and send the request again.",
+      "noCalendarTitle": "The week is not loading.",
+      "noCalendarBody": "We cannot show the calendar just now. Send the request anyway — a name and a number is all we need — or telephone us and we will find a day between us.",
+      "nextEyebrow": "What happens next",
+      "nextTitle": "Three things, and then a date.",
+      "next": {
+        "one": {
+          "title": "We read it the same day",
+          "body": "Requests land on the front desk’s own list, oldest first. Nothing sits in an inbox nobody opens."
+        },
+        "two": {
+          "title": "We ring you back",
+          "body": "During opening hours, on the number you left, in the language you wrote in. If we cannot reach you we try WhatsApp."
+        },
+        "three": {
+          "title": "We agree the day",
+          "body": "The day you chose if it is still free, and the nearest one to it if it is not. Only then is anything in the book."
+        }
+      },
+      "callInstead": "Ring us instead"
+    },
     "topics": {
       "checkup": "Check-up and hygiene",
       "fillings": "Fillings",
       "rootCanal": "Root canal treatment",
       "crowns": "Crowns and bridges",
-      "implants": "Implants",
+      "veneers": "Veneers",
       "extraction": "Extraction",
+      "oralSurgery": "Oral surgery",
+      "implants": "Implants",
+      "dentures": "Dentures",
       "orthodontics": "Orthodontics",
       "whitening": "Whitening",
       "other": "Something else"
@@ -315,7 +639,10 @@
       "six": "Vlorë · Rruga e Re"
     },
     "gallery": {
+      "eyebrow": "The rooms",
       "title": "Have a look around.",
+      "lede": "The rooms you would sit in, the instruments that would be used, and the people who use them. Press any photograph to see it whole.",
+      "all": "See all {count} photographs",
       "previous": "Previous photograph",
       "next": "Next photograph",
       "close": "Close",
@@ -331,7 +658,17 @@
         "light": "The lamp over the dental chair",
         "young": "A portrait, smiling",
         "sterile": "The autoclave where instruments are sterilised"
-      }
+      },
+      "wallTitle": "Have a proper look around.",
+      "wallLede": "The rooms you would sit in, the equipment that would be used, and the people who use it. Filter the set if you would rather see one than the other.",
+      "filterLabel": "Which photographs to show",
+      "filters": {
+        "all": "Everything",
+        "rooms": "The rooms",
+        "people": "People",
+        "care": "The care"
+      },
+      "count": "{count, plural, =0 {No photographs} one {# photograph} other {# photographs}}"
     },
     "compare": {
       "before": "Before",
@@ -355,6 +692,11 @@
     }
   },
   "nav": {
+    "group": {
+      "care": "Care",
+      "contact": "Contact",
+      "practice": "Practice"
+    },
     "dashboard": "Dashboard",
     "appointments": "Calendar",
     "patients": "Patients",
@@ -1088,7 +1430,8 @@
     "note": "Internal note",
     "notePlaceholder": "e.g. rang, no answer — try after 18:00",
     "saveNote": "Save",
-    "savingNote": "Saving…"
+    "savingNote": "Saving…",
+    "preferredDay": "Asked for"
   },
   "outbox": {
     "title": "Reminders to send",

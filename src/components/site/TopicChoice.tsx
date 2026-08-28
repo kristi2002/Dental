@@ -6,20 +6,23 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
  * The one piece of state two distant parts of this page share: which treatment
  * the reader has said they are asking about.
  *
- * `ConcernPicker` sits near the top and `RequestForm` is four sections down, and
- * somebody who has just pressed "a tooth is missing" should not have to find
- * *Implants* again in a select box at the bottom of the page. That is the whole
- * feature, and it is small — which is why it is worth being careful about how it
- * is wired.
+ * `ConcernPicker` sits near the top of the front page and `BookingForm` is on
+ * another route entirely, and somebody who has just pressed "a tooth is missing"
+ * should not have to find *Implants* again in a select box when they get there.
+ * That is the whole feature, and it is small — which is why it is worth being
+ * careful about how it is wired.
  *
  * **A provider rather than the alternatives.** Passing it down is impossible:
- * the two components have no common parent that is a client component, only the
- * page. A custom DOM event between them would work and is what a page without a
- * framework would do, but it puts a component's state somewhere React cannot see
- * it and nothing type-checks the wire. Writing to the `<select>` element's
- * `value` directly is fewer lines still and is exactly the sort of reaching into
- * another component's DOM that stops working the day the form becomes
- * controlled.
+ * the two components have no common parent that is a client component, and since
+ * booking became a page of its own they are not even on the same route. This
+ * provider is on the storefront *layout*, which is above both — so a client-side
+ * navigation from the front page to `/book` re-renders what is inside it and
+ * leaves the topic alone. A custom DOM event between them would work and is what
+ * a page without a framework would do, but it puts a component's state somewhere
+ * React cannot see it, nothing type-checks the wire, and it cannot survive a
+ * navigation at all. Writing to the `<select>` element's `value` directly is
+ * fewer lines still and is exactly the sort of reaching into another component's
+ * DOM that stops working the day the form becomes controlled.
  *
  * **It does not make the page a client page.** The provider takes `children` as
  * a prop, so everything inside it stays server-rendered and arrives as an

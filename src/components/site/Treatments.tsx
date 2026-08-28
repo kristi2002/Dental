@@ -3,8 +3,10 @@ import { getTranslations } from 'next-intl/server';
 import { TREATMENT_PHOTOS } from '@/components/site/photos';
 import { GlowGrid } from '@/components/site/GlowGrid';
 import { Reveal } from '@/components/site/Reveal';
+import { SectionEyebrow } from '@/components/site/SectionEyebrow';
 import { Watermark } from '@/components/site/Watermark';
-import { TREATMENTS } from '@/lib/site-content';
+import { Link } from '@/i18n/navigation';
+import { TREATMENTS, treatmentPath } from '@/lib/site-content';
 import { cn } from '@/lib/utils';
 
 /**
@@ -23,9 +25,16 @@ import { cn } from '@/lib/utils';
  * keeps eight cards from reading as a spreadsheet — at a glance the section is a
  * wall of images, and the words arrive as you look at each one.
  *
- * Eight rather than six now that orthodontics and whitening have pictures of
- * their own. They were a footnote before only because the chart could not draw
- * them, which was a constraint of the medium and never of the practice.
+ * Eleven rather than six. Orthodontics and whitening arrived when photographs
+ * replaced the chart — they were a footnote before only because the chart could
+ * not draw them, which was a constraint of the medium and never of the practice
+ * — and veneers, oral surgery and dentures arrived from the practice's own
+ * printed list of services. `TREATMENT_KEYS` carries that argument in full.
+ *
+ * **Every card is a link now**, which is what the arrow in the corner has been
+ * promising since it was drawn. Each treatment has a page of its own under
+ * `/treatments/<slug>`, so this section is what it always looked like — a way in
+ * — rather than the whole of what the site had to say about eleven treatments.
  *
  * The whole grid is server-rendered; the only client code is `Reveal`, which
  * staggers them in as you reach them.
@@ -36,13 +45,14 @@ export async function Treatments() {
   return (
     <section
       id="treatments"
-      className="relative scroll-mt-20 overflow-clip bg-bone px-5 py-20 sm:px-8 sm:py-28"
+      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-28"
     >
       <Watermark className="-top-24 -right-32 w-[34rem] text-gilt/[0.05]" />
 
       <div className="relative mx-auto w-full max-w-6xl">
         <Reveal>
-          <h2 className="type-lead max-w-[16ch] text-bone-ink">{t('treatments.title')}</h2>
+          <SectionEyebrow className="text-gilt-deep">{t('treatments.eyebrow')}</SectionEyebrow>
+          <h2 className="type-lead mt-5 max-w-[16ch] text-bone-ink">{t('treatments.title')}</h2>
           <p className="mt-5 max-w-[54ch] text-[1.05rem] text-bone-ink-soft">
             {t('treatments.lede')}
           </p>
@@ -52,19 +62,24 @@ export async function Treatments() {
          * Three columns, and the first card takes two of them.
          *
          * It was four equal columns before, which is the shape this page was
-         * criticised for and deservedly: eight cards of identical size,
-         * identical crop and identical treatment read as a wall rather than as
-         * a list of eight different things, and the eye has nowhere to enter.
-         * Giving the check-up a double-width card fixes both at once — it is a
-         * composition rather than a grid, and the card that leads is the one
-         * every patient actually starts with, which is what the copy under it
-         * already says.
+         * criticised for and deservedly: cards of identical size, identical crop
+         * and identical treatment read as a wall rather than as a list of
+         * different things, and the eye has nowhere to enter. Giving the
+         * check-up a double-width card fixes both at once — it is a composition
+         * rather than a grid, and the card that leads is the one every patient
+         * actually starts with, which is what the copy under it already says.
          *
-         * The arithmetic is exact and worth keeping that way: 2 + 7 = 9 = three
-         * full rows of three, so there is no orphan cell at the end. Below
-         * `lg` the span is dropped and eight cards fill four rows of two, which
-         * is also exact. A feature card that leaves a hole under it is worse
-         * than no feature card.
+         * **The arithmetic is exact at both widths and has to stay that way.**
+         * The lead card spans two columns wherever there are two or more, so the
+         * section occupies `n + 1` cells: eleven treatments is twelve, which is
+         * four full rows of three and six full rows of two with nothing left
+         * over. A feature card that leaves a hole under it is worse than no
+         * feature card.
+         *
+         * The span used to be `lg` only, which was correct for eight — eight
+         * cards is four exact rows of two on their own. It is wrong for eleven,
+         * where the same rule would strand a single card in the last row at
+         * tablet width. `TREATMENT_KEYS` carries the other half of this note.
          */}
         <GlowGrid className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {TREATMENTS.map((treatment, index) => {
@@ -80,9 +95,20 @@ export async function Treatments() {
                 step={index % 3}
                 className={cn(
                   'glow-card group relative overflow-hidden rounded-2xl bg-navy',
-                  index === 0 && 'lg:col-span-2',
+                  index === 0 && 'sm:col-span-2',
                 )}
               >
+                {/*
+                 * The whole card is the link, and the heading is inside it.
+                 *
+                 * Each of these now has a page of its own, and the thing a
+                 * reader tries to press on a card that is a picture with a title
+                 * on it is the picture. An anchor around only the title would
+                 * leave nine tenths of the target inert — and the arrow in the
+                 * corner, which has always been drawn here, would finally be
+                 * telling the truth.
+                 */}
+                <Link href={treatmentPath(treatment.key)} className="block no-underline">
                 {/*
                  * The plate the tilt is applied to, and it has to be an inner
                  * element rather than the card. The card is a `Reveal`, whose
@@ -104,8 +130,10 @@ export async function Treatments() {
                       // The lead card is two columns wide, so it gets a landscape
                       // crop. Left at 4:5 it would be a portrait stretched to
                       // twice the width — the one way to make a feature card look
-                      // like a mistake.
-                      index === 0 ? 'aspect-4/5 lg:aspect-16/10' : 'aspect-4/5',
+                      // like a mistake. The breakpoint tracks the span exactly:
+                      // both start at `sm`, and they have to, or the card is
+                      // double width for one breakpoint while still cropped tall.
+                      index === 0 ? 'aspect-4/5 sm:aspect-16/10' : 'aspect-4/5',
                     )}
                   />
 
@@ -134,6 +162,7 @@ export async function Treatments() {
                     </p>
                   </div>
                 </div>
+                </Link>
               </Reveal>
             );
           })}

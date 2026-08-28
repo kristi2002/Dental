@@ -20,6 +20,34 @@ const nextConfig: NextConfig = {
     root: path.resolve(import.meta.dirname),
   },
 
+  /**
+   * `/gallery` was "The place" until its photographs were folded into
+   * `/practice` — see the note on `PhotoWall` — and the route is gone.
+   *
+   * It cannot simply stop existing. It has been in `sitemap.ts` and allowed by
+   * `robots.ts`, so it is a URL crawlers have been handed and readers may have
+   * kept; a 404 throws away whatever standing it had and greets anybody who
+   * saved it with an error page. Permanent, because the move is: a 308 passes
+   * the ranking on, where a temporary redirect asks the crawler to keep coming
+   * back to a page that is never returning.
+   *
+   * Two rules because the locale prefix is `always` and the bare path still
+   * arrives from outside. Whichever of this and the next-intl middleware runs
+   * first, the pair lands on `/<locale>/practice` either way — the wall's own
+   * anchor is deliberately not appended, since somebody who bookmarked the page
+   * wanted the place, and the place is now the whole of this one.
+   */
+  async redirects() {
+    return [
+      { source: '/gallery', destination: '/practice', permanent: true },
+      {
+        source: '/:locale(sq|en|it)/gallery',
+        destination: '/:locale/practice',
+        permanent: true,
+      },
+    ];
+  },
+
   // The response headers this app ships with. It had none, while serving
   // radiographs to a browser on a shared reception machine — the document and
   // photo routes were carefully marked `Cache-Control: private` for exactly that
@@ -54,7 +82,17 @@ const nextConfig: NextConfig = {
       "base-uri 'self'",
       // Nothing in this app posts anywhere but back to itself.
       "form-action 'self'",
-      "frame-src 'none'",
+      // Two Google hosts, and nothing else, for one frame: the map at the foot
+      // of the visit page — see `ClinicMap`, which sets out why the storefront
+      // took a third party at all after refusing every other one. `www` is what
+      // the embed URL is built against and `maps` is where it redirects, so
+      // both have to be named or the frame is blocked on the hop.
+      //
+      // ⚠️ This is the only hole in an otherwise `'self'` policy. Anything else
+      // that wants to be framed needs its own argument, not this line widened:
+      // an allowlist that has grown a second entry by habit is how a policy
+      // stops meaning anything.
+      "frame-src https://www.google.com https://maps.google.com",
       "frame-ancestors 'none'",
       // Deliberately no `upgrade-insecure-requests`: a clinic mini-PC is reached
       // over plain HTTP on the LAN (see `stock-labels.ts`), and upgrading would

@@ -3,24 +3,30 @@
 import {
   AlarmClock,
   BellRing,
+  Building2,
   CalendarDays,
   ChartColumn,
   ChevronDown,
   ClipboardList,
+  FileText,
   FlaskConical,
   Images,
   Inbox,
+  Layers,
   LayoutDashboard,
   Menu,
+  NotebookPen,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
   PhoneIncoming,
   Pill,
+  QrCode,
   Send,
   Stethoscope,
   Tags,
   Truck,
+  Upload,
   Users,
   X,
   type LucideIcon,
@@ -34,14 +40,29 @@ import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { UserMenu } from './UserMenu';
 
-/** Every destination the rail can show, in order. What a given person sees is
- *  decided on the server — see `NAV_DESTINATIONS` in `nav-destinations.ts`. */
+/**
+ * Every destination the rail can show. What a given person sees is decided on
+ * the server — see `NAV_DESTINATIONS` in `nav-destinations.ts`.
+ *
+ * Every key in that file needs a line here. A missing one is not a crash, which
+ * is what made the last gap survive so long: the lookup falls through to the
+ * dashboard's own square, so seven sub-destinations — both of Works', both of
+ * Prescriptions', and every Import and Labels sheet — quietly drew the same
+ * glyph as the first row of the rail. In a pinched rail, where the label is
+ * gone and the indent with it, that is the whole of what the row says.
+ */
 const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
   appointments: CalendarDays,
   patients: Users,
   plans: ClipboardList,
   works: FlaskConical,
+  // A kind of work is one of the layers a job is built out of, and the register
+  // it is picked into is the flask beside it.
+  workProcedures: Layers,
+  // Not a flask: a laboratory here is the outside firm the case is posted to,
+  // which is the same sort of thing as a supplier and is filed as one.
+  labs: Building2,
   recalls: BellRing,
   outbox: Send,
   inbox: Inbox,
@@ -50,10 +71,19 @@ const ICONS: Record<string, LucideIcon> = {
   services: Stethoscope,
   serviceCategories: Tags,
   prescriptions: Pill,
+  // What was actually written, against the standard wording it was written from
+  // — a sheet of paper, and the pad it was copied off.
+  prescriptionsIssued: FileText,
+  prescriptionTemplates: NotebookPen,
   stock: Package,
   stockCatalog: Images,
+  // The sheet is literally a page of QR codes.
+  stockLabels: QrCode,
   stockCategories: Tags,
   suppliers: Truck,
+  // Both imports, and the same drawing for both: it is the same errand.
+  servicesImport: Upload,
+  stockImport: Upload,
   analytics: ChartColumn,
 };
 
@@ -65,8 +95,33 @@ type Item = {
   key: string;
   /** Current on this path alone — see `NAV_DESTINATIONS`. */
   exact?: boolean;
+  /** The block this row belongs to — see `Group` in `nav-destinations.ts`. */
+  group?: string;
   children?: ReadonlyArray<Item>;
 };
+
+/**
+ * The rail's rows cut into the blocks their headings rule off.
+ *
+ * A run, not a lookup: the destinations arrive in the order the rail declares
+ * them and a heading is drawn wherever `group` changes, so the blocks are
+ * whatever the list says they are. Two consequences worth having — the order in
+ * `NAV_DESTINATIONS` stays the single place the rail's shape is written, and a
+ * block whose every row a role may not open simply never appears, because no
+ * surviving row names it.
+ */
+function inBlocks(items: ReadonlyArray<Item>) {
+  const blocks: { group: string | null; items: Item[] }[] = [];
+
+  for (const item of items) {
+    const group = item.group ?? null;
+    const last = blocks.at(-1);
+    if (last && last.group === group) last.items.push(item);
+    else blocks.push({ group, items: [item] });
+  }
+
+  return blocks;
+}
 
 /** A year, like the rail's own shape: how someone keeps their menu is a
  *  preference, not a session. */
@@ -548,8 +603,41 @@ export function Sidebar({
           aria-label={t('menu')}
           className={cn('flex-1 overflow-y-auto px-2 py-3', collapsed && 'lg:px-1.5')}
         >
-          <ul className="flex flex-col gap-0.5">
-            {items.map(({ href, key, children }) => {
+          {inBlocks(items).map((block) => (
+            <div
+              key={block.group ?? 'start'}
+              className={cn(
+                block.group && 'mt-3 first:mt-0',
+                // Pinched, the words are gone and a rule takes their place: the
+                // blocks are the one thing about this rail worth keeping when
+                // there is no room to name them, and without the rule a
+                // collapsed rail is a single undivided column of icons.
+                block.group && collapsed && 'lg:mt-2 lg:border-t lg:border-white/20 lg:pt-2',
+              )}
+            >
+              {block.group ? (
+                <p
+                  id={`rail-block-${block.group}`}
+                  className={cn(
+                    'px-3 pt-1 pb-1.5 text-[0.68rem] font-bold tracking-[0.1em] text-white/60 uppercase',
+                    // Still the list's accessible name when it cannot be read:
+                    // `aria-labelledby` does not care whether its target is
+                    // drawn, and a screen reader gets the block either way.
+                    collapsed && 'lg:sr-only',
+                  )}
+                >
+                  {t(`group.${block.group}`)}
+                </p>
+              ) : null}
+
+              {/* One list per block, named by the heading over it, rather than
+                  one list of fourteen with headings loose inside it — a run of
+                  text between two links is not something a list can say. */}
+              <ul
+                aria-labelledby={block.group ? `rail-block-${block.group}` : undefined}
+                className="flex flex-col gap-0.5"
+              >
+            {block.items.map(({ href, key, children }) => {
               const kids = children ?? [];
               const section = kids.length > 0;
               // A heading shows no tab of its own while its list is open: one of
@@ -605,7 +693,9 @@ export function Sidebar({
                 </li>
               );
             })}
-          </ul>
+              </ul>
+            </div>
+          ))}
         </nav>
 
         <div

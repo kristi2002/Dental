@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { BeforeAfter } from '@/components/site/BeforeAfter';
 import { BrandStrip } from '@/components/site/BrandStrip';
 import { ConcernPicker } from '@/components/site/ConcernPicker';
+import { DentalArch } from '@/components/site/DentalArch';
 import { Gallery } from '@/components/site/Gallery';
 import { Hero } from '@/components/site/Hero';
 import { HowWeWork } from '@/components/site/HowWeWork';
@@ -235,6 +236,28 @@ export default async function StorefrontPage({
        * since the hero.
        */}
       <BrandStrip />
+
+      {/*
+       * The one ornament on this page, and it is here because this is where the
+       * page runs longest without changing its ground.
+       *
+       * `Practice`, the strip, the gallery and the comparison are four cream
+       * sections in a row — the longest unbroken stretch in the document, sitting
+       * between the navy of `HowWeWork` and the navy of `SocialGrid`. Dropping a
+       * dark band into the middle of that run breaks it in half and is nowhere
+       * near either of the other two, which is the constraint that decided this
+       * position rather than any argument about meaning. The same band placed one
+       * section earlier or later would touch a navy at one end and merge with it,
+       * which is the mistake `BrandStrip` was moved off navy to stop making.
+       *
+       * It also lands on the one seam that reads well: the strip above it is the
+       * practice's own words sliding past, and the gallery below is photographs.
+       * An arch of teeth between them is the subject itself, with nothing being
+       * claimed about it — see `DentalArch` for why a page that has rejected
+       * drawings of teeth three times can carry this one.
+       */}
+      <DentalArch />
+
       <Gallery />
 
       {/*
@@ -258,7 +281,7 @@ export default async function StorefrontPage({
        * makes either of them land.
        */}
       <TripPlanner />
-      <VisitUs contact={contact} hours={hours} />
+      <VisitUs contact={contact} hours={hours} showTravelCard={false} />
 
       <script
         type="application/ld+json"

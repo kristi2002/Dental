@@ -21,17 +21,18 @@ import { cn } from '@/lib/utils';
  * rendered yet. See that file for why it is a context rather than six props or a
  * custom DOM event.
  *
- * **The href is a real route with a real fragment.** `/visit#request` works with
- * no JavaScript at all — the browser loads the visit page and lands on the form
- * — and `BookDrawer` intercepts it for everybody else and opens the panel in
- * place. Setting the topic on the way is the one thing that needs a client
- * component here, and it is the only reason this file exists rather than an `<a>`
- * in the server component that renders the treatment.
+ * **The href is a real route.** `/book` works with no JavaScript at all — the
+ * browser loads the booking page and the form is on it. Setting the topic on the
+ * way is the one thing that needs a client component here, and it is the only
+ * reason this file exists rather than an `<a>` in the server component that
+ * renders the treatment.
  *
- * A click that opens the drawer never leaves the page, so `setTopic` and the
- * navigation are not racing: the state is already set by the time the delegated
- * listener on `document` runs, because a React `onClick` on the link itself
- * fires first.
+ * **`setTopic` and the navigation are not racing**, and it is worth saying why,
+ * because the answer changed when the drawer became a page. The topic lives in a
+ * context on the storefront *layout*, which is above both routes — a client-side
+ * navigation between them re-renders the page underneath the provider and leaves
+ * its state alone. React runs this `onClick` before the router's own, so the
+ * value is set before the form on the other side mounts to read it.
  */
 export function AskAbout({
   topic,
@@ -47,7 +48,7 @@ export function AskAbout({
 
   return (
     <Link
-      href="/visit#request"
+      href="/book"
       onClick={() => setTopic(topic)}
       className={cn(
         'group inline-flex min-h-12 items-center gap-2.5 rounded-full bg-gilt px-6 text-[0.98rem] font-bold text-navy no-underline transition-transform hover:-translate-y-0.5 focus-visible:outline-gilt-deep motion-reduce:transition-none motion-reduce:hover:translate-y-0',

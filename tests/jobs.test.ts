@@ -19,6 +19,7 @@ const REGISTRY = path.join(process.cwd(), 'src', 'lib', 'jobs', 'registry.ts');
 const ENTRYPOINT = path.join(process.cwd(), 'docker', 'jobs', 'entrypoint.sh');
 const RUN_JOB = path.join(process.cwd(), 'docker', 'jobs', 'run-job.sh');
 const COMPOSE = path.join(process.cwd(), 'docker-compose.prod.yml');
+const BUILD_WORKFLOW = path.join(process.cwd(), '.github', 'workflows', 'build-and-push.yml');
 
 /** The keys of the `JOBS` record, read as text so no database is needed. */
 function jobNames(registry: string): string[] {
@@ -91,15 +92,56 @@ describe('jobs — run-job.sh asks exactly once', () => {
 });
 
 describe('jobs — the compose file wires both halves', () => {
-  it('builds the sidecar and gives both halves the same secret', async () => {
+  it('runs the sidecar and gives both halves the same secret', async () => {
     const compose = await readFile(COMPOSE, 'utf8');
 
-    assert.match(compose, /docker\/jobs\/Dockerfile/, 'the jobs sidecar is not built');
+    // The sidecar has to be *a service in this file*. How its image comes to
+    // exist is the next test's business — this one only asks whether the stack
+    // Coolify reads contains a clock at all. Without it the app is a thing with
+    // an unreachable `/api/jobs/*` and no reminder ever queued.
+    assert.match(compose, /^ {2}jobs:$/m, 'docker-compose.prod.yml defines no jobs service');
+    assert.match(
+      compose,
+      /image:\s*ghcr\.io\/[\w-]+\/dental-jobs:/,
+      'the jobs service does not run the sidecar image',
+    );
 
     // Two references: the app, which checks it, and the sidecar, which sends it.
     // One would mean a clock nobody listens to, or an app nothing can trigger.
     const uses = [...compose.matchAll(/JOBS_SECRET:/g)].length;
     assert.equal(uses, 2, `JOBS_SECRET appears ${uses} times; the app and the sidecar both need it`);
+  });
+
+  /**
+   * The half of the wiring that moved out of this file.
+   *
+   * `docker-compose.prod.yml` used to carry `build: docker/jobs/Dockerfile`, and
+   * this suite asserted on it. Since the deploy switched to prebuilt images
+   * (`da55e4e`) the compose file only *names* an image, and nothing on the
+   * server builds it — so the Dockerfile's one remaining caller is the CI
+   * workflow, and that is now where the invariant lives.
+   *
+   * It is worth keeping rather than dropping. A compose file naming
+   * `dental-jobs:latest` that no workflow ever pushes is the same silent failure
+   * the old assertion guarded, wearing different clothes: the stack comes up,
+   * Docker pulls a stale tag or none at all, and nothing says the clock is gone.
+   */
+  it('builds the sidecar image in CI, since the server no longer does', async () => {
+    const [compose, workflow] = await Promise.all([
+      readFile(COMPOSE, 'utf8'),
+      readFile(BUILD_WORKFLOW, 'utf8'),
+    ]);
+
+    assert.doesNotMatch(
+      compose,
+      /docker\/jobs\/Dockerfile/,
+      'the compose file builds the sidecar again — the deploy pulls prebuilt images, so this would never run',
+    );
+    assert.match(
+      workflow,
+      /dockerfile:\s*docker\/jobs\/Dockerfile/,
+      'nothing builds docker/jobs/Dockerfile; the image the compose file pulls would go stale',
+    );
   });
 
   it('leaves the sweep reporting rather than deleting', async () => {

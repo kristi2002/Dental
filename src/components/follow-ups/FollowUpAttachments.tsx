@@ -52,7 +52,9 @@ export async function FollowUpAttachments({
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {attachments.map((file) => {
-            const href = `/api/follow-up-files/${file.id}`;
+            // The follow-up rides along: the route refuses a file that is not
+            // pinned to the one named, so an id on its own is not a way in.
+            const href = `/api/follow-up-files/${file.id}?followUp=${followUpId}`;
             const isImage = file.mimeType.startsWith('image/');
 
             return (

@@ -71,7 +71,9 @@ test.describe('the public page', () => {
     // The words themselves, not just the absence of a hidden style: the eighth
     // treatment card is the furthest thing down the page that a reveal wraps.
     expect(html).toContain('Zbardhim');
-    expect(html).toContain('Kërkoni një takim');
+    // The panel at the foot of the visiting section, which is where the request
+    // form used to be and where the door to it now is.
+    expect(html).toContain('Zgjidhni një ditë');
   });
 
   test('stays readable for a reader who asked for less movement', async ({ browser }) => {
@@ -131,8 +133,12 @@ test.describe('the public page', () => {
     await page.getByRole('tab', { name: 'A tooth is missing' }).click();
     await page.getByRole('link', { name: 'Ask about this' }).click();
 
-    // The whole point of the context: the select at the bottom of the page is
-    // already set to what they said at the top.
+    // The whole point of the context, and it now has to survive a **route
+    // change**: the topic is held on the storefront layout, which sits above
+    // both the front page and the booking page, so a client-side navigation
+    // re-renders what is inside it and leaves the answer alone. This assertion
+    // is the one that would catch the provider being moved down into a page.
+    await expect(page).toHaveURL(/\/en\/book$/);
     await expect(page.locator('#request-topic')).toHaveValue('implants');
   });
 
@@ -163,8 +169,8 @@ test.describe('the public page', () => {
   /**
    * The floating button exists because the masthead's own drops below 640px.
    * All three states matter and two of them are "not there": over the hero it
-   * would cover a composition built to fit one screen exactly, and over the form
-   * it would sit on top of the form's own submit button.
+   * would cover a composition built to fit one screen exactly, and on the
+   * booking page it would float over the form it points at.
    */
   test('the booking button appears on a phone only where it is needed', async ({ browser }) => {
     const context = await browser.newContext({
@@ -180,42 +186,80 @@ test.describe('the public page', () => {
     await page.locator('#gallery').scrollIntoViewIfNeeded();
     await expect(fab, 'the button is missing in the middle of the page').toBeVisible();
 
-    await page.locator('#request').scrollIntoViewIfNeeded();
-    await expect(fab, 'the button is sitting on top of the form').toBeHidden();
+    // And it takes you to the booking page rather than jumping down a document.
+    await fab.click();
+    await expect(page).toHaveURL(/\/en\/book$/);
+    await expect(fab, 'the button is floating over the page it points at').toBeHidden();
 
     await context.close();
   });
 
   /**
-   * The drawer is an enhancement over the anchors, so both halves matter: that
-   * a booking link opens it instead of jumping the page, and that the link is
-   * still an ordinary anchor to a real form underneath.
+   * Booking is a route, and this is the test that says so.
+   *
+   * It was a drawer: a `<dialog>` that a delegated listener opened when any link
+   * ending in `#request` was clicked, so that a reader four screens into the
+   * gallery kept their place. The panel had no address to print on a card, no
+   * room for a calendar, and it treated the one errand the whole site exists for
+   * as an interruption to the page. What replaced it is an ordinary link, which
+   * is why this asserts a URL rather than a dialog.
    */
-  test('opens the booking form over the page instead of jumping to it', async ({ page }) => {
+  test('the masthead button goes to the booking page', async ({ page }) => {
     await page.goto('/en');
 
-    // By id rather than by `.drawer`: the phone navigation panel is the same
-    // kind of thing and carries the same class, so the class alone matches two
-    // dialogs and Playwright refuses an ambiguous locator outright.
-    const drawer = page.locator('dialog#book-drawer');
-    await expect(drawer).toBeHidden();
+    await expect(page.locator('dialog#book-drawer'), 'the drawer came back').toHaveCount(0);
 
-    const scrollBefore = await page.evaluate(() => window.scrollY);
     await page.getByRole('link', { name: 'Book a visit' }).first().click();
+    await expect(page).toHaveURL(/\/en\/book$/);
 
-    await expect(drawer).toBeVisible();
-    expect(
-      await page.evaluate(() => window.scrollY),
-      'the page scrolled instead of opening the drawer',
-    ).toBe(scrollBefore);
+    // The form is on it, and the calendar beside it.
+    await expect(page.locator('#request-name')).toBeVisible();
+    await expect(page.locator('.book-plate')).toBeVisible();
 
-    // Its fields are namespaced, or every label in the drawer would focus the
-    // field in the section behind it.
-    await expect(page.locator('#drawer-name')).toBeVisible();
-    await expect(page.locator('#request-name')).toHaveCount(1);
+    // And the bar says you are standing on it, which is the one thing a
+    // permanently visible call to action can get wrong.
+    await expect(page.locator('.masthead-cta')).toHaveAttribute('aria-current', 'page');
+  });
 
-    await page.keyboard.press('Escape');
-    await expect(drawer).toBeHidden();
+  /**
+   * The calendar is the reason booking became a page, and the property worth
+   * asserting is not that it renders — it is that it is drawn from the
+   * practice's own week. A Sunday the surgery is shut may not be choosable, and
+   * the day chosen has to survive as a real form field.
+   */
+  test('the calendar offers only days the practice is open', async ({ page }) => {
+    await page.goto('/en/book');
+
+    const grid = page.locator('.book-plate');
+    await expect(grid).toBeVisible();
+
+    // Shut days are drawn rather than omitted — a grid with holes where the
+    // Sundays should be is not a calendar — and they carry no input at all, so
+    // there is nothing to choose.
+    //
+    // Asserted on the month *after* this one, deliberately. The window starts
+    // today, so the current month can be down to its last day or two, and on the
+    // wrong afternoon of the wrong month it holds no Sunday at all — a green run
+    // that says nothing, or a red one that means nothing. The next month is
+    // always whole and always inside the eight weeks.
+    await page.getByRole('button', { name: 'Next month' }).click();
+    const shut = grid.locator('.day[data-state="closed"]');
+    await expect(shut.first()).toBeVisible();
+    await expect(shut.first().locator('input')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Previous month' }).click();
+
+    // Nothing is chosen until somebody chooses, and the plaque says so rather
+    // than appearing from nowhere under the grid.
+    await expect(page.locator('.book-chosen')).toContainText('No particular day');
+
+    const open = grid.locator('.day[data-state="open"] input');
+    await open.first().check();
+
+    await expect(page.locator('.day[data-state="chosen"]')).toHaveCount(1);
+    await expect(page.locator('.book-chosen')).toContainText('We are open');
+
+    // The half-day chips are dead until a day exists to have halves.
+    await expect(page.locator('.half input').first()).toBeEnabled();
   });
 
   /**
@@ -236,7 +280,8 @@ test.describe('the public page', () => {
 
 
   /**
-   * The four pages the masthead links to.
+   * The three pages the masthead links to, and the two that are public
+   * without being in it.
    *
    * They were fragments into one document until the storefront grew routes, and
    * the cheapest thing that can now go wrong is the most embarrassing: a link in
@@ -248,7 +293,7 @@ test.describe('the public page', () => {
    * length: Chromium ships no Albanian locale data, so the practice's own
    * language is where a hydration mismatch shows up first.
    */
-  for (const path of ['/treatments', '/practice', '/gallery', '/visit']) {
+  for (const path of ['/treatments', '/practice', '/visit', '/abroad', '/book']) {
     test(`the public page at ${path} opens for a stranger`, async ({ page }) => {
       const errors = collectConsoleErrors(page);
 
@@ -296,43 +341,43 @@ test.describe('the public page', () => {
 
     await bar.getByRole('link', { name: 'Visit us' }).click();
     await expect(page).toHaveURL(/\/en\/visit$/);
-    await expect(page.locator('#request')).toBeVisible();
+    // A way to book, somewhere in the page's own body — not in a named section.
+    // This asserted `#visit` until that section stopped being on this route, and
+    // an id is the wrong thing to pin here anyway: what has to stay true is that
+    // a reader who reached the contact page can get to the form from it, not
+    // which component happens to be carrying the button this month.
+    await expect(
+      page.locator('main').getByRole('link', { name: 'Book a visit' }).first(),
+    ).toBeVisible();
   });
 
   /**
-   * A booking link on a page that does not hold the form.
+   * "Ask about this", from a treatment page two routes away from the form.
    *
-   * This is the case the drawer's delegated listener nearly lost when the links
-   * became routes: Next's own `Link` calls `preventDefault()` from a React
-   * handler attached to the app root, so a bubble-phase listener on `document`
-   * arrived to find the click already claimed and let the navigation happen.
-   * Both halves are asserted — the panel opens, and the page underneath has not
-   * moved.
+   * The control is a client component rather than an anchor for exactly one
+   * reason — it sets the topic on the way — and that hand-off now has to cross a
+   * navigation. React runs the link's own `onClick` before the router's, and the
+   * context holding the answer lives on the storefront layout above both routes,
+   * so the value is set before the form on the other side mounts to read it.
+   * Nothing about that is obvious from either file, which is why it is asserted.
    */
-  test('books from a page that does not hold the form, without leaving it', async ({ page }) => {
+  test('carries the treatment from its own page to the booking form', async ({ page }) => {
     await page.goto('/en/treatments');
-
-    const drawer = page.locator('dialog#book-drawer');
-    await expect(drawer).toBeHidden();
 
     await page.locator('#t-implants').scrollIntoViewIfNeeded();
     await page.locator('#t-implants').getByRole('link', { name: 'Ask about this' }).click();
 
-    await expect(drawer).toBeVisible();
-    expect(page.url(), 'the drawer link navigated instead of opening the panel').toContain(
-      '/en/treatments',
-    );
-    // And it carried the treatment with it, which is the whole reason the
-    // control is a component rather than an anchor.
-    await expect(page.locator('#drawer-topic')).toHaveValue('implants');
+    await expect(page).toHaveURL(/\/en\/book$/);
+    await expect(page.locator('#request-topic')).toHaveValue('implants');
   });
 
   /**
-   * The wall is the gallery page's one interactive idea, and its filter is the
-   * kind of thing that keeps rendering while quietly filtering nothing.
+   * The wall is the one interactive idea the folded-in gallery brought with it,
+   * and its filter is the kind of thing that keeps rendering while quietly
+   * filtering nothing.
    */
   test('the photo wall filters to a group and says how many are left', async ({ page }) => {
-    await page.goto('/en/gallery');
+    await page.goto('/en/practice');
 
     const wall = page.locator('#wall-panel');
     await expect(wall.locator('li')).toHaveCount(9);
@@ -349,13 +394,71 @@ test.describe('the public page', () => {
     await expect(wall.locator('li')).toHaveCount(9);
   });
 
-  test('takes an appointment request and puts it in front of the desk', async ({ page }) => {
-    await page.goto('/sq');
+  /**
+   * `/visit` and `/abroad` were one route, and the split is the kind of thing
+   * that half-lands.
+   *
+   * The failure it guards is a section rendering on both pages or on neither:
+   * the three that moved read their words from `pages.abroad.*` now, and a key
+   * left behind under `pages.visit.*` prints the key path rather than throwing.
+   * So this asserts the headings themselves, on both routes, in both
+   * directions — and that the way across is on the page a local lands on.
+   */
+  test('the journey lives on one page and the address on the other', async ({ page }) => {
+    await page.goto('/en/abroad');
+    await expect(page.getByRole('heading', { name: 'Three ways into Vlorë.' })).toBeVisible();
+    await expect(page.locator('#trip')).toBeVisible();
+    await expect(page.locator('#aftercare')).toBeVisible();
+    // The wording comes from keys that were under `pages.visit` until the split.
+    await expect(page.locator('body')).not.toContainText('pages.');
 
-    // Scoped to the copy in the page flow. There are two on the page now — the
-    // second lives inside `BookDrawer` — and they carry the same labels by
-    // design, so an unscoped `getByLabel` matches both.
+    await page.goto('/en/visit');
+    await expect(page.getByRole('heading', { name: 'Three ways into Vlorë.' })).toHaveCount(0);
+    await expect(page.locator('#trip')).toHaveCount(0);
+    // The week, not the map: `ClinicMap` renders null without an address and
+    // the seeded practice has none, so `#map` would be asserting the fixture
+    // rather than the split.
+    await expect(page.locator('#hours')).toBeVisible();
+
+    // And a reader who wanted the other half is told where it went. Scoped to
+    // `main`, or this picks the masthead and the footer, which lead there from
+    // every page and would pass whether the line on this one exists or not.
+    await page.locator('main').getByRole('link', { name: 'From abroad' }).click();
+    await expect(page).toHaveURL(/\/en\/abroad$/);
+  });
+
+  /**
+   * `/gallery` was a page and is now a redirect to the one that absorbed it.
+   *
+   * It was in the sitemap and allowed by `robots.ts` for as long as it existed,
+   * so it is a URL that has been handed out — and the way this breaks is silent:
+   * the rule is written against the unprefixed path, every real request arrives
+   * with a locale in front of it, and nobody notices until a bookmark 404s. Both
+   * shapes are asserted for that reason.
+   */
+  test('the retired gallery route still lands on the practice page', async ({ page }) => {
+    for (const from of ['/en/gallery', '/gallery']) {
+      const response = await page.goto(from);
+      expect(response?.status(), `${from} did not resolve`).toBe(200);
+      await expect(page, `${from} did not land on the practice page`).toHaveURL(
+        /\/(sq|en|it)\/practice$/,
+      );
+    }
+
+    // And the photographs it was a page of are on the page it now points at.
+    await expect(page.locator('#wall-panel').locator('li')).toHaveCount(9);
+  });
+
+  test('takes an appointment request and puts it in front of the desk', async ({ page }) => {
+    await page.goto('/sq/book');
+
     const form = page.locator('#request');
+
+    // The day, from the practice's own week, and the half of it that suits.
+    // Both are ordinary named form fields, which is what lets the whole
+    // submission happen without JavaScript on the path.
+    await form.locator('.day[data-state="open"] input').first().check();
+    await form.locator('.half').filter({ hasText: 'Paradite' }).locator('input').check();
 
     await form.getByLabel('Emri juaj').fill(CALLER);
     await form.getByLabel('Numri i telefonit').fill(CALLER_PHONE);
@@ -364,8 +467,12 @@ test.describe('the public page', () => {
 
     // The panel swaps to a confirmation in place. It also says, deliberately,
     // that nothing has been booked — a form that reads as a booking and is not
-    // one is how somebody misses an appointment they thought they had.
+    // one is how somebody misses an appointment they thought they had, and a
+    // calendar makes that misreading easier rather than harder.
     await expect(page.getByRole('heading', { name: 'E morëm kërkesën tuaj.' })).toBeVisible();
+    // What they asked for, read back. This is the last chance to correct the
+    // one thing this form can get wrong without anybody noticing.
+    await expect(page.locator('.book-sent')).toContainText('Paradite');
   });
 });
 
@@ -387,4 +494,10 @@ test('the request reaches the staff screen, in the language it was written in', 
   // anybody dials. Written in Albanian because the page was.
   await expect(row).toContainText('Shqip');
   await expect(row).toContainText(CALLER_PHONE);
+
+  // And the two questions the desk used to have to ring back and ask. A
+  // preference rather than a booking — nothing is held — but it is what the
+  // call opens with.
+  await expect(row, 'the day they asked for never reached the desk').toContainText('Asked for');
+  await expect(row).toContainText('Morning');
 });

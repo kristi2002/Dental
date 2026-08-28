@@ -98,3 +98,28 @@ export function clientKey(headers: Headers): string {
   // every request shares one bucket — stricter, not looser, so it fails safe.
   return headers.get('x-real-ip')?.trim() || 'unknown';
 }
+
+/**
+ * The confirmation link's budget, and the bucket both halves of it count against.
+ *
+ * Named here rather than written out at each use because there *are* two uses
+ * and they are the same surface: opening `/confirm/<token>` and answering it.
+ * The page had the limiter and the action did not, which made the limiter
+ * bypassable by anybody willing to skip the page — a server action is a POST
+ * addressable on its own, and the action id sits in the public confirm page's
+ * bundle. Guessing at tokens would have gone straight at the action and never
+ * touched the budget written to stop it.
+ *
+ * One shared bucket rather than two, so the total a guesser gets is twelve a
+ * minute across both doors rather than twelve at each. A patient opening the
+ * link and tapping an answer spends two.
+ *
+ * The signature is 128 bits, so this was never the thing standing between a
+ * stranger and somebody's appointment — it is the cheap bound that means nobody
+ * gets to try, and a bound only one of two doors honoured was not that.
+ */
+export const CONFIRM_RATE = { limit: 12, windowMs: 60_000 } as const;
+
+export function confirmBucket(headers: Headers): string {
+  return `confirm:${clientKey(headers)}`;
+}

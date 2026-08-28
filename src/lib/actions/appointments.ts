@@ -6,9 +6,15 @@ import { getTranslations } from 'next-intl/server';
 import { AppointmentStatus, CancelledBy } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { NEW_PATIENT_VALUE } from '@/lib/booking';
-import { toDateKey } from '@/lib/dates';
+import {
+  addDays,
+  fromDateKey,
+  isDateKey,
+  isTimeOfDay,
+  toDateKey,
+  today,
+} from '@/lib/dates';
 import { buildSearchKey } from '@/lib/patient-search';
-import { addDays, fromDateKey, today } from '@/lib/dates';
 import { findPhoneDuplicates, getDaySchedule } from '@/lib/queries';
 import { completeStepForAppointment } from '@/lib/plan-sync';
 import {
@@ -95,7 +101,7 @@ export async function saveAppointment(
   const date = requiredString(formData.get('date'));
   const startTime = requiredString(formData.get('startTime'));
 
-  if (!patientId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,2}:\d{2}$/.test(startTime)) {
+  if (!patientId || !isDateKey(date) || !isTimeOfDay(startTime)) {
     return actionError(t('fillRequired'));
   }
 
@@ -496,7 +502,7 @@ export async function rescheduleAppointment(
   const id = requiredString(formData.get('id'));
   const date = requiredString(formData.get('date'));
   const startTime = requiredString(formData.get('startTime'));
-  if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,2}:\d{2}$/.test(startTime)) {
+  if (!id || !isDateKey(date) || !isTimeOfDay(startTime)) {
     return actionError(t('fillRequired'));
   }
 
@@ -646,7 +652,7 @@ export async function moveAppointment({
   const user = await authorize('appointment.edit');
   if (!user) return actionError(t('forbidden'));
 
-  if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,2}:\d{2}$/.test(startTime)) {
+  if (!id || !isDateKey(date) || !isTimeOfDay(startTime)) {
     return actionError(t('fillRequired'));
   }
 

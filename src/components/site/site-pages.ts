@@ -22,10 +22,23 @@
  * This is the *navigation's* list. What is publicly readable is a different
  * question with a different answer, and it lives in `lib/site-paths.ts` — they
  * agree today and there is no reason they must.
+ *
+ * **`/gallery` was folded into `/practice` and `/abroad` took the slot.** The
+ * first two were the same destination written twice — see the note on
+ * `PhotoWall`. What replaced them is not another way of saying "the practice":
+ * `/abroad` is the only page here addressed to somebody who is not in Albania,
+ * and it answers the two things the rest of the bar cannot — how many trips a
+ * treatment takes, and what happens after the last one. See the note on that
+ * route for why it was carved out of `/visit` rather than invented.
+ *
+ * The order is a funnel and not an alphabet: what the practice does, who does
+ * it, where the door is, and how you reach it from the other side of the
+ * Adriatic. `/abroad` last because it is the most specific — a reader who needs
+ * it knows they need it, and a reader who does not should not meet it first.
  */
 export const SITE_PAGES = [
   { href: '/treatments', key: 'treatments' },
   { href: '/practice', key: 'practice' },
-  { href: '/gallery', key: 'gallery' },
   { href: '/visit', key: 'visit' },
+  { href: '/abroad', key: 'abroad' },
 ] as const;

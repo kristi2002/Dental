@@ -19,7 +19,7 @@ import { completeStepForAppointment } from '@/lib/plan-sync';
 import { prisma } from '@/lib/prisma';
 import { findPhoneDuplicates } from '@/lib/queries';
 import { reverseVisitConsumption, takeFromShelf } from '@/lib/stock-consumption';
-import { timeToMinutes, today } from '@/lib/dates';
+import { isDateKey, isTimeOfDay, timeToMinutes, today } from '@/lib/dates';
 import {
   formatBleeding,
   formatPockets,
@@ -609,8 +609,8 @@ export async function saveVisit(_prev: ActionState, formData: FormData): Promise
   if (
     followUpDate &&
     followUpStartTime &&
-    /^\d{4}-\d{2}-\d{2}$/.test(followUpDate) &&
-    /^\d{1,2}:\d{2}$/.test(followUpStartTime) &&
+    isDateKey(followUpDate) &&
+    isTimeOfDay(followUpStartTime) &&
     user.permissions.includes('appointment.edit')
   ) {
     try {

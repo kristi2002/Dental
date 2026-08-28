@@ -9,40 +9,40 @@ import {
   Truck,
   Trash2,
   Undo2,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   getFormatter,
   getTranslations,
   setRequestLocale,
-} from "next-intl/server";
-import { BatchFormDialog } from "@/components/stock/BatchFormDialog";
-import { BatchList } from "@/components/stock/BatchList";
-import { PhotoTile } from "@/components/stock/PhotoTile";
-import { ReorderPanel } from "@/components/stock/ReorderPanel";
-import { StockAlerts } from "@/components/stock/StockAlerts";
-import { TakeOutForm } from "@/components/stock/TakeOutForm";
-import { ActionForm } from "@/components/ui/ActionForm";
-import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { FilterBar } from "@/components/ui/FilterBar";
-import { PageHeader } from "@/components/ui/PageHeader";
+} from 'next-intl/server';
+import { BatchFormDialog } from '@/components/stock/BatchFormDialog';
+import { BatchList } from '@/components/stock/BatchList';
+import { PhotoTile } from '@/components/stock/PhotoTile';
+import { ReorderPanel } from '@/components/stock/ReorderPanel';
+import { StockAlerts } from '@/components/stock/StockAlerts';
+import { TakeOutForm } from '@/components/stock/TakeOutForm';
+import { ActionForm } from '@/components/ui/ActionForm';
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { PageHeader } from '@/components/ui/PageHeader';
 import {
   adjustStock,
   clearOrdered,
   deleteStockItem,
   markOrdered,
   restoreStockItem,
-} from "@/lib/actions/stock";
-import { requirePermission } from "@/lib/auth/guard";
-import { Link } from "@/i18n/navigation";
-import { toDateKey, today } from "@/lib/dates";
-import { prisma } from "@/lib/prisma";
-import { ACTIVE_STOCK, getStockCategories } from "@/lib/queries";
-import { getReorderSuggestions } from "@/lib/reorder";
-import { photoUrl } from "@/lib/stock-photos";
-import { summariseBatches, usableQuantity } from "@/lib/expiry";
-import { orderLateBy } from "@/lib/stock-alerts";
-import { cn, matches } from "@/lib/utils";
+} from '@/lib/actions/stock';
+import { requirePermission } from '@/lib/auth/guard';
+import { Link } from '@/i18n/navigation';
+import { toDateKey, today } from '@/lib/dates';
+import { prisma } from '@/lib/prisma';
+import { ACTIVE_STOCK, getStockCategories } from '@/lib/queries';
+import { getReorderSuggestions } from '@/lib/reorder';
+import { photoUrl } from '@/lib/stock-photos';
+import { summariseBatches, usableQuantity } from '@/lib/expiry';
+import { orderLateBy } from '@/lib/stock-alerts';
+import { cn, matches } from '@/lib/utils';
 
 export const dynamic = "force-dynamic";
 
@@ -59,13 +59,13 @@ export default async function StockPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const user = await requirePermission("stock.view");
-  const canEdit = user.permissions.includes("stock.edit");
-  const canDelete = user.permissions.includes("stock.delete");
+  const user = await requirePermission('stock.view');
+  const canEdit = user.permissions.includes('stock.edit');
+  const canDelete = user.permissions.includes('stock.delete');
 
-  const t = await getTranslations("stock");
-  const tc = await getTranslations("common");
-  const tscan = await getTranslations("scan");
+  const t = await getTranslations('stock');
+  const tc = await getTranslations('common');
+  const tscan = await getTranslations('scan');
   const format = await getFormatter();
 
   // On its own, and first: the load that ships this feature is also the one that
@@ -77,14 +77,14 @@ export default async function StockPage({
   const [allItems, archived, usedRows, reorderLines] = await Promise.all([
     prisma.stockItem.findMany({
       where: ACTIVE_STOCK,
-      orderBy: [{ name: "asc" }],
+      orderBy: [{ name: 'asc' }],
       include: {
         supplier: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
         // `id` and `photoKey` as well as the name: a variant with no picture of
         // its own shows the product's, exactly as it does on the catalogue.
         product: { select: { id: true, name: true, photoKey: true } },
-        batches: { orderBy: { expiryDate: "asc" } },
+        batches: { orderBy: { expiryDate: 'asc' } },
       },
     }),
     // No suppliers and no product names here any more: they were read to fill
@@ -98,7 +98,7 @@ export default async function StockPage({
     canEdit
       ? prisma.stockItem.findMany({
           where: { archivedAt: { not: null } },
-          orderBy: { name: "asc" },
+          orderBy: { name: 'asc' },
           select: { id: true, name: true, quantity: true, archivedAt: true },
         })
       : Promise.resolve([]),
@@ -106,7 +106,7 @@ export default async function StockPage({
     // this is the spreadsheet's "Used Stock" — how much of what was bought has
     // gone — not a rate.
     prisma.stockMovement.groupBy({
-      by: ["itemId"],
+      by: ['itemId'],
       where: { delta: { lt: 0 } },
       _sum: { delta: true },
     }),
@@ -150,9 +150,9 @@ export default async function StockPage({
 
   const { filter, q, category } = await searchParams;
   // `filter=low` is also the dashboard's stock-alert link — keep the value stable.
-  const level = filter === "low" || filter === "out" ? filter : "";
-  const query = (q ?? "").trim();
-  const categoryFilter = category ?? "";
+  const level = filter === "low" || filter === "out" ? filter : '';
+  const query = (q ?? '').trim();
+  const categoryFilter = category ?? '';
 
   const items = allItems.filter((item) => {
     if (level === "low" && usableOf(item) > item.minLimit) return false;
@@ -162,8 +162,8 @@ export default async function StockPage({
     if (
       query &&
       !matches(item.name, query) &&
-      !matches(item.category?.name ?? "", query) &&
-      !matches(item.code ?? "", query)
+      !matches(item.category?.name ?? '', query) &&
+      !matches(item.code ?? '', query)
     ) {
       return false;
     }
@@ -180,8 +180,8 @@ export default async function StockPage({
   return (
     <>
       <PageHeader
-        title={t("title")}
-        subtitle={t("subtitle")}
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           canEdit ? (
             <>
@@ -190,30 +190,30 @@ export default async function StockPage({
                   while standing on this list. */}
               <Link href="/stock/catalog" className="btn btn-secondary">
                 <Images size={18} aria-hidden />
-                {t("catalog")}
+                {t('catalog')}
               </Link>
               {/* Reading the box is now how stock moves in both directions, so
                   it leads — the manual controls further down the page are the
                   fallback for a symbol too damaged to read, not the main road. */}
               <Link href="/stock/scan" className="btn btn-secondary">
                 <ScanBarcode size={18} aria-hidden />
-                {tscan("action")}
+                {tscan('action')}
               </Link>
               {/* Counting the room is the interaction bulk stock actually gets,
                   so it sits beside "new material" rather than buried in a menu. */}
               <Link href="/stock/stocktake" className="btn btn-secondary">
                 <ClipboardCheck size={18} aria-hidden />
-                {t("stocktake")}
+                {t('stocktake')}
               </Link>
               {/* A screen of its own rather than a modal — see `NewStockForm`. */}
               <Link href="/stock/new" className="btn btn-primary">
                 <Plus size={20} aria-hidden />
-                {t("new")}
+                {t('new')}
               </Link>
             </>
           ) : null
         }
-        trail={[{ label: t("title") }]}
+        trail={[{ label: t('title') }]}
       />
 
       {/* Low stock, expired lots and the ninety-day horizon are three ways for
@@ -234,39 +234,39 @@ export default async function StockPage({
       {allItems.length > 0 ? (
         <FilterBar
           basePath="/stock"
-          label={tc("filters")}
+          label={tc('filters')}
           values={{ filter: level, q: query, category: categoryFilter }}
           chips={{
-            name: "filter",
-            label: t("filterLevelLabel"),
+            name: 'filter',
+            label: t('filterLevelLabel'),
             options: [
-              { value: "", label: t("filterAll") },
-              { value: "low", label: t("filterLow") },
-              { value: "out", label: t("filterOut") },
+              { value: '', label: t('filterAll') },
+              { value: 'low', label: t('filterLow') },
+              { value: 'out', label: t('filterOut') },
             ],
           }}
           search={{
-            name: "q",
-            label: tc("search"),
-            placeholder: t("searchPlaceholder"),
+            name: 'q',
+            label: tc('search'),
+            placeholder: t('searchPlaceholder'),
           }}
           selects={[
             {
-              name: "category",
-              label: t("category"),
-              anyLabel: t("anyCategory"),
+              name: 'category',
+              label: t('category'),
+              anyLabel: t('anyCategory'),
               options: [
                 ...categories.map((option) => ({
                   value: option.id,
                   label: option.name,
                 })),
-                { value: NO_CATEGORY, label: t("uncategorized") },
+                { value: NO_CATEGORY, label: t('uncategorized') },
               ],
             },
           ]}
-          submitLabel={tc("filter")}
-          clearLabel={tc("clearFilters")}
-          summary={t("showing", {
+          submitLabel={tc('filter')}
+          clearLabel={tc('clearFilters')}
+          summary={t('showing', {
             count: items.length,
             total: allItems.length,
           })}
@@ -284,7 +284,7 @@ export default async function StockPage({
       {canEdit && archived.length > 0 ? (
         <details className="card mb-6">
           <summary className="cursor-pointer list-none px-5 py-4 text-[1.1rem] font-bold text-ink">
-            {t("archivedTitle")}
+            {t('archivedTitle')}
             <span className="ml-2 font-normal text-ink-soft">
               ({archived.length})
             </span>
@@ -301,7 +301,7 @@ export default async function StockPage({
                     {item.name}
                   </p>
                   <p className="text-[0.92rem] text-ink-soft">
-                    {t("inStock", { qty: item.quantity })}
+                    {t('inStock', { qty: item.quantity })}
                     {item.archivedAt
                       ? ` · ${t("archivedOn", {
                           date: format.dateTime(item.archivedAt, {
@@ -310,14 +310,14 @@ export default async function StockPage({
                             year: "numeric",
                           }),
                         })}`
-                      : ""}
+                      : ''}
                   </p>
                 </div>
 
                 <ActionForm action={restoreStockItem} values={{ id: item.id }}>
                   <button type="submit" className="btn btn-secondary btn-sm">
                     <Undo2 size={17} aria-hidden />
-                    {t("restore")}
+                    {t('restore')}
                   </button>
                 </ActionForm>
               </li>
@@ -330,12 +330,12 @@ export default async function StockPage({
         <div className="card">
           <EmptyState
             icon={<Package size={40} aria-hidden />}
-            title={isFiltered ? t("emptyFiltered") : t("empty")}
+            title={isFiltered ? t('emptyFiltered') : t('empty')}
             action={
               isFiltered || !canEdit ? null : (
                 <Link href="/stock/new" className="btn btn-primary">
                   <Plus size={20} aria-hidden />
-                  {t("new")}
+                  {t('new')}
                 </Link>
               )
             }
@@ -356,9 +356,9 @@ export default async function StockPage({
             // The picture. A variant with no photograph of its own shows the
             // product's, exactly as it does on the catalogue.
             const photo = item.photoKey
-              ? photoUrl("item", item.id, item.photoKey)
+              ? photoUrl('item', item.id, item.photoKey)
               : item.product?.photoKey
-                ? photoUrl("product", item.product.id, item.product.photoKey)
+                ? photoUrl('product', item.product.id, item.product.photoKey)
                 : null;
 
             // Two different questions, and they were one variable. What the
@@ -411,11 +411,11 @@ export default async function StockPage({
                         column, not by reading every name to its end. */}
                     <span className="ml-auto">
                       {isOut ? (
-                        <Badge tone="danger">{t("out")}</Badge>
+                        <Badge tone="danger">{t('out')}</Badge>
                       ) : isLow ? (
-                        <Badge tone="warn">{t("low")}</Badge>
+                        <Badge tone="warn">{t('low')}</Badge>
                       ) : (
-                        <Badge tone="ok">{t("ok")}</Badge>
+                        <Badge tone="ok">{t('ok')}</Badge>
                       )}
                     </span>
                   </div>
@@ -423,23 +423,23 @@ export default async function StockPage({
                   {/* Where it comes from and where it is filed — the two things
                       read while writing an order. */}
                   <p className="mt-1.5 text-[1rem] text-ink-soft">
-                    {item.supplier ? `${item.supplier.name} · ` : ""}
-                    {item.category?.name || t("uncategorized")}
+                    {item.supplier ? `${item.supplier.name} · ` : ''}
+                    {item.category?.name || t('uncategorized')}
                   </p>
 
                   {/* The bookkeeping, a step quieter than the name above it. */}
                   <p className="mt-0.5 text-[0.9rem] text-ink-faint">
-                    {t("minShort", { min: item.minLimit })} ·{" "}
+                    {t('minShort', { min: item.minLimit })} ·{' '}
                     {/* How much of what was bought has gone. Quiet until there
                         is something to say. */}
                     {(used.get(item.id) ?? 0) > 0
                       ? `${t("usedTotal", { qty: used.get(item.id) ?? 0 })} · `
-                      : ""}
-                    {t("lastUpdated", {
+                      : ''}
+                    {t('lastUpdated', {
                       date: format.dateTime(item.updatedAt, {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
                       }),
                     })}
                   </p>
@@ -463,18 +463,18 @@ export default async function StockPage({
                           one state it most needed to shout about. */}
                       {orderLateBy(item, day) > 0 ? (
                         <Badge tone="danger">
-                          {t("onOrderLate", { days: orderLateBy(item, day) })}
+                          {t('onOrderLate', { days: orderLateBy(item, day) })}
                         </Badge>
                       ) : (
                         <Badge tone="brand">
                           {item.expectedAt
-                            ? t("onOrderBy", {
+                            ? t('onOrderBy', {
                                 date: format.dateTime(item.expectedAt, {
-                                  day: "numeric",
-                                  month: "short",
+                                  day: 'numeric',
+                                  month: 'short',
                                 }),
                               })
-                            : t("onOrder")}
+                            : t('onOrder')}
                         </Badge>
                       )}
                       {canEdit ? (
@@ -486,7 +486,7 @@ export default async function StockPage({
                             type="submit"
                             className="text-[0.88rem] font-semibold text-ink-faint underline hover:text-ink"
                           >
-                            {t("clearOrdered")}
+                            {t('clearOrdered')}
                           </button>
                         </ActionForm>
                       ) : null}
@@ -496,18 +496,18 @@ export default async function StockPage({
                   <BatchList
                     batches={item.batches.map((batch) => ({
                       id: batch.id,
-                      lotNumber: batch.lotNumber ?? "",
+                      lotNumber: batch.lotNumber ?? '',
                       expiryDate: batch.expiryDate
                         ? batch.expiryDate.toISOString()
-                        : "",
+                        : '',
                       purchasedAt: batch.purchasedAt
                         ? batch.purchasedAt.toISOString()
-                        : "",
+                        : '',
                       manufacturedAt: batch.manufacturedAt
                         ? batch.manufacturedAt.toISOString()
-                        : "",
+                        : '',
                       quantity: batch.quantity,
-                      notes: batch.notes ?? "",
+                      notes: batch.notes ?? '',
                     }))}
                     canEdit={canEdit}
                   />
@@ -527,7 +527,7 @@ export default async function StockPage({
                       shared border into three separate boxes. */}
                   <div
                     role="group"
-                    aria-label={t("adjust")}
+                    aria-label={t('adjust')}
                     className="flex items-stretch overflow-hidden rounded-xl border border-line-strong bg-surface"
                   >
                     {canEdit ? (
@@ -539,11 +539,11 @@ export default async function StockPage({
                         <button
                           type="submit"
                           className="flex w-12 shrink-0 items-center justify-center border-r border-line-strong text-ink-soft transition-colors hover:bg-paper hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
-                          title={t("use")}
+                          title={t('use')}
                           disabled={isEmpty}
                         >
                           <Minus size={18} aria-hidden />
-                          <span className="sr-only">{t("use")}</span>
+                          <span className="sr-only">{t('use')}</span>
                         </button>
                       </ActionForm>
                     ) : null}
@@ -551,14 +551,14 @@ export default async function StockPage({
                     <span className="flex flex-1 flex-col items-center justify-center px-2 py-2 leading-none">
                       <span
                         className={cn(
-                          "text-[1.45rem] font-bold tabular-nums",
-                          isLow ? "text-warn" : "text-ink",
+                          'text-[1.45rem] font-bold tabular-nums',
+                          isLow ? 'text-warn' : 'text-ink',
                         )}
                       >
                         {item.quantity}
                       </span>
                       <span className="mt-1 text-[0.8rem] font-semibold text-ink-soft">
-                        {t("boxes", { count: item.quantity })}
+                        {t('boxes', { count: item.quantity })}
                       </span>
                     </span>
 
@@ -571,10 +571,10 @@ export default async function StockPage({
                         <button
                           type="submit"
                           className="flex w-12 shrink-0 items-center justify-center border-l border-line-strong text-ink-soft transition-colors hover:bg-paper hover:text-ink"
-                          title={t("restock")}
+                          title={t('restock')}
                         >
                           <Plus size={18} aria-hidden />
-                          <span className="sr-only">{t("restock")}</span>
+                          <span className="sr-only">{t('restock')}</span>
                         </button>
                       </ActionForm>
                     ) : null}
@@ -612,10 +612,10 @@ export default async function StockPage({
                           <button
                             type="submit"
                             className="btn btn-secondary btn-sm"
-                            title={t("markOrdered")}
+                            title={t('markOrdered')}
                           >
                             <Truck size={17} aria-hidden />
-                            <span className="sr-only">{t("markOrdered")}</span>
+                            <span className="sr-only">{t('markOrdered')}</span>
                           </button>
                         </ActionForm>
                       ) : null}
@@ -627,10 +627,10 @@ export default async function StockPage({
                         <Link
                           href={`/stock/${item.id}/edit`}
                           className="btn btn-secondary btn-sm"
-                          title={t("edit")}
+                          title={t('edit')}
                         >
                           <Pencil size={17} aria-hidden />
-                          <span className="sr-only">{t("edit")}</span>
+                          <span className="sr-only">{t('edit')}</span>
                         </Link>
                       ) : null}
 
@@ -638,16 +638,16 @@ export default async function StockPage({
                         <ActionForm
                           action={deleteStockItem}
                           values={{ id: item.id }}
-                          confirmMessage={t("confirmRetire")}
+                          confirmMessage={t('confirmRetire')}
                           className="ml-auto"
                         >
                           <button
                             type="submit"
                             className="btn btn-danger btn-sm"
-                            title={tc("delete")}
+                            title={tc('delete')}
                           >
                             <Trash2 size={17} aria-hidden />
-                            <span className="sr-only">{tc("delete")}</span>
+                            <span className="sr-only">{tc('delete')}</span>
                           </button>
                         </ActionForm>
                       ) : null}

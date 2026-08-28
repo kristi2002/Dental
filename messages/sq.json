@@ -19,13 +19,14 @@
     },
     "nav": {
       "treatments": "Shërbimet",
+      "toggleTreatments": "Shfaq trajtimet",
       "practice": "Klinika",
       "visit": "Na vizitoni",
+      "abroad": "Nga jashtë",
       "book": "Rezervo vizitë",
       "sections": "Seksionet e faqes",
       "skipToContent": "Kalo te përmbajtja",
-      "staffSignIn": "Hyrje për stafin",
-      "gallery": "Ambientet"
+      "staffSignIn": "Hyrje për stafin"
     },
     "pages": {
       "breadcrumb": "Shtegu i faqes",
@@ -39,9 +40,9 @@
       },
       "treatments": {
         "metaTitle": "Shërbimet dentare në Vlorë",
-        "metaDescription": "Të gjitha trajtimet e klinikës sonë në Vlorë — kontroll, mbushje, trajtim kanalar, kurora, implante, heqje dhëmbi, ortodonci dhe zbardhim — me sa vizita kërkon secili dhe sa ditë ju mban këtu.",
-        "title": "Tetë trajtime, dhe çfarë kërkon secili prej jush.",
-        "lede": "Të njëjtat tetë që liston ballina, me pjesën që nuk hyn dot në një kartë: çfarë ndodh në të vërtetë, sa takime duhen dhe sa ditë ju mbajnë në Vlorë.",
+        "metaDescription": "Të gjitha trajtimet e klinikës sonë në Vlorë — kontroll, mbushje, trajtim kanalar, kurora, faseta, heqje dhëmbi, kirurgji orale, implante, protezim, ortodonci dhe zbardhim — me sa vizita kërkon secili dhe sa ditë ju mban këtu.",
+        "title": "{count} trajtime, dhe çfarë kërkon secili prej jush.",
+        "lede": "Të njëjtat {count} që liston ballina, me pjesën që nuk hyn dot në një kartë: çfarë ndodh në të vërtetë, sa takime duhen dhe sa ditë ju mbajnë në Vlorë.",
         "indexLabel": "Kaloni te një trajtim",
         "ask": "Pyesni për këtë",
         "detail": {
@@ -49,15 +50,18 @@
           "fillings": "Pjesa e prekur nga kariesi hiqet dhe dhëmbi rindërtohet me kompozit në ngjyrën e smaltit tuaj, shtresë pas shtrese, dhe forcohet me llambë. Bëhet me anestezi lokale dhe mund të hani sapo të dilni. Një dhëmb i trajtuar herët është një mbushje; i njëjti dhëmb i lënë pas dore bëhet trajtim kanalar.",
           "rootCanal": "Kur kariesi arrin nervin, dhëmbi nuk humbet — kanalet pastrohen, formësohen dhe mbyllen deri në majë të rrënjës. Bëhet me anestezi dhe është trajtimi që e ndal dhembjen, jo ai që e shkakton. Dhëmbët e pasmë zakonisht mbulohen më pas me kurorë, sepse ajo që mbetet prej tyre është më e hollë se më parë.",
           "crowns": "Kurora punohet në laborator nga një masë ose një skanim dhe mbulon atë që ka mbetur nga dhëmbi. Provohet para se të fiksohet, dhe ngjyra zgjidhet përballë dhëmbëve anash, jo nga një katalog. Ura është e njëjta punë që mban një dhëmb të rremë përtej një hapësire.",
-          "implants": "Një rrënjë titani vendoset aty ku mungonte e vjetra dhe pastaj lihet e qetë ndërsa kocka rritet mbi të — kjo është pritja, dhe është pjesa që asnjë klinikë nuk e shkurton dot. Muaj më vonë vjen kurora sipër. Është i vetmi trajtim këtu që zëvendëson edhe rrënjën, prandaj dhëmbët anash hapësirës nuk preken fare.",
+          "veneers": "Një shtresë porcelani sa trashësia e një thoi, e punuar në laborator dhe e ngjitur mbi faqen e përparme të dhëmbit. Përdoret kur ngjyra nuk kthehet me zbardhim, ose kur dhëmbi është i vogël, i konsumuar a i çarë. Nga smalti hiqet shumë pak, dhe në disa raste aspak — por ajo që hiqet nuk kthehet, prandaj cilin nga të dy rastet keni, ju e dini para se të nisë puna, jo pasi ka nisur.",
           "extraction": "Ndonjëherë nuk ka më çfarë të shpëtohet, dhe dhëmbi i pjekurisë më shpesh është në rrugë sesa i sëmurë. Bëhet me anestezi lokale, dhe aq sa vetë heqja ka rëndësi edhe çfarë bëni dy ditët pas saj — këtë e merrni me shkrim, jo të thënë te dera.",
+          "oralSurgery": "Puna kirurgjikale që kërkon më shumë sesa një heqje e thjeshtë: dhëmbë pjekurie të mbetur nën mishra a brenda kockës, rrënjë të thyera, dhe shtimi i kockës kur ajo që keni nuk mban dot një implant. Bëhet me anestezi lokale dhe planifikohet nga një radiografi përpara, jo gjatë. Largoheni me udhëzime me shkrim dhe me një takim kontrolli të caktuar që para se të dilni.",
+          "implants": "Një rrënjë titani vendoset aty ku mungonte e vjetra dhe pastaj lihet e qetë ndërsa kocka rritet mbi të — kjo është pritja, dhe është pjesa që asnjë klinikë nuk e shkurton dot. Muaj më vonë vjen kurora sipër. Është i vetmi trajtim këtu që zëvendëson edhe rrënjën, prandaj dhëmbët anash hapësirës nuk preken fare.",
+          "dentures": "Kur mungojnë shumë dhëmbë për një urë, proteza i zëvendëson dhe mbështetet te mishrat ose te dhëmbët që kanë mbetur. Punohet me radhë — masë, kafshim, provë në dyllë, dhe pastaj ajo përfundimtarja — dhe prova në dyllë është aty pikërisht që formën dhe ngjyrën t’i shihni e t’i ndryshoni kur ende asgjë nuk është prerë. Kërkon më shumë takime se çdo trajtim tjetër në këtë faqe, dhe javët e para janë mësim: të flasësh e të hash me të është zakon që vjen.",
           "orthodontics": "Aparat fiks ose alinjues transparentë, sipas asaj se sa larg duhet të lëvizin dhëmbët dhe çfarë doni të mbani ndërkohë. Planin e shihni para se të vendoset i pari. Është i vetmi trajtim këtu që matet në muaj e jo në ditë, dhe pjesa më e madhe e atyre muajve kalon në shtëpi, jo në karrige.",
           "whitening": "Në klinikë brenda një takimi, ose me maska të bëra për ju për t'i mbajtur në shtëpi një ose dy javë. E nxjerr ngjyrën nga smalti dhe nuk i heq asgjë. Kurorat dhe mbushjet nuk e ndryshojnë ngjyrën, prandaj gjithçka përpara përshtatet më pas, jo më parë."
         }
       },
       "practice": {
         "metaTitle": "Klinika",
-        "metaDescription": "Klinika e Dr. Votim Shehut në Vlorë: si kalon vizita e parë, si mbahen kartelat, si sterilizohen instrumentet, dhe tri gjuhët në të cilat punohet.",
+        "metaDescription": "Klinika e Dr. Votim Shehut në Vlorë: si kalon vizita e parë, dhomat dhe pajisjet në fotografi, si mbahen kartelat, dhe tri gjuhët në të cilat punohet.",
         "title": "Një klinikë që i shkruan gjërat.",
         "lede": "Kush e bën punën, çfarë ndodh në orën e parë, dhe dy gjërat që vlejnë për çdo takim këtu, pavarësisht pse keni ardhur.",
         "first": {
@@ -94,25 +98,55 @@
           "it": "Një fluturim i shkurtër nga bregu tjetër i Adriatikut, dhe një pjesë e mirë e pacientëve tanë e bëjnë."
         }
       },
-      "place": {
-        "metaTitle": "Ambientet",
-        "metaDescription": "Dhomat, pajisjet dhe njerëzit e klinikës sonë dentare në Vlorë, në fotografi — dhe një vështrim se çfarë ndryshon në të vërtetë zbardhimi.",
-        "title": "Hidhini një sy nga afër.",
-        "lede": "Dhomat ku do të uleshit, pajisjet që do të përdoreshin, dhe njerëzit që i përdorin. Filtrojini nëse doni të shihni njërën e jo tjetrën.",
-        "filterLabel": "Cilat fotografi të shfaqen",
-        "filters": {
-          "all": "Të gjitha",
-          "rooms": "Dhomat",
-          "people": "Njerëzit",
-          "care": "Kujdesi"
-        },
-        "count": "{count, plural, =0 {Asnjë fotografi} one {# fotografi} other {# fotografi}}"
-      },
       "visit": {
         "metaTitle": "Na vizitoni në Vlorë",
-        "metaDescription": "Orari, adresa, telefoni dhe WhatsApp i klinikës sonë dentare në Rrugën e Re në Vlorë — dhe si të mbërrini në qytet me avion, me traget dhe me rrugë tokësore.",
+        "metaDescription": "Orari, adresa, telefoni dhe WhatsApp i klinikës sonë dentare në Rrugën e Re në Vlorë, dhe ku të na gjeni në hartë.",
         "title": "Ejani të na shihni.",
-        "lede": "Kur jemi hapur, si të na gjeni, dhe një formular që ju vendos në listën për t'ju telefonuar. Nuk e rezervon vetë takimin — ditën dhe orën i caktojmë në telefon.",
+        "lede": "Si është klinika, kur është e hapur dhe ku gjendet saktësisht. Kur të jeni gati të caktoni një ditë, rezervimet kanë një faqe më vete.",
+        "fromAbroad": "Vini nga Italia, Britania apo më larg? Si mbërrihet në Vlorë, sa ju mban këtu çdo trajtim dhe çfarë ndodh pasi të ktheheni në shtëpi kanë një faqe më vete.",
+        "clinic": {
+          "eyebrow": "Pse këtu",
+          "title": "Pse ia vlen të vini.",
+          "lede": "Katër gjëra që vlejnë për çdo takim në këtë klinikë, qofshi dy rrugë më tutje ose sapo të zbritur nga avioni.",
+          "plan": {
+            "title": "Plani dhe çmimi, me shkrim",
+            "body": "Nga vizita e parë dilni duke ditur çfarë do të bëhet, sa takime duhen dhe sa kushton. Dhe nuk ndryshon rrugës pa u thënë me zë."
+          },
+          "languages": {
+            "title": "Shqip, italisht, anglisht",
+            "body": "Puna ju shpjegohet në gjuhën në të cilën mendoni. Pa përkthyes dhe pa tundje koke sa për të kaluar radha — gjë që ka rëndësi mbi të gjitha te takimi ku ju kërkohet të vendosni diçka."
+          },
+          "record": {
+            "title": "Kartelë elektronike, dhëmb për dhëmb",
+            "body": "Kartela mbahet për çdo dhëmb, kështu që ajo që u gjet vitin e kaluar është në ekran edhe sivjet. Nëse trajtoheni këtu në dy udhëtime, i dyti nis aty ku mbeti i pari."
+          },
+          "clean": {
+            "title": "Sterilizim mes pacientëve",
+            "body": "Instrumentet pastrohen, paketohen dhe sterilizohen pas çdo përdorimi, dhe ato për një përdorim janë pikërisht për një përdorim. Është minimumi, jo një veçori — por është pyetja që njerëzit nuk guxojnë ta bëjnë."
+          }
+        },
+        "hours": {
+          "eyebrow": "Orari",
+          "title": "Java, ashtu si hapet dera.",
+          "lede": "Këto shtatë rreshta janë orari i vetë klinikës, marrë nga i njëjti vend nga ku e lexon edhe libri i takimeve. Ndryshon orari — kjo faqe ka ndryshuar tashmë.",
+          "caption": "Orari i punës, e hënë deri të dielë",
+          "note": "Hapur nuk do të thotë e lirë. Orët këtu janë kur ka dikë në recepsion; cilat prej tyre janë ende të pazëna e pyet faqja e rezervimit.",
+          "breakNote": "Aty ku një ditë shfaq dy intervale, në mes klinika mbyllet për drekë."
+        },
+        "map": {
+          "eyebrow": "Në hartë",
+          "title": "Ku t'i thoni taksisë të ndalojë.",
+          "lede": "Rruga e Re kalon në mes të Vlorës. Shenja më poshtë është dera; butonat pranë saj ia japin të njëjtën adresë asaj me të cilën orientoheni.",
+          "directions": "Merr drejtimet",
+          "privacy": "Harta shërbehet nga Google, ndaj ngarkimi i këtij seksioni i thotë Google-it se kaluat këtej. Gjithçka tjetër në këtë faqe vjen vetëm nga ne — nëse doni ta mbani ashtu, dy lidhjet më sipër bëjnë të njëjtën punë dhe e prekin Google-in vetëm nëse i shtypni.",
+          "frameTitle": "Harta me {clinic} në Rrugën e Re, Vlorë"
+        }
+      },
+      "abroad": {
+        "metaTitle": "Nga jashtë",
+        "metaDescription": "Kujdes dentar në Vlorë për pacientët që vijnë nga Italia, Britania dhe më larg: sa seanca dhe sa ditë kërkon çdo trajtim, tri rrugët për të mbërritur në qytet, dhe çfarë ndodh pasi të ktheheni në shtëpi.",
+        "title": "Udhëtimi, dhe ajo që vjen pas tij.",
+        "lede": "Sa seanca kërkon çdo trajtim dhe sa ditë ju mban këtu, tri rrugët për të ardhur në Vlorë, dhe çfarë bën klinika pasi ju të jeni kthyer në shtëpi.",
         "getting": {
           "title": "Tri rrugë për në Vlorë.",
           "lede": "Një pjesë e mirë e njerëzve që ulen në këtë karrige nuk e kanë nisur ditën në Shqipëri. Na thoni si po udhëtoni dhe kur mbërrini, dhe takimet ia përshtatim udhëtimit, jo e kundërta.",
@@ -129,6 +163,201 @@
             "body": "Vlora është mbi rrugën bregdetare, dhe pacientët vijnë me makinë nga Tirana, nga jugu dhe nga kufiri me Greqinë. Nëse po bëni rrugë të gjatë për një takim të parë, na shkruani para se të niseni, jo pasi të keni nisur."
           },
           "bayCaption": "Vlora ndodhet mbi gji. Është e vetmja fotografi në këtë faqe që është marrë vërtet këtu, prandaj përdoret aty ku faqja flet për udhëtimin e jo si zbukurim."
+        },
+        "city": {
+          "eyebrow": "Qyteti",
+          "title": "Vlora, nëse s'keni qenë kurrë.",
+          "lede": "Një port pune në bregdetin shqiptar, dhe qyteti ku kjo klinikë ka qenë gjithmonë. Kush vjen me avion zakonisht rri disa ditë në vend që të kthehet menjëherë.",
+          "seas": {
+            "title": "Ku takohen dy dete",
+            "body": "Vlora ndodhet aty ku Adriatiku ia lë vendin Jonit. Është arsyeja pse uji ndërron ngjyrë në mes të gjirit, dhe pse bregu në jug të qytetit nuk i ngjan aspak atij në veri."
+          },
+          "history": {
+            "title": "Ku nisi vendi",
+            "body": "Shqipëria e shpalli këtu pavarësinë, në 1912, dhe qyteti ka flamurin, sheshin dhe muzeun për ta thënë. Nëse keni një pasdite mes dy takimeve, qyteti i vjetër dhe shëtitorja janë brenda një shëtitjeje nga njëri-tjetri."
+          },
+          "riviera": {
+            "title": "Riviera nis sipër qytetit",
+            "body": "Rruga bregdetare ngjitet nga Vlora dhe kalon qafën: plazhet që nënkuptohen kur thuhet Riviera shqiptare janë nga ana tjetër. Është pjesa që ia vlen një ditë e lirë, po të keni një."
+          },
+          "note": "Asgjë nga këto nuk është arsyeja pse zgjidhet një dentist, dhe nuk jua tregojmë sikur të ishte. Është këtu sepse një vizitë e parë jashtë vendit është udhëtim përveçse trajtim, dhe është e drejtë të dini ç'vend është."
+        }
+      },
+      "book": {
+        "metaTitle": "Rezervoni një vizitë në Vlorë",
+        "metaDescription": "Zgjidhni një ditë nga kalendari ynë — ditët që shfaqen janë ditët kur klinika është vërtet hapur — lini numrin e telefonit dhe ju marrim brenda orarit për të caktuar orën.",
+        "title": "Na thoni kur ju përshtatet.",
+        "lede": "Kalendari i kësaj faqeje është java jonë, lexuar nga të njëjtat rreshta me të cilat drejtohet klinika. Zgjedhja e një dite nuk rezervon asgjë: është arsyeja për të cilën ju marrim në telefon."
+      },
+      "treatment": {
+        "stepsTitle": "Si shkon",
+        "stepsLede": "Tri hapat që ka çdo trajtim këtu: çfarë shihet përpara, çfarë ndodh në karrige, dhe me çfarë largoheni.",
+        "timingTitle": "Sa kohë ju mban",
+        "timingLede": "Vizita, ditë në Vlorë, dhe muaj nga fillimi te fundi.",
+        "concernsTitle": "Njerëzit vijnë për këtë kur:",
+        "relatedTitle": "Zakonisht bashkë me këtë",
+        "relatedLede": "Jo listë shitjeje — thjesht ajo që shkon më shpesh me këtë, ose përgjigjja tjetër e ndershme për të njëjtin problem.",
+        "backToAll": "Të gjitha trajtimet",
+        "prev": "Trajtimi i mëparshëm",
+        "next": "Trajtimi tjetër",
+        "more": "Lexoni më shumë",
+        "lookTitle": "Ku ndodh",
+        "lookLede": "Karrigia, instrumentet, banku pas tyre dhe njerëzit që i përdorin — pjesa e një trajtimi që një paragraf nuk mund t’jua tregojë.",
+        "steps": {
+          "checkup": {
+            "one": {
+              "title": "Shikimi",
+              "body": "Çdo dhëmb, mishrat rreth tyre, dhe radiografi aty ku diçka nuk duket nga jashtë."
+            },
+            "two": {
+              "title": "Pastrimi",
+              "body": "Gurëzat dhe njollat hiqen me ultratinguj, edhe atje ku furça nuk arrin."
+            },
+            "three": {
+              "title": "Plani",
+              "body": "Largoheni me radhën e punëve: çfarë tani, çfarë pret, dhe çfarë vetëm mbahet nën vëzhgim."
+            }
+          },
+          "fillings": {
+            "one": {
+              "title": "Anestezia",
+              "body": "Vetëm dhëmbi që do të punohet, dhe presim derisa të mos ndieni asgjë."
+            },
+            "two": {
+              "title": "Heqja e kariesit",
+              "body": "Pjesa e prekur hiqet e gjitha; ajo që mbetet poshtë është dhëmb i shëndoshë."
+            },
+            "three": {
+              "title": "Rindërtimi",
+              "body": "Kompoziti vihet shtresë pas shtrese në ngjyrën e smaltit tuaj dhe forcohet me llambë. Hani sapo të dilni."
+            }
+          },
+          "rootCanal": {
+            "one": {
+              "title": "Diagnoza",
+              "body": "Radiografia tregon deri ku ka shkuar infeksioni dhe sa kanale ka dhëmbi."
+            },
+            "two": {
+              "title": "Pastrimi i kanaleve",
+              "body": "Me anestezi. Kanalet pastrohen, formësohen dhe mbyllen deri në majë të rrënjës."
+            },
+            "three": {
+              "title": "Mbulimi",
+              "body": "Dhëmbi mbyllet, dhe te dhëmbët e pasmë zakonisht vjen një kurorë pas tij."
+            }
+          },
+          "crowns": {
+            "one": {
+              "title": "Përgatitja",
+              "body": "Dhëmbi formësohet dhe merret masë ose skanim; largoheni me një kurorë të përkohshme."
+            },
+            "two": {
+              "title": "Laboratori",
+              "body": "Kurora punohet në porcelan ose zirkon, dhe ngjyra zgjidhet përballë dhëmbëve anash."
+            },
+            "three": {
+              "title": "Prova dhe fiksimi",
+              "body": "Provohet para se të ngjitet. Nëse kafshimi ose ngjyra nuk bind, kthehet në laborator."
+            }
+          },
+          "veneers": {
+            "one": {
+              "title": "Marrëveshja për formën",
+              "body": "Ngjyrën dhe formën i vendosni bashkë, dhe sa smalt do të hiqet thuhet përpara."
+            },
+            "two": {
+              "title": "Masa dhe laboratori",
+              "body": "Fasetat punohen në porcelan mbi masën tuaj, jo mbi një formë të gatshme."
+            },
+            "three": {
+              "title": "Ngjitja",
+              "body": "Provohen njëra pas tjetrës, pastaj ngjiten. Nga ajo ditë kafshoni normalisht."
+            }
+          },
+          "extraction": {
+            "one": {
+              "title": "Radiografia",
+              "body": "Rrënja dhe çfarë ka rreth saj shihen para se të preket gjë."
+            },
+            "two": {
+              "title": "Heqja",
+              "body": "Me anestezi lokale. Ndieni shtypje, jo dhembje; nëse ndieni dhembje, ndalojmë."
+            },
+            "three": {
+              "title": "Dy ditët e para",
+              "body": "Udhëzimet i merrni me shkrim, dhe një numër ku të merrni në telefon nëse diçka nuk shkon."
+            }
+          },
+          "oralSurgery": {
+            "one": {
+              "title": "Planifikimi",
+              "body": "Radiografia tregon ku është dhëmbi ose sa kockë ka, dhe puna caktohet para se të nisë."
+            },
+            "two": {
+              "title": "Ndërhyrja",
+              "body": "Me anestezi lokale, në një takim. Zgjat më shumë se një heqje e thjeshtë, jo më keq."
+            },
+            "three": {
+              "title": "Kontrolli",
+              "body": "Qepjet dhe shërimi shihen në një takim të caktuar që para se të largoheni."
+            }
+          },
+          "implants": {
+            "one": {
+              "title": "A e mban kocka",
+              "body": "Radiografia tregon sa kockë ka. Nëse nuk mjafton, shtimi i saj vjen i pari."
+            },
+            "two": {
+              "title": "Vendosja",
+              "body": "Rrënja prej titani vendoset me anestezi lokale, dhe pastaj i lihet kockës kohë."
+            },
+            "three": {
+              "title": "Kurora",
+              "body": "Pas tre deri gjashtë muajsh vjen kurora mbi të. Kjo është vizita e dytë, zakonisht udhëtimi i dytë."
+            }
+          },
+          "dentures": {
+            "one": {
+              "title": "Masa dhe kafshimi",
+              "body": "Merret forma e mishrave dhe mënyra si mbyllen nofullat."
+            },
+            "two": {
+              "title": "Prova në dyllë",
+              "body": "E shihni dhe e provoni para se të bëhet përfundimtare. Ndryshimet bëhen këtu."
+            },
+            "three": {
+              "title": "Dorëzimi dhe rregullimet",
+              "body": "Proteza dorëzohet dhe rregullohet pas javës së parë; pikat që shtypin janë të pritshme."
+            }
+          },
+          "orthodontics": {
+            "one": {
+              "title": "Plani",
+              "body": "Masë, foto dhe radiografi, dhe pastaj rruga që do të bëjnë dhëmbët — para se të vendoset i pari."
+            },
+            "two": {
+              "title": "Lëvizja",
+              "body": "Aparat fiks ose alinjues, me kontroll çdo disa javë. Pjesa më e madhe kalon larg karriges."
+            },
+            "three": {
+              "title": "Mbajtësja",
+              "body": "Kur mbaron, mbajtësja është ajo që i mban aty. Pa të, kthehen ngadalë nga kanë ardhur."
+            }
+          },
+          "whitening": {
+            "one": {
+              "title": "Kontrolli përpara",
+              "body": "Zbardhimi nuk bëhet mbi karies a mishra të inflamuar; ato rregullohen të parat."
+            },
+            "two": {
+              "title": "Zbardhimi",
+              "body": "Në klinikë brenda një takimi, ose me maska të bëra për ju për në shtëpi."
+            },
+            "three": {
+              "title": "Mbajtja",
+              "body": "Ngjyra e re matet dhe shënohet. Kurorat e mbushjet nuk zbardhen, prandaj ato përshtaten pas."
+            }
+          }
         }
       }
     },
@@ -137,7 +366,7 @@
       "titleLead": "Buzëqeshja juaj,",
       "titleTurn": "në duar të sigurta.",
       "lede": "Kujdes i plotë stomatologjik në Vlorë — diagnozë e saktë, plan trajtimi i qartë dhe çmime të përcaktuara që në vizitën e parë.",
-      "ledeShort": "Që nga vizita e parë e dini planin dhe çmimin.",
+      "ledeShort": "„Kujdesu për dhëmbët, e ata do të kujdesen për ty.“",
       "book": "Rezervo një vizitë",
       "ratingSource": "Vlerësim në Google",
       "ratingCount": "Mbi 29 vlerësime"
@@ -151,6 +380,7 @@
       "seeWeek": "Shiko orarin e javës"
     },
     "treatments": {
+      "eyebrow": "Çfarë bëjmë",
       "title": "Kujdes i plotë, nga kontrolli te implanti.",
       "lede": "Për çdo trajtim ju themi paraprakisht sa vizita nevojiten dhe sa kushton. Asgjë nuk shfaqet e papritur në fund.",
       "checkup": {
@@ -169,13 +399,25 @@
         "title": "Kurora dhe ura",
         "body": "Kur mbetet pak dhëmb, kurora e mbulon të tërin. Modelohet në laborator dhe provohet para se të fiksohet."
       },
-      "implants": {
-        "title": "Implante",
-        "body": "Një rrënjë titani në vend të asaj që mungon, dhe një kurorë mbi të. Më e afërta me dhëmbin që kishit."
+      "veneers": {
+        "title": "Faseta",
+        "body": "Fletë të holla porcelani mbi pjesën e dukshme të dhëmbit. Forma dhe ngjyra ndryshojnë; dhëmbi poshtë mbetet."
       },
       "extraction": {
         "title": "Heqje dhëmbi",
         "body": "Kur nuk ka më çfarë të shpëtohet, përfshirë dhëmbët e pjekurisë. Me anestezi dhe me udhëzime të qarta për pas."
+      },
+      "oralSurgery": {
+        "title": "Kirurgji orale",
+        "body": "Dhëmbë të mbetur në kockë, rrënjë të thyera, dhe kocka që i duhet një implanti. Me anestezi lokale, në një takim."
+      },
+      "implants": {
+        "title": "Implante",
+        "body": "Një rrënjë titani në vend të asaj që mungon, dhe një kurorë mbi të. Më e afërta me dhëmbin që kishit."
+      },
+      "dentures": {
+        "title": "Protezim",
+        "body": "Protezë e plotë ose e pjesshme, kur mungojnë shumë dhëmbë për një urë. Provohet në dyllë para se të bëhet përfundimtare."
       },
       "orthodontics": {
         "title": "Ortodonci",
@@ -187,6 +429,7 @@
       }
     },
     "concerns": {
+      "eyebrow": "Nga ku të filloni",
       "title": "Çfarë ju sjell te ne?",
       "usually": "Zakonisht:",
       "ask": "Pyesni për këtë",
@@ -218,6 +461,7 @@
       "hint": "Gjashtë arsye pse vijnë njerëzit te ne. Zgjidhni atë që ju ngjan."
     },
     "practice": {
+      "eyebrow": "Klinika",
       "dentist": "Dr. Votim Shehu",
       "dentistRole": "Dentist · themelues i klinikës",
       "bodyOne": "Klinika punon me një parim të thjeshtë: asnjë pacient nuk largohet pa e ditur çfarë do t’i bëhet, sa vizita nevojiten dhe sa kushton. Planin e trajtimit e merrni me shkrim, dhe çdo ndryshim ju komunikohet përpara se të ndodhë.",
@@ -233,6 +477,7 @@
       }
     },
     "how": {
+      "eyebrow": "Si punojmë",
       "title": "Si bëhet puna.",
       "lede": "Dy gëra që vlejnë për çdo takim këtu, pavarësisht pse keni ardhur.",
       "record": {
@@ -246,6 +491,7 @@
       "illustrative": "Fotografi ilustruese. Fotografitë e klinikës vijnë së shpejti."
     },
     "visit": {
+      "eyebrow": "Na gjeni",
       "title": "Rruga e Re, Vlorë.",
       "hoursTitle": "Orari",
       "closed": "Mbyllur",
@@ -258,9 +504,14 @@
       "todayLabel": "Sot",
       "callLabel": "Telefon",
       "whatsappLabel": "WhatsApp",
-      "whatsappValue": "Na shkruani"
+      "whatsappValue": "Na shkruani",
+      "bookEyebrow": "Rezervoni",
+      "bookTitle": "Zgjidhni një ditë, ju marrim ne në telefon.",
+      "bookBody": "Kalendari ynë është te faqja e rezervimit — ditët që ofron janë ditët kur klinika punon. Zgjidhni një, lini një numër, dhe orën e caktojmë në telefon.",
+      "bookOrCall": "Ose na telefononi në"
     },
     "trip": {
+      "eyebrow": "Planifikimi i udhëtimit",
       "title": "Sa do t’ju mbante këtu?",
       "lede": "Shënoni për çfarë po pyesni dhe ju tregojmë sa takime duhen, sa ditë ju mban në Vlorë, dhe nëse është një udhëtim apo dy.",
       "pick": "Për çfarë po pyesni?",
@@ -273,11 +524,36 @@
       "ask": "Na pyesni për këtë",
       "caveat": "Një orientim, jo një ofertë. Sa duhet në të vërtetë varet nga ekzaminimi — dhe planin, sa vizita, sa gjatë dhe sa kushton, e merrni me shkrim në vizitën e parë.",
       "fromPrice": "Nga {amount}",
-      "pricesReviewed": "Çmimet u kontrolluan më {date}. Shifra që caktohet në vizitën tuaj të parë është ajo që vlen."
+      "pricesReviewed": "Çmimet u kontrolluan më {date}. Shifra që caktohet në vizitën tuaj të parë është ajo që vlen.",
+      "tripsLabel": "Udhëtime",
+      "clear": "Hiqi të gjitha"
+    },
+    "aftercare": {
+      "eyebrow": "Pas trajtimit",
+      "title": "Dhe kur të jeni kthyer në shtëpi.",
+      "lede": "Është pyetja që vendos nëse dikush rezervon apo jo, dhe ajo që një faqe interneti zakonisht e lë jashtë. Këtu nuk ka asgjë të premtuar për rastin: është ajo që klinika tashmë bën, e shkruar.",
+      "instructions": {
+        "title": "Udhëzime me shkrim para se të niseni",
+        "body": "Çfarë të bëni, çfarë të shmangni dhe për sa kohë — në letër, në gjuhën në të cilën u trajtuat. Jo një fletushkë shqip dhënë dikujt që shqip nuk lexon."
+      },
+      "checkIn": {
+        "title": "Ju shkruajmë pas disa ditësh",
+        "body": "Një mesazh që pyet si po ndiheni, i dërguar nga tabela e ndjekjeve e vetë klinikës dhe jo i lënë në kujtesën e dikujt. Nëse diçka ju dhemb ose nuk ju duket në rregull, ju përgjigjeni dhe ne e marrim që aty."
+      },
+      "record": {
+        "title": "Kartela juaj udhëton me ju",
+        "body": "Mbahet elektronike, dhëmb për dhëmb, me planin dhe atë që u bë në të vërtetë. Kërkojeni dhe ju dërgohet — juve, ose një dentisti në vendin tuaj që duhet të dijë çfarë keni në gojë."
+      },
+      "wrong": {
+        "title": "Nëse diçka nuk shkon, thojeni herët",
+        "body": "Telefononi ose shkruani, në cilëndo nga tri gjuhët në të cilat u trajtuat. Mesazhi i ndjekjes së klinikës mbaron pikërisht me këtë ofertë dhe e ka seriozisht: duam shumë më mirë ta dëgjojmë herët sesa në kontrollin tjetër."
+      },
+      "guaranteeTitle": "Për çfarë përgjigjet klinika",
+      "guaranteeLede": "Me shkrim, trajtim për trajtim, duke nisur nga dita kur puna vendoset.",
+      "years": "{count, plural, one {# vit} other {# vjet}}",
+      "guaranteeReviewed": "Kushtet u konfirmuan më {date}. Vlen ajo që është shkruar në planin tuaj."
     },
     "form": {
-      "title": "Kërkoni një takim",
-      "lede": "Plotësoni dy fusha dhe ju marrim në telefon. Ky formular nuk e rezervon vetë takimin — ditën dhe orën i caktojmë bashkë kur t'ju telefonojmë.",
       "name": "Emri juaj",
       "phone": "Numri i telefonit",
       "phoneHint": "Këtu ju telefonojmë, ose ju shkruajmë në WhatsApp.",
@@ -295,13 +571,61 @@
       "missing": "Na duhen emri dhe numri i telefonit.",
       "tooLong": "Një nga fushat është shumë e gjatë. Shkurtojeni pak dhe provoni sërish."
     },
+    "book": {
+      "eyebrow": "Rezervoni një vizitë",
+      "lede": "Dy hapa, dhe asnjëri prej tyre nuk e rezervon vetë takimin. Zgjidhni një ditë që ju përshtatet dhe na thoni si t’ju gjejmë; ju marrim në telefon brenda orarit dhe orën e caktojmë bashkë.",
+      "stepWhen": "Kur",
+      "stepWho": "Kush",
+      "whenTitle": "Zgjidhni një ditë.",
+      "whenLede": "Ditët në gri janë ditët kur klinika nuk punon. Zgjedhja e një dite nuk rezervon asgjë — është fjalia me të cilën e nisim telefonatën.",
+      "whoTitle": "Dhe si t’ju gjejmë.",
+      "whoLede": "Na mjaftojnë një emër dhe një numër. Pjesa tjetër na ndihmon vetëm të vijmë te telefonata duke ditur se për çfarë bëhet fjalë.",
+      "previousMonth": "Muaji i mëparshëm",
+      "nextMonth": "Muaji tjetër",
+      "dayLegend": "Cila ditë do t’ju përshtatej?",
+      "gridHint": "Mund të zgjidhen vetëm ditët kur klinika është hapur, dhe zgjedhja e njërës nuk rezervon asgjë — ju marrim në telefon për të caktuar orën.",
+      "closedDay": "Mbyllur",
+      "closedNote": "Mbyllur këtë muaj:",
+      "openThatDay": "Atë ditë jemi hapur {hours}",
+      "noDayTitle": "Asnjë ditë e caktuar",
+      "noDayBody": "Lëreni kështu dhe e gjejmë një ditë bashkë në telefon.",
+      "halfTitle": "Paradite apo pasdite?",
+      "half": {
+        "any": "Të dyja njësoj",
+        "morning": "Paradite",
+        "afternoon": "Pasdite"
+      },
+      "dayGone": "Ajo ditë nuk mund të kërkohet më. Zgjidhni një tjetër dhe dërgojeni sërish kërkesën.",
+      "noCalendarTitle": "Kalendari nuk po hapet.",
+      "noCalendarBody": "Për momentin nuk po e shfaqim dot javën. Dërgojeni gjithsesi kërkesën — na mjaftojnë një emër dhe një numër — ose na telefononi dhe e gjejmë një ditë bashkë.",
+      "nextEyebrow": "Çfarë ndodh më pas",
+      "nextTitle": "Tri hapa, dhe pastaj një datë.",
+      "next": {
+        "one": {
+          "title": "E lexojmë po atë ditë",
+          "body": "Kërkesat shkojnë te lista e recepsionit, më e vjetra e para. Asgjë nuk mbetet në një kuti që nuk e hap askush."
+        },
+        "two": {
+          "title": "Ju marrim në telefon",
+          "body": "Brenda orarit, në numrin që latë, në gjuhën në të cilën shkruat. Nëse nuk ju gjejmë, provojmë në WhatsApp."
+        },
+        "three": {
+          "title": "Caktojmë ditën",
+          "body": "Atë që zgjodhët nëse është ende e lirë, dhe më të afërtën nëse jo. Vetëm atëherë hyn diçka në axhendë."
+        }
+      },
+      "callInstead": "Ose na merrni në telefon"
+    },
     "topics": {
       "checkup": "Kontroll dhe higjienë",
       "fillings": "Mbushje",
       "rootCanal": "Trajtim kanalar",
       "crowns": "Kurora dhe ura",
-      "implants": "Implante",
+      "veneers": "Faseta",
       "extraction": "Heqje dhëmbi",
+      "oralSurgery": "Kirurgji orale",
+      "implants": "Implante",
+      "dentures": "Protezim",
       "orthodontics": "Ortodonci",
       "whitening": "Zbardhim dhëmbësh",
       "other": "Diçka tjetër"
@@ -315,7 +639,10 @@
       "six": "Vlorë · Rruga e Re"
     },
     "gallery": {
+      "eyebrow": "Hapësirat",
       "title": "Ambientet e klinikës.",
+      "lede": "Dhomat ku do të uleni, pajisjet që do të përdoren dhe njerëzit që i përdorin. Prekni një foto për ta parë të plotë.",
+      "all": "Shihni të gjitha {count} fotot",
       "previous": "Fotoja e mëparshme",
       "next": "Fotoja tjetër",
       "close": "Mbylle",
@@ -331,7 +658,17 @@
         "light": "Llamba e karriges dentare",
         "young": "Portret me buzëqeshje",
         "sterile": "Autoklava ku sterilizohen instrumentet"
-      }
+      },
+      "wallTitle": "Hidhini një sy nga afër.",
+      "wallLede": "Dhomat ku do të uleshit, pajisjet që do të përdoreshin, dhe njerëzit që i përdorin. Filtrojini nëse doni të shihni njërën e jo tjetrën.",
+      "filterLabel": "Cilat fotografi të shfaqen",
+      "filters": {
+        "all": "Të gjitha",
+        "rooms": "Dhomat",
+        "people": "Njerëzit",
+        "care": "Kujdesi"
+      },
+      "count": "{count, plural, =0 {Asnjë fotografi} one {# fotografi} other {# fotografi}}"
     },
     "compare": {
       "before": "Para",
@@ -355,6 +692,11 @@
     }
   },
   "nav": {
+    "group": {
+      "care": "Kujdesi",
+      "contact": "Kontakti",
+      "practice": "Klinika"
+    },
     "dashboard": "Paneli",
     "appointments": "Kalendari",
     "patients": "Pacientët",
@@ -1088,7 +1430,8 @@
     "note": "Shënim i brendshëm",
     "notePlaceholder": "P.sh. i telefonova, s'u përgjigj — provo pas orës 18:00",
     "saveNote": "Ruaj",
-    "savingNote": "Po ruhet…"
+    "savingNote": "Po ruhet…",
+    "preferredDay": "Ka kërkuar"
   },
   "outbox": {
     "title": "Kujtesa për t'u dërguar",

@@ -1,9 +1,13 @@
 'use client';
 
-import { CalendarCheck, CalendarDays, Repeat } from 'lucide-react';
+import { CalendarCheck, CalendarDays, Route } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { Reveal } from '@/components/site/Reveal';
+import { SectionEyebrow } from '@/components/site/SectionEyebrow';
 import { useTopicChoice } from '@/components/site/TopicChoice';
+import { Watermark } from '@/components/site/Watermark';
+import { Link } from '@/i18n/navigation';
 import {
   estimateTrip,
   PRICES_REVIEWED,
@@ -43,6 +47,47 @@ import { cn } from '@/lib/utils';
  * **Ranges rather than a single figure**, everywhere. "Four to six days" is what
  * a dentist would actually say, and a page that answers "5 days" to a question
  * whose real answer is a range has stopped estimating and started promising.
+ *
+ * ---
+ *
+ * **The shape: one instrument, not two floating things.** This was a bare
+ * two-column grid — a wad of pills on the left, a white `.card` on the right —
+ * and it read as cheap for reasons worth writing down, because they are the
+ * reasons any tool on a page reads as cheap.
+ *
+ *   - **The columns could not balance.** Eleven pills are about 200px tall and
+ *     the answer beside them is about 400px, so whichever state the section was
+ *     in, one column ended in several hundred pixels of nothing. Both halves are
+ *     inside one bordered panel now, so the panel has a height and the halves
+ *     divide it instead of hanging in the section.
+ *
+ *   - **A ragged tag cloud is not a control.** Eleven pills of eleven different
+ *     widths wrapping into three uneven rows is the shape of a blog's tag
+ *     widget, and it also lied about the interaction: identical pills read as
+ *     pick-one, and this is pick-several. They are a two-column list of rows
+ *     with a real tick in each now — the same rectangle every time, and the
+ *     control says what it does before it is pressed.
+ *
+ *   - **The answer had no surface of its own.** It was the app's default card,
+ *     the one generic surface on a storefront where every other panel is
+ *     considered. The read-out is navy now, with the same lamp and the same
+ *     watermark as every other dark panel on this site: it is the instrument's
+ *     screen, and it is the one dark object in a cream section rather than a
+ *     ninth white box.
+ *
+ *   - **It skipped the page's own furniture.** No eyebrow, and less vertical
+ *     padding than any section around it, so it sat tighter and read as a lesser
+ *     thing than the sections it is more useful than. Both fixed.
+ *
+ * **No `GhostWord`.** Five of the eight sections on the visit page carry one
+ * now, and a sixth stops being a texture and starts being a pattern. The eyebrow
+ * and the panel carry the identity here.
+ *
+ * **The read-out keeps its three slots whatever is ticked.** "Months to finish"
+ * used to be a figure that appeared and vanished, which moved everything under
+ * it on every tick; the third gauge is *trips* instead, which is always 1 or 2
+ * and is the single number this section exists to answer. Months has not been
+ * dropped — it is a labelled line under the verdict, on the days it applies.
  */
 /** `[2, 2]` reads "2", `[2, 3]` reads "2–3". A range of one is not a range. */
 function span([low, high]: readonly [number, number]): string {
@@ -59,6 +104,7 @@ export function TripPlanner() {
   // Null unless the practice has published a floor for every treatment ticked —
   // see `TREATMENT_PRICES`. Nothing is guessed and no partial total is shown.
   const floor = priceFloor(picked);
+  const chosen = picked.length > 0;
 
   function toggle(key: TreatmentKey) {
     setPicked((current) =>
@@ -69,174 +115,289 @@ export function TripPlanner() {
   return (
     <section
       id="trip"
-      className="scroll-mt-20 bg-bone-soft px-5 py-16 sm:px-8 sm:py-20"
+      // `clip` and never `hidden`, as everywhere on this storefront — see the
+      // note under `.drift`. The padding is the section scale the rest of the
+      // page uses; this had been two steps smaller than its neighbours.
+      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
     >
-      <div className="mx-auto w-full max-w-6xl">
-        <h2 className="type-section max-w-[20ch] text-bone-ink">
-          {t('trip.title')}
-        </h2>
-        <p className="mt-5 max-w-[56ch] text-[1.03rem] leading-relaxed text-bone-ink-soft">
-          {t('trip.lede')}
-        </p>
+      <div className="relative mx-auto w-full max-w-6xl">
+        <Reveal>
+          <SectionEyebrow className="text-gilt-deep">{t('trip.eyebrow')}</SectionEyebrow>
+          <h2 className="type-section mt-5 max-w-[18ch] text-bone-ink">{t('trip.title')}</h2>
+          <p className="mt-5 max-w-[58ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+            {t('trip.lede')}
+          </p>
+        </Reveal>
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:gap-12">
-          {/*
-           * A real fieldset of real checkboxes. The obvious build here is a row
-           * of `aria-pressed` buttons, which looks identical and describes
-           * something else — these are a set of choices that combine, which is
-           * what a checkbox group is, and a screen reader announcing "3 of 8
-           * selected" for free is the whole argument.
-           */}
-          <fieldset className="min-w-0">
-            <legend className="text-[0.95rem] font-semibold text-bone-ink-soft">
-              {t('trip.pick')}
-            </legend>
+        {/*
+         * One panel, divided — the picker on the cream half, the answer on the
+         * dark one. `overflow-clip` is what lets the navy run to the panel's own
+         * rounded corner instead of sitting inside it as a second box.
+         */}
+        <Reveal
+          step={1}
+          className="mt-12 overflow-clip rounded-2xl border border-bone-deep bg-bone-soft shadow-lift"
+        >
+          <div className="grid lg:grid-cols-[1.08fr_0.92fr]">
+            {/*
+             * A real fieldset of real checkboxes. The obvious build here is a row
+             * of `aria-pressed` buttons, which looks identical and describes
+             * something else — these are a set of choices that combine, which is
+             * what a checkbox group is, and a screen reader announcing "3 of 11
+             * selected" for free is the whole argument.
+             */}
+            {/*
+             * The padding is on this wrapper and not on the `fieldset`, and that
+             * is a real bug rather than a preference: a `legend` is laid out on
+             * its fieldset's *top border*, above the padding box, so a bordered
+             * fieldset with `p-8` puts its legend flush against the panel edge
+             * with thirty-two pixels of air underneath it. Padding a plain
+             * wrapper puts the legend back where it looks like it belongs, with
+             * no `float` trick and no change to what the element means.
+             */}
+            <div className="min-w-0 p-6 sm:p-8">
+              <fieldset className="min-w-0">
+                <legend className="type-eyebrow text-gilt-deep">{t('trip.pick')}</legend>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {TREATMENT_KEYS.map((key) => {
-                const on = picked.includes(key);
-                return (
-                  <label
-                    key={key}
-                    className={cn(
-                      'inline-flex min-h-11 cursor-pointer items-center rounded-full border px-4 text-[0.92rem] font-semibold transition-colors',
-                      // `has-[:focus-visible]` puts the ring on the pill rather
-                      // than on the input, which is visually hidden — without it
-                      // a keyboard user tabbing through eight treatments gets no
-                      // indication of where they are at all.
-                      'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gilt-deep',
-                      on
-                        ? 'border-gilt-deep bg-gilt text-navy'
-                        : 'border-bone-deep bg-bone text-bone-ink-soft hover:border-gilt hover:text-bone-ink',
-                    )}
+                <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
+                  {TREATMENT_KEYS.map((key) => {
+                    const on = picked.includes(key);
+                    return (
+                      <label
+                        key={key}
+                        className="trip-option"
+                        // An attribute rather than a class, for the reason the
+                        // status rail carries `data-tone` and the hours board
+                        // carries `data-closed`: the stylesheet needs to know
+                        // this too, and a state expressed only as a ternary in
+                        // JSX is one CSS cannot read. See `.trip-option`.
+                        data-on={on ? '' : undefined}
+                      >
+                        {/* Visually hidden, never `display: none` — the real
+                            control is what carries the checked state, the
+                            keyboard path and the group announcement.
+                            `.trip-option:has()` is what puts the focus ring on
+                            the row around it. */}
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => toggle(key)}
+                          className="sr-only"
+                        />
+                        <span aria-hidden className="trip-tick" />
+                        {t(`topics.${key}`)}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              {/* Outside the fieldset, because it is not one of the choices —
+                  and eleven toggles with no way back to nothing is a small
+                  cruelty. Present only once there is something to clear, so the
+                  control never sits there disabled explaining itself. */}
+              {chosen ? (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setPicked([])}
+                    className="rounded-full px-3 py-1.5 text-[0.9rem] font-semibold text-bone-ink-soft underline underline-offset-4 transition-colors hover:text-bone-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gilt-deep"
                   >
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      onChange={() => toggle(key)}
-                      className="sr-only"
-                    />
-                    {t(`topics.${key}`)}
-                  </label>
-                );
-              })}
+                    {t('trip.clear')}
+                  </button>
+                </div>
+              ) : null}
             </div>
-          </fieldset>
 
-          {/*
-           * The answer. `aria-live="polite"` because the numbers change in place
-           * as treatments are ticked and nothing else announces it — a sighted
-           * reader sees three figures move, and without this a screen reader
-           * user gets silence and has to go looking for what their tick did.
-           */}
-          <div
-            aria-live="polite"
-            className="card p-6 sm:p-7"
-          >
-            {picked.length === 0 ? (
-              <p className="text-[1rem] leading-relaxed text-bone-ink-soft">{t('trip.empty')}</p>
-            ) : (
-              <>
-                <dl className="space-y-5">
-                  <Figure
-                    icon={<CalendarCheck size={18} aria-hidden />}
+            {/*
+             * The answer, and the one dark object in a cream section.
+             *
+             * `aria-live="polite"` because the numbers change in place as
+             * treatments are ticked and nothing else announces it — a sighted
+             * reader sees three figures move, and without this a screen reader
+             * user gets silence and has to go looking for what their tick did.
+             */}
+            <div
+              aria-live="polite"
+              className="relative flex flex-col overflow-clip bg-navy p-6 text-white sm:p-8"
+            >
+              <Watermark className="-top-12 -right-12 w-[13rem] text-white/[0.05]" />
+              {/* The same lamp, at the same angle, as every other navy surface
+                  on this site. Two dark panels lit from different corners read
+                  as two sites. */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_10%_-10%,var(--color-navy-soft),transparent_60%)]"
+              />
+
+              <div className="relative flex flex-1 flex-col">
+                {/*
+                 * Three gauges, always three, whether or not anything is ticked
+                 * — an instrument reading "—" is obviously an instrument waiting
+                 * for an input, where a paragraph of grey text in a white box is
+                 * just an empty box. It is also what stops the panel changing
+                 * height on the first tick.
+                 */}
+                <dl className="trip-gauges">
+                  <Gauge
+                    icon={<CalendarCheck size={16} aria-hidden />}
                     label={t('trip.visits')}
-                    value={span(estimate.visits)}
+                    value={chosen ? span(estimate.visits) : null}
                   />
-                  <Figure
-                    icon={<CalendarDays size={18} aria-hidden />}
+                  <Gauge
+                    icon={<CalendarDays size={16} aria-hidden />}
                     label={t('trip.days')}
-                    value={span(estimate.days)}
+                    value={chosen ? span(estimate.days) : null}
                   />
-                  {/* Only when there is one. A row reading "0 months" on a
-                      check-up and a filling is noise pretending to be data. */}
-                  {estimate.months[1] > 0 ? (
-                    <Figure
-                      icon={<Repeat size={18} aria-hidden />}
-                      label={t('trip.months')}
-                      value={span(estimate.months)}
-                    />
-                  ) : null}
+                  {/* Trips rather than months, because this is the number the
+                      section exists for: somebody pricing a flight is deciding
+                      whether they have to buy two. It is always 1 or 2, so the
+                      slot is never empty and never moves. */}
+                  <Gauge
+                    icon={<Route size={16} aria-hidden />}
+                    label={t('trip.tripsLabel')}
+                    value={chosen ? String(estimate.trips) : null}
+                  />
                 </dl>
 
+                <div className="mt-7 border-t border-navy-line/60 pt-6">
+                  {chosen ? (
+                    <>
+                      <p className="text-[1rem] leading-relaxed text-navy-ink">
+                        {estimate.trips === 2 ? t('trip.twoTrips') : t('trip.oneTrip')}
+                      </p>
+
+                      {/* Months has not been dropped from the read-out, only
+                          demoted out of a gauge that spent most of its life
+                          empty. A labelled line on the days it applies. */}
+                      {estimate.months[1] > 0 ? (
+                        <p className="mt-4 flex items-baseline justify-between gap-4 text-[0.94rem] text-navy-ink-soft">
+                          {t('trip.months')}
+                          <span className="font-semibold tabular-nums text-white">
+                            {span(estimate.months)}
+                          </span>
+                        </p>
+                      ) : null}
+
+                      {/*
+                       * Only when every treatment ticked has a published floor.
+                       * An empty price table — which is what ships today — means
+                       * this never renders, and the section answers the question
+                       * it can answer honestly rather than inventing the one it
+                       * cannot. The whole argument is on `TREATMENT_PRICES`.
+                       */}
+                      {floor ? (
+                        <p className="mt-5 border-t border-navy-line/60 pt-5">
+                          <span className="font-display text-[1.8rem] tabular-nums text-white">
+                            {t('trip.fromPrice', {
+                              amount: new Intl.NumberFormat(locale, {
+                                style: 'currency',
+                                currency: floor.currency,
+                                maximumFractionDigits: 0,
+                              }).format(floor.total),
+                            })}
+                          </span>
+                          {PRICES_REVIEWED ? (
+                            <span className="mt-1 block text-[0.86rem] text-navy-ink-soft">
+                              {t('trip.pricesReviewed', { date: PRICES_REVIEWED })}
+                            </span>
+                          ) : null}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="text-[1rem] leading-relaxed text-navy-ink-soft">
+                      {t('trip.empty')}
+                    </p>
+                  )}
+                </div>
+
                 {/*
-                 * Only when every treatment ticked has a published floor. An
-                 * empty price table — which is what ships today — means this
-                 * never renders, and the section answers the question it can
-                 * answer honestly rather than inventing the one it cannot. The
-                 * whole argument is on `TREATMENT_PRICES`.
+                 * The foot of the read-out: the way out, and the sentence that
+                 * makes printing an estimate honest at all.
+                 *
+                 * `flex-1` with `justify-end` rather than a margin, because the
+                 * picker beside this is eleven rows and the answer is rarely
+                 * that tall — so there is slack, and the choice is whether it
+                 * sits between the numbers and the button or below both. Below
+                 * both reads as a panel somebody forgot to finish; pushed to the
+                 * bottom, the button lands level with the last treatment row and
+                 * the two halves read as one object.
+                 *
+                 * The caveat is *inside* the panel and under the button rather
+                 * than orphaned beneath the section. It qualifies these numbers,
+                 * so it belongs beside them — and in the empty state, where
+                 * there is no button, it is what keeps the foot of the panel
+                 * from being a slab of nothing.
                  */}
-                {floor ? (
-                  <p className="mt-6 border-t border-bone-deep pt-5">
-                    <span className="font-display text-[1.7rem] text-bone-ink tabular-nums">
-                      {t('trip.fromPrice', {
-                        amount: new Intl.NumberFormat(locale, {
-                          style: 'currency',
-                          currency: floor.currency,
-                          maximumFractionDigits: 0,
-                        }).format(floor.total),
-                      })}
-                    </span>
-                    {PRICES_REVIEWED ? (
-                      <span className="mt-1 block text-[0.86rem] text-bone-ink-faint">
-                        {t('trip.pricesReviewed', { date: PRICES_REVIEWED })}
-                      </span>
-                    ) : null}
+                <div className="mt-8 flex flex-1 flex-col justify-end gap-6">
+                  {chosen ? (
+                    <Link
+                      href="/book"
+                      // The first thing they ticked, so the booking page opens
+                      // on something they actually said rather than on "I am not
+                      // sure". It rides to the other route through
+                      // `TopicChoice`, which lives on the storefront layout
+                      // above both.
+                      onClick={() => setTopic(picked[0])}
+                      // `self-start`, or a flex column stretches the pill to the
+                      // panel's full width and it stops reading as a button.
+                      className="cta-fill group inline-flex min-h-13 self-start items-center gap-2.5 rounded-full bg-gilt px-7 text-[1rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
+                    >
+                      <CalendarCheck size={18} aria-hidden />
+                      {t('trip.ask')}
+                    </Link>
+                  ) : null}
+
+                  <p className="text-[0.88rem] leading-relaxed text-navy-ink-soft">
+                    {t('trip.caveat')}
                   </p>
-                ) : null}
-
-                <p className="mt-6 border-t border-bone-deep pt-5 text-[0.95rem] leading-relaxed text-bone-ink">
-                  {estimate.trips === 2 ? t('trip.twoTrips') : t('trip.oneTrip')}
-                </p>
-
-                <a
-                  href="#request"
-                  // The first thing they ticked, so the form opens on something
-                  // they actually said rather than on "I am not sure".
-                  onClick={() => setTopic(picked[0])}
-                  className="mt-6 inline-flex min-h-12 items-center gap-2.5 rounded-full bg-gilt px-6 text-[0.96rem] font-bold text-navy no-underline transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
-                >
-                  <CalendarCheck size={18} aria-hidden />
-                  {t('trip.ask')}
-                </a>
-              </>
-            )}
-
-            {/* Shown whether or not anything is ticked. The estimate above is a
-                range of ordinary figures for each procedure, and the sentence
-                that makes publishing it honest is the practice's own rule: the
-                plan and the price are agreed in writing at the first visit. */}
-            <p className="mt-6 text-[0.87rem] leading-relaxed text-bone-ink-faint">
-              {t('trip.caveat')}
-            </p>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
 }
 
-/** One figure and its label — a `dt`/`dd` pair, because that is what it is. */
-function Figure({
+/**
+ * One measurement on the read-out — a `dt`/`dd` pair, because that is what it
+ * is, wrapped in a `div` so three of them can be a grid inside one `dl`.
+ */
+function Gauge({
   icon,
   label,
   value,
 }: {
   icon: React.ReactNode;
+  /** The figure, or `null` for an instrument nobody has given an input yet. */
+  value: string | null;
   label: string;
-  value: string;
 }) {
   return (
-    <div className="flex items-baseline gap-4">
-      <span aria-hidden className="translate-y-1 text-gilt-deep">
+    <div>
+      <span aria-hidden className="block text-gilt">
         {icon}
       </span>
       {/* `dt` before `dd` in the markup, because a definition list requires it,
           and reversed in the flow so the figure reads above its label. Writing
           them the other way round renders identically and is invalid. */}
-      <div className="flex flex-col-reverse">
-        <dt className="mt-1.5 text-[0.9rem] text-bone-ink-soft">{label}</dt>
-        <dd className="font-display text-[2rem] leading-none tabular-nums text-bone-ink">{value}</dd>
+      <div className="mt-3 flex flex-col-reverse">
+        <dt className="mt-2 text-[0.82rem] leading-snug text-navy-ink-soft">{label}</dt>
+        <dd
+          className={cn(
+            'font-display text-[clamp(1.75rem,4vw,2.4rem)] leading-none tabular-nums',
+            value ? 'text-white' : 'text-navy-line',
+          )}
+        >
+          {/* An em dash, and it is `aria-hidden` with the label left to speak:
+              a screen reader reading "em dash, appointments" three times on
+              arrival is noise, and the prompt underneath already says what the
+              panel is waiting for. */}
+          {value ?? <span aria-hidden>—</span>}
+        </dd>
       </div>
     </div>
   );

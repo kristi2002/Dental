@@ -52,14 +52,21 @@ REMINDERS_SCHEDULE="${REMINDERS_SCHEDULE:-0 18 * * *}"
 
 # And again first thing, because the evening run cannot see an evening booking.
 #
-# The job queues *tomorrow's* appointments and every row it writes carries a
-# unique `dedupeKey`, so a second run inside the same day collides and is skipped
-# rather than duplicating — which is what makes this free, and is also why the
-# evening run alone was not enough: a slot booked at half past six for nine the
-# next morning was never queued at all, and nothing said so. The dashboard's
-# "to remind" panel is a live query and showed the patient regardless, so the two
-# surfaces disagreed and the one that was incomplete was the queue somebody is
-# told to work down.
+# A slot booked at half past six for nine the next morning is not in the diary
+# when the 18:00 run reads it, and nothing said so — the dashboard's "to remind"
+# panel is a live query and showed the patient regardless, so the two surfaces
+# disagreed and the incomplete one was the queue somebody is told to work down.
+#
+# This run only closes that because the job reads *today as well as tomorrow*.
+# It did not always: `today()` rolls over overnight, so a job looking only at
+# `today() + 1` queues Tuesday from both of Monday's runs and Wednesday from
+# both of Tuesday's — and the Monday-evening booking for Tuesday morning falls
+# between them. See `queueAppointmentReminders` in src/lib/messages/queue.ts,
+# which is where that window is decided; changing it here does nothing.
+#
+# Repeating is free either way: every row carries a unique `dedupeKey`, so a
+# second run over the same slot collides and is skipped rather than sending
+# anybody two of anything.
 #
 # Seven, so the queue is right before the desk opens rather than while somebody
 # is already working it.

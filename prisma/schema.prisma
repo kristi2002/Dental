@@ -2129,6 +2129,27 @@ model AppointmentRequest {
   /// know which language to open in before they dial.
   locale String @default("sq")
 
+  /// The day they picked off the calendar on the booking page, at UTC midnight
+  /// like every other calendar day in this database.
+  ///
+  /// A *preference*, and the column name is the whole of the argument: this
+  /// table does not book anything, so a date here is what the visitor said would
+  /// suit them and not a slot anybody is holding. The desk rings back and agrees
+  /// a real time; what this buys is that the first sentence of that call is
+  /// "Thursday still good?" rather than "when are you free?".
+  ///
+  /// Null wherever they did not say — the calendar is optional, and a request
+  /// with no day on it is exactly the request this form took before it had one.
+  preferredDate DateTime?
+
+  /// `morning`, `afternoon`, or null for "either" — see `PREFERRED_TIMES`.
+  ///
+  /// Not a time of day. Somebody choosing between a boat on Tuesday and a
+  /// morning appointment does not have an opinion about 09:20 versus 09:40, and
+  /// asking for one on a public form invites a precision the practice cannot
+  /// honour before it has looked at the book.
+  preferredTime String?
+
   status AppointmentRequestStatus @default(NEW)
 
   /// Who picked it up, and when. Kept rather than cleared: a request that was

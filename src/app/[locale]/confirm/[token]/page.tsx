@@ -9,7 +9,7 @@ import { verifyConfirmationToken } from '@/lib/confirmations';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { clinicDisplayName, getClinicProfile } from '@/lib/queries';
-import { clientKey, rateLimit } from '@/lib/rate-limit';
+import { CONFIRM_RATE, confirmBucket, rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,8 +46,9 @@ export default async function ConfirmPage({
 
   // The only unauthenticated page in the app. Guessing at tokens is bounded
   // here rather than left to the signature alone — a wrong guess costs the
-  // attacker a slot in a small per-address budget.
-  const limit = rateLimit(`confirm:${clientKey(await headers())}`, { limit: 12, windowMs: 60_000 });
+  // attacker a slot in a small per-address budget, shared with the action that
+  // answers the link so neither door can be used to spend around the other.
+  const limit = rateLimit(confirmBucket(await headers()), CONFIRM_RATE);
   if (!limit.allowed) {
     return (
       <main className="mx-auto max-w-md px-5 py-20 text-center">

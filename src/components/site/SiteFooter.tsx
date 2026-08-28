@@ -62,7 +62,7 @@ export async function SiteFooter({
   const t = await getTranslations('site');
 
   return (
-    <footer className="relative overflow-clip bg-navy text-navy-ink">
+    <footer className="seam seam-top relative overflow-clip bg-navy text-navy-ink">
       <Swash className="rotate-180 opacity-40" />
 
       <Watermark className="-right-24 -bottom-32 w-[30rem] text-white/[0.04]" />
@@ -135,8 +135,11 @@ export async function SiteFooter({
                   {/* A route rather than the fragment it was while the whole
                       storefront was one document: the week is on the visit page
                       now, and `#visit` resolves to nothing on four of the five
-                      pages this footer appears under. */}
-                  <Link href="/visit" className="text-white underline underline-offset-4">
+                      pages this footer appears under. The fragment is back on
+                      the end of it because the week has a section of its own
+                      there — `OpeningHours`, `id="hours"` — rather than being a
+                      list part-way down the contact block. */}
+                  <Link href="/visit#hours" className="text-white underline underline-offset-4">
                     {t('hours.seeWeek')}
                   </Link>
                 </li>
@@ -234,6 +237,42 @@ export async function SiteFooter({
             </Link>
           </p>
         </div>
+
+        {/*
+         * The one credit this page is obliged to print.
+         *
+         * The teeth in `DentalArch` are a Freepik free-licence vector, and that
+         * licence is free *on condition* of attribution — "authorization to use
+         * … Content is free of charge and conditioned upon any use by the User
+         * being duly attributed", in the terms' own words. So this line is not a
+         * courtesy and it is not optional: remove it and the arch upstairs is
+         * being used outside its licence. It goes away only if the practice buys
+         * a Premium plan, which is what that plan is for, or if the artwork is
+         * replaced.
+         *
+         * Nothing else on the site needs one. Every photograph in `photos.ts` is
+         * Unsplash or Pexels, and neither licence requires a credit — which is
+         * why this footer has never carried one before and why this line names
+         * the illustrations specifically rather than thanking everybody.
+         *
+         * **Not translated, and that is the same call `GhostWord` makes.** It is
+         * a fixed formula naming a company, identical in all three languages;
+         * rendering it three ways would add a fourth string to keep in step for
+         * no reader's benefit, and the phrase the licence asks for is this one.
+         * `lang` is set so a screen reader in Albanian or Italian does not try to
+         * pronounce it in the page's language.
+         */}
+        <p lang="en" className="mt-6 text-[0.82rem] text-navy-ink-soft">
+          Tooth illustrations designed by{' '}
+          <a
+            href="https://www.freepik.com/free-vector/dental-anatomy-chart-with-permanent-human-teeth-realistic-vector-illustration_40274091.htm"
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-4 transition-colors hover:text-white focus-visible:outline-white"
+          >
+            Freepik
+          </a>
+        </p>
       </div>
     </footer>
   );

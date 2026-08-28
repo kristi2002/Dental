@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { auditDestination } from '@/lib/audit-links';
 import { requirePermission } from '@/lib/auth/guard';
+import { parseDateKey } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { patientAuditIds } from '@/lib/queries';
 import { initials } from '@/lib/utils';
@@ -26,10 +27,6 @@ export const dynamic = 'force-dynamic';
  */
 const PAGE_SIZE = 100;
 
-/** `YYYY-MM-DD` from a date input, as the UTC midnight the rest of the app uses. */
-function parseDay(raw: string | undefined): Date | null {
-  return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00.000Z`) : null;
-}
 
 const ENTITIES = [
   'patient',
@@ -122,8 +119,8 @@ export default async function ActivityPage({
   const tc = await getTranslations('common');
   const format = await getFormatter();
 
-  const fromDay = parseDay(from);
-  const toDay = parseDay(to);
+  const fromDay = parseDateKey(from);
+  const toDay = parseDateKey(to);
 
   // Everyone who has ever written to the trail, not only the people still
   // working here. Filtering an audit log by actor is most useful about somebody

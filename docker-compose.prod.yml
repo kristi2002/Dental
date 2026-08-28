@@ -154,9 +154,11 @@ services:
       REMINDERS_SCHEDULE: ${REMINDERS_SCHEDULE:-0 18 * * *}
       # And again at seven the next morning, because the evening run cannot see
       # an evening booking — a slot taken at half past six for nine tomorrow was
-      # never queued at all. Free to repeat: every row the job writes carries a
-      # unique dedupe key, so the second run collides and skips rather than
-      # sending anybody two of anything.
+      # never queued at all. The job reads today as well as tomorrow, which is
+      # what lets this run catch that slot; the window is decided in
+      # `src/lib/messages/queue.ts`, not here. Free to repeat: every row the job
+      # writes carries a unique dedupe key, so the second run collides and skips
+      # rather than sending anybody two of anything.
       REMINDERS_MORNING_SCHEDULE: ${REMINDERS_MORNING_SCHEDULE:-0 7 * * *}
       # Monday morning, once a week. A recall is urgent over a season rather than
       # on any particular day, and a queue refilled nightly is read as noise.

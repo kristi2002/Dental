@@ -15,9 +15,9 @@ import { localeLabels, locales } from '@/i18n/routing';
  * understand.
  *
  * So each language gets a sentence about who actually speaks it here and what
- * that means in the chair. The flags are the drawn ones the language menu uses —
- * see `Flag` for why they are inline SVG rather than emoji, which is a Windows
- * story with a bad ending.
+ * that means in the chair. The flags are the same ones the language menu uses —
+ * see `Flag` for why they are files served from this origin rather than emoji,
+ * which is a Windows story with a bad ending.
  *
  * The list is `locales`, so a fourth language added to the routing config gets a
  * card here rather than being missed. Its sentence would be missing, which
@@ -50,9 +50,10 @@ export async function Languages() {
                   flexbox: a flex item's default `align-self: stretch` had the
                   flag's box running the full width of the card with the artwork
                   squeezed against the left edge of it. The height is set once
-                  here because `Flag` sizes its artwork from the box — three
-                  flags of different proportions would otherwise arrive at three
-                  different sizes. */}
+                  here because `Flag` sizes its artwork from the box. The three
+                  files are all normalised to one ratio, so a single height is
+                  all it takes — see `RATIO` in `Flag` for what that costs each
+                  flag. */}
               <Flag locale={locale} className="h-8 self-start" />
 
               <div>

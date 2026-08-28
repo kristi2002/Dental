@@ -8,6 +8,7 @@ import {
   dedupeKey,
   noteKey,
   recallCycle,
+  reminderWindow,
   SENT_NOTES,
   shouldQueueRecall,
   shouldQueueReminder,
@@ -342,5 +343,55 @@ describe('recallCycle — one row per patient per cycle', () => {
 
     assert.equal(august, laterAugust);
     assert.notEqual(august, september);
+  });
+});
+
+/**
+ * The window, and the overnight rollover that used to fall through it.
+ *
+ * The reminder job is fired twice a day so the morning run can catch a slot
+ * booked after the evening one read the diary. That only works if the window
+ * starts at *today*: `today()` rolls over overnight, so a window of `today() + 1`
+ * alone has Monday's two runs both covering Tuesday and Tuesday's two both
+ * covering Wednesday — and the booking made at half past six on Monday for nine
+ * on Tuesday is read by neither.
+ *
+ * `stillWorthSending` is what keeps the near edge honest, and it is already
+ * covered above; these are about the edge itself.
+ */
+describe('outbox — the reminder window', () => {
+  const monday = new Date(Date.UTC(2026, 7, 31));
+  const tuesday = new Date(Date.UTC(2026, 8, 1));
+
+  it('starts at today, so the morning run looks at the day in front of it', () => {
+    const { from } = reminderWindow(monday);
+    assert.equal(
+      from.getTime(),
+      monday.getTime(),
+      'the window must include today, or a slot booked late yesterday is queued by nobody',
+    );
+  });
+
+  it('reaches tomorrow and no further', () => {
+    const { to } = reminderWindow(monday);
+    assert.equal(to.getTime(), tuesday.getTime());
+  });
+
+  /**
+   * The regression, stated as the thing that was actually broken: consecutive
+   * runs either side of midnight have to overlap on the day between them.
+   */
+  it('overlaps across the rollover, so no day is covered by only one calendar day of runs', () => {
+    const monEvening = reminderWindow(monday);
+    const tueMorning = reminderWindow(tuesday);
+
+    const covers = (window: { from: Date; to: Date }, day: Date) =>
+      window.from.getTime() <= day.getTime() && day.getTime() <= window.to.getTime();
+
+    assert.ok(covers(monEvening, tuesday), "Monday's run must cover Tuesday");
+    assert.ok(
+      covers(tueMorning, tuesday),
+      "Tuesday's morning run must still cover Tuesday — that is the whole point of the second trigger",
+    );
   });
 });

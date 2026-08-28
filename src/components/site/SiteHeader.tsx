@@ -1,5 +1,5 @@
-import { ArrowRight, Phone } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import { BookCta } from '@/components/site/BookCta';
 import { ClinicLogo } from '@/components/brand/ClinicLogo';
 import { LocaleMenu } from '@/components/site/LocaleMenu';
 import { SiteMenu } from '@/components/site/SiteMenu';
@@ -125,39 +125,27 @@ export async function SiteHeader({ contact }: { contact: SiteContact }) {
             </Link>
 
             <div className="flex min-w-0 flex-1 flex-col justify-center">
-              {/*
-               * The utility row. It collapses to nothing as the bar condenses —
-               * `height` and `opacity` both come from the same animation — which
-               * is why the language menu is *not* in here: a control a reader
-               * cannot reach any other way must not be able to scroll away.
-               *
-               * Only from `sm`. On a 390px screen the telephone number would be
-               * competing with the lockup for a width that has none to give, and
-               * the hero's own call button is a thumb's width below it.
-               */}
-              <div className="masthead-util hidden items-center justify-end gap-6 sm:flex">
-                {contact.telHref ? (
-                  <a
-                    href={contact.telHref}
-                    className="inline-flex items-center gap-2 text-[0.82rem] font-semibold whitespace-nowrap text-navy-ink no-underline transition-colors hover:text-white focus-visible:outline-white"
-                  >
-                    <Phone size={13} aria-hidden className="text-gilt" />
-                    <span className="sr-only">{t('visit.callLabel')}</span>
-                    {contact.phone}
-                  </a>
-                ) : null}
-              </div>
-
               {/* The hairline between the tiers. It begins where the plaque ends
                   — it is inside this column, not across the bar — which is what
                   makes the lockup read as set *into* the rule rather than
                   sitting on top of one that runs behind it. */}
-              <div aria-hidden className="masthead-rule hidden lg:block" />
+              <div aria-hidden className="masthead-rule hidden xl:block" />
 
-              {/* Four routes rather than four fragments, and the current one is
-                  lit — which is why this one row is a client component. See
-                  `SiteNav`; everything else in this bar is server-rendered. */}
-              <nav aria-label={t('nav.sections')} className="masthead-nav hidden lg:block">
+              {/*
+               * Four routes rather than four fragments, and the current one is
+               * lit — which is why this one row is a client component. See
+               * `SiteNav`; everything else in this bar is server-rendered.
+               *
+               * **`xl` and not `lg`, since the fourth route arrived.** The bar
+               * has to hold the plaque, four labels, the language menu and the
+               * booking pill on one line, and at 1024 it cannot: with three
+               * labels it just fitted, and with four they first wrapped to two
+               * lines each and then — once `SiteNav` stopped them wrapping —
+               * slid underneath the language control. Between 1024 and 1280 the
+               * menu button below takes over, which is a list with room for as
+               * many routes as the site grows.
+               */}
+              <nav aria-label={t('nav.sections')} className="masthead-nav hidden xl:block">
                 <SiteNav />
               </nav>
             </div>
@@ -169,26 +157,16 @@ export async function SiteHeader({ contact }: { contact: SiteContact }) {
             <div className="flex shrink-0 items-center gap-2.5 lg:pl-6">
               <LocaleMenu />
 
-              {/* Gone on the narrowest screens, and not reluctantly. The lockup,
-                  the language menu and this came to more than a 390px viewport
-                  has to give, which put the whole page into a sideways scroll —
-                  and the thing being scrolled off was a duplicate: the hero's
-                  own "book a visit" is a thumb's width below it on a phone.
+              {/* A client component of its own, and it is the smallest one on
+                  this page for a specific reason: the pill points at `/book`,
+                  which is a route now rather than the `#request` fragment a
+                  drawer used to intercept — so it has to know when the reader is
+                  already there, and knowing that means reading the path. See
+                  `BookCta`. Everything else in this masthead stays on the
+                  server. */}
+              <BookCta />
 
-                  `/visit#request` rather than the bare fragment it carried while
-                  the form was on the only page there was: written this way it
-                  works from every route with no JavaScript, and `BookDrawer`
-                  still catches it and opens the panel in place. */}
-              <Link href="/visit#request" className="masthead-cta group hidden sm:inline-flex">
-                {t('nav.book')}
-                <ArrowRight
-                  size={15}
-                  aria-hidden
-                  className="transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
-                />
-              </Link>
-
-              {/* The four section links are `hidden lg:block`, so below that
+              {/* The four section links are `hidden xl:block`, so below that
                   width this is the only way to the rest of the site. */}
               <SiteMenu contact={contact} />
             </div>

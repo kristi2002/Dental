@@ -40,9 +40,27 @@ import { cn } from '@/lib/utils';
  * the body would allocate a new function — and hand the `<ul>` a new prop — on
  * every render, for no gain.
  */
-function onPointerMove(event: PointerEvent<HTMLUListElement>) {
-  const card = (event.target as HTMLElement).closest('li');
-  if (!card) return;
+/**
+ * Exported because one grid on this site cannot be a `GlowGrid`.
+ *
+ * The photo wall's `<ul>` is a `role="tabpanel"` with an `id`, an
+ * `aria-labelledby` and a `key` that remounts it on every filter change — none
+ * of which this component forwards, and all of which are load-bearing there. It
+ * is already a client component, so it takes the listener directly rather than
+ * growing this one a pass-through for four attributes.
+ */
+export function trackPointer(event: PointerEvent<HTMLElement>) {
+  onPointerMove(event);
+}
+
+function onPointerMove(event: PointerEvent<HTMLElement>) {
+  // `li` was the only selector for as long as this served one grid of cards.
+  // The glass panels elsewhere on the site want the same two numbers and are not
+  // always list items — a pair of figures, a row of stats — so anything marked
+  // `data-tilt` opts in. `li` stays first so the treatment grid keeps matching
+  // on the cheapest possible check.
+  const card = (event.target as HTMLElement).closest('li, [data-tilt]');
+  if (!card || !(card instanceof HTMLElement)) return;
 
   const box = card.getBoundingClientRect();
   const x = event.clientX - box.left;
@@ -63,10 +81,27 @@ function onPointerMove(event: PointerEvent<HTMLUListElement>) {
   card.style.setProperty('--tilt-y', `${(y / box.height) * 2 - 1}`);
 }
 
-export function GlowGrid({ children, className }: { children: ReactNode; className?: string }) {
+/**
+ * `as` exists because not every group of tilting things is a list.
+ *
+ * The treatment grid is eleven `<li>` and always will be. The sections that
+ * borrowed this afterwards are a pair of figures and a row of statistics, and
+ * wrapping those in a `<ul>` to get a pointer listener would be inventing a list
+ * for a stylesheet's benefit — which a screen reader then announces as "list,
+ * two items" over something that is not one.
+ */
+export function GlowGrid({
+  children,
+  className,
+  as: Tag = 'ul',
+}: {
+  children: ReactNode;
+  className?: string;
+  as?: 'ul' | 'ol' | 'div' | 'dl';
+}) {
   return (
-    <ul className={cn(className)} onPointerMove={onPointerMove}>
+    <Tag className={cn(className)} onPointerMove={onPointerMove}>
       {children}
-    </ul>
+    </Tag>
   );
 }

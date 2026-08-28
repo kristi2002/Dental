@@ -19,13 +19,14 @@
     },
     "nav": {
       "treatments": "Trattamenti",
+      "toggleTreatments": "Mostra i trattamenti",
       "practice": "Lo studio",
       "visit": "Dove siamo",
+      "abroad": "Dall'estero",
       "book": "Prenota una visita",
       "sections": "Sezioni della pagina",
       "skipToContent": "Vai al contenuto",
-      "staffSignIn": "Accesso staff",
-      "gallery": "La clinica"
+      "staffSignIn": "Accesso staff"
     },
     "pages": {
       "breadcrumb": "Percorso di navigazione",
@@ -39,9 +40,9 @@
       },
       "treatments": {
         "metaTitle": "Trattamenti a Valona",
-        "metaDescription": "Tutti i trattamenti del nostro studio a Valona — controlli, otturazioni, devitalizzazioni, corone, impianti, estrazioni, ortodonzia e sbiancamento — con quante sedute servono e quanti giorni vi trattengono qui.",
-        "title": "Otto trattamenti, e cosa chiede ciascuno.",
-        "lede": "Gli stessi otto elencati in prima pagina, con la parte che in una scheda non ci stava: cosa succede davvero, quante sedute servono e quanti giorni vi trattengono a Valona.",
+        "metaDescription": "Tutti i trattamenti del nostro studio a Valona — controlli, otturazioni, devitalizzazioni, corone, faccette, estrazioni, chirurgia orale, impianti, protesi, ortodonzia e sbiancamento — con quante sedute servono e quanti giorni vi trattengono qui.",
+        "title": "{count} trattamenti, e cosa chiede ciascuno.",
+        "lede": "Gli stessi {count} elencati in prima pagina, con la parte che in una scheda non ci stava: cosa succede davvero, quante sedute servono e quanti giorni vi trattengono a Valona.",
         "indexLabel": "Vai a un trattamento",
         "ask": "Chiedeteci di questo",
         "detail": {
@@ -49,15 +50,18 @@
           "fillings": "La parte cariata viene rimossa e il dente ricostruito in composito nella tonalità del vostro smalto, strato per strato, e indurito con la lampada. Si fa in anestesia locale e potete mangiare appena uscite. Un dente curato per tempo è un'otturazione; lo stesso dente lasciato lì diventa una devitalizzazione.",
           "rootCanal": "Quando la carie arriva al nervo il dente non è perso: i canali vengono puliti, sagomati e sigillati fino all'apice della radice. Si fa in anestesia ed è il trattamento che ferma il dolore, non quello che lo provoca. Un dente posteriore di solito viene poi incapsulato, perché quello che ne resta è più sottile di prima.",
           "crowns": "La corona si realizza in laboratorio da un'impronta o da una scansione e copre quello che resta del dente. Si prova prima di cementarla, e il colore si sceglie accanto ai denti vicini, non su un catalogo. Il ponte è lo stesso lavoro che porta un dente finto sopra uno spazio vuoto.",
-          "implants": "Una radice in titanio viene inserita dove mancava quella vecchia e poi lasciata in pace mentre l'osso le cresce intorno: questa è l'attesa, ed è la parte che nessuno studio può accorciare. Mesi dopo si mette la corona. È l'unico trattamento qui che sostituisce anche la radice, ed è per questo che i denti ai lati dello spazio restano intatti.",
+          "veneers": "Uno strato di porcellana spesso quanto un’unghia, realizzato in laboratorio e incollato sulla faccia anteriore del dente. Si usa quando il colore non torna con lo sbiancamento, oppure quando un dente è piccolo, consumato o scheggiato. Di smalto se ne toglie pochissimo, e in certi casi nulla — ma quello che si toglie non ricresce, quindi quale dei due casi sia il vostro ve lo diciamo prima che il lavoro inizi, non dopo.",
           "extraction": "A volte non c'è più niente da salvare, e un dente del giudizio è più spesso d'intralcio che malato. Si fa in anestesia locale, e conta quanto l'estrazione stessa quello che fate nei due giorni successivi — che vi diamo per iscritto, non detto sulla porta.",
+          "oralSurgery": "Il lavoro chirurgico che richiede più di una semplice estrazione: denti del giudizio ancora sotto la gengiva o dentro l’osso, radici fratturate, e l’aggiunta di osso quando quello che c’è non regge un impianto. Si esegue in anestesia locale e si pianifica prima su una radiografia, non strada facendo. Uscite con le istruzioni per iscritto e un controllo già fissato.",
+          "implants": "Una radice in titanio viene inserita dove mancava quella vecchia e poi lasciata in pace mentre l'osso le cresce intorno: questa è l'attesa, ed è la parte che nessuno studio può accorciare. Mesi dopo si mette la corona. È l'unico trattamento qui che sostituisce anche la radice, ed è per questo che i denti ai lati dello spazio restano intatti.",
+          "dentures": "Quando mancano troppi denti per un ponte, la protesi li sostituisce appoggiandosi alle gengive o ai denti rimasti. Si costruisce per tappe — impronta, morso, prova in cera, poi quella definitiva — e la prova in cera serve proprio a farvi vedere e cambiare forma e colore quando ancora nulla è stato tagliato. Richiede più sedute di qualsiasi altro trattamento in questa pagina, e le prime settimane sono pratica: parlare e mangiare con la protesi è un’abitudine che arriva.",
           "orthodontics": "Apparecchio fisso o allineatori trasparenti, a seconda di quanto devono spostarsi i denti e di cosa siete disposti a portare nel frattempo. Il piano lo vedete prima che venga applicato il primo attacco. È l'unico trattamento qui che si misura in mesi e non in giorni, e la maggior parte di quei mesi si passa a casa, non alla poltrona.",
           "whitening": "In studio in una seduta, oppure con mascherine fatte su misura da usare a casa per una o due settimane. Solleva il colore dallo smalto e non ne toglie niente. Corone e otturazioni non cambiano tonalità, quindi quello che sta davanti si abbina dopo, non prima."
         }
       },
       "practice": {
         "metaTitle": "Lo studio",
-        "metaDescription": "Lo studio del Dr. Votim Shehu a Valona: come si svolge la prima visita, come si tengono le cartelle, come si sterilizzano gli strumenti e le tre lingue in cui si lavora.",
+        "metaDescription": "Lo studio del Dr. Votim Shehu a Valona: come si svolge la prima visita, le sale e l’attrezzatura in fotografia, come si tengono le cartelle e le tre lingue in cui si lavora.",
         "title": "Uno studio che mette tutto per iscritto.",
         "lede": "Chi fa il lavoro, cosa succede nella prima ora, e le due cose vere per ogni appuntamento qui, qualunque sia il motivo per cui siete venuti.",
         "first": {
@@ -94,25 +98,55 @@
           "it": "Un volo breve dall'altra sponda dell'Adriatico, e buona parte dei nostri pazienti lo fa."
         }
       },
-      "place": {
-        "metaTitle": "La clinica",
-        "metaDescription": "Le sale, l'attrezzatura e le persone del nostro studio dentistico a Valona, in fotografia — e uno sguardo a cosa cambia davvero uno sbiancamento.",
-        "title": "Date un'occhiata da vicino.",
-        "lede": "Le sale in cui vi sedereste, l'attrezzatura che verrebbe usata e le persone che la usano. Filtrate, se preferite vedere una cosa piuttosto che l'altra.",
-        "filterLabel": "Quali fotografie mostrare",
-        "filters": {
-          "all": "Tutto",
-          "rooms": "Le sale",
-          "people": "Le persone",
-          "care": "Le cure"
-        },
-        "count": "{count, plural, =0 {Nessuna fotografia} one {# fotografia} other {# fotografie}}"
-      },
       "visit": {
         "metaTitle": "Dove siamo, a Valona",
-        "metaDescription": "Orari, indirizzo, telefono e WhatsApp del nostro studio dentistico in Rruga e Re a Valona — e come raggiungere la città in aereo, in traghetto e su strada.",
+        "metaDescription": "Orari, indirizzo, telefono e WhatsApp del nostro studio dentistico in Rruga e Re a Valona, e dove trovarci sulla mappa.",
         "title": "Venite a trovarci.",
-        "lede": "Quando siamo aperti, come raggiungerci, e un modulo che vi mette in lista per una chiamata. Non fissa l'appuntamento: giorno e ora li decidiamo al telefono.",
+        "lede": "Com'è lo studio, quando è aperto e dove si trova esattamente. Quando volete fissare un giorno, le prenotazioni hanno una pagina tutta loro.",
+        "fromAbroad": "Arrivate dall'Italia, dal Regno Unito o da più lontano? Come si raggiunge Valona, quanto vi tiene qui ogni trattamento e che cosa succede una volta tornati a casa hanno una pagina tutta loro.",
+        "clinic": {
+          "eyebrow": "Perché qui",
+          "title": "Perché vale il viaggio.",
+          "lede": "Quattro cose vere per ogni appuntamento in questo studio, che abitiate due strade più in là o siate atterrati stamattina.",
+          "plan": {
+            "title": "Il piano e il prezzo, per iscritto",
+            "body": "Dalla prima visita uscite sapendo cosa si farà, quante sedute servono e quanto costa. E non cambia in corsa senza che ve lo si dica."
+          },
+          "languages": {
+            "title": "Albanese, italiano, inglese",
+            "body": "Il trattamento vi viene spiegato nella lingua in cui pensate. Niente interprete e niente cenni di assenso tanto per fare — cosa che conta soprattutto nella seduta in cui vi si chiede di decidere qualcosa."
+          },
+          "record": {
+            "title": "Una cartella elettronica, dente per dente",
+            "body": "La cartella è tenuta per ogni dente, così quello che si è trovato l'anno scorso è sullo schermo anche quest'anno. Se vi curate qui in due viaggi, il secondo riparte da dove si è fermato il primo."
+          },
+          "clean": {
+            "title": "Sterilizzazione fra un paziente e l'altro",
+            "body": "Gli strumenti vengono puliti, imbustati e sterilizzati dopo ogni uso, e il monouso è monouso davvero. È il minimo, non un pregio — ma è la domanda che per educazione nessuno fa."
+          }
+        },
+        "hours": {
+          "eyebrow": "Orari",
+          "title": "La settimana, come apre davvero.",
+          "lede": "Queste sette righe sono gli orari dello studio, presi dallo stesso posto da cui li legge l'agenda degli appuntamenti. Se cambiano gli orari, questa pagina è già cambiata.",
+          "caption": "Orari di apertura, da lunedì a domenica",
+          "note": "Aperto non vuol dire libero. Gli orari qui sono quando c'è qualcuno alla reception; quali di quelle ore siano ancora libere lo chiede la pagina di prenotazione.",
+          "breakNote": "Dove un giorno mostra due fasce, in mezzo lo studio chiude per pranzo."
+        },
+        "map": {
+          "eyebrow": "Sulla mappa",
+          "title": "Dove dire al taxi di andare.",
+          "lede": "Rruga e Re attraversa il centro di Valona. Il segnaposto qui sotto è la porta; i pulsanti accanto passano lo stesso indirizzo a quello che usate per navigare.",
+          "directions": "Ottieni indicazioni",
+          "privacy": "La mappa è servita da Google, quindi caricare questa sezione dice a Google che siete passati di qui. Tutto il resto del sito arriva soltanto da noi — se preferite tenerlo così, i due link qui sopra fanno lo stesso lavoro e raggiungono Google solo se li premete.",
+          "frameTitle": "Mappa con {clinic} in Rruga e Re, Valona"
+        }
+      },
+      "abroad": {
+        "metaTitle": "Dall'estero",
+        "metaDescription": "Cure dentali a Valona per chi arriva dall'Italia, dal Regno Unito e da più lontano: quante sedute e quanti giorni richiede ogni trattamento, le tre vie per raggiungere la città, e che cosa succede una volta tornati a casa.",
+        "title": "Il viaggio, e quello che viene dopo.",
+        "lede": "Quante sedute richiede ogni trattamento e quanti giorni vi tiene qui, le tre vie per arrivare a Valona, e che cosa fa lo studio una volta che siete tornati a casa.",
         "getting": {
           "title": "Tre modi per arrivare a Valona.",
           "lede": "Buona parte delle persone che si siedono su questa poltrona non ha iniziato la giornata in Albania. Diteci come viaggiate e quando arrivate, e gli appuntamenti li adattiamo al viaggio, non il contrario.",
@@ -129,6 +163,201 @@
             "body": "Valona è sulla strada costiera, e i pazienti arrivano in auto da Tirana, da sud e dal confine greco. Se fate molta strada per una prima visita, scriveteci prima di partire e non dopo."
           },
           "bayCaption": "Valona si affaccia sulla baia. È l'unica fotografia di questo sito scattata davvero qui, ed è per questo che compare dove si parla del viaggio e non come decorazione."
+        },
+        "city": {
+          "eyebrow": "La città",
+          "title": "Valona, se non ci siete mai stati.",
+          "lede": "Un porto di lavoro sulla costa albanese, e la città in cui questo studio è sempre stato. Chi arriva in aereo di solito si ferma qualche giorno invece di ripartire subito.",
+          "seas": {
+            "title": "Dove si incontrano due mari",
+            "body": "Valona sta nel punto in cui l'Adriatico lascia il posto allo Ionio. È il motivo per cui l'acqua cambia colore a metà baia, e per cui la costa a sud della città non somiglia per niente a quella a nord."
+          },
+          "history": {
+            "title": "Dove è cominciato il paese",
+            "body": "L'Albania ha dichiarato qui la propria indipendenza, nel 1912, e la città ha la bandiera, la piazza e il museo per dirlo. Se avete un pomeriggio fra un appuntamento e l'altro, il centro storico e il lungomare stanno a due passi l'uno dall'altro."
+          },
+          "riviera": {
+            "title": "La Riviera comincia sopra la città",
+            "body": "La strada costiera sale da Valona e scavalca il passo: le spiagge che si intendono quando si dice Riviera albanese stanno dall'altra parte. È il tratto che vale una giornata libera, se ne avete una."
+          },
+          "note": "Niente di tutto questo è il motivo per cui si sceglie un dentista, e non ve lo raccontiamo come se lo fosse. Sta qui perché una prima visita all'estero è un viaggio oltre che una cura, ed è giusto sapere che posto sia."
+        }
+      },
+      "book": {
+        "metaTitle": "Prenota una visita a Valona",
+        "metaDescription": "Scegliete un giorno dal nostro calendario — i giorni che mostra sono quelli in cui lo studio è davvero aperto — lasciate il numero di telefono e vi richiamiamo negli orari di apertura per concordare l’ora.",
+        "title": "Diteci quando vi va bene.",
+        "lede": "Il calendario di questa pagina è la nostra settimana, letta dalle stesse righe con cui è gestito lo studio. Scegliere un giorno non prenota nulla: è l’argomento della telefonata con cui vi richiamiamo."
+      },
+      "treatment": {
+        "stepsTitle": "Come si svolge",
+        "stepsLede": "I tre passaggi che ha ogni trattamento qui: cosa si guarda prima, cosa succede in poltrona, e con cosa uscite.",
+        "timingTitle": "Quanto tempo richiede",
+        "timingLede": "Sedute, giorni a Valona, e mesi dall’inizio alla fine.",
+        "concernsTitle": "Di solito si arriva qui quando:",
+        "relatedTitle": "Di solito insieme a questo",
+        "relatedLede": "Non un elenco di vendita — ciò che più spesso accompagna questo trattamento, o l’altra risposta onesta allo stesso problema.",
+        "backToAll": "Tutti i trattamenti",
+        "prev": "Trattamento precedente",
+        "next": "Trattamento successivo",
+        "more": "Per saperne di più",
+        "lookTitle": "Dove si svolge",
+        "lookLede": "La poltrona, gli strumenti, il banco dietro di loro e le persone che li usano: la parte di un trattamento che un paragrafo non può mostrarvi.",
+        "steps": {
+          "checkup": {
+            "one": {
+              "title": "L’esame",
+              "body": "Ogni dente, le gengive intorno, e una radiografia dove qualcosa non si vede dall’esterno."
+            },
+            "two": {
+              "title": "L’igiene",
+              "body": "Tartaro e macchie vanno via con gli ultrasuoni, anche dove lo spazzolino non arriva."
+            },
+            "three": {
+              "title": "Il piano",
+              "body": "Uscite con l’ordine dei lavori: cosa ora, cosa può aspettare, e cosa si tiene solo sotto controllo."
+            }
+          },
+          "fillings": {
+            "one": {
+              "title": "L’anestesia",
+              "body": "Solo il dente da trattare, e si aspetta finché non sentite più nulla."
+            },
+            "two": {
+              "title": "La rimozione della carie",
+              "body": "Tutta la parte colpita viene via; quello che resta sotto è dente sano."
+            },
+            "three": {
+              "title": "La ricostruzione",
+              "body": "Il composito va a strati nel colore del vostro smalto e si polimerizza. Potete mangiare appena usciti."
+            }
+          },
+          "rootCanal": {
+            "one": {
+              "title": "La diagnosi",
+              "body": "La radiografia mostra fin dove è arrivata l’infezione e quanti canali ha il dente."
+            },
+            "two": {
+              "title": "La pulizia dei canali",
+              "body": "In anestesia. I canali si puliscono, si sagomano e si chiudono fino all’apice della radice."
+            },
+            "three": {
+              "title": "La copertura",
+              "body": "Il dente si sigilla, e su un molare di solito segue una corona."
+            }
+          },
+          "crowns": {
+            "one": {
+              "title": "La preparazione",
+              "body": "Il dente si prepara e si prende un’impronta o una scansione; uscite con una corona provvisoria."
+            },
+            "two": {
+              "title": "Il laboratorio",
+              "body": "La corona si realizza in porcellana o zirconio, e il colore si sceglie accanto ai denti vicini."
+            },
+            "three": {
+              "title": "Prova e cementazione",
+              "body": "Si prova prima di cementarla. Se il morso o il colore non convincono, torna in laboratorio."
+            }
+          },
+          "veneers": {
+            "one": {
+              "title": "L’accordo sulla forma",
+              "body": "Colore e forma si decidono insieme, e quanto smalto verrà tolto si dice prima."
+            },
+            "two": {
+              "title": "Impronta e laboratorio",
+              "body": "Le faccette si realizzano in porcellana sulla vostra impronta, non su un guscio standard."
+            },
+            "three": {
+              "title": "L’applicazione",
+              "body": "Si provano una alla volta, poi si incollano. Da quel giorno masticate normalmente."
+            }
+          },
+          "extraction": {
+            "one": {
+              "title": "La radiografia",
+              "body": "La radice e ciò che le sta intorno si vedono prima di toccare qualsiasi cosa."
+            },
+            "two": {
+              "title": "L’estrazione",
+              "body": "In anestesia locale. Sentite pressione, non dolore; se sentite dolore, ci si ferma."
+            },
+            "three": {
+              "title": "I primi due giorni",
+              "body": "Le istruzioni arrivano per iscritto, e un numero da chiamare se qualcosa non va."
+            }
+          },
+          "oralSurgery": {
+            "one": {
+              "title": "La pianificazione",
+              "body": "La radiografia mostra dov’è il dente o quanto osso c’è, e l’intervento si decide prima di iniziare."
+            },
+            "two": {
+              "title": "L’intervento",
+              "body": "Anestesia locale, un appuntamento. Dura più di una semplice estrazione, non peggio."
+            },
+            "three": {
+              "title": "Il controllo",
+              "body": "Punti e guarigione si rivedono a un appuntamento fissato prima che usciate."
+            }
+          },
+          "implants": {
+            "one": {
+              "title": "L’osso lo regge?",
+              "body": "La radiografia dice quanto osso c’è. Se non basta, prima si aggiunge."
+            },
+            "two": {
+              "title": "L’inserimento",
+              "body": "La radice in titanio si inserisce in anestesia locale, poi si dà tempo all’osso."
+            },
+            "three": {
+              "title": "La corona",
+              "body": "Dopo tre-sei mesi arriva la corona sopra. È la seconda visita, di solito il secondo viaggio."
+            }
+          },
+          "dentures": {
+            "one": {
+              "title": "Impronta e morso",
+              "body": "Si registrano la forma delle gengive e il modo in cui le arcate si chiudono."
+            },
+            "two": {
+              "title": "La prova in cera",
+              "body": "La vedete e la provate prima che sia definitiva. Le modifiche si fanno qui."
+            },
+            "three": {
+              "title": "Consegna e ritocchi",
+              "body": "Si consegna e si ritocca dopo la prima settimana; i punti che premono sono previsti, non una sorpresa."
+            }
+          },
+          "orthodontics": {
+            "one": {
+              "title": "Il piano",
+              "body": "Impronte, foto e radiografia, poi la strada che faranno i denti — prima che si attacchi il primo attacco."
+            },
+            "two": {
+              "title": "Il movimento",
+              "body": "Apparecchio fisso o allineatori, con un controllo ogni poche settimane. La maggior parte passa lontano dalla poltrona."
+            },
+            "three": {
+              "title": "La contenzione",
+              "body": "Finito il percorso, è la contenzione a tenerli lì. Senza, tornano lentamente indietro."
+            }
+          },
+          "whitening": {
+            "one": {
+              "title": "Il controllo prima",
+              "body": "Non si sbianca sopra carie o gengive infiammate; quelle si sistemano per prime."
+            },
+            "two": {
+              "title": "Lo sbiancamento",
+              "body": "In studio in una sola seduta, oppure con mascherine fatte su misura da portare a casa."
+            },
+            "three": {
+              "title": "Mantenerlo",
+              "body": "Il nuovo colore si misura e si annota. Corone e otturazioni non sbiancano, quindi si adeguano dopo."
+            }
+          }
         }
       }
     },
@@ -137,7 +366,7 @@
       "titleLead": "Il tuo sorriso,",
       "titleTurn": "in mani sicure.",
       "lede": "Cure dentali complete a Valona: diagnosi precisa, piano di trattamento scritto e prezzo concordato già alla prima visita.",
-      "ledeShort": "Dalla prima visita conoscete già il piano e il prezzo.",
+      "ledeShort": "“Abbi cura dei tuoi denti, e loro avranno cura di te.”",
       "book": "Prenota una visita",
       "ratingSource": "Valutazione su Google",
       "ratingCount": "Oltre 29 recensioni"
@@ -151,6 +380,7 @@
       "seeWeek": "Vedi gli orari della settimana"
     },
     "treatments": {
+      "eyebrow": "Cosa facciamo",
       "title": "Il lavoro mostrato, non nascosto.",
       "lede": "Dal prossimo controllo all'impianto. Per ognuno vi diciamo quante sedute servono e quanto costa — prima di cominciare, non alla fine.",
       "checkup": {
@@ -169,13 +399,25 @@
         "title": "Corone e ponti",
         "body": "Quando del dente resta poco, la corona copre ciò che rimane. Costruita in laboratorio e provata prima di essere cementata."
       },
-      "implants": {
-        "title": "Impianti",
-        "body": "Una radice in titanio al posto di quella che manca, e sopra una corona. La cosa più vicina al dente che avevate."
+      "veneers": {
+        "title": "Faccette",
+        "body": "Sottili gusci di porcellana sulla parte visibile del dente. Forma e colore cambiano; il dente sotto resta."
       },
       "extraction": {
         "title": "Estrazioni",
         "body": "Quando non c'è più nulla da salvare, denti del giudizio compresi. In anestesia, con istruzioni chiare per il dopo."
+      },
+      "oralSurgery": {
+        "title": "Chirurgia orale",
+        "body": "Denti ancora nell’osso, radici fratturate e l’osso che serve prima di un impianto. Anestesia locale, un appuntamento."
+      },
+      "implants": {
+        "title": "Impianti",
+        "body": "Una radice in titanio al posto di quella che manca, e sopra una corona. La cosa più vicina al dente che avevate."
+      },
+      "dentures": {
+        "title": "Protesi mobile",
+        "body": "Protesi totale o parziale quando mancano troppi denti per un ponte. Si prova in cera prima che nulla sia definitivo."
       },
       "orthodontics": {
         "title": "Ortodonzia",
@@ -187,6 +429,7 @@
       }
     },
     "concerns": {
+      "eyebrow": "Da dove iniziare",
       "title": "Cosa vi porta da noi?",
       "usually": "Di solito:",
       "ask": "Chiedeteci di questo",
@@ -218,6 +461,7 @@
       "hint": "Sei motivi per cui la gente viene da noi. Scegliete quello che vi somiglia."
     },
     "practice": {
+      "eyebrow": "Lo studio",
       "dentist": "Dr. Votim Shehu",
       "dentistRole": "Odontoiatra · fondatore dello studio",
       "bodyOne": "Lo studio segue una regola semplice: nessuno esce dalla porta senza sapere cosa gli verrà fatto, quante sedute servono e quanto costa. Il piano ve lo diamo per iscritto, e non cambia strada facendo senza dirvelo.",
@@ -233,6 +477,7 @@
       }
     },
     "how": {
+      "eyebrow": "Come lavoriamo",
       "title": "Come si lavora qui.",
       "lede": "Due cose vere per ogni appuntamento, qualunque sia il motivo per cui siete venuti.",
       "record": {
@@ -246,6 +491,7 @@
       "illustrative": "Fotografie illustrative. Le fotografie dello studio arrivano a breve."
     },
     "visit": {
+      "eyebrow": "Dove siamo",
       "title": "Rruga e Re, Valona.",
       "hoursTitle": "Orari",
       "closed": "Chiuso",
@@ -258,9 +504,14 @@
       "todayLabel": "Oggi",
       "callLabel": "Telefono",
       "whatsappLabel": "WhatsApp",
-      "whatsappValue": "Scriveteci"
+      "whatsappValue": "Scriveteci",
+      "bookEyebrow": "Prenota",
+      "bookTitle": "Scegliete un giorno, vi richiamiamo noi.",
+      "bookBody": "Il nostro calendario è sulla pagina di prenotazione: i giorni che propone sono quelli in cui lo studio è aperto. Sceglietene uno, lasciate un numero, e l’ora la concordiamo al telefono.",
+      "bookOrCall": "Oppure telefonate allo"
     },
     "trip": {
+      "eyebrow": "Organizzare il viaggio",
       "title": "Quanti giorni vi tratterrebbe qui?",
       "lede": "Segnate di cosa si tratta e vi mostriamo quante sedute servono, quanti giorni vi trattengono a Valona e se è un viaggio o due.",
       "pick": "Di cosa si tratta?",
@@ -273,11 +524,36 @@
       "ask": "Chiedeteci di questo",
       "caveat": "Un’indicazione, non un preventivo. Quello che serve davvero dipende dalla visita — e il piano, quante sedute, quanto tempo e quanto costa, ve lo diamo per iscritto alla prima visita.",
       "fromPrice": "Da {amount}",
-      "pricesReviewed": "Prezzi verificati il {date}. La cifra concordata alla prima visita è quella che conta."
+      "pricesReviewed": "Prezzi verificati il {date}. La cifra concordata alla prima visita è quella che conta.",
+      "tripsLabel": "Viaggi",
+      "clear": "Cancella tutto"
+    },
+    "aftercare": {
+      "eyebrow": "Dopo il trattamento",
+      "title": "E quando siete tornati a casa.",
+      "lede": "È la domanda che decide se prenotare o no, ed è quella che di solito un sito omette. Qui non c'è nulla promesso per l'occasione: è quello che lo studio già fa, messo per iscritto.",
+      "instructions": {
+        "title": "Istruzioni scritte prima di partire",
+        "body": "Che cosa fare, che cosa evitare e per quanto tempo — su carta, nella lingua in cui siete stati curati. Non un foglietto in albanese consegnato a chi l'albanese non lo legge."
+      },
+      "checkIn": {
+        "title": "Vi scriviamo dopo qualche giorno",
+        "body": "Un messaggio che chiede come state, inviato dal registro dei controlli dello studio e non affidato alla memoria di qualcuno. Se qualcosa fa male o non vi convince, rispondete e ce ne occupiamo."
+      },
+      "record": {
+        "title": "La vostra cartella viaggia con voi",
+        "body": "Tenuta in formato elettronico, dente per dente, con il piano e quello che è stato effettivamente fatto. Se la chiedete ve la mandiamo — a voi, o a un dentista a casa vostra che deve sapere che cosa avete in bocca."
+      },
+      "wrong": {
+        "title": "Se qualcosa non va, ditelo subito",
+        "body": "Telefonate o scrivete, in una delle tre lingue in cui siete stati curati. Il messaggio di controllo dello studio finisce esattamente con questa offerta e non è una formula: preferiamo di gran lunga saperlo subito che al controllo successivo."
+      },
+      "guaranteeTitle": "Su che cosa lo studio risponde",
+      "guaranteeLede": "Per iscritto, trattamento per trattamento, a partire dal giorno in cui il lavoro viene applicato.",
+      "years": "{count, plural, one {# anno} other {# anni}}",
+      "guaranteeReviewed": "Condizioni verificate il {date}. Vale quello che è scritto nel vostro piano."
     },
     "form": {
-      "title": "Richiedi un appuntamento",
-      "lede": "Compilate due campi e vi richiamiamo. Questo modulo non fissa l'appuntamento — giorno e ora li decidiamo insieme al telefono.",
       "name": "Il vostro nome",
       "phone": "Numero di telefono",
       "phoneHint": "È qui che vi chiamiamo, o vi scriviamo su WhatsApp.",
@@ -295,13 +571,61 @@
       "missing": "Ci servono il nome e il numero di telefono.",
       "tooLong": "Uno dei campi è troppo lungo. Accorciatelo un poco e riprovate."
     },
+    "book": {
+      "eyebrow": "Prenota una visita",
+      "lede": "Due passaggi, e nessuno dei due fissa l’appuntamento da solo. Scegliete un giorno che vi va bene e diteci come raggiungervi; vi richiamiamo negli orari di apertura e l’ora la decidiamo insieme.",
+      "stepWhen": "Quando",
+      "stepWho": "Chi",
+      "whenTitle": "Scegliete un giorno.",
+      "whenLede": "I giorni in grigio sono quelli in cui siamo chiusi. Sceglierne uno non prenota nulla: è la frase con cui apriamo la telefonata.",
+      "whoTitle": "E come vi raggiungiamo.",
+      "whoLede": "Ci bastano un nome e un numero. Il resto serve solo ad arrivare alla telefonata sapendo già di cosa si tratta.",
+      "previousMonth": "Mese precedente",
+      "nextMonth": "Mese successivo",
+      "dayLegend": "Quale giorno vi andrebbe bene?",
+      "gridHint": "Si possono scegliere soltanto i giorni in cui lo studio è aperto, e sceglierne uno non prenota nulla: vi richiamiamo per concordare l’ora.",
+      "closedDay": "Chiuso",
+      "closedNote": "Chiusure di questo mese:",
+      "openThatDay": "Quel giorno siamo aperti {hours}",
+      "noDayTitle": "Nessun giorno in particolare",
+      "noDayBody": "Lasciate così e troviamo un giorno insieme al telefono.",
+      "halfTitle": "Mattina o pomeriggio?",
+      "half": {
+        "any": "Indifferente",
+        "morning": "Mattina",
+        "afternoon": "Pomeriggio"
+      },
+      "dayGone": "Quel giorno non si può più chiedere. Sceglietene un altro e inviate di nuovo la richiesta.",
+      "noCalendarTitle": "Il calendario non si carica.",
+      "noCalendarBody": "Al momento non riusciamo a mostrare la settimana. Inviate lo stesso la richiesta — ci bastano un nome e un numero — oppure telefonateci e troviamo un giorno insieme.",
+      "nextEyebrow": "Che cosa succede dopo",
+      "nextTitle": "Tre passaggi, e poi una data.",
+      "next": {
+        "one": {
+          "title": "La leggiamo in giornata",
+          "body": "Le richieste finiscono nella lista della reception, prima le più vecchie. Niente resta in una casella che nessuno apre."
+        },
+        "two": {
+          "title": "Vi richiamiamo",
+          "body": "Negli orari di apertura, al numero che avete lasciato, nella lingua in cui avete scritto. Se non vi troviamo, proviamo su WhatsApp."
+        },
+        "three": {
+          "title": "Concordiamo il giorno",
+          "body": "Quello che avete scelto se è ancora libero, il più vicino se non lo è. Solo allora qualcosa entra in agenda."
+        }
+      },
+      "callInstead": "Preferite telefonare?"
+    },
     "topics": {
       "checkup": "Controllo e igiene",
       "fillings": "Otturazioni",
       "rootCanal": "Devitalizzazione",
       "crowns": "Corone e ponti",
-      "implants": "Impianti",
+      "veneers": "Faccette",
       "extraction": "Estrazione",
+      "oralSurgery": "Chirurgia orale",
+      "implants": "Impianti",
+      "dentures": "Protesi mobile",
       "orthodontics": "Ortodonzia",
       "whitening": "Sbiancamento",
       "other": "Altro"
@@ -315,7 +639,10 @@
       "six": "Valona · Rruga e Re"
     },
     "gallery": {
+      "eyebrow": "Gli spazi",
       "title": "Date un'occhiata.",
+      "lede": "Le stanze in cui vi siedereste, gli strumenti che verrebbero usati e le persone che li usano. Toccate una foto per vederla intera.",
+      "all": "Vedi tutte le {count} foto",
       "previous": "Foto precedente",
       "next": "Foto successiva",
       "close": "Chiudi",
@@ -331,7 +658,17 @@
         "light": "La lampada sopra il riunito",
         "young": "Un ritratto, sorridente",
         "sterile": "L'autoclave dove si sterilizzano gli strumenti"
-      }
+      },
+      "wallTitle": "Date un'occhiata da vicino.",
+      "wallLede": "Le sale in cui vi sedereste, l'attrezzatura che verrebbe usata e le persone che la usano. Filtrate, se preferite vedere una cosa piuttosto che l'altra.",
+      "filterLabel": "Quali fotografie mostrare",
+      "filters": {
+        "all": "Tutto",
+        "rooms": "Le sale",
+        "people": "Le persone",
+        "care": "Le cure"
+      },
+      "count": "{count, plural, =0 {Nessuna fotografia} one {# fotografia} other {# fotografie}}"
     },
     "compare": {
       "before": "Prima",
@@ -355,6 +692,11 @@
     }
   },
   "nav": {
+    "group": {
+      "care": "Cure",
+      "contact": "Contatti",
+      "practice": "Studio"
+    },
     "dashboard": "Pannello",
     "appointments": "Calendario",
     "patients": "Pazienti",
@@ -1088,7 +1430,8 @@
     "note": "Nota interna",
     "notePlaceholder": "es. chiamato, non risponde - riprovare dopo le 18:00",
     "saveNote": "Salva",
-    "savingNote": "Salvataggio…"
+    "savingNote": "Salvataggio…",
+    "preferredDay": "Ha chiesto"
   },
   "outbox": {
     "title": "Promemoria da inviare",

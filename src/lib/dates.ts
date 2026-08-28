@@ -67,11 +67,56 @@ export function toDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * `YYYY-MM-DD`, naming a day that actually exists.
+ *
+ * The shape test on its own is not enough, and the way it falls short is quiet.
+ * `new Date('9999-99-99T…')` is an Invalid Date, which anything checking for
+ * `NaN` catches — but `new Date('2026-02-30T…')` is not: JavaScript rolls it
+ * forward to the 2nd of March and hands back a perfectly good date. So does the
+ * 29th of February in a year that has no 29th. A form posting either used to
+ * store a booking on a day nobody chose.
+ *
+ * Hence the round trip: a key that survives being parsed and reformatted is a
+ * real day, and one that comes back different was rolled.
+ */
+export function isDateKey(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && toDateKey(parsed) === value;
+}
+
+/**
+ * `H:MM` or `HH:MM` on a 24-hour clock.
+ *
+ * The shape alone accepts `99:99`, which `timeToMinutes` turns into 6039 —
+ * minutes past the end of the day, so a booking carrying it sorts after
+ * everything, renders as written, and sits outside every opening-hours window
+ * the conflict check walks. `<input type="time">` cannot produce it; a posted
+ * form can, and three write paths took the shape as the whole of the question.
+ */
+export function isTimeOfDay(value: string): boolean {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value);
+  if (!match) return false;
+  return Number(match[1]) <= 23 && Number(match[2]) <= 59;
+}
+
+/**
+ * `YYYY-MM-DD` → UTC midnight, or `null` for anything that is not a real day.
+ *
+ * The honest half of the pair below. Several callers wrote this inline as
+ * `raw && /shape/.test(raw) ? new Date(...) : null`, which returns `null` for a
+ * blank field and an *Invalid Date* for a malformed one — two failures, one of
+ * which then travels on into a query or a write.
+ */
+export function parseDateKey(value: string | undefined | null): Date | null {
+  if (!value || !isDateKey(value)) return null;
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
 /** Parse `YYYY-MM-DD` into a UTC-midnight date, falling back to today. */
 export function fromDateKey(value: string | undefined | null): Date {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return today();
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(parsed.getTime()) ? today() : parsed;
+  return parseDateKey(value) ?? today();
 }
 
 export function addDays(date: Date, amount: number): Date {

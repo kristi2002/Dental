@@ -4,7 +4,7 @@ import {
   MessageKind,
   MessageStatus,
 } from '@/generated/prisma/enums';
-import { addDays, clinicMinutesNow, toDateKey, today } from '@/lib/dates';
+import { clinicMinutesNow, toDateKey, today } from '@/lib/dates';
 import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 import { getRecalls } from '@/lib/recalls';
@@ -12,7 +12,7 @@ import {
   CANCEL_NOTES,
   dedupeKey,
   recallCycle,
-  REMINDER_DAYS_AHEAD,
+  reminderWindow,
   shouldQueueRecall,
   shouldQueueReminder,
   SKIP_NOTES,
@@ -31,7 +31,7 @@ import {
  */
 
 /**
- * Queue reminders for tomorrow's bookings.
+ * Queue reminders for tomorrow's bookings — and for what is left of today's.
  *
  * Idempotent by construction, not by checking: every row carries a `dedupeKey`
  * unique on the table, so a second run inside the same day collides and is
@@ -43,6 +43,33 @@ import {
  * Rows the rules refuse are recorded as SKIPPED rather than left out. A queue
  * that silently omits somebody cannot answer "why did Mr Hoxha not get one?",
  * and that is the question the front desk actually asks.
+ *
+ * ## Why today is in the window at all
+ *
+ * The clock fires this twice — at six in the evening and again at seven the
+ * next morning — and the morning run exists for one case: *"the evening run
+ * cannot see an evening booking"*. A slot taken at half past six for nine the
+ * next morning is not in the diary when the evening run reads it.
+ *
+ * For as long as this looked only at `today() + 1`, the morning run did not
+ * catch that case and could not have. `today()` is the clinic's current day, so
+ * by seven the next morning it has already rolled over: the 18:00 Monday run
+ * queues Tuesday, and the 07:00 Tuesday run queues *Wednesday*. Both runs that
+ * covered Tuesday happened on Monday, and the booking made at half past six on
+ * Monday evening was queued by neither. The dashboard's live "to remind" panel
+ * showed that patient the whole time, so the two surfaces disagreed and the
+ * incomplete one was the queue somebody is told to work down.
+ *
+ * Including today closes it, and costs nothing, because the two properties that
+ * make it safe were already here:
+ *
+ *  - `dedupeKey` is `reminder:<appointmentId>` — one booking, one reminder,
+ *    ever. Today's slots were almost all queued yesterday, so they collide and
+ *    are skipped. Only the ones nothing has seen yet are new.
+ *  - `stillWorthSending` drops a slot once it has begun. Reminding somebody at
+ *    seven about nine o'clock is the point; reminding them at six in the evening
+ *    about nine that morning is how "see you tomorrow at 09:00" reaches a person
+ *    sitting in the waiting room.
  */
 /**
  * Withdraw rows whose moment has been and gone.
@@ -99,16 +126,22 @@ export async function withdrawPassedReminders(): Promise<number> {
 
 export async function queueAppointmentReminders(): Promise<string> {
   const withdrawn = await withdrawPassedReminders();
-  const day = addDays(today(), REMINDER_DAYS_AHEAD);
+
+  const now = new Date();
+  const { from, to } = reminderWindow(today(now));
 
   const appointments = await prisma.appointment.findMany({
     where: {
-      date: day,
+      date: { gte: from, lte: to },
       status: AppointmentStatus.SCHEDULED,
       patient: ACTIVE_PATIENTS,
     },
     select: {
       id: true,
+      // Both only so `stillWorthSending` can be asked about today's rows. A
+      // booking tomorrow is always still ahead; one this morning may not be.
+      date: true,
+      startTime: true,
       patientId: true,
       confirmedAt: true,
       declinedAt: true,
@@ -121,8 +154,17 @@ export async function queueAppointmentReminders(): Promise<string> {
     },
   });
 
-  const now = new Date();
-  const rows = appointments.map((appointment) => {
+  // The same clock `withdrawPassedReminders` judges by, so a row this run
+  // declines to queue is exactly a row that run would have withdrawn.
+  const clock = { dateKey: toDateKey(from), minutes: clinicMinutesNow(now) };
+  const upcoming = appointments.filter((appointment) =>
+    stillWorthSending(
+      { date: toDateKey(appointment.date), startTime: appointment.startTime },
+      clock,
+    ),
+  );
+
+  const rows = upcoming.map((appointment) => {
     const decision = shouldQueueReminder({
       appointmentId: appointment.id,
       patientId: appointment.patientId,
@@ -150,11 +192,18 @@ export async function queueAppointmentReminders(): Promise<string> {
   });
 
   // Reported either way, so a run that only tidied still says what it did — a
-  // `JobRun` reading "no appointments tomorrow" while it withdrew nine stale
-  // rows would be an accurate sentence about the wrong half of the job.
+  // `JobRun` reading "no appointments" while it withdrew nine stale rows would
+  // be an accurate sentence about the wrong half of the job.
   const tidied = withdrawn > 0 ? `withdrew ${withdrawn} that had passed; ` : '';
 
-  if (rows.length === 0) return `${tidied}no appointments tomorrow`;
+  // Stated rather than left as the gap between two numbers. Today is in the
+  // window now, so most runs pass over a few slots that have already begun, and
+  // a reader comparing "12 booked" with "9 queued" has no other way to tell
+  // that apart from nine rows having collided on their dedupe key.
+  const begun = appointments.length - upcoming.length;
+  const underWay = begun > 0 ? `, ${begun} already under way` : '';
+
+  if (rows.length === 0) return `${tidied}nothing left to remind today or tomorrow${underWay}`;
 
   const { count } = await prisma.scheduledMessage.createMany({
     data: rows,
@@ -164,7 +213,7 @@ export async function queueAppointmentReminders(): Promise<string> {
   const pending = rows.filter((row) => row.status === MessageStatus.PENDING).length;
   const skipped = rows.length - pending;
 
-  return `${tidied}${appointments.length} booked tomorrow; queued ${count} new (${pending} to send, ${skipped} skipped)`;
+  return `${tidied}${upcoming.length} still ahead today or tomorrow${underWay}; queued ${count} new (${pending} to send, ${skipped} skipped)`;
 }
 
 /**
