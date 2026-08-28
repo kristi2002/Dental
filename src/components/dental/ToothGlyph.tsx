@@ -48,6 +48,25 @@ import { cn } from '@/lib/utils';
  *    away, growth lines banding the cervical half, and a hard little specular.
  *    Flat fills with an outline look like a diagram no matter how correct.
  *
+ * **The ivory is the storefront's, and it was measured rather than matched by
+ * eye.** These teeth used to run olive — every shadow in them was a saturated
+ * yellow-brown — and beside the arch on the front page (`ToothPhoto`, the same
+ * eight kinds cut from a stock poster) they read as a different material.
+ * Sampling both at the same size put a number on it: the hue was out by roughly
+ * a factor of two on the yellow axis, G−B averaging +23 across the drawn teeth
+ * against the artwork's +12, and the whole drawing sat about forty levels dark.
+ * So every gradient stop and every shadow stroke below was lifted and pulled off
+ * the yellow until G−B landed at +14, which is inside the artwork's own spread.
+ *
+ * **What was deliberately not matched is the contrast.** The artwork's range is
+ * about forty-five levels shadow to highlight; this runs about seventy, and the
+ * gap is the point. The poster draws a tooth with nothing done to it, where
+ * these have to hold a cavity, an amalgam and a gold margin *inside* the crown
+ * and still let the enamel read as enamel around them. Flatten the last
+ * twenty-five levels to finish the match and the findings lose the ground they
+ * sit on. The hue was free to take; the depth was not, so the hue was taken and
+ * the depth kept.
+ *
  * **Nothing painted into a tooth may be left-right directional** — every
  * gradient below is either vertical or symmetrical about the tooth's axis, and
  * all the sidedness comes from `lt-relief`. Paint a highlight on one side here
@@ -1244,7 +1263,7 @@ function ToothForm({ variant }: { variant: Variant }) {
               key={root.axis}
               d={root.axis}
               fill="none"
-              stroke="#fdf6e6"
+              stroke="#fdf8ee"
               strokeWidth={root.width * 0.2}
               strokeLinecap="round"
               opacity="0.34"
@@ -1256,7 +1275,7 @@ function ToothForm({ variant }: { variant: Variant }) {
           {/* The darkest place on a tooth: the crotch where the roots divide,
               which nothing reaches into. */}
           {g.furcations.map(([cx, cy, r]) => (
-            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} fill="#4a3512" opacity="0.5" />
+            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} fill="#7a6b5a" opacity="0.36" />
           ))}
           {/* Each root's own edge turning away — an ambient shadow rolled in
               from the outline, which the lamp alone cannot give a shape that
@@ -1266,9 +1285,9 @@ function ToothForm({ variant }: { variant: Variant }) {
               key={root.d}
               d={root.d}
               fill="none"
-              stroke="#6b5222"
+              stroke="#8a7a68"
               strokeWidth={root.width * 0.18}
-              opacity="0.42"
+              opacity="0.36"
             />
           ))}
         </g>
@@ -1278,7 +1297,7 @@ function ToothForm({ variant }: { variant: Variant }) {
             overhangs and casts down onto the neck. Without this they meet at a
             flat ledge and read as two pieces glued together. */}
         <g filter="url(#lt-soft)">
-          <path d={cervical} fill="none" stroke="#4c3813" strokeWidth={ch * 0.3} opacity="0.42" />
+          <path d={cervical} fill="none" stroke="#7d6e5d" strokeWidth={ch * 0.3} opacity="0.32" />
         </g>
       </g>
 
@@ -1297,17 +1316,17 @@ function ToothForm({ variant }: { variant: Variant }) {
 
         <g filter="url(#lt-soft)">
           {/* The cervical third, sunk into the gum's shade. */}
-          <path d={cervical} fill="none" stroke="#5e4718" strokeWidth={ch * 0.22} opacity="0.42" />
+          <path d={cervical} fill="none" stroke="#7d6d5b" strokeWidth={ch * 0.22} opacity="0.34" />
 
           {/* Enamel with no dentin behind it: the biting edge of a front tooth
-              goes cool and slightly grey, with a warm band of scattered light
+              goes a little cool and grey, with a warm band of scattered light
               just behind it where the dentin does still reach. Together they
               are the reason a real incisal edge looks lit from inside. */}
           {g.glow ? (
             <path
               d={g.glow}
               fill="none"
-              stroke="#e8b978"
+              stroke="#ecc99b"
               strokeWidth={ch * 0.16}
               strokeLinecap="round"
               opacity="0.3"
@@ -1317,10 +1336,10 @@ function ToothForm({ variant }: { variant: Variant }) {
             <path
               d={g.translucent}
               fill="none"
-              stroke="#a3b6c6"
+              stroke="#b8c2c8"
               strokeWidth={ch * 0.2}
               strokeLinecap="round"
-              opacity="0.38"
+              opacity="0.3"
             />
           ) : null}
 
@@ -1343,12 +1362,12 @@ function ToothForm({ variant }: { variant: Variant }) {
 
           {/* The contact areas, polished flat by the teeth either side. */}
           {g.contacts.map(([cx, cy, r]) => (
-            <circle key={cx} cx={cx} cy={cy} r={r} fill="#6b5836" opacity="0.26" />
+            <circle key={cx} cx={cx} cy={cy} r={r} fill="#8b7d6c" opacity="0.22" />
           ))}
 
           {/* And the enamel margin itself, which is a real edge: enamel stops
               and cementum starts, and the join catches a line of shadow. */}
-          <path d={cervical} fill="none" stroke="#8a6b2e" strokeWidth="2.4" opacity="0.32" />
+          <path d={cervical} fill="none" stroke="#a3937f" strokeWidth="2.4" opacity="0.28" />
         </g>
 
         {/* Everything below is meant to be felt rather than seen. These are
@@ -1373,7 +1392,7 @@ function ToothForm({ variant }: { variant: Variant }) {
               between enamel and a painted panel. */}
           {g.perikymata.map((d) => (
             <g key={d}>
-              <path d={d} fill="none" stroke="#8a6f38" strokeWidth="1" opacity="0.05" />
+              <path d={d} fill="none" stroke="#9c8f7f" strokeWidth="1" opacity="0.05" />
               <path
                 d={d}
                 fill="none"
@@ -1390,7 +1409,7 @@ function ToothForm({ variant }: { variant: Variant }) {
               key={d}
               d={d}
               fill="none"
-              stroke="#7d5f27"
+              stroke="#93836f"
               strokeWidth="1.8"
               strokeLinecap="round"
               opacity="0.16"
@@ -1405,8 +1424,8 @@ function ToothForm({ variant }: { variant: Variant }) {
       <path
         d={crown}
         fill="none"
-        stroke="#8a7040"
-        strokeOpacity="0.28"
+        stroke="#9c8e7c"
+        strokeOpacity="0.26"
         strokeWidth="1"
         strokeLinejoin="round"
       />
@@ -1638,8 +1657,8 @@ const DEFS = (
             little under unity is what lets a lit face read as lit. */}
         <feDiffuseLighting
           in="lt-bump"
-          surfaceScale="2.4"
-          diffuseConstant="1.17"
+          surfaceScale="2.1"
+          diffuseConstant="1.21"
           lightingColor="#fffdf7"
           result="lt-diffuse"
         >
@@ -1696,15 +1715,22 @@ const DEFS = (
       */}
 
       {/* Warm and dark at the neck where the gum shades it, brightest across
-          the belly, cooling to grey at the biting edge where the enamel has no
-          dentin behind it — the way a real crown grades from top to bottom. */}
+          the belly, settling at the biting edge where the enamel has no dentin
+          behind it — the way a real crown grades from top to bottom.
+
+          That last stop used to be a blue-grey, which is what a thin enamel edge
+          really does and is also the one place this drawing went visibly cooler
+          than the storefront arch, whose incisal edges stay warm. It now holds a
+          trace of the cool rather than the whole of it — and `g.translucent`
+          below is where that reading is still made properly, locally, on the
+          front teeth that actually have a translucent edge. */}
       <linearGradient id="lt-enamel" x1="0.5" y1="0" x2="0.5" y2="1">
-        <stop offset="0%" stopColor="#e9dfc7" />
-        <stop offset="10%" stopColor="#faf5ea" />
+        <stop offset="0%" stopColor="#ece3d8" />
+        <stop offset="10%" stopColor="#fbf7ef" />
         <stop offset="34%" stopColor="#ffffff" />
         <stop offset="64%" stopColor="#fffefc" />
-        <stop offset="86%" stopColor="#f7f6f1" />
-        <stop offset="100%" stopColor="#dee4e6" />
+        <stop offset="86%" stopColor="#faf8f4" />
+        <stop offset="100%" stopColor="#e5e1da" />
       </linearGradient>
 
       {/* y=0 is the apex, y=1 where it meets the crown: dull at the tip,
@@ -1718,19 +1744,19 @@ const DEFS = (
           frankly *tan* thing on the page, and that contrast is most of what
           tells the eye where the gum line would sit. */}
       <linearGradient id="lt-root" x1="0.5" y1="0" x2="0.5" y2="1">
-        <stop offset="0%" stopColor="#b3a684" />
-        <stop offset="32%" stopColor="#c7bb9b" />
-        <stop offset="68%" stopColor="#d8ceb2" />
-        <stop offset="100%" stopColor="#e9e1cb" />
+        <stop offset="0%" stopColor="#d4c8ba" />
+        <stop offset="32%" stopColor="#e0d5c6" />
+        <stop offset="68%" stopColor="#e6dccd" />
+        <stop offset="100%" stopColor="#f0e9dc" />
       </linearGradient>
 
       {/* The same cementum with the light off it: an upper molar's palatal root
           is behind the buccal pair, and depth here is a value difference. */}
       <linearGradient id="lt-root-deep" x1="0.5" y1="0" x2="0.5" y2="1">
-        <stop offset="0%" stopColor="#92886a" />
-        <stop offset="32%" stopColor="#a39877" />
-        <stop offset="68%" stopColor="#b4a988" />
-        <stop offset="100%" stopColor="#c3b99a" />
+        <stop offset="0%" stopColor="#bfb5a7" />
+        <stop offset="32%" stopColor="#cdc2b3" />
+        <stop offset="68%" stopColor="#d0c5b6" />
+        <stop offset="100%" stopColor="#dcd2c4" />
       </linearGradient>
 
       {/*
@@ -1756,15 +1782,15 @@ const DEFS = (
           the same tan as the root beneath it, and lost the value step that is
           most of how a chart says where one ends and the other begins. */}
       <linearGradient id="lt-across" x1="0" y1="0.5" x2="1" y2="0.5">
-        <stop offset="0%" stopColor="#4f5052" stopOpacity="0.44" />
-        <stop offset="8%" stopColor="#65645f" stopOpacity="0.26" />
-        <stop offset="20%" stopColor="#847f70" stopOpacity="0.11" />
+        <stop offset="0%" stopColor="#7b7c7d" stopOpacity="0.3" />
+        <stop offset="8%" stopColor="#8a8983" stopOpacity="0.18" />
+        <stop offset="20%" stopColor="#94908a" stopOpacity="0.1" />
         <stop offset="34%" stopColor="#ffffff" stopOpacity="0.04" />
         <stop offset="50%" stopColor="#ffffff" stopOpacity="0.2" />
         <stop offset="66%" stopColor="#ffffff" stopOpacity="0.04" />
-        <stop offset="80%" stopColor="#847f70" stopOpacity="0.11" />
-        <stop offset="92%" stopColor="#65645f" stopOpacity="0.26" />
-        <stop offset="100%" stopColor="#4f5052" stopOpacity="0.44" />
+        <stop offset="80%" stopColor="#94908a" stopOpacity="0.1" />
+        <stop offset="92%" stopColor="#8a8983" stopOpacity="0.18" />
+        <stop offset="100%" stopColor="#7b7c7d" stopOpacity="0.3" />
       </linearGradient>
 
       {/* The same barrel, harder — a root is a much rounder thing than a crown
@@ -1772,13 +1798,13 @@ const DEFS = (
           root rather than to the group, so each leg of a molar gets its own
           cylinder instead of the three of them sharing one. */}
       <linearGradient id="lt-across-root" x1="0" y1="0.5" x2="1" y2="0.5">
-        <stop offset="0%" stopColor="#4e4636" stopOpacity="0.46" />
-        <stop offset="15%" stopColor="#6f6650" stopOpacity="0.2" />
+        <stop offset="0%" stopColor="#7a736a" stopOpacity="0.3" />
+        <stop offset="15%" stopColor="#8a8377" stopOpacity="0.18" />
         <stop offset="37%" stopColor="#fbf7ec" stopOpacity="0.1" />
         <stop offset="50%" stopColor="#fffdf6" stopOpacity="0.22" />
         <stop offset="63%" stopColor="#fbf7ec" stopOpacity="0.1" />
-        <stop offset="85%" stopColor="#6f6650" stopOpacity="0.2" />
-        <stop offset="100%" stopColor="#4e4636" stopOpacity="0.46" />
+        <stop offset="85%" stopColor="#8a8377" stopOpacity="0.18" />
+        <stop offset="100%" stopColor="#7a736a" stopOpacity="0.3" />
       </linearGradient>
 
       {/* Gold, as metal: several bands rather than two stops, because what makes
@@ -1804,9 +1830,9 @@ const DEFS = (
           the edges. A gradient rather than a blurred shape, so the haze costs
           no filter pass. */}
       <radialGradient id="lt-dentin" cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0%" stopColor="#d9b672" stopOpacity="0.52" />
-        <stop offset="55%" stopColor="#dcbc7e" stopOpacity="0.34" />
-        <stop offset="100%" stopColor="#e2c68f" stopOpacity="0" />
+        <stop offset="0%" stopColor="#ddc49b" stopOpacity="0.4" />
+        <stop offset="55%" stopColor="#e0caa8" stopOpacity="0.26" />
+        <stop offset="100%" stopColor="#e5d2b8" stopOpacity="0" />
       </radialGradient>
 
       {/* Decay: black at the centre of the cavity, rusting out to the enamel. */}
