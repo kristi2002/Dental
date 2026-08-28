@@ -67,7 +67,14 @@ export async function SiteFooter({
 
       <Watermark className="-right-24 -bottom-32 w-[30rem] text-white/[0.04]" />
 
-      <div className="relative mx-auto w-full max-w-6xl px-5 pt-10 pb-12 sm:px-8">
+      {/* The extra foot below `sm` is `BookFab`'s. That button is fixed 16px
+          off the bottom of the screen and is 55px tall, and the last thing in
+          this footer is the Freepik credit — so at the end of the page, where
+          there is no scroll left to move either of them, the floating button
+          sat on top of a line the artwork's licence obliges this site to print,
+          and on the link inside it. A phone needs the room; from `sm` the
+          button is not painted at all and neither is the padding. */}
+      <div className="relative mx-auto w-full max-w-6xl px-5 pt-10 pb-12 max-sm:pb-24 sm:px-8">
         <div className="grid gap-10 border-b border-navy-line pb-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
           {/* --- Who --------------------------------------------------- */}
           <div className="lg:col-span-1">

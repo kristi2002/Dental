@@ -197,7 +197,7 @@ export function Gallery() {
                       them they could look at it more closely. */}
                   <span
                     aria-hidden
-                    className="absolute top-3.5 right-3.5 grid size-10 place-items-center rounded-full bg-navy/50 text-white opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none"
+                    className="reveal-on-hover absolute top-3.5 right-3.5 grid size-10 place-items-center rounded-full bg-navy/50 text-white opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none"
                   >
                     <Expand size={18} />
                   </span>
@@ -221,7 +221,10 @@ export function Gallery() {
        * dot only because a rule can widen to show which one is current, which
        * is a stronger signal at this size than a colour change alone. */}
       <div className="mx-auto mt-8 flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-10 gap-y-1 px-5 sm:px-8">
-        <div className="flex items-center gap-1.5">
+        {/* Full width on a phone so the nine targets below can divide it
+            between them; content-width and tightly spaced from `sm`, which is
+            the composition this row was drawn as. */}
+        <div className="flex w-full items-center sm:w-auto sm:gap-1.5">
           {GALLERY.map((photo, index) => (
             <button
               key={photo.key}
@@ -229,7 +232,21 @@ export function Gallery() {
               onClick={() => embla?.scrollTo(index)}
               aria-label={t('gallery.goTo', { number: index + 1 })}
               aria-current={index === selected}
-              className="group/step cursor-pointer py-3"
+              // The rule this draws is 3px tall and 20px wide, and on a phone
+              // that was also the whole target: 21×29, which a thumb misses
+              // and which fails the 24×24 minimum outright with its
+              // neighbours six pixels away.
+              //
+              // So below `sm` the nine of them share the row — `flex-1` gives
+              // each about 39px on a 390px screen and 31 on a 320px one, all
+              // of them 44 tall — and the mark inside is still the rule as
+              // drawn, centred in a box you can actually hit. A fixed 44px
+              // square each would have been the obvious fix and is the wrong
+              // one: nine of them is 396px, which is wider than the screen.
+              //
+              // From `sm` the original geometry is restored exactly: content
+              // width, `py-3`, and the 6px gap the container puts back.
+              className="group/step flex min-h-11 flex-1 cursor-pointer items-center justify-center sm:min-h-0 sm:flex-none sm:py-3"
             >
               <span
                 aria-hidden

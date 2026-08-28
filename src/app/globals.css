@@ -4227,6 +4227,119 @@
     color: var(--color-gilt-deep);
   }
 
+  /* --- Sending an X-ray with the request ---------------------------------
+   *
+   * A panel rather than a bare file input, and the panel is the drop target:
+   * somebody dragging a radiograph out of a mail client aims at the box, not at
+   * the 90 pixels of grey button inside it. Dashed, because a dashed edge is the
+   * one border convention that reads as "put something here" without a word of
+   * instruction — and there is a word of instruction under it anyway, for the
+   * readers that convention was never obvious to.
+   *
+   * The input inside keeps its native button. It is the control that works with
+   * no JavaScript, it is already keyboard-reachable and already announces itself
+   * correctly, and every attempt to replace it with a styled `<label>` trades
+   * those three for a nicer rectangle.
+   */
+  .req-drop {
+    border: 1px dashed var(--color-bone-ink-faint);
+    border-radius: 0.9rem;
+    background: var(--color-bone);
+    padding: 1rem 1.1rem;
+    transition:
+      background-color 160ms ease-out,
+      border-color 160ms ease-out;
+  }
+
+  /* Held over the panel with something in hand. Bronze rather than a highlight
+   * colour of its own: this is the storefront's one accent and the moment is
+   * worth it. */
+  .req-drop[data-dragging] {
+    border-color: var(--color-gilt-deep);
+    border-style: solid;
+    background: var(--color-gilt-soft);
+  }
+
+  .req-file-input {
+    width: 100%;
+    font-size: 0.95rem;
+    color: var(--color-bone-ink);
+  }
+
+  .req-file-input::file-selector-button {
+    margin-right: 0.75rem;
+    border: 1px solid var(--color-bone-deep);
+    border-radius: 0.55rem;
+    background: var(--color-bone-soft);
+    padding: 0.45rem 0.9rem;
+    font: inherit;
+    font-weight: 700;
+    color: var(--color-bone-ink);
+    cursor: pointer;
+    transition:
+      background-color 160ms ease-out,
+      border-color 160ms ease-out;
+  }
+
+  @media (hover: hover) {
+    .req-file-input::file-selector-button:hover {
+      border-color: var(--color-gilt);
+      background: var(--color-gilt-soft);
+    }
+  }
+
+  /* --- One attached file -------------------------------------------------
+   *
+   * A row apiece, with the picture where there is one. The thumbnail is the
+   * whole reason this list exists rather than a count: "IMG_20260828_113045.jpg"
+   * is not something anybody can check, and a 60-pixel view of their own
+   * panoramic is.
+   */
+  .req-file {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid var(--color-bone-deep);
+    border-radius: 0.75rem;
+    background: var(--color-bone-soft);
+    padding: 0.5rem 0.6rem;
+  }
+
+  .req-file-thumb {
+    height: 2.75rem;
+    width: 3.5rem;
+    flex: none;
+    border-radius: 0.45rem;
+    background: var(--color-bone);
+    object-fit: cover;
+  }
+
+  .req-file-remove {
+    display: inline-flex;
+    min-height: 2.25rem;
+    min-width: 2.25rem;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--color-bone-ink-soft);
+    transition:
+      background-color 160ms ease-out,
+      color 160ms ease-out;
+  }
+
+  @media (hover: hover) {
+    .req-file-remove:hover {
+      background: var(--color-bone);
+      color: var(--color-danger);
+    }
+  }
+
+  .req-file-remove:focus-visible {
+    outline: 3px solid var(--color-gilt-deep);
+    outline-offset: 2px;
+  }
+
   /* --- The confirmation --------------------------------------------------
    *
    * The form is replaced in place by this, so it is the only thing on the screen
@@ -4248,5 +4361,32 @@
     .book-sent {
       animation: rise-in 620ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
     }
+  }
+}
+
+/* --- Affordances a thumb can see ----------------------------------------
+ *
+ * The mark a card draws to say it can be pressed — the arrow on a treatment,
+ * the badge that says a photograph opens — written as `opacity-0` with a
+ * `group-hover:opacity-100` beside it. On a pointer that hovers, that is the
+ * intended behaviour and stays. On a touch screen there is no hover, so it is
+ * an affordance that never appears at all: every treatment card on a phone was
+ * a link with nothing on it saying so, and the gallery's photographs opened a
+ * lightbox that nothing announced.
+ *
+ * `Gallery` already made this argument for its captions — "half the people who
+ * see this page are holding it, and a hover-only caption is a caption they
+ * never get" — and then left the badge in the corner of the same photograph
+ * hover-only. This is that fix, generalised.
+ *
+ * Deliberately outside `@layer components`, for the reason the `.register`
+ * block above gives: it has to overrule the element's own `opacity-0` utility,
+ * and a layered rule cannot overrule a utility. Scoped to `hover: none` so it
+ * touches nothing on a desktop — the Tailwind classes are left exactly as they
+ * were and simply never apply where there is no pointer to apply them.
+ */
+@media (hover: none) {
+  .reveal-on-hover {
+    opacity: 1;
   }
 }

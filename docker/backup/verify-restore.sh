@@ -254,9 +254,20 @@ for table in Patient Appointment VisitRecord PatientDocument Prescription Work F
 done
 
 # --- 4. Are the files there? ------------------------------------------------
-# Every column in the schema that names something on disk. Four of them, across
-# three modules, and each one added at a different time — which is exactly why
-# this is a query rather than a list somebody maintains by hand.
+# Every column in the schema that names something on disk. Six of them, across
+# five modules, each added at a different time — and this list is kept by hand,
+# which is the part worth watching.
+#
+# It has already been wrong. `EmailAttachment` and `AppointmentRequestAttachment`
+# were both absent from it for a while after they started sharing the storage
+# directory, and a missing column here does not announce itself: the drill simply
+# never asks about those files and then reports that everything it asked about is
+# present. A backup silently dropping the inbound X-rays would have looked
+# exactly like a clean run.
+#
+# The authority is `STORAGE_KEY_SOURCES` in `src/lib/storage-keys.ts`, which
+# `tests/storage-keys.test.ts` checks against `schema.prisma`. This shell script
+# is outside that test's reach, so: add a column there, and add it here too.
 
 collect_keys() {
   table="$1"
@@ -267,6 +278,8 @@ collect_keys() {
 {
   collect_keys PatientDocument storageKey
   collect_keys FollowUpAttachment storageKey
+  collect_keys EmailAttachment storageKey
+  collect_keys AppointmentRequestAttachment storageKey
   collect_keys StockItem photoKey
   collect_keys StockProduct photoKey
 } | sed '/^$/d' | LC_ALL=C sort -u > "$WORK_DIR/expected.txt"

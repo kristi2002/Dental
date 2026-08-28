@@ -133,6 +133,27 @@
           "note": "Open does not mean free. The hours here are when somebody is at the desk; which of those hours are still unbooked is what the booking page asks about.",
           "breakNote": "Where a day shows two stretches, the practice closes between them for lunch."
         },
+        "reach": {
+          "eyebrow": "Reach us",
+          "title": "Four doors, and which is for what.",
+          "lede": "The number and the address are in the band above. This is which route gets you to your answer fastest.",
+          "phone": "The quickest while the clinic is open — for an appointment today, to move one, or when something hurts.",
+          "whatsapp": "An ordinary web link: it costs nothing from Italy or Britain, and you can write when the clinic is shut.",
+          "emailLabel": "Email",
+          "email": "For anything that should stay in writing — documents, invoices, a plan you want on paper.",
+          "bookValue": "Pick a day",
+          "book": "Our own calendar, showing the days the clinic works. Choose one and we set the hour by telephone."
+        },
+        "faq": {
+          "eyebrow": "Questions",
+          "title": "The ones people ask.",
+          "lede": "The things somebody wants to know before walking in, and does not always feel able to ask out loud."
+        },
+        "arrival": {
+          "eyebrow": "At the door",
+          "title": "The last hundred metres.",
+          "lede": "Where the car goes, which door it is, and whether there are stairs. The map below gets you to the building; this gets you inside."
+        },
         "map": {
           "eyebrow": "On the map",
           "title": "Where to point the taxi.",
@@ -562,14 +583,25 @@
       "topic": "What is it about?",
       "topicAny": "I am not sure",
       "message": "Anything you want to add?",
+      "files": "Photos, X-rays or documents",
+      "filesHint": "{count} files at most — photos, X-rays or PDFs, up to {max} MB between them. If you already have a panoramic or a quotation, send it and we can answer properly the first time.",
+      "filesDrop": "You can also drag them onto this box.",
+      "filesChosen": "{count, plural, one {# file attached} other {# files attached}} · {size}",
+      "filesRemove": "Remove {name}",
+      "filesTooMany": "You can send up to {max} files at a time. Remove one first, or send the rest when we ring you.",
+      "filesTooLarge": "Those come to more than {max} MB together. Send the most useful ones and we will ask for the rest if we need them.",
+      "filesType": "We can take photos (JPEG, PNG, WebP or HEIC) and PDF files. Anything else, bring it with you or send it by email.",
       "submit": "Send the request",
       "submitting": "Sending…",
-      "privacy": "We keep only your name, your number and what you write here, so that we can get back to you. Please do not put health details in this form — we will talk about those in the chair.",
+      "privacy": "We keep your name, your number, what you write here and anything you attach, so that we can get back to you. Only the practice sees it. Please keep the written part to what brings you in — the rest we will talk about in the chair.",
       "sentTitle": "We have your request.",
       "sentBody": "We will ring you during opening hours to agree a day and a time. If you need us sooner than that, telephone us.",
       "tooMany": "That is a lot of requests from this device. Try again shortly, or give us a ring.",
       "missing": "We need a name and a telephone number.",
-      "tooLong": "One of the fields is too long. Shorten it a little and try again."
+      "tooLong": "One of the fields is too long. Shorten it a little and try again.",
+      "filesFailed": "We could not take those files. Try sending the request without them, or ring us.",
+      "failed": "That did not send. Try again in a moment, or ring us.",
+      "sentFiles": "{count, plural, one {We have your file too.} other {We have your # files too.}}"
     },
     "book": {
       "eyebrow": "Book a visit",
@@ -1431,7 +1463,8 @@
     "notePlaceholder": "e.g. rang, no answer — try after 18:00",
     "saveNote": "Save",
     "savingNote": "Saving…",
-    "preferredDay": "Asked for"
+    "preferredDay": "Asked for",
+    "attachments": "Sent with the request"
   },
   "outbox": {
     "title": "Reminders to send",

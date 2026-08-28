@@ -63,7 +63,7 @@ describe('storage keys — every file the database still points at', () => {
     const inSchema = storageColumnsInSchema(schema);
 
     assert.ok(
-      inSchema.length >= 4,
+      inSchema.length >= 5,
       `expected to find the storage-key columns, saw ${inSchema.length}`,
     );
 
@@ -112,11 +112,12 @@ describe('storage keys — every file the database still points at', () => {
   });
 });
 
-describe('referencedStorageKeys — gathering the five sources', () => {
+describe('referencedStorageKeys — gathering the six sources', () => {
   const reader = (rows: {
     documents?: string[];
     attachments?: string[];
     mail?: string[];
+    requested?: string[];
     items?: Array<string | null>;
     products?: Array<string | null>;
   }): StorageKeyReader => ({
@@ -125,6 +126,9 @@ describe('referencedStorageKeys — gathering the five sources', () => {
     },
     followUpAttachment: {
       findMany: async () => (rows.attachments ?? []).map((storageKey) => ({ storageKey })),
+    },
+    appointmentRequestAttachment: {
+      findMany: async () => (rows.requested ?? []).map((storageKey) => ({ storageKey })),
     },
     emailAttachment: {
       findMany: async () => (rows.mail ?? []).map((storageKey) => ({ storageKey })),
@@ -135,17 +139,30 @@ describe('referencedStorageKeys — gathering the five sources', () => {
     },
   });
 
-  it('gathers all five into one set', async () => {
+  it('gathers all six into one set', async () => {
     const keys = await referencedStorageKeys(
       reader({
         documents: ['a.jpg'],
         attachments: ['b.png'],
         mail: ['e.pdf'],
+        requested: ['f.pdf'],
         items: ['c.webp'],
         products: ['d.jpg'],
       }),
     );
-    assert.deepEqual([...keys].toSorted(), ['a.jpg', 'b.png', 'c.webp', 'd.jpg', 'e.pdf']);
+    assert.deepEqual(
+      [...keys].toSorted(),
+      ['a.jpg', 'b.png', 'c.webp', 'd.jpg', 'e.pdf', 'f.pdf'],
+    );
+  });
+
+  it('keeps the X-ray a stranger attached to a booking request', async () => {
+    // The same case `EmailAttachment` was added for, one table along: these
+    // arrive from somebody with no account, the practice has no other copy, and
+    // a sweeper that did not know about the column would unlink them an hour
+    // after they were sent.
+    const keys = await referencedStorageKeys(reader({ requested: ['opg.jpg'] }));
+    assert.deepEqual([...keys], ['opg.jpg']);
   });
 
   it('keeps a file somebody emailed the practice', async () => {

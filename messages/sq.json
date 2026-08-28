@@ -133,6 +133,27 @@
           "note": "Hapur nuk do të thotë e lirë. Orët këtu janë kur ka dikë në recepsion; cilat prej tyre janë ende të pazëna e pyet faqja e rezervimit.",
           "breakNote": "Aty ku një ditë shfaq dy intervale, në mes klinika mbyllet për drekë."
         },
+        "reach": {
+          "eyebrow": "Na kontaktoni",
+          "title": "Katër dyer, dhe cila është për çfarë.",
+          "lede": "Numrin dhe adresën i keni më lart. Këtu është se cila rrugë ju çon më shpejt te përgjigjja që kërkoni.",
+          "phone": "Rruga më e shpejtë sa klinika është e hapur — për një takim sot, për ta lëvizur një takim, ose kur ju dhemb.",
+          "whatsapp": "Një lidhje e zakonshme interneti: nga Italia a Britania nuk ju kushton asgjë, dhe mund të shkruani edhe kur klinika është e mbyllur.",
+          "emailLabel": "Email",
+          "email": "Për çdo gjë që duhet të mbetet e shkruar — dokumente, fatura, një plan që doni ta keni në letër.",
+          "bookValue": "Zgjidhni një ditë",
+          "book": "Kalendari ynë, me ditët kur klinika punon. Zgjidhni një ditë dhe orën e caktojmë në telefon."
+        },
+        "faq": {
+          "eyebrow": "Pyetje",
+          "title": "Ato që pyeten më shpesh.",
+          "lede": "Gjërat që dikush do t’i dinte përpara se të hyjë nga dera, dhe që jo gjithmonë guxon t’i pyesë me zë."
+        },
+        "arrival": {
+          "eyebrow": "Te dera",
+          "title": "Njëqind metrat e fundit.",
+          "lede": "Ku lihet makina, cila është dera dhe a ka shkallë. Harta më poshtë ju çon te ndërtesa; kjo ju çon brenda."
+        },
         "map": {
           "eyebrow": "Në hartë",
           "title": "Ku t'i thoni taksisë të ndalojë.",
@@ -562,14 +583,25 @@
       "topic": "Për çfarë bëhet fjalë?",
       "topicAny": "Nuk jam i sigurt",
       "message": "Doni të shtoni diçka?",
+      "files": "Foto, radiografi ose dokumente",
+      "filesHint": "Deri në {count} skedarë — foto, radiografi ose PDF, gjithsej deri në {max} MB. Nëse keni tashmë një panoramike ose një preventiv, dërgojeni: kështu ju përgjigjemi si duhet që herën e parë.",
+      "filesDrop": "Mund t’i tërhiqni edhe këtu brenda.",
+      "filesChosen": "{count, plural, one {# skedar i bashkëngjitur} other {# skedarë të bashkëngjitur}} · {size}",
+      "filesRemove": "Hiq {name}",
+      "filesTooMany": "Mund të dërgoni deri në {max} skedarë njëherësh. Hiqni një, ose na i sillni të tjerët kur t’ju telefonojmë.",
+      "filesTooLarge": "Së bashku i kalojnë {max} MB. Dërgoni ata më të nevojshmit; të tjerët ua kërkojmë nëse na duhen.",
+      "filesType": "Pranojmë foto (JPEG, PNG, WebP ose HEIC) dhe skedarë PDF. Për çdo gjë tjetër, silleni me vete ose na e dërgoni me email.",
       "submit": "Dërgo kërkesën",
       "submitting": "Po dërgohet…",
-      "privacy": "Ruajmë vetëm emrin, numrin dhe atë që shkruani këtu, sa për t'ju kthyer përgjigje. Mos shkruani të dhëna shëndetësore në këtë formular — për to flasim në karrige.",
+      "privacy": "Ruajmë emrin, numrin, atë që shkruani këtu dhe çdo skedar që bashkëngjitni, sa për t’ju kthyer përgjigje. I sheh vetëm klinika. Në tekst shkruani thjesht se çfarë ju sjell te ne — për pjesën tjetër flasim në karrige.",
       "sentTitle": "E morëm kërkesën tuaj.",
       "sentBody": "Ju telefonojmë brenda orarit të punës për të caktuar ditën dhe orën. Nëse ju duhet menjëherë, na merrni në telefon.",
       "tooMany": "Shumë kërkesa nga kjo pajisje. Provoni sërish pas pak, ose na telefononi.",
       "missing": "Na duhen emri dhe numri i telefonit.",
-      "tooLong": "Një nga fushat është shumë e gjatë. Shkurtojeni pak dhe provoni sërish."
+      "tooLong": "Një nga fushat është shumë e gjatë. Shkurtojeni pak dhe provoni sërish.",
+      "filesFailed": "Nuk arritëm t’i marrim ata skedarë. Provoni ta dërgoni kërkesën pa ta, ose na telefononi.",
+      "failed": "Kërkesa nuk u dërgua. Provoni sërish pas pak, ose na telefononi.",
+      "sentFiles": "{count, plural, one {Morëm edhe skedarin tuaj.} other {Morëm edhe # skedarët tuaj.}}"
     },
     "book": {
       "eyebrow": "Rezervoni një vizitë",
@@ -1431,7 +1463,8 @@
     "notePlaceholder": "P.sh. i telefonova, s'u përgjigj — provo pas orës 18:00",
     "saveNote": "Ruaj",
     "savingNote": "Po ruhet…",
-    "preferredDay": "Ka kërkuar"
+    "preferredDay": "Ka kërkuar",
+    "attachments": "Dërguar bashkë me kërkesën"
   },
   "outbox": {
     "title": "Kujtesa për t'u dërguar",

@@ -165,7 +165,14 @@ export function Compare({
         // The percentage means nothing said aloud. What a reader needs to know
         // is which of the two they are looking at more of.
         aria-valuetext={t('compare.valueText', { percent: 100 - position })}
-        className="mt-4 w-full accent-gilt-deep"
+        // 44px of height on a phone rather than the 16 a bare range renders
+        // at. The control is dragged rather than pressed, and this is the one
+        // thing on the page a reader has to catch hold of — a 16px strip under
+        // a photograph is a target the thumb slides off, and the gesture then
+        // scrolls the page instead. The track and the thumb are the browser's
+        // and are untouched; this is only the box around them, and only where
+        // the pointer is a finger. A mouse keeps the slider as drawn.
+        className="mt-4 w-full cursor-pointer accent-gilt-deep max-sm:h-11"
       />
 
       <figcaption className="mt-3 text-[0.88rem] text-bone-ink-faint">{caption}</figcaption>

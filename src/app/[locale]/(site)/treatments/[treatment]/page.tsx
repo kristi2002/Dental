@@ -532,7 +532,7 @@ export default async function TreatmentPage({
                           <ArrowUpRight
                             size={17}
                             aria-hidden
-                            className="mt-1 shrink-0 text-gilt opacity-0 transition-opacity group-hover:opacity-100"
+                            className="reveal-on-hover mt-1 shrink-0 text-gilt opacity-0 transition-opacity group-hover:opacity-100"
                           />
                         </h2>
                         <p className="mt-1.5 text-[0.92rem] leading-relaxed text-navy-ink">

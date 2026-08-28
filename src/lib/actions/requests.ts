@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import { AppointmentRequestStatus } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { deleteStoredFile } from '@/lib/files';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -89,4 +90,47 @@ export async function saveRequestNote(
   });
   revalidateAll();
   return actionOk();
+}
+
+/**
+ * Remove a file a stranger attached, once the desk is finished with it.
+ *
+ * The only lever the practice has over bytes it did not upload, and the reason
+ * it exists: `AppointmentRequestAttachment` is the one table here written by
+ * somebody with no account, so without this the storage directory only ever
+ * grows and nothing but a database console can prune it.
+ *
+ * `request.edit` rather than `document.delete`. This is not a medical record —
+ * it is what somebody emailed in, in effect, before they were a patient. If the
+ * practice wants to keep it, it goes on a chart as a `PatientDocument` with a
+ * name against the decision, and *that* copy is the one the stricter permission
+ * guards.
+ *
+ * The bytes go with the row, and in that order: a row deleted without its file
+ * leaves an orphan for the weekly sweeper, where a file deleted without its row
+ * leaves the desk a link that 404s.
+ */
+export async function deleteRequestAttachment(formData: FormData): Promise<void> {
+  const user = await authorize('request.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const attachment = await prisma.appointmentRequestAttachment.findUnique({
+    where: { id },
+    select: { fileName: true, storageKey: true, requestId: true },
+  });
+  if (!attachment) return;
+
+  await prisma.appointmentRequestAttachment.delete({ where: { id } });
+  await deleteStoredFile(attachment.storageKey);
+
+  await recordAudit(user, {
+    action: 'delete',
+    entity: 'appointmentRequest',
+    entityId: attachment.requestId,
+    summary: `Deleted the file ${attachment.fileName}`,
+  });
+  revalidateAll();
 }

@@ -88,6 +88,14 @@ Requests from the form land in `AppointmentRequest` and are worked on
 because a request that has been sitting two days is the urgent one. Nothing is
 booked automatically: somebody rings back and puts them in the calendar.
 
+The form also takes files — up to five, 12 MB between them, photos or PDFs —
+which land in `AppointmentRequestAttachment` and show on that same screen. This
+is the only place in the application where bytes arrive from somebody with no
+account, so the type is read off the file's own first bytes rather than off what
+the upload claimed (`src/lib/file-signature.ts`), and the files are served only
+through `/api/request-files/[id]`, which wants a session and the id of the
+request they belong to.
+
 ### Motion, and what happens without it
 
 The page moves in three places: the brand strip between the hero and the
@@ -349,7 +357,7 @@ prisma/
                      VisitService, ToothRecord, StockItem, StockMovement,
                      Service, ServiceMaterial, WaitlistEntry, TreatmentPlan,
                      PatientAlert, Contact, ClinicHours, Closure,
-                     AppointmentRequest
+                     AppointmentRequest, AppointmentRequestAttachment
   seed.ts            Demo data
   migrations/              Migration history. `0_init` is the baseline.
   migrate-teeth-fdi.ts     One-off: Universal 1–32 → FDI tooth numbers

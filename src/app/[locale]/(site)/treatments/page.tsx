@@ -178,7 +178,7 @@ async function TreatmentEntry({
               <ArrowUpRight
                 size={22}
                 aria-hidden
-                className="mt-2 shrink-0 text-gilt opacity-0 transition-opacity group-hover:opacity-100"
+                className="reveal-on-hover mt-2 shrink-0 text-gilt opacity-0 transition-opacity group-hover:opacity-100"
               />
             </Link>
           </h2>

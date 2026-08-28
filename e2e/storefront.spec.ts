@@ -13,6 +13,14 @@
  * fills it in as a person would, and the case at the foot of this file — which
  * keeps the Owner's session — confirms the row reached the screen that is
  * supposed to show it.
+ *
+ * That write now carries **files**, which raises the stakes of the same
+ * question: an attachment that silently fails to arrive is invisible from both
+ * ends. The visitor saw a confirmation and believes the practice has their
+ * X-ray; the desk sees an enquiry that mentions one and rings back to ask for a
+ * file that was already sent. So the request below attaches two, and the case at
+ * the foot checks they are on the desk's screen and that the bytes come back out
+ * of the session-gated route — not merely that a row exists.
  */
 import { expect, test } from '@playwright/test';
 import { collectConsoleErrors } from './helpers';
@@ -21,6 +29,22 @@ import { collectConsoleErrors } from './helpers';
 // other spec or the seed put there.
 const CALLER = `E2E Storefront ${Date.now()}`;
 const CALLER_PHONE = '069 555 0142';
+
+/**
+ * The two things a patient actually attaches, built here rather than kept as
+ * fixture files on disk.
+ *
+ * The first bytes are the whole point: `requestAppointment` reads the type off
+ * them and refuses anything it does not recognise, so a fixture of the wrong
+ * shape would fail this test for a reason that has nothing to do with the form.
+ * A one-pixel PNG and a stub PDF are the smallest things that are honestly
+ * those two formats.
+ */
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+const PDF = Buffer.from('%PDF-1.4\n1 0 obj\n<< >>\nendobj\ntrailer\n<< >>\n%%EOF\n', 'utf8');
 
 test.describe('the public page', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
@@ -463,6 +487,32 @@ test.describe('the public page', () => {
     await form.getByLabel('Emri juaj').fill(CALLER);
     await form.getByLabel('Numri i telefonit').fill(CALLER_PHONE);
     await form.getByLabel('Doni të shtoni diçka?').fill('Dhëmbi i poshtëm majtas më dhemb.');
+
+    // --- The X-ray they already have -----------------------------------
+    //
+    // Two files, attached in two goes on purpose. A bare `<input multiple>`
+    // *replaces* its selection on the second pick, so one call would pass
+    // whether or not the enhancement in `RequestFiles` works — and adding a
+    // second file to a request is the thing that enhancement exists for.
+    const files = form.locator('input[name="files"]');
+    await files.setInputFiles({ name: 'opg.png', mimeType: 'image/png', buffer: PNG });
+    await files.setInputFiles({
+      name: 'referral.pdf',
+      mimeType: 'application/pdf',
+      buffer: PDF,
+    });
+    await expect(form.locator('.req-file')).toHaveCount(2);
+
+    // And one comes back off again, which a bare input cannot do at all.
+    await form.locator('.req-file-remove').last().click();
+    await expect(form.locator('.req-file')).toHaveCount(1);
+    await files.setInputFiles({
+      name: 'referral.pdf',
+      mimeType: 'application/pdf',
+      buffer: PDF,
+    });
+    await expect(form.locator('.req-file')).toHaveCount(2);
+
     await form.getByRole('button', { name: 'Dërgo kërkesën' }).click();
 
     // The panel swaps to a confirmation in place. It also says, deliberately,
@@ -473,6 +523,11 @@ test.describe('the public page', () => {
     // What they asked for, read back. This is the last chance to correct the
     // one thing this form can get wrong without anybody noticing.
     await expect(page.locator('.book-sent')).toContainText('Paradite');
+
+    // The files included: the receipt for an upload is the only way somebody
+    // ever finds out one did not arrive. On the word rather than on the digit —
+    // the confirmation prints a date, and a date is full of digits.
+    await expect(page.locator('.book-sent')).toContainText('2 skedar');
   });
 });
 
@@ -500,4 +555,49 @@ test('the request reaches the staff screen, in the language it was written in', 
   // call opens with.
   await expect(row, 'the day they asked for never reached the desk').toContainText('Asked for');
   await expect(row).toContainText('Morning');
+
+  // --- And what they sent with it ----------------------------------------
+  //
+  // The filenames are the sender's own, kept for display. The type beside them
+  // is not: `requestAppointment` reads that off the bytes.
+  await expect(row, 'the files never reached the desk').toContainText('opg.png');
+  await expect(row).toContainText('referral.pdf');
+
+  // The bytes, not just the row. These live outside `public/` and are handed out
+  // only by `/api/request-files/[id]`, so this is also the assertion that the
+  // route the desk's own thumbnails use actually serves them.
+  const href = await row.locator('a[href*="/api/request-files/"]').first().getAttribute('href');
+  expect(href, 'the desk rendered no link to the file').toBeTruthy();
+
+  /**
+   * Fetched **from inside the page**, and that is not a stylistic choice.
+   *
+   * `page.request` is a separate HTTP client living in Node that borrows the
+   * browser's cookie jar, and `dent_session` is a `Secure` cookie. Chromium
+   * treats `127.0.0.1` as a trustworthy origin and sends it over plain HTTP
+   * anyway — which is why every navigation in this suite is signed in — but the
+   * Node client applies the plain rule and drops it. Asking through
+   * `page.request` therefore tests the route while signed *out*, and gets the
+   * 404 it is supposed to get for a stranger. That is a real answer to a
+   * question nobody meant to ask.
+   */
+  const seen = await page.evaluate(async (url) => {
+    const response = await fetch(url, { credentials: 'same-origin' });
+    return { status: response.status, type: response.headers.get('content-type') };
+  }, href!);
+
+  expect(seen.status, 'the file did not come back').toBe(200);
+  // The type the *bytes* are. The upload declared `image/png` too, but that is
+  // not what was stored — `requestAppointment` sniffed it.
+  expect(seen.type).toBe('image/png');
+
+  // And the id on its own is not a way in. The route refuses a file that is not
+  // on the request named in the query, so walking ids gets a walker nothing
+  // unless they already hold the row that goes with each one.
+  const walked = href!.replace(/\?request=.*/, '?request=00000000-0000-0000-0000-000000000000');
+  const refused = await page.evaluate(
+    (url) => fetch(url, { credentials: 'same-origin' }).then((response) => response.status),
+    walked,
+  );
+  expect(refused, 'a walked id was served').toBe(404);
 });

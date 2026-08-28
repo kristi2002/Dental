@@ -106,7 +106,7 @@ export async function SiteHeader({ contact }: { contact: SiteContact }) {
            * exactly where the page's measure does and the bar reads as a band
            * across the top rather than as a row that ran out of screen.
            */}
-          <div className="masthead-bar flex min-w-0 flex-1 items-stretch gap-4 px-5 sm:px-8 lg:pr-[max(2rem,calc((100vw-72rem)/2+2rem))] lg:pl-[max(2rem,calc((100vw-72rem)/2+2rem))]">
+          <div className="masthead-bar flex min-w-0 flex-1 items-stretch gap-4 px-5 max-[380px]:gap-2 max-[380px]:px-3 sm:px-8 lg:pr-[max(2rem,calc((100vw-72rem)/2+2rem))] lg:pl-[max(2rem,calc((100vw-72rem)/2+2rem))]">
             {/* The artwork spells the practice's name, so nothing is written
                 beside it — same reasoning as the sign-in screen. */}
             <Link
@@ -120,7 +120,22 @@ export async function SiteHeader({ contact }: { contact: SiteContact }) {
                 // `masthead-logo` sets the height from the scroll-driven custom
                 // property. A Tailwind height class here would win the cascade
                 // and freeze it.
-                className="masthead-logo"
+                //
+                // The width cap is only for the screens the bar genuinely does
+                // not fit on. At 320px the lockup measures 123px and the row
+                // needs 359 of the 320 it has, so the menu button — below `xl`
+                // the *only* way to the rest of the site — was clipped by the
+                // masthead's own edge and half of it could not be pressed. A
+                // `max-width` is safe where a height is not: it does not touch
+                // the animated custom property, and `object-contain` keeps the
+                // artwork's proportions inside the narrower box rather than
+                // squashing it.
+                //
+                // 380px and not a round 400: at 390 the row already fits with
+                // 21px to spare, and a 390px phone is the width this masthead
+                // was composed for. The cap is for the screens below it, where
+                // it is the difference between a menu button and most of one.
+                className="masthead-logo max-[380px]:max-w-[5.5rem] max-[380px]:object-contain"
               />
             </Link>
 

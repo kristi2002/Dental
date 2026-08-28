@@ -1,14 +1,19 @@
 import { ArrowRight, MapPin, Phone } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { Arrival } from '@/components/site/Arrival';
 import { ClinicMap } from '@/components/site/ClinicMap';
 import { OpenStatus } from '@/components/site/OpenStatus';
 import { OpeningHours } from '@/components/site/OpeningHours';
 import { PageHero } from '@/components/site/PageHero';
 import { PHOTOS } from '@/components/site/photos';
+import { ReachUs } from '@/components/site/ReachUs';
+import { VisitFaq } from '@/components/site/VisitFaq';
 import { WhyUs } from '@/components/site/WhyUs';
 import { Link } from '@/i18n/navigation';
 import { getSiteData } from '@/lib/site';
+import { VISIT_FAQ_ANSWERED } from '@/lib/site-content';
+import { faqJsonLd, practiceJsonLd, siteOrigin } from '@/lib/site-jsonld';
 import { sitePageMetadata } from '@/lib/site-meta';
 
 /**
@@ -39,8 +44,17 @@ import { sitePageMetadata } from '@/lib/site-meta';
  * line pointing the other reader at the page written for them.
  *
  * **The order is the order the questions get asked in:** why you, when are you
- * open, where exactly are you. Grounds alternate through it so no two dark
- * bands touch.
+ * open, how do I reach you, what should I expect, how do I get to the door,
+ * where exactly are you. Grounds alternate through it so no two dark bands
+ * touch — which is why `VisitFaq` is navy and sits between two cream sections.
+ *
+ * **Two of those six ship dark.** `Arrival` and `VisitFaq` render nothing until
+ * the practice has supplied facts nobody here can derive — where a car goes,
+ * what happens if you are in pain on a Sunday — and the slots are built,
+ * documented and wired to their structured data so that turning one on is a
+ * list of keys in `site-content.ts` and a set of strings in three message
+ * files. The reasoning is the one `TREATMENT_GUARANTEES` sets out: a guessed
+ * fact on a clinic's page is acted on by somebody.
  *
  * **`BrandStrip` is deliberately gone from this route.** It is the practice's
  * six phrases as a marquee, and `WhyUs` now makes four of those six as an
@@ -102,6 +116,19 @@ export default async function VisitPage({
         `${contact.name} ${contact.address}`,
       )}`
     : null;
+
+  const origin = siteOrigin();
+
+  // Built from `VISIT_FAQ_ANSWERED` rather than from a hand-written list, for
+  // the reason the opening-hours markup is built from the rows the board
+  // prints: structured data written out beside a page stops being true the
+  // first time the page is edited. `null` while nothing is answered.
+  const faq = faqJsonLd(
+    VISIT_FAQ_ANSWERED.map((key) => ({
+      question: t(`pages.visit.faq.${key}.question`),
+      answer: t(`pages.visit.faq.${key}.answer`),
+    })),
+  );
 
   return (
     <>
@@ -197,6 +224,25 @@ export default async function VisitPage({
           inside it. */}
       {hours ? <OpeningHours hours={hours} /> : null}
 
+      {/* Which of the four doors to knock on. The opening band answers *what is
+          the number*; this answers *which of these should I use*, which is a
+          different question and the one a contact page is actually for. It is
+          also where WhatsApp and the email address finally appear on this
+          route — see the note on `ReachUs` for how long they were missing. */}
+      <ReachUs contact={contact} />
+
+      {/* Navy, and the second dark band: the page runs a long way in cream from
+          here to the map, and the break falls where the subject changes from
+          how to reach the practice to what to expect of it. Renders nothing
+          until the practice has answered a question — see `VisitFaq`. */}
+      <VisitFaq />
+
+      {/* The hundred metres between the street and the chair, immediately above
+          the pin that confirms it. Dark today: `ARRIVAL_ANSWERED` ships empty
+          because a guessed doorway costs somebody with a wheelchair their
+          appointment. See `Arrival` and the note on the table itself. */}
+      <Arrival />
+
       {/*
        * The way across to `/abroad`, in the place the three sections it now
        * holds used to sit.
@@ -231,6 +277,58 @@ export default async function VisitPage({
           the same address to whatever they navigate with. Cream, so the page
           does not end on a dark band butted against the navy footer. */}
       <ClinicMap contact={contact} />
+
+      {/*
+       * The practice, as structured data, on the page whose entire content is
+       * the practice's details.
+       *
+       * This markup lived only on the front page for as long as the front page
+       * was the only route carrying an address and a week of opening hours. It
+       * is wrong there alone: the URL somebody searching "orari klinika dentare
+       * Vlorë" should land on was the one URL saying nothing machine-readable
+       * about opening hours, while the front page — which a search for hours
+       * should not return — said all of it.
+       *
+       * ⚠️ **Both emissions share one `@id`.** Two pages each publishing a bare
+       * `Dentist` node describe two dental practices to a crawler, which is
+       * worse than one page publishing none. `practiceJsonLd` mints the id from
+       * the origin and both routes pass through it; nothing else on this site
+       * may grow its own. `mainEntityOfPage` is what still tells the two
+       * emissions apart.
+       *
+       * Allowed by the app's CSP through `'unsafe-inline'`, which is already
+       * there for Next's own hydration bootstrap. Nothing here is executed —
+       * `application/ld+json` is data — and nothing in it comes from a visitor.
+       */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            practiceJsonLd({
+              name: contact.name,
+              origin,
+              locale,
+              phone: contact.phone,
+              email: contact.email,
+              address: contact.address,
+              city: t('city'),
+              hours,
+              ...(origin ? { page: `${origin}/${locale}/visit` } : {}),
+            }),
+          ),
+        }}
+      />
+
+      {/* The questions, from the same array the section renders, so the markup
+          and the visible text cannot drift into claiming different things.
+          `null` — and therefore no script at all — while the practice has
+          answered none of them. */}
+      {faq ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faq) }}
+        />
+      ) : null}
     </>
   );
 }

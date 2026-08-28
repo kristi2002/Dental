@@ -137,6 +137,9 @@ const ORDER = [
   // Requests off the public page. One optional foreign key — the member of staff
   // who picked it up — so it only has to come after `staff`, which is first.
   'appointmentRequests',
+  // After the requests they came with, for the reason every other child table
+  // is after its parent.
+  'requestFiles',
   'movements',
   'audit',
 ] as const;
@@ -160,6 +163,7 @@ const MODEL: Record<Key, string> = {
   batches: 'stockBatch',
   stockAlertDismissals: 'stockAlertDismissal',
   appointmentRequests: 'appointmentRequest',
+  requestFiles: 'appointmentRequestAttachment',
   patients: 'patient',
   appointments: 'appointment',
   visits: 'visitRecord',

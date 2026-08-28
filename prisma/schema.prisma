@@ -2164,10 +2164,60 @@ model AppointmentRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// What they sent with it — a radiograph from another clinic, a quotation,
+  /// a photograph of the tooth. See `AppointmentRequestAttachment`.
+  attachments AppointmentRequestAttachment[]
+
   /// The desk's own query: what is still open, **oldest first**. A request that
   /// has been sitting for two days is more urgent than one that arrived this
   /// morning, which is the reverse of how every other list in this app is read.
   @@index([status, createdAt])
+}
+
+/// What a stranger attached to a request: an X-ray, a report, a photograph.
+///
+/// **The one table in this database whose bytes arrive from somebody with no
+/// account**, and every column here is shaped by that. It is the same file
+/// record as `FollowUpAttachment` — a display name, a verified type, a size and
+/// an opaque on-disk key — with one field deliberately missing: there is no
+/// `uploadedBy`, because nobody was signed in. The request is who sent it.
+///
+/// **Why the practice wanted this at all.** A good share of the people filling
+/// in that form are choosing between clinics in three countries, and what they
+/// have in their hand is an OPG from a dentist at home or a quotation from a
+/// clinic in Italy. Before this, the desk read "I have an X-ray" in the message
+/// box and rang back to ask for it by email, which is a second round trip on
+/// the one enquiry the practice most wants to answer well.
+///
+/// **The type is sniffed rather than believed.** `mimeType` is what the first
+/// bytes of the file actually say it is, not what the browser claimed — see
+/// `sniffMimeType`. On a public endpoint the declared type is a string a
+/// stranger chose, and it is the string this app later hands back to a browser
+/// as `Content-Type`.
+///
+/// Cascades with the request. A request the desk deletes is a request whose
+/// files go with it, and the row going without the bytes is what
+/// `sweep-orphan-files.ts` exists to catch.
+model AppointmentRequestAttachment {
+  id        String             @id @default(uuid())
+  requestId String
+  request   AppointmentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  /// As uploaded, capped and stripped of any path. Display only — user input
+  /// never steers a filesystem path, and on this table the user is a stranger.
+  fileName String
+
+  /// The type the *bytes* are, not the type the upload claimed.
+  mimeType String
+
+  sizeBytes Int
+
+  /// Opaque on-disk name, as `PatientDocument.storageKey`.
+  storageKey String @unique
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
 }
 
 enum AppointmentRequestStatus {

@@ -133,6 +133,27 @@
           "note": "Aperto non vuol dire libero. Gli orari qui sono quando c'è qualcuno alla reception; quali di quelle ore siano ancora libere lo chiede la pagina di prenotazione.",
           "breakNote": "Dove un giorno mostra due fasce, in mezzo lo studio chiude per pranzo."
         },
+        "reach": {
+          "eyebrow": "Come contattarci",
+          "title": "Quattro porte, e quale serve a cosa.",
+          "lede": "Il numero e l’indirizzo sono qui sopra. Questo è quale strada vi porta più in fretta alla risposta che cercate.",
+          "phone": "La via più rapida finché la clinica è aperta — per un appuntamento oggi, per spostarne uno, o quando fa male.",
+          "whatsapp": "Un normale link web: dall’Italia o dalla Gran Bretagna non costa nulla, e potete scrivere anche a clinica chiusa.",
+          "emailLabel": "Email",
+          "email": "Per tutto ciò che deve restare per iscritto — documenti, fatture, un piano che volete avere su carta.",
+          "bookValue": "Scegliete un giorno",
+          "book": "Il nostro calendario, con i giorni in cui la clinica lavora. Sceglietene uno e l’ora la fissiamo al telefono."
+        },
+        "faq": {
+          "eyebrow": "Domande",
+          "title": "Quelle che ci vengono fatte.",
+          "lede": "Le cose che si vogliono sapere prima di entrare, e che non sempre si ha il coraggio di chiedere."
+        },
+        "arrival": {
+          "eyebrow": "Alla porta",
+          "title": "Gli ultimi cento metri.",
+          "lede": "Dove si lascia l’auto, qual è la porta e se ci sono scale. La mappa qui sotto vi porta all’edificio; questo vi porta dentro."
+        },
         "map": {
           "eyebrow": "Sulla mappa",
           "title": "Dove dire al taxi di andare.",
@@ -562,14 +583,25 @@
       "topic": "Di cosa si tratta?",
       "topicAny": "Non ne sono sicuro",
       "message": "Volete aggiungere qualcosa?",
+      "files": "Foto, radiografie o documenti",
+      "filesHint": "Al massimo {count} file — foto, radiografie o PDF, fino a {max} MB in tutto. Se ha già una panoramica o un preventivo, ce lo mandi: così le rispondiamo per bene già la prima volta.",
+      "filesDrop": "Può anche trascinarli qui dentro.",
+      "filesChosen": "{count, plural, one {# file allegato} other {# file allegati}} · {size}",
+      "filesRemove": "Togli {name}",
+      "filesTooMany": "Si possono inviare al massimo {max} file per volta. Ne tolga uno, oppure ci mandi il resto quando la richiamiamo.",
+      "filesTooLarge": "Insieme superano {max} MB. Mandi i più utili: il resto glielo chiediamo noi se serve.",
+      "filesType": "Accettiamo foto (JPEG, PNG, WebP o HEIC) e file PDF. Per il resto, lo porti con sé o ce lo mandi per email.",
       "submit": "Invia la richiesta",
       "submitting": "Invio in corso…",
-      "privacy": "Conserviamo solo il nome, il numero e quello che scrivete qui, il necessario per rispondervi. Non inserite dati sanitari in questo modulo — di quelli parliamo alla poltrona.",
+      "privacy": "Conserviamo il suo nome, il numero, quello che scrive qui e ciò che allega, solo per poterle rispondere. Li vede soltanto lo studio. Nel testo scriva pure che cosa la porta da noi — del resto parliamo in poltrona.",
       "sentTitle": "Abbiamo ricevuto la richiesta.",
       "sentBody": "Vi chiamiamo negli orari di apertura per concordare giorno e ora. Se vi serve prima, telefonateci.",
       "tooMany": "Troppe richieste da questo dispositivo. Riprovate tra poco, oppure chiamateci.",
       "missing": "Ci servono il nome e il numero di telefono.",
-      "tooLong": "Uno dei campi è troppo lungo. Accorciatelo un poco e riprovate."
+      "tooLong": "Uno dei campi è troppo lungo. Accorciatelo un poco e riprovate.",
+      "filesFailed": "Non siamo riusciti a ricevere quei file. Provi a inviare la richiesta senza allegati, oppure ci telefoni.",
+      "failed": "La richiesta non è partita. Riprovi tra poco, oppure ci telefoni.",
+      "sentFiles": "{count, plural, one {Abbiamo anche il suo file.} other {Abbiamo anche i suoi # file.}}"
     },
     "book": {
       "eyebrow": "Prenota una visita",
@@ -1431,7 +1463,8 @@
     "notePlaceholder": "es. chiamato, non risponde - riprovare dopo le 18:00",
     "saveNote": "Salva",
     "savingNote": "Salvataggio…",
-    "preferredDay": "Ha chiesto"
+    "preferredDay": "Ha chiesto",
+    "attachments": "Inviato con la richiesta"
   },
   "outbox": {
     "title": "Promemoria da inviare",

@@ -608,3 +608,111 @@ export const GUARANTEES_REVIEWED: string | null = null;
 export function hasGuarantees(): boolean {
   return Object.keys(TREATMENT_GUARANTEES).length > 0 && GUARANTEES_REVIEWED !== null;
 }
+
+/* ---------------------------------------------------------------------------
+ * The visit page's two gated sections
+ * ------------------------------------------------------------------------- */
+
+/**
+ * The facts about getting from the pavement to the chair.
+ *
+ * `/visit` answers *when* the practice is open and *where* the street is, and
+ * has never answered the hundred metres between them: where a car goes, which
+ * door it is, whether there are stairs. `Directions` is not that answer — it
+ * moved to `/abroad` and it is written at the scale of ferries and airports,
+ * for somebody deciding whether to cross the Adriatic. A patient already
+ * standing on Rruga e Re has a different and much smaller question, and nothing
+ * on this site has ever taken it.
+ *
+ * ⚠️ **Empty, and it ships empty — the call `TREATMENT_PRICES` and
+ * `TREATMENT_GUARANTEES` above both make, for the plainest version of the
+ * reason.** Not one of these five is derivable from anything already in this
+ * repository, and every one of them is the kind of fact a patient acts on
+ * physically: a person who reads "parking in front of the building" and finds
+ * none has been sent somewhere by this website and let down by it. A guessed
+ * price costs an awkward conversation; a guessed doorway costs somebody with a
+ * pushchair or a wheelchair their appointment.
+ *
+ * `Arrival` renders exactly the entries that are set and nothing for the rest,
+ * so a partial table is correct and expected — the parking answered and the
+ * lift left out says something true, where a section hedging about both says
+ * nothing at all. With none set the section does not render.
+ *
+ * **To turn it on, these are the five questions and none of them are ours:**
+ *
+ * 1. `parking` — where does a patient leave a car, and is it free?
+ * 2. `door` — what does the entrance look like from the street, which floor,
+ *    and is there a sign or a bell to press?
+ * 3. `access` — step-free or stairs? A lift? Room for a wheelchair or a
+ *    pushchair? Answer this one honestly even when the answer is stairs — a
+ *    wheelchair user who is told the truth can plan, and one who is told
+ *    nothing arrives and cannot get in.
+ * 4. `transport` — the furgon or the taxi from the centre of Vlorë: which, and
+ *    roughly what does it cost?
+ * 5. `landmark` — what is next door, for somebody looking up from a phone?
+ *
+ * The wording is a translator's, as everywhere: this table names which of the
+ * five the practice has an answer for, and `messages/*.json` carries the answer
+ * under `pages.visit.arrival.*` in three languages.
+ */
+export const ARRIVAL_KEYS = ['parking', 'door', 'access', 'transport', 'landmark'] as const;
+
+export type ArrivalKey = (typeof ARRIVAL_KEYS)[number];
+
+/**
+ * Which of the five the practice has confirmed. Add a key here and write its
+ * `pages.visit.arrival.<key>` strings in all three message files; leaving one
+ * out is how a fact nobody has checked stays off the page.
+ */
+export const ARRIVAL_ANSWERED: ArrivalKey[] = [];
+
+/** Whether there is an arrival section to render at all. */
+export function hasArrival(): boolean {
+  return ARRIVAL_ANSWERED.length > 0;
+}
+
+/**
+ * The questions a visitor actually asks, and which of them this practice has
+ * answered.
+ *
+ * ⚠️ **Empty for a reason that is worth writing down, because it is not the
+ * same reason as the tables above.** A first draft of this section asked about
+ * languages, the written plan, the per-tooth record and sterilisation — and
+ * every one of those four is already a card in `WhyUs`, two hundred pixels up
+ * the same page. That is not an FAQ; that is the page asking itself questions
+ * it has just finished answering, which is exactly the complaint `/visit` makes
+ * against `BrandStrip` in its own header and the reason that band is not on
+ * this route.
+ *
+ * Take those four out and what is left is the set of things a person genuinely
+ * wants to know before walking in — can I come without an appointment, what do
+ * I do if I am in pain today, how do I pay, how long will the first appointment
+ * take, can I bring a child — and the practice has never told this repository
+ * the answer to a single one of them. So the honest state of a FAQ here is
+ * empty, and the honest thing to build is the slot.
+ *
+ * A question with no answer publishes nothing: `VisitFaq` renders the keys
+ * below and `faqJsonLd` is fed the same list, so the section and its structured
+ * data cannot disagree about what this practice claims.
+ */
+export const VISIT_FAQ_KEYS = [
+  'walkIn',
+  'pain',
+  'payment',
+  'firstLength',
+  'children',
+] as const;
+
+export type VisitFaqKey = (typeof VISIT_FAQ_KEYS)[number];
+
+/**
+ * Which questions have an answer from the practice, in the order they should be
+ * read. Add a key and write `pages.visit.faq.<key>.question` and `.answer` in
+ * all three message files.
+ */
+export const VISIT_FAQ_ANSWERED: VisitFaqKey[] = [];
+
+/** Whether there is a FAQ to render at all. */
+export function hasVisitFaq(): boolean {
+  return VISIT_FAQ_ANSWERED.length > 0;
+}

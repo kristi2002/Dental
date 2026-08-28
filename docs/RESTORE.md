@@ -322,8 +322,8 @@ not what would be reached for in a disaster:
    the real Postgres, at the real version.
 3. Counts the rows in nine tables and reports them next to the live counts.
 4. **Reconciles every stored file the records point at against what is actually
-   in the backup** — `PatientDocument`, `FollowUpAttachment`, and both stock
-   photo columns.
+   in the backup** — `PatientDocument`, `FollowUpAttachment`, `EmailAttachment`,
+   `AppointmentRequestAttachment`, and both stock photo columns.
 
 Step 4 is the one that would otherwise go unasked for years. The records and the
 radiographs are copied by different machinery and fail independently, so a

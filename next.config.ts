@@ -20,6 +20,35 @@ const nextConfig: NextConfig = {
     root: path.resolve(import.meta.dirname),
   },
 
+  experimental: {
+    serverActions: {
+      /**
+       * Every upload in this application goes through a Server Action, and the
+       * framework caps an action's request body at 1MB unless told otherwise.
+       *
+       * That cap was quietly below what the app already claimed to accept:
+       * `MAX_FILE_BYTES` lets a member of staff attach a 12MB radiograph and the
+       * dialog says so on screen, but the post carrying it was refused by Next
+       * before `uploadDocument` ever ran — the only radiographs that worked were
+       * the small ones. Nobody reads a limit as "and also this other limit you
+       * were never shown".
+       *
+       * 14MB is the larger of the two things that have to fit — a single staff
+       * upload at `MAX_FILE_BYTES`, or a whole booking request at
+       * `MAX_REQUEST_UPLOAD_BYTES` — plus room for what multipart adds around
+       * them: boundaries, part headers, and the form's own fields. The
+       * application's own caps are the ones a visitor meets, in their own
+       * language; this is only the wall behind them.
+       *
+       * It is deliberately not larger. The public booking form is the one action
+       * here that an unauthenticated stranger can post to, and this number is
+       * how much of the practice's memory one such post may occupy — four an
+       * hour per address, per `requestAppointment`'s own throttle.
+       */
+      bodySizeLimit: '14mb',
+    },
+  },
+
   /**
    * `/gallery` was "The place" until its photographs were folded into
    * `/practice` — see the note on `PhotoWall` — and the route is gone.

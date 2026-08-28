@@ -1,10 +1,11 @@
 'use client';
 
-import { CalendarCheck, CheckCircle2, Sunrise, Sunset } from 'lucide-react';
+import { CalendarCheck, CheckCircle2, Paperclip, Sunrise, Sunset } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDateNames } from '@/components/shared/DateNamesProvider';
 import { BookingCalendar } from '@/components/site/BookingCalendar';
+import { RequestFiles } from '@/components/site/RequestFiles';
 import { useTopicChoice } from '@/components/site/TopicChoice';
 import { SubmitButton } from '@/components/ui/SubmitButton';
 import { fromDateKey } from '@/lib/dates';
@@ -23,9 +24,11 @@ import type { SiteBookingWindow } from '@/lib/site';
  *
  * This is what the callback form grew into when it stopped being a panel that
  * slid over the page and became a route of its own. The fields are the same four
- * — a name, a number, optionally an address and a sentence — and the calendar
- * beside them is the part that is new: the two questions the desk used to have
- * to ring back and ask, asked here, against the practice's own opening hours.
+ * — a name, a number, optionally an address and a sentence — and two things
+ * beside them are newer: the calendar, which asks the two questions the desk
+ * used to have to ring back for, against the practice's own opening hours; and
+ * `RequestFiles`, which takes the X-ray somebody already has in their hand
+ * instead of making the desk ask for it by email afterwards.
  *
  * **It still does not book anything, and it says so three times.** In the lede
  * above the columns, on the plaque under the calendar, and again in the
@@ -79,6 +82,15 @@ export function BookingForm({
   // filled in when they get here. Empty until they do, which is what the server
   // renders too.
   const { topic, setTopic } = useTopicChoice();
+
+  /**
+   * How many files were attached, kept here rather than in `RequestFiles`
+   * because the confirmation outlives it: the panel below replaces the whole
+   * form, input and all, and "we have your two files" is the half of the receipt
+   * that says the upload actually arrived.
+   */
+  const [attached, setAttached] = useState(0);
+  const onAttachedChange = useCallback((count: number) => setAttached(count), []);
 
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -141,6 +153,17 @@ export function BookingForm({
                 {dates.date(fromDateKey(chosen.date), 'weekdayLongDayMonthLongYear')}
               </span>
               {half ? <span className="text-bone-ink-soft">· {t(`book.half.${half}`)}</span> : null}
+            </p>
+          ) : null}
+
+          {/* The receipt for the upload. A file that silently failed to attach
+              is the one thing on this form somebody would never find out about
+              — they pressed the button, they saw a confirmation, and the desk
+              rings back asking for an X-ray they believe they already sent. */}
+          {attached > 0 ? (
+            <p className="mt-4 flex items-center justify-center gap-2 text-[0.98rem] font-semibold text-bone-ink">
+              <Paperclip size={16} aria-hidden className="text-gilt-deep" />
+              {t('form.sentFiles', { count: attached })}
             </p>
           ) : null}
 
@@ -420,6 +443,20 @@ export function BookingForm({
                 className="field-input resize-y"
               />
             </div>
+
+            {/* --- What they already have ---------------------------------
+             *
+             * Under the message box on purpose: it is the attachment to the
+             * sentence above it, and somebody who has written "here is the
+             * X-ray from my dentist at home" should find the field for it in
+             * the next place they look.
+             *
+             * Optional like everything below the telephone number. A form that
+             * required a radiograph would turn away the nervous local patient
+             * this practice mostly sees, in order to serve the visitor from
+             * abroad who has one.
+             */}
+            <RequestFiles onCountChange={onAttachedChange} />
 
             {state.status === 'error' ? (
               <p

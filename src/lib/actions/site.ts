@@ -4,6 +4,13 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { fromDateKey, isDateKey } from '@/lib/dates';
+import {
+  isAllowedMimeType,
+  MAX_REQUEST_FILES,
+  MAX_REQUEST_UPLOAD_BYTES,
+} from '@/lib/file-constants';
+import { sniffMimeType } from '@/lib/file-signature';
+import { deleteStoredFile, storeFile } from '@/lib/files';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit } from '@/lib/rate-limit';
 import { getBookingWindow } from '@/lib/site';
@@ -68,6 +75,100 @@ async function readPreferredDay(
   return { date: fromDateKey(key), half };
 }
 
+/** One file, checked and read into memory, ready to be written to disk. */
+type ReadyFile = { fileName: string; mimeType: string; bytes: Uint8Array; size: number };
+
+/**
+ * The name to show the desk, with everything that is not a name taken out.
+ *
+ * `storeFile` generates the on-disk key, so this string never touches a path —
+ * but it is still rendered on a staff screen and echoed in a `Content-Disposition`
+ * header, and it arrives from somebody with no account. Any directory separator
+ * is dropped so a filename cannot *read* as a path in a log or a header, control
+ * characters go because they can break the header itself, and the length is
+ * capped where `PatientDocument` caps it.
+ *
+ * A file left with no usable name gets one. An empty string in the list would be
+ * a row the desk cannot click on with any confidence about what it is.
+ */
+function safeFileName(name: string, index: number): string {
+  const cleaned = name
+    .replace(/[\\/]/g, ' ')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .trim()
+    .slice(0, 180);
+
+  return cleaned.length > 0 ? cleaned : `file-${index + 1}`;
+}
+
+/**
+ * The files a visitor attached, or the reason they cannot be taken.
+ *
+ * **This is the only place in the application where bytes arrive from somebody
+ * with no account**, and it is checked accordingly. Four rules, and the order
+ * matters — the cheap refusals come before anything is read into memory:
+ *
+ *  1. **Count.** At most `MAX_REQUEST_FILES`. A form that has been driven by
+ *     something other than the page can post as many parts as it likes.
+ *  2. **Size, counted as received.** The running total is compared against
+ *     `MAX_REQUEST_UPLOAD_BYTES` rather than trusting the browser to have
+ *     enforced its own hint. `serverActions.bodySizeLimit` is the outer wall;
+ *     this is the one that can answer in the visitor's language.
+ *  3. **Type, sniffed rather than declared.** `file.type` is a string the
+ *     sender chose, and it is the string that would come back out of this app
+ *     as a `Content-Type` header when the desk opens the file. So the first
+ *     bytes decide, and what they say is what gets stored — see `sniffMimeType`.
+ *     A `.pdf` that is really something else is refused rather than relabelled.
+ *  4. **Allowlist.** What the signature reports still has to be one of the five
+ *     types the practice accepts, so widening `ALLOWED_MIME_TYPES` stays the one
+ *     place that decision is made.
+ *
+ * Nothing is written to disk here. A request that fails on its fourth file
+ * should leave nothing behind from the first three.
+ */
+async function readAttachments(
+  formData: FormData,
+): Promise<ReadyFile[] | 'tooMany' | 'tooLarge' | 'badType'> {
+  // An empty part is what a browser sends for a file input nobody touched.
+  const files = formData
+    .getAll('files')
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+
+  if (files.length === 0) return [];
+  if (files.length > MAX_REQUEST_FILES) return 'tooMany';
+
+  // The declared sizes first, so an oversized post is refused before any of it
+  // is pulled into a buffer.
+  if (files.reduce((sum, file) => sum + file.size, 0) > MAX_REQUEST_UPLOAD_BYTES) {
+    return 'tooLarge';
+  }
+
+  let received = 0;
+  const ready: ReadyFile[] = [];
+
+  for (const [index, file] of files.entries()) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+
+    // And then what actually arrived, which is the number that counts: `size` is
+    // a property of the part, and this is the part.
+    received += bytes.byteLength;
+    if (received > MAX_REQUEST_UPLOAD_BYTES) return 'tooLarge';
+
+    const mimeType = sniffMimeType(bytes.subarray(0, 32));
+    if (!mimeType || !isAllowedMimeType(mimeType)) return 'badType';
+
+    ready.push({
+      fileName: safeFileName(file.name, index),
+      mimeType,
+      bytes,
+      size: bytes.byteLength,
+    });
+  }
+
+  return ready;
+}
+
 /**
  * The one write on this app that nobody has to sign in to perform.
  *
@@ -95,6 +196,15 @@ async function readPreferredDay(
  *  4. **Every field is capped** before it reaches Postgres, so a megabyte of
  *     text is a sentence in the visitor's own language rather than a database
  *     error in the practice's log.
+ *
+ * **And it now takes files**, which is the one thing on this list that changed
+ * the shape of the risk rather than the size of it: until this, the worst a
+ * stranger could do here was write text into a column. `readAttachments` is
+ * where that is answered — a count, a total, and a type read off the bytes
+ * instead of off the sender's word — and the bytes are written only once
+ * everything else about the request has been accepted. A request that fails
+ * validation leaves nothing on disk, and a request whose row fails to write
+ * takes its files back off again.
  *
  * There is no audit entry, deliberately. `recordAudit` records what a *member of
  * staff* did, and attributing this to nobody would put a row in the trail that
@@ -130,26 +240,71 @@ export async function requestAppointment(
 
   const topic = optionalString(formData.get('topic'));
 
+  const attachments = await readAttachments(formData);
+  if (attachments === 'tooMany') {
+    return actionError(t('form.filesTooMany', { max: MAX_REQUEST_FILES }));
+  }
+  if (attachments === 'tooLarge') {
+    return actionError(
+      t('form.filesTooLarge', { max: Math.floor(MAX_REQUEST_UPLOAD_BYTES / (1024 * 1024)) }),
+    );
+  }
+  if (attachments === 'badType') return actionError(t('form.filesType'));
+
   const preferred = await readPreferredDay(formData);
   if (preferred === 'unavailable') return actionError(t('book.dayGone'));
 
-  await prisma.appointmentRequest.create({
-    data: {
-      name,
-      phone,
-      email: optionalString(formData.get('email')),
-      message: optionalString(formData.get('message')),
-      preferredDate: preferred.date,
-      preferredTime: preferred.half,
-      // Anything the form did not offer is dropped rather than stored: `topic`
-      // is rendered back to the desk through `messages`, and a key with no
-      // translation behind it would show up on their screen as the raw string
-      // somebody posted.
-      topic: topic && isRequestTopic(topic) ? topic : null,
-      locale: await getLocale(),
-    },
-    select: { id: true },
-  });
+  // Last, and only once every refusal above has been passed. Bytes written for a
+  // request that then turns out to be unacceptable are bytes nothing will ever
+  // point at.
+  const stored: string[] = [];
+  try {
+    for (const file of attachments) {
+      stored.push(await storeFile(file.bytes, file.mimeType));
+    }
+  } catch (error) {
+    console.error('[site] could not store an attachment', error);
+    await Promise.all(stored.map(deleteStoredFile));
+    return actionError(t('form.filesFailed'));
+  }
+
+  try {
+    await prisma.appointmentRequest.create({
+      data: {
+        name,
+        phone,
+        email: optionalString(formData.get('email')),
+        message: optionalString(formData.get('message')),
+        preferredDate: preferred.date,
+        preferredTime: preferred.half,
+        // Anything the form did not offer is dropped rather than stored: `topic`
+        // is rendered back to the desk through `messages`, and a key with no
+        // translation behind it would show up on their screen as the raw string
+        // somebody posted.
+        topic: topic && isRequestTopic(topic) ? topic : null,
+        locale: await getLocale(),
+        // Nested, so the request and the files it came with are one transaction.
+        // A row that exists without its attachments would tell the desk somebody
+        // sent nothing, which is worse than the write having failed outright.
+        attachments: {
+          create: attachments.map((file, index) => ({
+            fileName: file.fileName,
+            mimeType: file.mimeType,
+            sizeBytes: file.size,
+            storageKey: stored[index],
+          })),
+        },
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    // Do not leave orphans on disk that no row points at. The sweeper would
+    // clear them eventually; an hour of somebody's radiographs sitting in the
+    // storage directory unreferenced is not a thing to leave to a weekly job.
+    await Promise.all(stored.map(deleteStoredFile));
+    console.error('[site] could not record the request', error);
+    return actionError(t('form.failed'));
+  }
 
   // The desk's list, and the dashboard card that counts it. `layout` because the
   // count also rides in the navigation rail.

@@ -14,7 +14,8 @@ import { Treatments } from '@/components/site/Treatments';
 import { TripPlanner } from '@/components/site/TripPlanner';
 import { VisitUs } from '@/components/site/VisitUs';
 import { locales } from '@/i18n/routing';
-import { getSiteData, type SiteHours } from '@/lib/site';
+import { getSiteData } from '@/lib/site';
+import { practiceJsonLd, siteOrigin } from '@/lib/site-jsonld';
 
 /**
  * Rendered per request — and, since the rows behind it are cached, that now
@@ -45,11 +46,6 @@ import { getSiteData, type SiteHours } from '@/lib/site';
  * achieved.
  */
 export const dynamic = 'force-dynamic';
-
-/** Where this install actually answers, for canonicals and social cards. */
-function siteOrigin(): string {
-  return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || '';
-}
 
 export async function generateMetadata({
   params,
@@ -104,83 +100,6 @@ export async function generateMetadata({
           }
         : {}),
     },
-  };
-}
-
-/** Schema.org weekday names, indexed the way `ClinicHours` stores them. */
-const SCHEMA_DAYS = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-] as const;
-
-/**
- * What a search engine is told about the practice.
- *
- * Built from the same rows the page prints, so the two cannot disagree — which
- * is the failure mode structured data usually has, where a hand-written block
- * keeps saying eight o'clock a year after the practice started opening at nine.
- *
- * **No `aggregateRating`.** The 4.9 on this page is Google's own figure and is
- * shown with Google's name attached. Restating it as this site's structured data
- * would be claiming it as the practice's own collected reviews, which is both
- * untrue and precisely what Google's guidelines on self-serving review markup
- * forbid. A number worth quoting is worth quoting honestly, in prose.
- */
-function practiceJsonLd({
-  name,
-  origin,
-  locale,
-  phone,
-  email,
-  address,
-  city,
-  hours,
-}: {
-  name: string;
-  origin: string;
-  locale: string;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  city: string;
-  hours: SiteHours | null;
-}) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Dentist',
-    name,
-    ...(origin ? { url: `${origin}/${locale}`, image: `${origin}${PHOTOS.surgeryWide.src}` } : {}),
-    ...(phone ? { telephone: phone } : {}),
-    ...(email ? { email } : {}),
-    address: {
-      '@type': 'PostalAddress',
-      ...(address ? { streetAddress: address } : {}),
-      addressLocality: city,
-      addressCountry: 'AL',
-    },
-    availableLanguage: [...locales],
-    ...(hours
-      ? {
-          openingHoursSpecification: hours.week
-            .filter((day) => day.open)
-            .map((day) => ({
-              '@type': 'OpeningHoursSpecification',
-              dayOfWeek: `https://schema.org/${SCHEMA_DAYS[day.weekday]}`,
-              // `describeRanges` writes "08:00 – 19:00", and a day with a lunch
-              // break writes two stretches separated by a comma. Only the outer
-              // bounds are published: schema.org wants one opens/closes pair per
-              // entry, and splitting a break into two entries is more precision
-              // than a search result can show.
-              opens: day.hours.slice(0, 5),
-              closes: day.hours.slice(-5),
-            })),
-        }
-      : {}),
   };
 }
 

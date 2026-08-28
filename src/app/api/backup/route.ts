@@ -103,6 +103,7 @@ export async function POST(request: Request) {
     emailAttachments,
     stockAlertDismissals,
     appointmentRequests,
+    requestFiles,
     auditTotal,
   ] = await Promise.all([
     prisma.staffUser.findMany({
@@ -224,13 +225,19 @@ export async function POST(request: Request) {
     // for a telephone call — losing them loses people who asked to be seen and
     // have no idea the practice never got the message.
     prisma.appointmentRequest.findMany(),
+    // The rows, not the bytes — no upload is in this file, see the note below.
+    // Without them a restored practice has the enquiry and no idea the X-ray
+    // that came with it was ever sent, which for somebody choosing a clinic
+    // from abroad is most of what they said.
+    prisma.appointmentRequestAttachment.findMany(),
     prisma.auditLog.count(),
   ]);
 
   const payload = JSON.stringify(
     {
       format: 'dentorganizer-backup',
-      // v8 adds the requests off the practice's public page — people who asked
+      // v9 adds the files those requests arrived with — the rows, not the bytes.
+      // v8 added the requests off the practice's public page — people who asked
       // to be seen and have not been rung back. v7 added the dismissed stock
       // alerts — the shelf decisions somebody has already made. v6 added the
       // correspondence — threads, messages and the
@@ -239,7 +246,7 @@ export async function POST(request: Request) {
       // stock products and the template↔treatment links. An older file still
       // restores — the restore skips a key it does not find — it simply carries
       // none of those.
-      version: 8,
+      version: 9,
       exportedAt: new Date().toISOString(),
       exportedBy: user.fullName,
       note: 'Staff PIN hashes and uploaded files are not included — see README.',
@@ -289,6 +296,7 @@ export async function POST(request: Request) {
         emailAttachments,
         stockAlertDismissals,
         appointmentRequests,
+        requestFiles,
       },
     },
     null,

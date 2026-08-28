@@ -1,6 +1,7 @@
 import { CalendarClock, CalendarPlus, Inbox, Languages, Mail, MessageCircle, Phone } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
+import { RequestAttachments } from '@/components/requests/RequestAttachments';
 import { RequestNote } from '@/components/requests/RequestNote';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
@@ -55,7 +56,7 @@ export default async function RequestsPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  await requirePermission('request.view');
+  const user = await requirePermission('request.view');
 
   const t = await getTranslations('requests');
   const ts = await getTranslations('site');
@@ -81,6 +82,14 @@ export default async function RequestsPage({
       createdAt: true,
       handledAt: true,
       handledBy: { select: { firstName: true, lastName: true } },
+      // What they sent with it. Ordered oldest first, which is the order they
+      // were attached in — somebody who sends an X-ray and then the report that
+      // goes with it is telling the desk which is which by sending them in that
+      // order.
+      attachments: {
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, fileName: true, mimeType: true, sizeBytes: true },
+      },
     },
   });
 
@@ -210,6 +219,15 @@ export default async function RequestsPage({
                     {request.message}
                   </p>
                 ) : null}
+
+                {/* What they attached — an X-ray from the clinic they are
+                    leaving, a quotation, a photograph of the tooth. Renders
+                    nothing when there is nothing, which is most requests. */}
+                <RequestAttachments
+                  requestId={request.id}
+                  attachments={request.attachments}
+                  canEdit={user.permissions.includes('request.edit')}
+                />
 
                 <RequestNote id={request.id} note={request.staffNote} />
 
