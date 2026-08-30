@@ -98,7 +98,7 @@ export function MessageDialog({
     setBody(template.body);
   }
 
-  const whatsapp = phone && body.trim() ? whatsappLink(phone, body) : null;
+  const whatsapp = phone && body.trim() ? whatsappLink(phone, body, messageLocale) : null;
   const mailDraft = email && body.trim() ? mailtoLink(email, subject, body) : null;
   const optedOut = consent === false;
 
@@ -253,10 +253,15 @@ export function MessageDialog({
                     {t('sendWhatsapp')}
                   </a>
                 ) : (
-                  <span className="btn btn-secondary opacity-55" title={t('noPhone')}>
+                  <button
+                    type="button"
+                    disabled
+                    className="btn btn-secondary"
+                    title={t('noPhone')}
+                  >
                     <MessageCircle size={18} aria-hidden />
                     {t('sendWhatsapp')}
-                  </span>
+                  </button>
                 )}
 
                 {email ? (
@@ -269,7 +274,8 @@ export function MessageDialog({
                        exactly why the button above it exists. */
                     <a
                       href={mailDraft ?? undefined}
-                      className={mailDraft ? 'btn btn-secondary' : 'btn btn-secondary opacity-55'}
+                      className="btn btn-secondary"
+                      aria-disabled={mailDraft ? undefined : true}
                       title={t('draftHint')}
                       onClick={() => {
                         if (!mailDraft) return;
@@ -286,10 +292,10 @@ export function MessageDialog({
                     </a>
                   )
                 ) : (
-                  <span className="btn btn-secondary opacity-55" title={t('noEmail')}>
+                  <button type="button" disabled className="btn btn-secondary" title={t('noEmail')}>
                     <Send size={18} aria-hidden />
                     {t('sendEmail')}
-                  </span>
+                  </button>
                 )}
               </footer>
             </form>

@@ -78,10 +78,25 @@ export async function TimingMeter({
 
   return (
     <div className={cn('max-w-[26rem]', className)}>
-      <dl className="space-y-4">
+      {/*
+       * One `<dl>` per row, rather than one around all three.
+       *
+       * A `<dl>` may hold `<dt>`/`<dd>` pairs, optionally grouped a single
+       * `<div>` deep — and nothing else. This had the pair *two* divs down, with
+       * the meter as a third sibling beside them, so the terms were not in a
+       * definition list at all as far as the parser was concerned and a screen
+       * reader lost the pairing on all eleven treatment pages.
+       *
+       * The bar cannot go inside the group: it has to span the full width under
+       * a row whose two halves are pushed apart, and it is `aria-hidden`
+       * decoration in any case. So the list ends where the pair ends, and the
+       * row that holds them both is an ordinary div. Nothing about the layout
+       * changes — the flex classes simply moved up one element onto the `<dl>`.
+       */}
+      <div className="space-y-4">
         {rows.map((row) => (
           <div key={row.key}>
-            <div
+            <dl
               className={cn(
                 'flex items-baseline justify-between gap-4',
                 dark ? 'text-navy-ink' : 'text-bone-ink-soft',
@@ -116,7 +131,7 @@ export async function TimingMeter({
               >
                 {row.value}
               </dd>
-            </div>
+            </dl>
 
             <div
               aria-hidden
@@ -127,7 +142,7 @@ export async function TimingMeter({
             </div>
           </div>
         ))}
-      </dl>
+      </div>
 
       {/* Only when the answer is not "you are finished when you leave". */}
       {timing.months[1] > 0 ? (

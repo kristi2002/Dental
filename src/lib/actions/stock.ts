@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { followUpFileKeys, forgetFiles } from '@/lib/cascade-files';
 import { parseDateKey } from '@/lib/dates';
 import { MAX_FILE_BYTES } from '@/lib/file-constants';
 import { deleteStoredFile, storeFile } from '@/lib/files';
@@ -525,7 +526,11 @@ export async function deleteStockItem(formData: FormData): Promise<void> {
 
   const item = await prisma.stockItem.findUnique({
     where: { id },
-    select: { name: true, _count: { select: { movements: true, batches: true } } },
+    select: {
+      name: true,
+      photoKey: true,
+      _count: { select: { movements: true, batches: true } },
+    },
   });
   if (!item) return;
 
@@ -538,7 +543,15 @@ export async function deleteStockItem(formData: FormData): Promise<void> {
       data: { archivedAt: new Date(), orderedAt: null, expectedAt: null },
     });
   } else {
+    // Only this branch removes anything. An archived material keeps its row, its
+    // photograph and its follow-ups; a deleted one takes the follow-ups with it
+    // by cascade, and took their attachments' bytes nowhere. Its own photograph
+    // went the same way — `removeStockPhoto` has always unlinked the file it
+    // clears, and the delete beside it never did. See `cascade-files.ts`.
+    const files = await followUpFileKeys({ stockItemId: id });
+
     await prisma.stockItem.delete({ where: { id } });
+    await forgetFiles([item.photoKey, ...files]);
   }
 
   await recordAudit(user, {

@@ -41,6 +41,8 @@ export type RecallRow = {
   lastName: string;
   phone: string;
   email: string;
+  /** The patient's own language, or null when nobody has asked. */
+  locale: string | null;
   /** `YYYY-MM-DD`, or null when they have never been seen. */
   lastVisit: string | null;
   /** Whole months since the last visit — the number the message quotes. */
@@ -58,6 +60,8 @@ export type FollowUpRow = {
   lastName: string;
   phone: string;
   email: string;
+  /** The patient's own language, or null when nobody has asked. */
+  locale: string | null;
   lastVisit: string;
   daysSince: number;
   services: string;
@@ -80,6 +84,8 @@ export type PatientForRecall = {
   lastName: string;
   phone: string;
   email: string | null;
+  /** The patient's own language, or null when nobody has asked. */
+  locale: string | null;
   createdAt: Date;
   recallMonths: number;
   recallSnoozedUntil: Date | null;
@@ -132,6 +138,10 @@ function candidateSelect(now: Date) {
     lastName: true,
     phone: true,
     email: true,
+    // Which language they read in — and, through `diallingCodeFor`, which
+    // country their number is assumed to be in when they wrote it without a
+    // code. See `lib/reminders.ts`.
+    locale: true,
     createdAt: true,
     recallMonths: true,
     recallSnoozedUntil: true,
@@ -299,6 +309,7 @@ export function selectRecalls(patients: PatientForRecall[], now: Date): RecallRo
       firstName: patient.firstName,
       lastName: patient.lastName,
       phone: patient.phone,
+      locale: patient.locale,
       email: patient.email ?? '',
       lastVisit: lastVisit ? toDateKey(lastVisit) : null,
       monthsSince: monthsBetween(reference, now),
@@ -334,6 +345,7 @@ export function selectFollowUps(patients: PatientForRecall[], now: Date): Follow
       firstName: patient.firstName,
       lastName: patient.lastName,
       phone: patient.phone,
+      locale: patient.locale,
       email: patient.email ?? '',
       lastVisit: toDateKey(visit.visitDate),
       daysSince,

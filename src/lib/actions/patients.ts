@@ -6,7 +6,7 @@ import { AppointmentStatus, ContactChannel } from '@/generated/prisma/enums';
 import { redirect } from '@/i18n/navigation';
 import { locales } from '@/i18n/routing';
 import { authorize, recordAudit } from '@/lib/auth/guard';
-import { deleteStoredFile } from '@/lib/files';
+import { followUpFileKeys, forgetFiles } from '@/lib/cascade-files';
 import type { PatientOption } from '@/components/appointments/AppointmentFormDialog';
 import {
   ACTIVE_PATIENTS,
@@ -193,17 +193,23 @@ export async function deletePatient(formData: FormData): Promise<void> {
   // delete there is nothing left pointing at them, and an X-ray that outlives
   // the record it belonged to is both a storage leak and a data-protection
   // failure: the record was deleted, the radiograph was not.
-  const documents = await prisma.patientDocument.findMany({
-    where: { patientId: id },
-    select: { storageKey: true },
-  });
+  //
+  // Two sources, not one. The patient's own documents were always read here; the
+  // follow-ups filed against them cascade too, and a follow-up carries
+  // attachments of its own — so a radiograph pinned to "chase the laboratory
+  // about Mrs Hoxha" survived a delete that removed everything it referred to.
+  // See `cascade-files.ts`.
+  const [documents, followUpFiles] = await Promise.all([
+    prisma.patientDocument.findMany({ where: { patientId: id }, select: { storageKey: true } }),
+    followUpFileKeys({ patientId: id }),
+  ]);
 
-  // Appointments, visits and tooth records cascade — see `onDelete: Cascade`.
+  // Appointments, visits, tooth records and follow-ups cascade — see `onDelete: Cascade`.
   await prisma.patient.delete({ where: { id } });
 
   // Best-effort and after the fact: a file that will not unlink must not undo a
   // delete the database has already committed.
-  await Promise.all(documents.map((document) => deleteStoredFile(document.storageKey)));
+  await forgetFiles([...documents.map((document) => document.storageKey), ...followUpFiles]);
 
   await recordAudit(user, {
     action: 'delete',

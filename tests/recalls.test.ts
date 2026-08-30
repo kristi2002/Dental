@@ -33,6 +33,7 @@ function patient(overrides: Partial<PatientForRecall> = {}): PatientForRecall {
     lastName: 'Krasniqi',
     phone: '0691234567',
     email: 'arta@example.al',
+    locale: null,
     createdAt: daysBefore(400),
     recallMonths: 6,
     recallSnoozedUntil: null,

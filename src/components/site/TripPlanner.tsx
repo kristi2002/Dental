@@ -238,7 +238,7 @@ export function TripPlanner() {
                  * just an empty box. It is also what stops the panel changing
                  * height on the first tick.
                  */}
-                <dl className="trip-gauges">
+                <div className="trip-gauges">
                   <Gauge
                     icon={<CalendarCheck size={16} aria-hidden />}
                     label={t('trip.visits')}
@@ -258,7 +258,7 @@ export function TripPlanner() {
                     label={t('trip.tripsLabel')}
                     value={chosen ? String(estimate.trips) : null}
                   />
-                </dl>
+                </div>
 
                 <div className="mt-7 border-t border-navy-line/60 pt-6">
                   {chosen ? (
@@ -383,8 +383,16 @@ function Gauge({
       </span>
       {/* `dt` before `dd` in the markup, because a definition list requires it,
           and reversed in the flow so the figure reads above its label. Writing
-          them the other way round renders identically and is invalid. */}
-      <div className="mt-3 flex flex-col-reverse">
+          them the other way round renders identically and is invalid.
+
+          The list is *here*, around the one pair, rather than around all three
+          gauges outside: a `<dl>` may hold its pairs at most one `<div>` deep,
+          and each gauge put them two down with the icon as a third sibling
+          beside them — so none of the three was a definition list at all to a
+          reader, on the front page and on the page written for somebody
+          planning a trip from Italy. Three lists of one pair is the honest
+          shape of what this actually is. */}
+      <dl className="mt-3 flex flex-col-reverse">
         <dt className="mt-2 text-[0.82rem] leading-snug text-navy-ink-soft">{label}</dt>
         <dd
           className={cn(
@@ -398,7 +406,7 @@ function Gauge({
               panel is waiting for. */}
           {value ?? <span aria-hidden>—</span>}
         </dd>
-      </div>
+      </dl>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function ContactBody({
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="mt-1 text-[0.85rem] font-semibold text-brand hover:underline"
+          className="mt-1 text-[0.85rem] font-semibold text-brand-deep hover:underline"
         >
           {expanded ? showLess : showMore}
         </button>

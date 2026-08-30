@@ -163,86 +163,98 @@ export function PhotoWall() {
           </p>
         </div>
 
-        <ul
-          id="wall-panel"
-          role="tabpanel"
-          aria-labelledby={`wall-tab-${filter}`}
-          // Remounted on every change so the stagger replays. See the note above.
-          key={filter}
-          // Fixed row height plus `grid-flow-dense`, which is what makes a mosaic
-          // out of a grid: the two wide tiles take two cells across and two down,
-          // and dense packing back-fills the holes they leave rather than
-          // stranding a gap at the end of each row.
-          onPointerMove={trackPointer}
-          className="mt-9 grid auto-rows-[9.5rem] grid-flow-dense grid-cols-2 gap-3 sm:auto-rows-[11rem] sm:grid-cols-3 lg:grid-cols-4 lg:gap-4"
-        >
-          {shown.map((photo, index) => (
-            <li
-              key={photo.key}
-              className={cn(
-                'tile-in min-w-0',
-                photo.wide && 'sm:col-span-2 sm:row-span-2',
-              )}
-              style={{ '--i': `${index}` } as CSSProperties}
-            >
-              <button
-                type="button"
-                onClick={() => setOpen(index)}
-                aria-label={t('gallery.openImage', { name: t(`gallery.alt.${photo.key}`) })}
-                className="glow-card group relative block size-full overflow-hidden rounded-xl bg-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gilt-deep"
+        {/*
+         * The panel and the list are two elements now, and they have to be.
+         *
+         * One element carries one role: `role="tabpanel"` on the `<ul>` replaced
+         * its implicit `list`, so the nine `<li>` inside it had no list parent —
+         * a reader was told "tab panel" and then read nine orphaned items with no
+         * count and no position. The wrapper takes the panel's job and the list
+         * goes back to being a list.
+         *
+         * `key` stays on the inner element: it is the grid whose stagger has to
+         * replay, and remounting the panel would move focus off the tab that was
+         * just pressed.
+         */}
+        <div id="wall-panel" role="tabpanel" aria-labelledby={`wall-tab-${filter}`}>
+          <ul
+            // Remounted on every change so the stagger replays. See the note above.
+            key={filter}
+            // Fixed row height plus `grid-flow-dense`, which is what makes a mosaic
+            // out of a grid: the two wide tiles take two cells across and two down,
+            // and dense packing back-fills the holes they leave rather than
+            // stranding a gap at the end of each row.
+            onPointerMove={trackPointer}
+            className="mt-9 grid auto-rows-[9.5rem] grid-flow-dense grid-cols-2 gap-3 sm:auto-rows-[11rem] sm:grid-cols-3 lg:grid-cols-4 lg:gap-4"
+          >
+            {shown.map((photo, index) => (
+              <li
+                key={photo.key}
+                className={cn(
+                  'tile-in min-w-0',
+                  photo.wide && 'sm:col-span-2 sm:row-span-2',
+                )}
+                style={{ '--i': `${index}` } as CSSProperties}
               >
-                {/* The plate the lean is applied to. It cannot be the `li` —
-                    that carries `tile-in`, which animates a transform of its own
-                    — and it cannot be the button, which is the hover target the
-                    rule keys off. Same three-layer arrangement as the treatment
-                    grid, for the same reason. */}
-                <div className="tilt-plate size-full">
-                  {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
-                  <img
-                    src={photo.src}
-                    width={photo.width}
-                    height={photo.height}
-                    alt={t(`gallery.alt.${photo.key}`)}
-                    loading="lazy"
-                    decoding="async"
-                    sizes="(min-width: 1024px) 320px, 45vw"
-                    className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-                  />
+                <button
+                  type="button"
+                  onClick={() => setOpen(index)}
+                  aria-label={t('gallery.openImage', { name: t(`gallery.alt.${photo.key}`) })}
+                  className="glow-card group relative block size-full overflow-hidden rounded-xl bg-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gilt-deep"
+                >
+                  {/* The plate the lean is applied to. It cannot be the `li` —
+                      that carries `tile-in`, which animates a transform of its own
+                      — and it cannot be the button, which is the hover target the
+                      rule keys off. Same three-layer arrangement as the treatment
+                      grid, for the same reason. */}
+                  <div className="tilt-plate size-full">
+                    {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
+                    <img
+                      src={photo.src}
+                      width={photo.width}
+                      height={photo.height}
+                      alt={t(`gallery.alt.${photo.key}`)}
+                      loading="lazy"
+                      decoding="async"
+                      sizes="(min-width: 1024px) 320px, 45vw"
+                      className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                    />
 
-                  <PhotoMark />
+                    <PhotoMark />
 
-                  {/*
-                   * The caption, on glass, sliding up from the bottom edge.
-                   *
-                   * The wall was nine unlabelled photographs with a grey scrim
-                   * and an expand icon over whichever one the cursor was on —
-                   * which told a reader that the tile could be opened and
-                   * nothing whatever about what they were looking at. Every one
-                   * of these already has a description written for its `alt`
-                   * text and its lightbox; this puts that description on the
-                   * tile, where somebody scanning the wall can actually use it.
-                   *
-                   * `translate-y-full` to `translate-y-0` rather than a fade:
-                   * on a wall of nine tiles a fade reads as the image changing,
-                   * and a panel arriving from off the bottom edge reads as a
-                   * panel.
-                   */}
-                  <span
-                    aria-hidden
-                    className="absolute inset-x-0 bottom-0 translate-y-full transition-transform duration-300 ease-out group-hover:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:transition-none"
-                  >
-                    <span className="glass-card m-2 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left">
-                      <Expand size={15} className="shrink-0 text-gilt" />
-                      <span className="min-w-0 truncate text-[0.85rem] font-semibold text-white">
-                        {t(`gallery.alt.${photo.key}`)}
+                    {/*
+                     * The caption, on glass, sliding up from the bottom edge.
+                     *
+                     * The wall was nine unlabelled photographs with a grey scrim
+                     * and an expand icon over whichever one the cursor was on —
+                     * which told a reader that the tile could be opened and
+                     * nothing whatever about what they were looking at. Every one
+                     * of these already has a description written for its `alt`
+                     * text and its lightbox; this puts that description on the
+                     * tile, where somebody scanning the wall can actually use it.
+                     *
+                     * `translate-y-full` to `translate-y-0` rather than a fade:
+                     * on a wall of nine tiles a fade reads as the image changing,
+                     * and a panel arriving from off the bottom edge reads as a
+                     * panel.
+                     */}
+                    <span
+                      aria-hidden
+                      className="absolute inset-x-0 bottom-0 translate-y-full transition-transform duration-300 ease-out group-hover:translate-y-0 group-focus-visible:translate-y-0 motion-reduce:transition-none"
+                    >
+                      <span className="glass-card m-2 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left">
+                        <Expand size={15} className="shrink-0 text-gilt" />
+                        <span className="min-w-0 truncate text-[0.85rem] font-semibold text-white">
+                          {t(`gallery.alt.${photo.key}`)}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         {/* The same note the practice section carries, for the same reason:
             these are not photographs of this surgery, and the page says so where

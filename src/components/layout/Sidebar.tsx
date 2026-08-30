@@ -210,7 +210,7 @@ function RailRow({
         <span
           className={cn(
             'shrink-0 rounded-full px-1.5 py-0.5 text-[0.72rem] font-bold tabular-nums',
-            active ? 'bg-brand text-white' : 'bg-white text-brand-deep',
+            active ? 'bg-brand-dark text-white' : 'bg-white text-brand-deep',
             collapsed &&
               'lg:absolute lg:top-1 lg:right-1 lg:px-1 lg:py-0 lg:text-[0.62rem] lg:leading-4',
           )}

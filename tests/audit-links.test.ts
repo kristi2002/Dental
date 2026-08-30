@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { auditDestination } from '../src/lib/audit-links';
@@ -105,6 +105,83 @@ describe('the linked entities are written with one kind of id', () => {
     assert.ok(named.length > 0, 'expected tooth audit lines to be found');
     for (const value of named) {
       assert.equal(value, 'patientId', "entity 'tooth' is filed against the patient");
+    }
+  });
+});
+
+/**
+ * The filter over the trail, held against the trail itself.
+ *
+ * The activity screen narrows by entity, and its list of entities was written by
+ * hand and then not extended: fourteen of the twenty-six kinds `recordAudit`
+ * actually writes. Nothing failed — the rows were all in the list, they simply
+ * could not be filtered for, so "show me everything that touched the works
+ * register" had no answer on the one screen that exists to answer it.
+ *
+ * Read out of the sources rather than imported, because the page is a server
+ * component with next-intl and Prisma behind it and this suite runs on plain
+ * Node. It is a coverage check, not a unit test of a function — the same shape,
+ * and for the same reason, as `tests/storage-keys.test.ts`.
+ */
+describe('the activity filter offers every kind the trail records', () => {
+  const ACTION_FILES = path.join(process.cwd(), 'src', 'lib', 'actions');
+
+  async function recordedEntities(): Promise<Set<string>> {
+    const names = await readdir(ACTION_FILES);
+    const found = new Set<string>();
+
+    for (const name of names.filter((file) => file.endsWith('.ts'))) {
+      const source = await readFile(path.join(ACTION_FILES, name), 'utf8');
+      for (const match of source.matchAll(/entity: '([A-Za-z]+)'/g)) found.add(match[1]);
+    }
+    return found;
+  }
+
+  async function offeredEntities(): Promise<Set<string>> {
+    const source = await readFile(
+      path.join(process.cwd(), 'src', 'app', '[locale]', '(app)', 'activity', 'page.tsx'),
+      'utf8',
+    );
+    const block = source.match(/const ENTITIES = \[([\s\S]*?)\] as const;/);
+    assert.ok(block, 'could not find the ENTITIES array');
+    return new Set([...block[1].matchAll(/'([A-Za-z]+)'/g)].map((match) => match[1]));
+  }
+
+  it('lists every entity an action writes', async () => {
+    const recorded = await recordedEntities();
+    const offered = await offeredEntities();
+
+    const missing = [...recorded].filter((entity) => !offered.has(entity)).sort();
+    assert.deepEqual(missing, [], `not offered by the filter: ${missing.join(', ')}`);
+  });
+
+  it('offers nothing the trail never writes, which would filter to an empty screen', async () => {
+    const recorded = await recordedEntities();
+    const offered = await offeredEntities();
+
+    const dead = [...offered].filter((entity) => !recorded.has(entity)).sort();
+    assert.deepEqual(dead, [], `offered but never recorded: ${dead.join(', ')}`);
+  });
+
+  /**
+   * And each of them has a word to print. This is the failure that shipped: the
+   * booking request was recorded from the day the public page existed, had no
+   * `entity_` key in any of the three files, and every such row rendered the
+   * literal string `activity.entity_appointmentRequest` on screen.
+   */
+  it('has a label for each, in all three languages', async () => {
+    const recorded = await recordedEntities();
+
+    for (const locale of ['en', 'sq', 'it']) {
+      const messages = JSON.parse(
+        await readFile(path.join(process.cwd(), 'messages', `${locale}.json`), 'utf8'),
+      );
+      for (const entity of recorded) {
+        assert.ok(
+          messages.activity[`entity_${entity}`],
+          `${locale}.json has no activity.entity_${entity}`,
+        );
+      }
     }
   });
 });

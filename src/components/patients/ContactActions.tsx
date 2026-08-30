@@ -194,7 +194,7 @@ export function ContactActions({
 function Preferred({ when, label }: { when: boolean; label: string }) {
   if (!when) return null;
   return (
-    <span className="ml-auto flex items-center gap-1 text-[0.82rem] font-semibold text-brand">
+    <span className="ml-auto flex items-center gap-1 text-[0.82rem] font-semibold text-brand-deep">
       <Star size={13} aria-hidden className="shrink-0 fill-current" />
       {label}
     </span>

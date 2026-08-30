@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mailtoLink, toWhatsappNumber, whatsappLink } from '../src/lib/reminders';
+import {
+  diallingCodeFor,
+  mailtoLink,
+  toWhatsappNumber,
+  whatsappLink,
+} from '../src/lib/reminders';
 
 describe('toWhatsappNumber — Albanian local formats', () => {
   it('turns a local 069 number into its international form', () => {
@@ -58,5 +63,55 @@ describe('link builders', () => {
   it('returns null without an address', () => {
     assert.equal(mailtoLink('', 's', 'b'), null);
     assert.equal(mailtoLink('   ', 's', 'b'), null);
+  });
+});
+
+
+/**
+ * Which country a number with no code of its own is read as.
+ *
+ * The bug this closes was silent in the worst way: an Italian mobile is written
+ * `340 1234567` — no `+`, and no trunk zero to strip — so it fell through to
+ * "prepend the practice's country" and became `3553401234567`. The reminder went
+ * nowhere and nothing said so.
+ */
+describe('diallingCodeFor — whose country a bare number is in', () => {
+  it('reads an Italian patient as Italian', () => {
+    assert.equal(diallingCodeFor('it'), '39');
+  });
+
+  it('reads everyone else as the practice, which is where it is', () => {
+    assert.equal(diallingCodeFor('sq'), '355');
+    // English is the language a patient from any of several countries picks, so
+    // there is nothing behind it to infer — and this is the old behaviour.
+    assert.equal(diallingCodeFor('en'), '355');
+    assert.equal(diallingCodeFor(null), '355');
+    assert.equal(diallingCodeFor(undefined), '355');
+    assert.equal(diallingCodeFor('de'), '355');
+  });
+});
+
+describe('whatsappLink — the number it actually dials', () => {
+  const NUMBER = /wa\.me\/(\d+)/;
+
+  it('sends an Italian mobile to Italy rather than inventing an Albanian one', () => {
+    const link = whatsappLink('340 1234567', 'ciao', 'it');
+    assert.equal(link?.match(NUMBER)?.[1], '393401234567');
+  });
+
+  it('is unchanged for the practice’s own patients', () => {
+    const link = whatsappLink('069 12 34 567', 'përshëndetje', 'sq');
+    assert.equal(link?.match(NUMBER)?.[1], '355691234567');
+  });
+
+  it('leaves a number that states its own country alone, whatever the locale says', () => {
+    // Somebody living in Italy who kept an Albanian number, and wrote it in full.
+    const link = whatsappLink('+355 69 123 4567', 'ciao', 'it');
+    assert.equal(link?.match(NUMBER)?.[1], '355691234567');
+  });
+
+  it('behaves exactly as before when nobody passes a locale', () => {
+    const link = whatsappLink('069 12 34 567', 'x');
+    assert.equal(link?.match(NUMBER)?.[1], '355691234567');
   });
 });

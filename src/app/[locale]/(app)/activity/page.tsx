@@ -28,20 +28,56 @@ export const dynamic = 'force-dynamic';
 const PAGE_SIZE = 100;
 
 
+/**
+ * What the trail can be narrowed to, in the order the filter prints them.
+ *
+ * **Every kind `recordAudit` writes belongs here.** It used to hold fourteen of
+ * the twenty-six, and the twelve left out were not a decision — they were the
+ * ones added after this array was written. The effect is that a screen whose
+ * whole job is answering "what happened to this" could not answer it about the
+ * works register, the practice's settings, or the mail, and nothing said so: the
+ * rows were all there in the list, simply not reachable by the filter above it.
+ *
+ * `tests/audit-links.test.ts` now holds this against the entities the actions
+ * actually record, so a twenty-seventh breaks a test rather than quietly
+ * becoming the thirteenth thing nobody can filter for.
+ *
+ * Grouped rather than alphabetical, because the filter is read as a list of
+ * places rather than searched as an index: the patient and their care, then the
+ * catalogue and the cupboard, then the practice's own correspondence and
+ * housekeeping.
+ */
 const ENTITIES = [
+  // The patient, and what was done for them.
   'patient',
   'appointment',
   'visit',
   'tooth',
+  'alert',
   'plan',
   'document',
   'prescription',
+  'work',
+  // What the practice keeps.
   'stock',
+  'stockCategory',
+  'supplier',
   'service',
-  'staff',
+  'serviceCategory',
+  'workProcedure',
+  'lab',
+  // Who it speaks to, and about what.
+  'contact',
+  'message',
   'recall',
   'waitlist',
+  'appointmentRequest',
+  'followup',
+  // Running the place.
+  'staff',
+  'settings',
   'backup',
+  'job',
   'session',
 ] as const;
 
@@ -319,7 +355,7 @@ export default async function ActivityPage({
                         {linked ? (
                           <Link
                             href={linked.href}
-                            className="min-w-0 truncate text-[1rem] font-semibold text-brand underline-offset-2 hover:underline"
+                            className="min-w-0 truncate text-[1rem] font-semibold text-brand-deep underline-offset-2 hover:underline"
                           >
                             {entry.summary}
                           </Link>

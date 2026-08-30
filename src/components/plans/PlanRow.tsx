@@ -428,7 +428,7 @@ export function PlanRow({
                 <Badge key={step.id} tone={step.linked ? 'brand' : 'neutral'}>
                   {step.title}
                   {step.toothNum ? (
-                    <span className="font-normal opacity-80">{tooth(step.toothNum)}</span>
+                    <span className="font-normal text-ink-soft">{tooth(step.toothNum)}</span>
                   ) : null}
                 </Badge>
               ))}

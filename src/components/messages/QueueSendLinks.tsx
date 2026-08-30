@@ -80,10 +80,10 @@ export function QueueSendLinks({
           {t('remindWhatsapp')}
         </a>
       ) : (
-        <span className="btn btn-secondary btn-sm opacity-55" title={t('noPhoneForReminder')}>
+        <button type="button" disabled className="btn btn-secondary btn-sm" title={t('noPhoneForReminder')}>
           <MessageCircle size={17} aria-hidden className="shrink-0" />
           {t('remindWhatsapp')}
-        </span>
+        </button>
       )}
 
       {/* When the practice has a mail provider this is a button that sends;
@@ -97,10 +97,10 @@ export function QueueSendLinks({
             {t('remindEmail')}
           </a>
         ) : (
-          <span className="btn btn-secondary btn-sm opacity-55" title={t('noEmailForReminder')}>
+          <button type="button" disabled className="btn btn-secondary btn-sm" title={t('noEmailForReminder')}>
             <Mail size={17} aria-hidden className="shrink-0" />
             {t('remindEmail')}
-          </span>
+          </button>
         ))}
     </>
   );

@@ -22,6 +22,7 @@ export function RecallCard({
   lastName,
   phone,
   email,
+  locale,
   lastVisit,
   detail,
   tone,
@@ -38,6 +39,11 @@ export function RecallCard({
   lastName: string;
   phone: string;
   email: string;
+  /**
+   * The patient's own language, which is also the best guess this record holds
+   * at which country their telephone number is in. See `diallingCodeFor`.
+   */
+  locale: string | null;
   /** Tri-state: `null` is "nobody asked", which is not a refusal. */
   contactConsent: boolean | null;
   /** `YYYY-MM-DD`, or null when never seen. */
@@ -67,7 +73,7 @@ export function RecallCard({
   const tc = useTranslations('common');
   const format = useFormatter();
 
-  const whatsapp = phone ? whatsappLink(phone, message) : null;
+  const whatsapp = phone ? whatsappLink(phone, message, locale) : null;
   const mail = email ? mailtoLink(email, emailSubject, emailBody) : null;
 
   return (

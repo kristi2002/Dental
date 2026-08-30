@@ -72,7 +72,7 @@ export async function composeReminder({
   const subject = t('emailSubject', values);
 
   return {
-    whatsapp: phone ? whatsappLink(phone, body) : null,
+    whatsapp: phone ? whatsappLink(phone, body, locale) : null,
     mail: email ? mailtoLink(email, subject, emailBody) : null,
     body,
     subject,
@@ -133,7 +133,7 @@ export async function composeRecall({
   const mailBody = t('recallEmailBody', values);
 
   return {
-    whatsapp: phone ? whatsappLink(phone, body) : null,
+    whatsapp: phone ? whatsappLink(phone, body, locale) : null,
     mail: email ? mailtoLink(email, subject, mailBody) : null,
     body,
     subject,

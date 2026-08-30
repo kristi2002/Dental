@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { followUpFileKeys, forgetFiles } from '@/lib/cascade-files';
 import { prisma } from '@/lib/prisma';
 import { fromDateKey, today } from '@/lib/dates';
 import { optionalString, requiredString } from '@/lib/utils';
@@ -192,7 +193,15 @@ export async function deleteWork(formData: FormData): Promise<void> {
   });
   if (!work) return;
 
+  // Read before the delete: a case cascades into the follow-ups filed against
+  // it, and those carry attachments — most often a photograph of what came back
+  // from the laboratory wrong, which is the whole reason somebody pinned it.
+  // See `cascade-files.ts`.
+  const files = await followUpFileKeys({ workId: id });
+
   await prisma.work.delete({ where: { id } });
+  await forgetFiles(files);
+
   await recordAudit(user, {
     action: 'delete',
     entity: 'work',

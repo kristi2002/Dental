@@ -100,7 +100,12 @@ export function ReminderLinks({
   // Inside a menu the panel is already the box, so the wrapper steps out of the
   // way with `contents` and the two rows sit straight in the menu.
   const wrapperClass = inMenu ? 'contents' : 'flex flex-wrap items-center gap-2';
-  const mutedClass = inMenu ? 'menu-item menu-item-muted' : `${buttonClass} opacity-55`;
+  // No `opacity-55` here any more: the "we have no number for them" affordance
+  // is a real `disabled` button, so the dimming is `.btn`'s own and a reader is
+  // told the control is unavailable instead of meeting a span it cannot tell
+  // apart from the working one. Same change as `QueueSendLinks`. Inside a menu
+  // the muted class is a colour rather than an opacity and stays as it was.
+  const mutedClass = inMenu ? 'menu-item menu-item-muted' : buttonClass;
   const role = inMenu ? 'menuitem' : undefined;
 
   return (
@@ -119,10 +124,10 @@ export function ReminderLinks({
           {t('remindWhatsapp')}
         </a>
       ) : (
-        <span className={mutedClass} title={t('noPhoneForReminder')}>
+        <button type="button" disabled role={role} className={mutedClass} title={t('noPhoneForReminder')}>
           <MessageCircle size={iconSize} aria-hidden className="shrink-0" />
           {t('remindWhatsapp')}
-        </span>
+        </button>
       )}
 
       {emailSend ??
@@ -138,10 +143,10 @@ export function ReminderLinks({
             {t('remindEmail')}
           </a>
         ) : (
-          <span className={mutedClass} title={t('noEmailForReminder')}>
+          <button type="button" disabled role={role} className={mutedClass} title={t('noEmailForReminder')}>
             <Mail size={iconSize} aria-hidden className="shrink-0" />
             {t('remindEmail')}
-          </span>
+          </button>
         ))}
     </div>
   );

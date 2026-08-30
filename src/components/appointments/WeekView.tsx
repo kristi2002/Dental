@@ -464,7 +464,7 @@ export function WeekView({
                   <span
                     className={cn(
                       'block text-[0.78rem] font-bold tracking-wide uppercase',
-                      isToday ? 'text-white/85' : 'text-ink-faint',
+                      isToday ? 'text-white' : 'text-ink-faint',
                     )}
                   >
                     {dates.date(day, 'weekdayShort')}
@@ -476,7 +476,7 @@ export function WeekView({
                     <span
                       className={cn(
                         'block text-[0.72rem] font-semibold',
-                        isToday ? 'text-white/85' : 'text-ink-faint',
+                        isToday ? 'text-white' : 'text-ink-faint',
                       )}
                     >
                       {t('closedHour')}
@@ -632,11 +632,11 @@ export function WeekView({
                         ) : (
                           <>
                             <span className="block truncate text-[0.88rem] font-bold">{name}</span>
-                            <span className="block truncate text-[0.78rem] font-semibold tabular-nums opacity-85">
+                            <span className="block truncate text-[0.78rem] font-semibold tabular-nums">
                               {appointment.startTime} – {endTime}
                             </span>
                             {height >= 3.4 && appointment.serviceName ? (
-                              <span className="block truncate text-[0.78rem] opacity-80">
+                              <span className="block truncate text-[0.78rem]">
                                 {appointment.serviceName}
                               </span>
                             ) : null}

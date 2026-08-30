@@ -120,7 +120,7 @@ export default async function RequestsPage({
         <ul className="grid gap-4">
           {requests.map((request) => {
             const tel = telLink(request.phone);
-            const chat = whatsappChatLink(request.phone);
+            const chat = whatsappChatLink(request.phone, request.locale);
             const language = localeLabels[request.locale as Locale] ?? request.locale;
 
             return (

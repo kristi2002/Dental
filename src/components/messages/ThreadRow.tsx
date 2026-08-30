@@ -40,7 +40,7 @@ export async function ThreadRow({ thread }: { thread: ThreadSummary }) {
           aria-hidden
           className={cn(
             'mt-0.5 grid size-9 shrink-0 place-items-center rounded-full',
-            unread ? 'bg-brand text-white' : 'bg-paper text-ink-faint',
+            unread ? 'bg-brand-dark text-white' : 'bg-paper text-ink-faint',
           )}
         >
           <User size={18} />

@@ -21,7 +21,7 @@ const STATUS_STYLE: Record<string, string> = {
   SCHEDULED: 'border-brand/40 bg-brand-soft',
   ARRIVED: 'border-accent bg-accent-soft',
   COMPLETED: 'border-ok/30 bg-ok-soft',
-  CANCELLED: 'border-line-strong bg-paper opacity-70',
+  CANCELLED: 'border-line-strong bg-paper text-ink-soft',
   NO_SHOW: 'border-warn/30 bg-warn-soft',
 };
 
