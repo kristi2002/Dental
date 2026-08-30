@@ -625,6 +625,7 @@ export function NewPlanForm({
         state={state}
         cancelHref={defaultPatient ? `/patients/${defaultPatient.id}?tab=plans` : '/plans'}
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
       />

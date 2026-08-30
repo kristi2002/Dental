@@ -200,6 +200,7 @@ export function EditStockForm({
         state={state}
         cancelHref={from === 'catalog' ? '/stock/catalog' : '/stock'}
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
       />

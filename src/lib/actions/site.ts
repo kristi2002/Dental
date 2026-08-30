@@ -1,8 +1,12 @@
 'use server';
 
 import { headers } from 'next/headers';
+import { after } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { routing } from '@/i18n/routing';
+import { sendMail } from '@/lib/messages/mailer';
+import { alertRecipient, requestAlertMail } from '@/lib/messages/request-alert';
 import { fromDateKey, isDateKey } from '@/lib/dates';
 import {
   isAllowedMimeType,
@@ -13,7 +17,7 @@ import { sniffMimeType } from '@/lib/file-signature';
 import { deleteStoredFile, storeFile } from '@/lib/files';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit } from '@/lib/rate-limit';
-import { getBookingWindow } from '@/lib/site';
+import { getBookingWindow, getSiteContact } from '@/lib/site';
 import {
   isPreferredTime,
   isRequestTopic,
@@ -73,6 +77,101 @@ async function readPreferredDay(
       : null;
 
   return { date: fromDateKey(key), half };
+}
+
+/**
+ * Put the request in front of somebody who is not looking at the screen.
+ *
+ * Composed here, where the request is still being served and a translator is
+ * to hand, and *sent* from inside `after` — so a provider having a slow morning
+ * costs the visitor nothing. They have already been told the practice will ring
+ * them back by the time this runs.
+ *
+ * **Nothing in here may fail the request.** The row is written, the visitor has
+ * their answer, and the rail's count is the signal this is merely trying to get
+ * ahead of; a mail provider that refuses is a line in the log and no more. That
+ * is also why the recipient being absent is not an error — a practice that has
+ * not configured sending gets exactly the behaviour it had before this existed.
+ *
+ * The desk's own language throughout, not the visitor's. `request.locale`
+ * records what *they* wrote in, which is what the desk's screen uses to answer
+ * them; this is the practice talking to itself.
+ */
+async function alertTheDesk(request: {
+  name: string;
+  phone: string;
+  email: string | null;
+  topic: string | null;
+  preferredDate: Date | null;
+  preferredHalf: string | null;
+  attachments: number;
+}): Promise<void> {
+  try {
+    const locale = routing.defaultLocale;
+    const [contact, ts, tr] = await Promise.all([
+      getSiteContact(),
+      getTranslations({ locale, namespace: 'site' }),
+      getTranslations({ locale, namespace: 'requests' }),
+    ]);
+
+    const to = alertRecipient(contact.email, process.env.MAIL_REPLY_TO);
+    if (!to) return;
+
+    const half =
+      request.preferredHalf === 'morning' || request.preferredHalf === 'afternoon'
+        ? ts(`book.half.${request.preferredHalf}`)
+        : null;
+    const day = request.preferredDate
+      ? new Intl.DateTimeFormat(locale, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          timeZone: 'Europe/Tirane',
+        }).format(request.preferredDate)
+      : null;
+
+    const base = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '');
+
+    const mail = requestAlertMail(
+      to,
+      contact.name,
+      {
+        name: request.name,
+        phone: request.phone,
+        email: request.email,
+        topicLabel: request.topic ? ts(`topics.${request.topic}`) : null,
+        preferredLabel: day ? (half ? `${day}, ${half}` : day) : null,
+        attachments: request.attachments,
+      },
+      {
+        subject: tr('alert.subject', { name: request.name }),
+        intro: tr('alert.intro'),
+        phone: tr('alert.phone'),
+        email: tr('alert.email'),
+        topic: tr('alert.topic'),
+        preferred: tr('alert.preferred'),
+        attachments: tr('alert.attachments'),
+        openIt: tr('alert.openIt'),
+      },
+      base ? `${base}/${locale}/requests` : null,
+    );
+
+    after(async () => {
+      const result = await sendMail(mail);
+      if (!result.ok) {
+        console.error('[site] could not tell the desk about a request', result.failure, result.detail);
+      }
+    });
+  } catch (error) {
+    console.error('[site] could not compose the desk alert', error);
+  }
+}
+
+/** The fewest digits anything anybody could ring has. See its one caller. */
+const MIN_PHONE_DIGITS = 6;
+
+function hasEnoughDigits(phone: string): boolean {
+  return phone.replace(/\D/g, '').length >= MIN_PHONE_DIGITS;
 }
 
 /** One file, checked and read into memory, ready to be written to disk. */
@@ -238,6 +337,22 @@ export async function requestAppointment(
     return actionError(t('form.tooLong'));
   }
 
+  // Long enough to be a telephone number somebody could actually ring.
+  //
+  // The field was length-capped and nothing else, so `type="tel"` — which
+  // validates nothing, in any browser — was the whole of it, and a slip of the
+  // thumb produced a request that looks perfectly good on the desk's screen and
+  // rings nowhere. That is the worst shape this failure can take: the practice
+  // spends the call, the visitor never hears back, and neither side ever learns
+  // why.
+  //
+  // Deliberately the crudest possible test. Albanian numbers are written
+  // `069 12 34 567`, Italian ones `+39 340 …`, and this form exists to be filled
+  // in from three countries — so anything that counts digits by country would be
+  // a rule that refuses a real patient, which is far worse than accepting an odd
+  // one. Six digits is below every national minimum and above every typo.
+  if (!hasEnoughDigits(phone)) return actionError(t('form.phoneShort'));
+
   const topic = optionalString(formData.get('topic'));
 
   const attachments = await readAttachments(formData);
@@ -305,6 +420,16 @@ export async function requestAppointment(
     console.error('[site] could not record the request', error);
     return actionError(t('form.failed'));
   }
+
+  await alertTheDesk({
+    name,
+    phone,
+    email: optionalString(formData.get('email')),
+    topic: topic && isRequestTopic(topic) ? topic : null,
+    preferredDate: preferred.date,
+    preferredHalf: preferred.half,
+    attachments: attachments.length,
+  });
 
   // The desk's list, and the dashboard card that counts it. `layout` because the
   // count also rides in the navigation rail.

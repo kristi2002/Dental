@@ -72,6 +72,7 @@ export function NewOperatoryForm({ existing }: { existing: string[] }) {
         state={state}
         cancelHref="/settings"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
         secondary={

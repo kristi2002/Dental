@@ -113,6 +113,7 @@ export function NewCategoryForm({
         state={state}
         cancelHref="/services/categories"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
         secondary={

@@ -100,6 +100,7 @@ export function NewStaffForm() {
         state={state}
         cancelHref="/staff"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
       />

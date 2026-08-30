@@ -601,7 +601,8 @@
       "tooLong": "Një nga fushat është shumë e gjatë. Shkurtojeni pak dhe provoni sërish.",
       "filesFailed": "Nuk arritëm t’i marrim ata skedarë. Provoni ta dërgoni kërkesën pa ta, ose na telefononi.",
       "failed": "Kërkesa nuk u dërgua. Provoni sërish pas pak, ose na telefononi.",
-      "sentFiles": "{count, plural, one {Morëm edhe skedarin tuaj.} other {Morëm edhe # skedarët tuaj.}}"
+      "sentFiles": "{count, plural, one {Morëm edhe skedarin tuaj.} other {Morëm edhe # skedarët tuaj.}}",
+      "phoneShort": "Ky nuk duket si një numër ku mund t’ju marrim. Ju lutemi kontrollojeni."
     },
     "book": {
       "eyebrow": "Rezervoni një vizitë",
@@ -721,6 +722,18 @@
       "blurb": "Klinikë dentare në Vlorë. Kujdes i plotë stomatologjik, në shqip, italisht dhe anglisht.",
       "reach": "Na kontaktoni",
       "weekdays": "E hënë – e premte: {hours}"
+    },
+    "gone": {
+      "eyebrow": "Nuk është këtu",
+      "title": "Kjo faqe është zhvendosur, ose nuk ka ekzistuar kurrë.",
+      "lede": "Shfletuesi juaj është në rregull. Adresa që ndoqët nuk të çon askund në këtë faqe — ka shumë të ngjarë t’i jetë ndryshuar emri, ose të ketë humbur një shkronjë rrugës. Gjithçka që publikon klinika është një nga të katërtat më poshtë."
+    },
+    "broke": {
+      "title": "Kjo faqe nuk u hap dot.",
+      "lede": "Diçka dështoi nga ana jonë, jo nga e juaja. Ia vlen ta provoni sërish — dhe nëse vazhdon, klinika është në telefon dhe mund t’ju caktojë takimin drejtpërdrejt.",
+      "retry": "Provo sërish",
+      "home": "Faqja kryesore",
+      "callInstead": "Ose na telefononi:"
     }
   },
   "nav": {
@@ -1464,7 +1477,17 @@
     "saveNote": "Ruaj",
     "savingNote": "Po ruhet…",
     "preferredDay": "Ka kërkuar",
-    "attachments": "Dërguar bashkë me kërkesën"
+    "attachments": "Dërguar bashkë me kërkesën",
+    "alert": {
+      "subject": "Kërkesë e re nga faqja — {name}",
+      "intro": "Dikush ka kërkuar një takim. Po pret përgjigje.",
+      "phone": "Telefoni",
+      "email": "Email",
+      "topic": "Për",
+      "preferred": "Do të parapëlqente",
+      "attachments": "Skedarë të bashkangjitur",
+      "openIt": "Hape"
+    }
   },
   "outbox": {
     "title": "Kujtesa për t'u dërguar",
@@ -1551,7 +1574,8 @@
     "importTooMany": "Ky import ka më shumë se {limit} rreshta. Ndaje dhe importoje në pjesë.",
     "gone": "Kjo është hequr tashmë nga dikush tjetër.",
     "alreadyHandled": "Dikush tjetër e ka trajtuar tashmë këtë.",
-    "notReopenable": "Kjo u tërhoq automatikisht dhe nuk mund të kthehet — takimi për të cilin ishte ka ndryshuar."
+    "notReopenable": "Kjo u tërhoq automatikisht dhe nuk mund të kthehet — takimi për të cilin ishte ka ndryshuar.",
+    "backToSite": "Kthehu te faqja e klinikës"
   },
   "roles": {
     "OWNER": "Pronar / Dentist",
@@ -1771,7 +1795,8 @@
     "entity_stockCategory": "Kategori inventari",
     "entity_serviceCategory": "Kategori shërbimi",
     "entity_workProcedure": "Lloj punimi",
-    "entity_lab": "Laborator"
+    "entity_lab": "Laborator",
+    "entity_appointmentRequest": "Kërkesë"
   },
   "recalls": {
     "title": "Rikthimet",
@@ -1810,7 +1835,8 @@
     "noFitToday": "Asnjë hapësirë ende e lirë sot nuk i përshtatet askujt në pritje.",
     "offer": "Ofro orarin",
     "resolve": "Hiq nga lista",
-    "fitsTodayCount": "{count, plural, =1 {Njëri prej tyre zë një hapësirë ende të lirë sot} other {# prej tyre zënë hapësira ende të lira sot}}"
+    "fitsTodayCount": "{count, plural, =1 {Njëri prej tyre zë një hapësirë ende të lirë sot} other {# prej tyre zënë hapësira ende të lira sot}}",
+    "urgentHint": "i pari që i ofrohet një orar i liruar"
   },
   "reliability": {
     "watch": "{missed} nga {total} të humbura",

@@ -46,6 +46,7 @@ import {
   getUnremindedTomorrow as getUnreminded,
   getWorksToChase,
 } from '@/lib/queries';
+import { alertLabel } from '@/lib/stock-alerts';
 import { followUpStatus } from '@/lib/follow-ups';
 import { daysLate, workStatus } from '@/lib/works';
 import { getRecalls } from '@/lib/recalls';
@@ -207,7 +208,11 @@ export default async function DashboardPage({
         })}
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Two across on a telephone, not one. Four full-width cards is most of a
+          screen of counts before the first appointment of the day appears, on
+          the device this page is most often read on — and a count is the one
+          thing on the dashboard that stays legible at half the width. */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard label={t('statToday')} value={todayAppointments.length} Icon={CalendarDays} href="/appointments" />
         <StatCard label={t('statWeek')} value={weekCount} Icon={CalendarDays} href="/appointments?view=week" />
         {canSeeRecalls ? (
@@ -689,16 +694,29 @@ export default async function DashboardPage({
                     className="flex items-center justify-between gap-3 border-b border-line px-5 py-3.5 last:border-b-0"
                   >
                     <span className="min-w-0">
+                      {/* The variant, not just the material. Three sizes of the
+                          same glove are three rows here, and printing only the
+                          name made them three identical rows with different
+                          numbers after them. `alertLabel` is what the reminder
+                          board has always used; this list was the one stock
+                          surface that did not. */}
                       <span className="block truncate text-[1.05rem] font-bold text-ink">
-                        {item.name}
+                        {alertLabel({ name: item.name, variantName: item.variantName ?? '' })}
                       </span>
+                      {/* `usable`, which is what put the row on this list in the
+                          first place — `getLowStockItems` filters on it. The
+                          count printed here was the raw shelf quantity, so a
+                          material with thirty boxes and twenty-eight of them
+                          expired read "30 in stock · min 20" and looked like a
+                          false alarm. Same reasoning for the badge: everything
+                          on the shelf being expired is *out*, not *low*. */}
                       <span className="block text-[0.9rem] text-ink-soft">
-                        {ts('inStock', { qty: item.quantity })} ·{' '}
+                        {ts('inStock', { qty: item.usable })} ·{' '}
                         {ts('minShort', { min: item.minLimit })}
                       </span>
                     </span>
-                    <Badge tone={item.quantity === 0 ? 'danger' : 'warn'}>
-                      {item.quantity === 0 ? ts('out') : ts('low')}
+                    <Badge tone={item.usable === 0 ? 'danger' : 'warn'}>
+                      {item.usable === 0 ? ts('out') : ts('low')}
                     </Badge>
                   </li>
                 ))}

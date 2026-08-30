@@ -158,6 +158,7 @@ export function NewPatientForm({
         state={state}
         cancelHref="/patients"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
         belowError={

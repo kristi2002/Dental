@@ -601,7 +601,8 @@
       "tooLong": "One of the fields is too long. Shorten it a little and try again.",
       "filesFailed": "We could not take those files. Try sending the request without them, or ring us.",
       "failed": "That did not send. Try again in a moment, or ring us.",
-      "sentFiles": "{count, plural, one {We have your file too.} other {We have your # files too.}}"
+      "sentFiles": "{count, plural, one {We have your file too.} other {We have your # files too.}}",
+      "phoneShort": "That does not look like a number we could ring. Please check it."
     },
     "book": {
       "eyebrow": "Book a visit",
@@ -721,6 +722,18 @@
       "blurb": "A dental practice in Vlorë. Complete dental care, in three languages.",
       "reach": "Reach us",
       "weekdays": "Monday to Friday: {hours}"
+    },
+    "gone": {
+      "eyebrow": "Not here",
+      "title": "This page has moved, or never existed.",
+      "lede": "Nothing is wrong with your browser. The address you followed does not lead anywhere on this site — most likely it was renamed, or a letter went astray on the way in. Everything the practice publishes is one of the four below."
+    },
+    "broke": {
+      "title": "This page would not load.",
+      "lede": "Something failed at our end, not yours. It is worth trying again — and if it keeps happening, the surgery is on the telephone and can book you in directly.",
+      "retry": "Try again",
+      "home": "Front page",
+      "callInstead": "Or ring us:"
     }
   },
   "nav": {
@@ -1464,7 +1477,17 @@
     "saveNote": "Save",
     "savingNote": "Saving…",
     "preferredDay": "Asked for",
-    "attachments": "Sent with the request"
+    "attachments": "Sent with the request",
+    "alert": {
+      "subject": "New request from the website — {name}",
+      "intro": "Somebody has asked to be seen. They are waiting to hear back.",
+      "phone": "Telephone",
+      "email": "Email",
+      "topic": "About",
+      "preferred": "Would prefer",
+      "attachments": "Files attached",
+      "openIt": "Open it"
+    }
   },
   "outbox": {
     "title": "Reminders to send",
@@ -1551,7 +1574,8 @@
     "importTooMany": "That import has more than {limit} rows. Split it and import it in parts.",
     "gone": "That has already been removed by somebody else.",
     "alreadyHandled": "Somebody else has already handled this one.",
-    "notReopenable": "This one was withdrawn automatically and cannot be put back — the appointment it was about has changed."
+    "notReopenable": "This one was withdrawn automatically and cannot be put back — the appointment it was about has changed.",
+    "backToSite": "Back to the practice’s page"
   },
   "roles": {
     "OWNER": "Owner / Dentist",
@@ -1771,7 +1795,8 @@
     "entity_stockCategory": "Stock category",
     "entity_serviceCategory": "Service category",
     "entity_workProcedure": "Kind of work",
-    "entity_lab": "Laboratory"
+    "entity_lab": "Laboratory",
+    "entity_appointmentRequest": "Request"
   },
   "recalls": {
     "title": "Recalls",
@@ -1810,7 +1835,8 @@
     "noFitToday": "No gap still open today fits anybody waiting.",
     "offer": "Offer the slot",
     "resolve": "Remove from list",
-    "fitsTodayCount": "{count, plural, =1 {One of them fits a gap still open today} other {# of them fit gaps still open today}}"
+    "fitsTodayCount": "{count, plural, =1 {One of them fits a gap still open today} other {# of them fit gaps still open today}}",
+    "urgentHint": "first to be offered a freed slot"
   },
   "reliability": {
     "watch": "{missed} of {total} missed",

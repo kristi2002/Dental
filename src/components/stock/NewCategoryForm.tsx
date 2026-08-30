@@ -74,6 +74,7 @@ export function NewCategoryForm({ existing }: { existing: string[] }) {
         state={state}
         cancelHref="/stock/categories"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
         secondary={

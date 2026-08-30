@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { Link } from '@/i18n/navigation';
 import type { ActionState } from '@/lib/actions/types';
+import { isFormDirty } from '@/lib/form-dirty';
 import { SubmitButton } from './SubmitButton';
 
 /**
@@ -97,6 +98,7 @@ export function FormActions({
   pendingLabel,
   belowError,
   secondary,
+  discardMessage,
 }: {
   state: ActionState;
   /** Where cancelling goes — the list this record is being added to. */
@@ -108,6 +110,21 @@ export function FormActions({
   belowError?: ReactNode;
   /** An extra action left of save — "save and add another", on the setup screens. */
   secondary?: ReactNode;
+  /**
+   * The question asked before a half-filled page is navigated away from.
+   *
+   * The same opt-in `FormDialog` takes, and it arrived here late: the docstring
+   * at the top of this file argues that a page "survives a stray press of
+   * Escape", which is true and was being used to mean the work was safe. It was
+   * not — Cancel is a link, a link navigates, and a treatment plan with nine
+   * steps typed into it went in one click with nothing asked. Escape was never
+   * the way these were lost.
+   *
+   * Only the browser's own back button remains unguarded, and deliberately: the
+   * `beforeunload` prompt that would cover it is unstyleable, unwordable, and
+   * fires on every navigation a form has ever been near.
+   */
+  discardMessage?: string;
 }) {
   return (
     <div className="sticky bottom-0 z-10 mt-5 rounded-xl border border-line bg-surface px-5 py-4 shadow-pop">
@@ -124,7 +141,19 @@ export function FormActions({
       ) : null}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <Link href={cancelHref} className="btn btn-secondary">
+        <Link
+          href={cancelHref}
+          className="btn btn-secondary"
+          // `closest('form')` rather than a ref: this bar is rendered inside the
+          // form on every screen that uses it, and threading a ref through
+          // eleven call sites to reach an element the click is already inside
+          // would be a prop on every one of them for nothing.
+          onClick={(event) => {
+            if (!discardMessage) return;
+            const form = event.currentTarget.closest('form');
+            if (isFormDirty(form) && !window.confirm(discardMessage)) event.preventDefault();
+          }}
+        >
           {cancelLabel}
         </Link>
         {secondary}

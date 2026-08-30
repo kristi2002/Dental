@@ -68,6 +68,7 @@ export function NewProcedureForm({ existing }: { existing: string[] }) {
         state={state}
         cancelHref="/works/procedures"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
         secondary={

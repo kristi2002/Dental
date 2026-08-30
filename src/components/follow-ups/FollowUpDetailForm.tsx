@@ -125,6 +125,7 @@ export function FollowUpDetailForm({
           state={state}
           cancelHref="/follow-ups"
           cancelLabel={tc('cancel')}
+          discardMessage={tc('discardUnsaved')}
           saveLabel={tc('save')}
           pendingLabel={tc('saving')}
         />

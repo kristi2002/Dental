@@ -82,6 +82,7 @@ export function NewSupplierForm() {
         state={state}
         cancelHref="/stock/suppliers"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
         secondary={

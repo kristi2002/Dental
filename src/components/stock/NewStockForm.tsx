@@ -149,6 +149,7 @@ export function NewStockForm({
         state={state}
         cancelHref="/stock"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
       />

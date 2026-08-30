@@ -99,6 +99,7 @@ export function NewServiceForm({ categories }: { categories: ServiceCategoryOpti
         state={state}
         cancelHref="/services"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
       />

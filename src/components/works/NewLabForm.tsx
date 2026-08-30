@@ -53,6 +53,7 @@ export function NewLabForm({ existing }: { existing: string[] }) {
         state={state}
         cancelHref="/works/labs"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
         secondary={

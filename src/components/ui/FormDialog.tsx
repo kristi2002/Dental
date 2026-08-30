@@ -3,6 +3,7 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, type ReactNode } from 'react';
 import type { ActionState } from '@/lib/actions/types';
+import { isFormDirty } from '@/lib/form-dirty';
 import { useRecoveredForm } from '@/lib/form-recovery';
 import { cn } from '@/lib/utils';
 import { SubmitButton } from './SubmitButton';
@@ -47,8 +48,9 @@ type Props = {
   /**
    * The question asked before a dialog with typing in it is thrown away.
    *
-   * When set, closing a *dirty* form — Escape, the ✕, or a click on the
-   * backdrop — asks first. Unset, the dialog behaves exactly as it always has.
+   * When set, closing a *dirty* form — Cancel, Escape, the ✕, or a click on
+   * the backdrop — asks first. Unset, the dialog behaves exactly as it always
+   * has.
    *
    * Opt-in rather than automatic, because most of these hold four fields picked
    * from selects and a confirmation on those would be a prompt in the way. It is
@@ -95,46 +97,8 @@ export function FormDialog({
     onSuccess?.();
   }, [state, resetOnSuccess, formRef, onSuccess]);
 
-  /**
-   * Has anybody actually typed into this?
-   *
-   * Read off the DOM at the moment of closing rather than tracked as state:
-   * these are uncontrolled forms — that is the whole reason `useRecoveredForm`
-   * has to put values back by hand — so there is no React state to compare
-   * against, and a `dirty` flag hung off every `onChange` would be a second
-   * source of truth for something the elements already know.
-   *
-   * Compared against `defaultValue` / `defaultChecked`, so a field the dialog
-   * opened with does not count as typing. A `<select>` is deliberately left out:
-   * every one in this app opens on a real default and changing it back and forth
-   * would leave the form looking dirty when it says exactly what it started with.
-   */
-  const isDirty = useCallback(() => {
-    const form = formRef.current;
-    if (!form) return false;
-
-    for (const element of Array.from(form.elements)) {
-      if (element instanceof HTMLInputElement) {
-        // A file input has no `defaultValue` worth comparing — anything chosen
-        // is by definition something somebody chose.
-        if (element.type === 'file') {
-          if (element.files && element.files.length > 0) return true;
-          continue;
-        }
-        if (element.type === 'checkbox' || element.type === 'radio') {
-          if (element.checked !== element.defaultChecked) return true;
-          continue;
-        }
-        if (element.value !== element.defaultValue) return true;
-      } else if (element instanceof HTMLTextAreaElement) {
-        // The one that matters most: a visit write-up is the longest text
-        // anybody types into this app, and it lives in one of these.
-        if (element.value !== element.defaultValue) return true;
-      }
-    }
-
-    return false;
-  }, [formRef]);
+  /** See `isFormDirty`, which the page forms ask the same question of. */
+  const isDirty = useCallback(() => isFormDirty(formRef.current), [formRef]);
 
   /** Close, unless there is unsaved typing and the person says to keep it. */
   const closeGuarded = useCallback(() => {
@@ -146,9 +110,9 @@ export function FormDialog({
    * Escape, which is the way this is actually lost.
    *
    * A native `<dialog>` closes on Escape and there is nothing to hook but
-   * `cancel` — which is fired *before* the close and can be prevented. The ✕ and
-   * the backdrop go through `closeGuarded` directly; this is the third way out
-   * and the one nobody presses on purpose.
+   * `cancel` — which is fired *before* the close and can be prevented. Cancel,
+   * the ✕ and the backdrop go through `closeGuarded` directly; this is the
+   * fourth way out and the one nobody presses on purpose.
    */
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -242,11 +206,12 @@ export function FormDialog({
             </div>
 
             <footer className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => dialogRef.current?.close()}
-              >
+              {/* `closeGuarded`, like the ✕ and the backdrop and Escape. This
+                  was the one way out that closed the dialog directly, which
+                  made it the one way out that threw a half-written visit note
+                  away without asking — and it is the button sitting next to
+                  Save, so it is the way most people leave. */}
+              <button type="button" className="btn btn-secondary" onClick={closeGuarded}>
                 {cancelLabel}
               </button>
               <SubmitButton label={submitLabel} pendingLabel={pendingLabel} />

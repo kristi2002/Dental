@@ -473,6 +473,39 @@ test.describe('the public page', () => {
     await expect(page.locator('#wall-panel').locator('li')).toHaveCount(9);
   });
 
+  /**
+   * A visitor who mistypes still has somewhere to go.
+   *
+   * This is the case no unit test can reach and the one that used to be worst.
+   * `(site)` had no `not-found.tsx`, so a bad slug fell through to the *root*
+   * one — a card written for a request that never met the locale middleware. It
+   * rendered its own document, so the masthead, the four pages, the telephone
+   * number and the booking button all went with it, and it answered in three
+   * languages at once because at that level it cannot know which is wanted.
+   *
+   * So the assertions are about what survives rather than about wording: the
+   * status is still 404, the masthead is still there, and there is more than one
+   * way out of the page. The old behaviour passed none of them.
+   */
+  test('a mistyped treatment keeps the masthead and a way onward', async ({ page }) => {
+    const response = await page.goto('/sq/treatments/nuk-ekziston');
+    expect(response?.status(), 'a missing page must still be a 404').toBe(404);
+
+    await expect(page.getByRole('banner')).toBeVisible();
+    await expect(page.getByRole('contentinfo')).toBeVisible();
+
+    // Every storefront page, named on the page itself rather than only in the
+    // bar — somebody who has just been told they are nowhere should be able to
+    // see everywhere from where they are standing.
+    for (const path of ['/sq/treatments', '/sq/practice', '/sq/visit', '/sq/abroad']) {
+      await expect(page.locator(`main a[href="${path}"]`)).toHaveCount(1);
+    }
+    await expect(page.locator('main a[href="/sq/book"]')).not.toHaveCount(0);
+
+    // And it is the practice's own language, not all three at once.
+    await expect(page.locator('body')).not.toContainText('This page does not exist');
+  });
+
   test('takes an appointment request and puts it in front of the desk', async ({ page }) => {
     await page.goto('/sq/book');
 

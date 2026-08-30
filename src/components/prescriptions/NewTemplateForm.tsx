@@ -115,6 +115,7 @@ export function NewTemplateForm({
         state={state}
         cancelHref="/prescriptions"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
       />

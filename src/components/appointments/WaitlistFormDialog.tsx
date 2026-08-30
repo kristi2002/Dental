@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { SelectField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
+import { UrgentToggle } from '@/components/ui/UrgentToggle';
 import { PatientPicker } from '@/components/patients/PatientPicker';
 import { saveWaitlistEntry } from '@/lib/actions/waitlist';
 import { byDepartment } from '@/lib/catalog';
@@ -94,11 +95,12 @@ export function WaitlistFormDialog({
         hint={t('noteHint')}
       />
 
-      {/* Urgent entries sort to the top and are the first offered a freed slot. */}
-      <label className="flex cursor-pointer items-center gap-2.5 font-semibold text-ink">
-        <input type="checkbox" name="urgent" value="1" className="size-4 accent-current" />
-        {t('urgent')}
-      </label>
+      {/* Urgent entries sort to the top and are the first offered a freed slot.
+          The same control the works register and the follow-up board use, rather
+          than the bare box that used to be here: "this one first" is one idea,
+          and it read as an afterthought on this screen and as a decision on the
+          other two. See `UrgentToggle`. */}
+      <UrgentToggle name="urgent" value="1" label={t('urgent')} hint={t('urgentHint')} />
     </FormDialog>
   );
 }

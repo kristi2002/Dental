@@ -601,7 +601,8 @@
       "tooLong": "Uno dei campi è troppo lungo. Accorciatelo un poco e riprovate.",
       "filesFailed": "Non siamo riusciti a ricevere quei file. Provi a inviare la richiesta senza allegati, oppure ci telefoni.",
       "failed": "La richiesta non è partita. Riprovi tra poco, oppure ci telefoni.",
-      "sentFiles": "{count, plural, one {Abbiamo anche il suo file.} other {Abbiamo anche i suoi # file.}}"
+      "sentFiles": "{count, plural, one {Abbiamo anche il suo file.} other {Abbiamo anche i suoi # file.}}",
+      "phoneShort": "Questo non sembra un numero al quale possiamo chiamarla. Lo controlli, per favore."
     },
     "book": {
       "eyebrow": "Prenota una visita",
@@ -721,6 +722,18 @@
       "blurb": "Studio dentistico a Valona. Cure dentali complete, in tre lingue.",
       "reach": "Contatti",
       "weekdays": "Da lunedì a venerdì: {hours}"
+    },
+    "gone": {
+      "eyebrow": "Non è qui",
+      "title": "Questa pagina è stata spostata, o non è mai esistita.",
+      "lede": "Non c’è nulla che non va nel suo browser. L’indirizzo che ha seguito non porta da nessuna parte su questo sito — molto probabilmente è stato rinominato, o si è perso una lettera per strada. Tutto ciò che lo studio pubblica è in una delle quattro pagine qui sotto."
+    },
+    "broke": {
+      "title": "Questa pagina non si è caricata.",
+      "lede": "Qualcosa non ha funzionato da parte nostra, non sua. Vale la pena riprovare — e se continua, lo studio è raggiungibile al telefono e può fissarle direttamente l’appuntamento.",
+      "retry": "Riprova",
+      "home": "Pagina principale",
+      "callInstead": "Oppure ci chiami:"
     }
   },
   "nav": {
@@ -1464,7 +1477,17 @@
     "saveNote": "Salva",
     "savingNote": "Salvataggio…",
     "preferredDay": "Ha chiesto",
-    "attachments": "Inviato con la richiesta"
+    "attachments": "Inviato con la richiesta",
+    "alert": {
+      "subject": "Nuova richiesta dal sito — {name}",
+      "intro": "Qualcuno ha chiesto un appuntamento. È in attesa di risposta.",
+      "phone": "Telefono",
+      "email": "Email",
+      "topic": "Riguardo a",
+      "preferred": "Preferirebbe",
+      "attachments": "File allegati",
+      "openIt": "Aprila"
+    }
   },
   "outbox": {
     "title": "Promemoria da inviare",
@@ -1551,7 +1574,8 @@
     "importTooMany": "Quell'importazione ha più di {limit} righe. Dividila e importala in parti.",
     "gone": "È già stato rimosso da qualcun altro.",
     "alreadyHandled": "Qualcun altro se ne è già occupato.",
-    "notReopenable": "È stato ritirato automaticamente e non può essere ripristinato — l'appuntamento a cui si riferiva è cambiato."
+    "notReopenable": "È stato ritirato automaticamente e non può essere ripristinato — l'appuntamento a cui si riferiva è cambiato.",
+    "backToSite": "Torna alla pagina dello studio"
   },
   "roles": {
     "OWNER": "Titolare / Dentista",
@@ -1771,7 +1795,8 @@
     "entity_stockCategory": "Categoria magazzino",
     "entity_serviceCategory": "Categoria servizi",
     "entity_workProcedure": "Tipo di lavorazione",
-    "entity_lab": "Laboratorio"
+    "entity_lab": "Laboratorio",
+    "entity_appointmentRequest": "Richiesta"
   },
   "recalls": {
     "title": "Richiami",
@@ -1810,7 +1835,8 @@
     "noFitToday": "Nessuno spazio ancora libero oggi è adatto a chi è in attesa.",
     "offer": "Offri il posto",
     "resolve": "Togli dalla lista",
-    "fitsTodayCount": "{count, plural, =1 {Uno di loro entra in uno spazio ancora libero oggi} other {# di loro entrano negli spazi ancora liberi oggi}}"
+    "fitsTodayCount": "{count, plural, =1 {Uno di loro entra in uno spazio ancora libero oggi} other {# di loro entrano negli spazi ancora liberi oggi}}",
+    "urgentHint": "il primo a cui offrire un posto liberato"
   },
   "reliability": {
     "watch": "{missed} su {total} mancati",

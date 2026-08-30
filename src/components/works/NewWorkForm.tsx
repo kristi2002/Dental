@@ -240,6 +240,7 @@ export function NewWorkForm({
         state={state}
         cancelHref="/works"
         cancelLabel={tc('cancel')}
+        discardMessage={tc('discardUnsaved')}
         saveLabel={tc('save')}
         pendingLabel={tc('saving')}
       />

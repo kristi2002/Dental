@@ -28,10 +28,13 @@ export function StatCard({
 
   const body = (
     <>
-      {/* A tinted tile with no outline at all — the fill is the shape. */}
+      {/* A tinted tile with no outline at all — the fill is the shape. A size
+          smaller below `sm`, where these now sit two to a row: the number is
+          what the card is for, and the tile beside it should not be taking a
+          third of a 180px card away from it. */}
       <span
         className={cn(
-          'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12',
           palette.chip,
         )}
       >
@@ -49,7 +52,8 @@ export function StatCard({
   );
 
   const className = cn(
-    'card flex items-center gap-4 px-5 py-4 no-underline transition-shadow transition-colors',
+    'card flex items-center gap-3 px-4 py-3.5 no-underline transition-shadow transition-colors',
+    'sm:gap-4 sm:px-5 sm:py-4',
     href && 'hover:border-brand hover:shadow-pop',
   );
 
