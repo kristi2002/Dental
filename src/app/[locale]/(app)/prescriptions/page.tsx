@@ -87,7 +87,7 @@ export default async function PrescriptionsPage({
             >
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2">
-                  <span className="text-[1.08rem] font-bold text-ink">{template.name}</span>
+                  <span className="text-lead font-bold text-ink">{template.name}</span>
                   {template.category ? <Badge>{template.category}</Badge> : null}
                   {/* What this wording follows. Without it on the row, the only
                       way to know why a template is suggested after an extraction
@@ -98,7 +98,7 @@ export default async function PrescriptionsPage({
                     </Badge>
                   ))}
                 </p>
-                <p className="mt-1 text-[0.95rem] whitespace-pre-line text-ink-soft">
+                <p className="mt-1 text-body whitespace-pre-line text-ink-soft">
                   {template.body}
                 </p>
               </div>

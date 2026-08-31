@@ -59,7 +59,7 @@ export async function PatientAlerts({
               {alert.severity === 'CRITICAL' ? (
                 <TriangleAlert size={18} aria-hidden className="text-danger" />
               ) : null}
-              <span className="text-[1.05rem] font-bold text-ink">
+              <span className="text-body font-bold text-ink">
                 {t(`kind_${alert.kind}`)}
                 {alert.substance ? `: ${alert.substance}` : ''}
               </span>
@@ -68,7 +68,7 @@ export async function PatientAlerts({
               </Badge>
             </p>
             {alert.notes ? (
-              <p className="mt-0.5 text-[0.95rem] text-ink-soft">{alert.notes}</p>
+              <p className="mt-0.5 text-body text-ink-soft">{alert.notes}</p>
             ) : null}
           </div>
 

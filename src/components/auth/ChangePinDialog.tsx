@@ -65,7 +65,7 @@ export function ChangePinDialog({ triggerClassName }: { triggerClassName?: strin
         </>
       }
     >
-      <p className="text-[0.95rem] text-ink-soft">{t('changePinHint')}</p>
+      <p className="text-body text-ink-soft">{t('changePinHint')}</p>
 
       <TextField
         id={`${uid}-current`}

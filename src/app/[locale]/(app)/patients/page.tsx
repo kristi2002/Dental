@@ -220,30 +220,30 @@ export default async function PatientsPage({
               >
                 <span
                   aria-hidden
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-line-strong bg-paper text-[1.05rem] font-bold text-ink-soft"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-line-strong bg-paper text-body font-bold text-ink-soft"
                 >
                   {initials(patient.firstName, patient.lastName)}
                 </span>
 
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[1.15rem] font-bold text-ink">
+                  <span className="block truncate text-lead font-bold text-ink">
                     {patient.lastName} {patient.firstName}
                   </span>
 
-                  <span className="mt-1 flex items-center gap-1.5 text-[0.95rem] text-ink-soft">
+                  <span className="mt-1 flex items-center gap-1.5 text-body text-ink-soft">
                     <Phone size={15} aria-hidden />
                     <span className="truncate">{patient.phone || t('noPhone')}</span>
                   </span>
 
                   {patient.email ? (
-                    <span className="mt-0.5 flex items-center gap-1.5 text-[0.95rem] text-ink-soft">
+                    <span className="mt-0.5 flex items-center gap-1.5 text-body text-ink-soft">
                       <Mail size={15} aria-hidden />
                       <span className="truncate">{patient.email}</span>
                     </span>
                   ) : null}
 
                   {patient.dateOfBirth ? (
-                    <span className="mt-0.5 flex items-center gap-1.5 text-[0.95rem] text-ink-faint">
+                    <span className="mt-0.5 flex items-center gap-1.5 text-body text-ink-faint">
                       <Cake size={15} aria-hidden />
                       {t('age', { age: age(patient.dateOfBirth) })}
                     </span>
@@ -294,7 +294,7 @@ export default async function PatientsPage({
             <span />
           )}
 
-          <span className="text-[0.95rem] font-semibold text-ink-soft tabular-nums">
+          <span className="text-body font-semibold text-ink-soft tabular-nums">
             {t('pageOf', { page, pages })}
           </span>
 

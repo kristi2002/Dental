@@ -97,7 +97,7 @@ export function PhotoTile({
       {/* No room for the words on the small tile — the dashed border and the
           plus are what say "press me" there, and the `title` carries the rest. */}
       {canEdit && size !== "sm" ? (
-        <span className="px-1 text-center text-[0.7rem] font-semibold">
+        <span className="px-1 text-center text-micro font-semibold">
           {t('photoAdd')}
         </span>
       ) : null}
@@ -193,7 +193,7 @@ export function PhotoTile({
         <p
           role="alert"
           className={cn(
-            'mt-1 text-[0.78rem] font-semibold text-danger',
+            'mt-1 text-caption font-semibold text-danger',
             caption,
           )}
         >
@@ -201,7 +201,7 @@ export function PhotoTile({
         </p>
       ) : null}
       {inherited && size !== "sm" ? (
-        <p className={cn('mt-1 text-[0.72rem] text-ink-faint', caption)}>
+        <p className={cn('mt-1 text-micro text-ink-faint', caption)}>
           {t('photoFromProduct')}
         </p>
       ) : null}

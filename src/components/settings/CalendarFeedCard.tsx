@@ -20,7 +20,7 @@ export function CalendarFeedCard({ url }: { url: string }) {
 
   return (
     <div className="space-y-3 px-5 py-5">
-      <p className="text-[0.98rem] text-ink-soft">{t('feedHint')}</p>
+      <p className="text-body text-ink-soft">{t('feedHint')}</p>
 
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -28,7 +28,7 @@ export function CalendarFeedCard({ url }: { url: string }) {
           value={url}
           aria-label={t('feedUrl')}
           onFocus={(event) => event.currentTarget.select()}
-          className="field-input min-w-0 flex-1 font-mono text-[0.88rem]"
+          className="field-input min-w-0 flex-1 font-mono text-meta"
         />
         <button
           type="button"
@@ -48,7 +48,7 @@ export function CalendarFeedCard({ url }: { url: string }) {
         </button>
       </div>
 
-      <p className="text-[0.9rem] font-semibold text-warn">{t('feedWarning')}</p>
+      <p className="text-meta font-semibold text-warn">{t('feedWarning')}</p>
 
       {/* The answer to a lost phone. Everything this link was ever pasted into
           stops working the moment it is pressed, which is why it asks first. */}

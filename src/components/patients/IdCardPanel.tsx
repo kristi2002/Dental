@@ -104,7 +104,7 @@ function IdSlot({
 
   return (
     <div>
-      <p className="mb-1.5 flex items-center gap-1.5 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+      <p className="mb-1.5 flex items-center gap-1.5 text-meta font-bold tracking-wide text-ink-faint uppercase">
         <IdCard size={15} aria-hidden />
         {label}
       </p>
@@ -133,7 +133,7 @@ function IdSlot({
             )}
           >
             <Camera size={30} aria-hidden />
-            <span className="text-[0.95rem] font-semibold">
+            <span className="text-body font-semibold">
               {canEdit ? t('idAdd') : t('idMissing')}
             </span>
           </label>
@@ -188,7 +188,7 @@ function IdSlot({
       ) : null}
 
       {state.status === 'error' ? (
-        <p role="alert" className="mt-1.5 text-[0.9rem] font-semibold text-danger">
+        <p role="alert" className="mt-1.5 text-meta font-semibold text-danger">
           {state.message}
         </p>
       ) : null}

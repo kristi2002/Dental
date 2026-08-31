@@ -112,6 +112,25 @@
   --color-accent-dark: #e2884a;
   --color-accent-soft: #fdeddf;
 
+  /* --- What goes *on* a filled control ---------------------------------
+   *
+   * Two tokens that did not exist while there was only one theme, and whose
+   * absence is exactly what would have broken the dark one.
+   *
+   * `.btn-primary` was `bg-brand-dark text-white` and `.btn-accent` was
+   * `bg-accent text-ink`, both hard-coded. Invert the palette and the first is
+   * still fine while the second becomes near-white on peach — about 1.5:1, and
+   * completely unreadable — because `ink` flipped and the fill under it did
+   * not. A filled control's text colour is a property of the *fill*, not of the
+   * page, and writing it as `text-ink` only ever worked by coincidence.
+   *
+   * `on-accent` is also a small fix in the light theme it was written for:
+   * `ink` on peach measures 4.4:1 and quietly misses the bar this file sets for
+   * everything else. This is 6.8:1.
+   */
+  --color-on-brand: #ffffff;
+  --color-on-accent: #33230f;
+
   /* Status hues are darker than they look like they need to be. Each one has to
    * clear 4.5:1 against its OWN soft tint, not just against white — that tint is
    * what a badge actually puts it on. */
@@ -122,10 +141,10 @@
   --color-danger: #bf2f45;
   --color-danger-soft: #fdecef;
 
-  /* Poppins is injected by next/font (see app/fonts.ts); the stack behind it is
+  /* The body face is injected by next/font (see app/fonts.ts); the stack behind it is
    * what renders during `display: swap` and if the font ever fails to load. */
   --font-sans:
-    var(--font-poppins), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    var(--font-body), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
 
   /* The display stack **without** Prata, which is deliberate and was a bug once.
@@ -140,12 +159,95 @@
    * *declared*, not where it is used — so `--font-display` computed at `:root`
    * with no `--font-prata` in scope became invalid at computed-value time, the
    * whole `font-family` was dropped, and every heading on the public page
-   * inherited Poppins from `body`. It looked like the font had not loaded; the
+   * inherited the body face from `body`. It looked like the font had not loaded; the
    * font had loaded perfectly and the variable never reached it.
    *
    * So `:root` gets a stack that is valid on its own, and `.site-display` below
    * re-declares this variable on the one element that also has `--font-prata`. */
   --font-display: 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+
+  /* --- The text scale --------------------------------------------------
+   *
+   * Seven steps at a ratio of about 1.12, and the reason they exist is the
+   * argument `.type-lead` and `.type-section` already make one screen down —
+   * written out for headings, and for a long time never applied to anything
+   * else.
+   *
+   * Under this line there used to be **55 distinct `text-[…rem]` values across
+   * 908 usages**, and fourteen of them sat between 0.92rem and 1.06rem. At a
+   * 17px root that is a spread of two and a third pixels carved into fourteen
+   * steps: a caption on one card and a paragraph on the next were different
+   * sizes, and nobody could have told you which was meant to be larger, because
+   * at that spacing the difference is not a hierarchy — it is measurement
+   * error. Every one of those values was a reasonable local decision and the
+   * sum of them was noise.
+   *
+   * The steps are anchored so the consolidation is a cleanup rather than a
+   * redesign: no size on the page moves by as much as a pixel. `0.95`, `1.0`,
+   * `1.02` and `1.05` — four of the six commonest values in the codebase —
+   * collapse into `body`, which is the honest answer, since a button, a
+   * paragraph and a field hint were never three different sizes on purpose.
+   * The distinction those four were reaching for is secondary-ness, and this
+   * design system already carries that in `ink-soft` where it belongs.
+   *
+   * Line heights ride along, because the pair is the actual decision: small
+   * text needs proportionally more leading than large text, and a step that
+   * ships a size without one leaves every caller to guess.
+   *
+   * Above `figure` the scale stops on purpose. The stock quantity at 3.5rem,
+   * the storefront's `GhostWord` at 7rem and the display serif on the error
+   * page are each the only thing of their kind in the building, and pulling a
+   * one-off onto a scale is the same mistake as having no scale, made in the
+   * opposite direction.
+   */
+  --text-micro: 0.71rem;
+  --text-micro--line-height: 1.35;
+  --text-caption: 0.8rem;
+  --text-caption--line-height: 1.4;
+  --text-meta: 0.89rem;
+  --text-meta--line-height: 1.45;
+  --text-body: 1rem;
+  --text-body--line-height: 1.55;
+  --text-lead: 1.12rem;
+  --text-lead--line-height: 1.5;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.3;
+  --text-figure: 1.6rem;
+  --text-figure--line-height: 1.15;
+
+  /* --- The section rhythm ----------------------------------------------
+   *
+   * The other half of the type scale, and it was missing for the same reason
+   * the text scale was: the argument got written down for headings and applied
+   * nowhere else.
+   *
+   * `.type-lead` and `.type-section` say that **only three sections lead** —
+   * the work the practice does, the person who does it, and where to find
+   * them — and set everything else a full step down. The spacing said no such
+   * thing. Eighteen of the storefront's sections were `py-20 sm:py-24` to the
+   * pixel, and the three that carry the page's argument were breathing exactly
+   * as hard as the Instagram grid. A reader scrolling with the words out of
+   * focus — which is how a page is read before it is read — saw a metronome.
+   *
+   * So: three steps, ratios of about 1.45 and 1.45, which is far enough apart
+   * that a lead section has roughly twice the air of an aside and the shape of
+   * the argument is legible in the silhouette alone.
+   *
+   *   band-lead   Treatments, Practice, VisitUs. Nothing else, ever — a fourth
+   *               lead is how a hierarchy becomes a list again.
+   *   band        Sections carrying real content: the method, the gallery, the
+   *               comparison, the opening hours.
+   *   band-aside  Tools and ornaments — the concern picker, the trip planner,
+   *               the social grid, the mosaic. Useful, and not the argument.
+   *
+   * `clamp()` rather than a breakpoint, because the thing being scaled is air
+   * and air should track the viewport continuously. The lower bounds are close
+   * to what a phone had before; the range opens up as the screen does, which is
+   * where the flatness was most visible.
+   */
+  --spacing-band-lead: clamp(6rem, 10vw, 9.5rem);
+  --spacing-band: clamp(4.5rem, 7vw, 6.5rem);
+  --spacing-band-aside: clamp(3.25rem, 5vw, 4.5rem);
 
   --radius-card: 0.875rem;
 
@@ -160,11 +262,175 @@
   --shadow-lift: 0 1px 2px rgb(55 71 79 / 0.05), 0 6px 14px rgb(55 71 79 / 0.07);
 }
 
+/* --- The evening theme ---------------------------------------------------
+ *
+ * The same workspace after dark, and it is the app's theme alone — the
+ * storefront does not have one and should not. See `.site-light` below for how
+ * that is enforced rather than merely intended.
+ *
+ * **Why the app gets one and the front door does not.** The palette note at the
+ * top of this file already contains the whole argument: a workspace is looked
+ * at for seven hours and a storefront for ninety seconds. What that reasoning
+ * produced was cool near-white, which is right at eleven in the morning in a
+ * surgery with the blinds up, and is a lamp pointed at somebody's face at seven
+ * in the evening in a room lit by one overhead. The practice works both. A
+ * front door read for a minute and a half in daylight has no such problem, and
+ * a warm bone page is a deliberate piece of art direction rather than a default
+ * to be inverted.
+ *
+ * **This is a re-derivation, not an inversion.** Every value below was chosen
+ * against its own ground and measured there; none is the light value with its
+ * channels flipped. Three things change shape rather than merely lightness:
+ *
+ *   - *The teals swap jobs.* On white the bright teal cannot carry text and the
+ *     deep one can. On this ground it is the other way about, so `brand-deep`
+ *     is the lightest teal here and `brand-dark` — still the solid button and
+ *     the focus ring — is the mid one. The names now describe their role rather
+ *     than their lightness, which is the price of keeping every call site.
+ *   - *The primary button inverts its ink.* A teal bright enough to read as a
+ *     button on this ground cannot hold white text (2.9:1). It holds near-black
+ *     at 9:1, which is the same trade the storefront's bronze button already
+ *     makes. `--color-on-brand` is what makes that a token rather than a fork.
+ *   - *Depth stops coming from shadow.* A shadow is the absence of light and
+ *     there is none to take away here; the light-theme shadows are invisible on
+ *     this ground and the lift they were doing has to come from `surface`
+ *     standing above `paper` and from a slightly stronger hairline instead.
+ *
+ * Measured on `surface` (#1a2226) unless noted: `ink` 12.8:1, `ink-soft`
+ * 7.8:1, `ink-faint` 6.9:1 (on `paper`), `brand` 7.7:1, `brand-deep` 10.4:1,
+ * `on-brand` on `brand-dark` 9.0:1. Each status hue clears 4.5:1 against its
+ * own soft tint, which is the check that actually matters for a badge: `ok`
+ * 6.9:1, `warn` 7.3:1, `danger` 5.8:1. `line` and `line-strong` carry nothing
+ * readable and are not measured against text.
+ *
+ * **Three states, two selectors.** An explicit choice stamps
+ * `data-theme="dark"` or `data-theme="light"` on `<html>`; the default — no
+ * attribute — follows the machine. So the media query has to exclude an
+ * explicit *light*, or a user who has chosen light on a dark-set machine is
+ * overruled by their own operating system. `ThemeToggle` writes the attribute
+ * and `theme-script.tsx` replays it before first paint.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-paper: #12181b;
+    --color-surface: #1a2226;
+    --color-surface-soft: #202a2f;
+
+    --color-ink: #e3eaed;
+    --color-ink-soft: #a9b8bf;
+    --color-ink-faint: #93a3aa;
+
+    --color-line: #2b3940;
+    --color-line-strong: #3d4e56;
+
+    --color-brand: #2ec4b6;
+    --color-brand-dark: #26b3a6;
+    --color-brand-deep: #6fd9cd;
+    --color-brand-soft: #10312f;
+
+    --color-accent: #f0a05e;
+    --color-accent-dark: #d98a48;
+    --color-accent-soft: #33240f;
+
+    --color-on-brand: #08151a;
+    --color-on-accent: #241806;
+
+    --color-ok: #4ec27f;
+    --color-ok-soft: #102c1c;
+    --color-warn: #e0a93f;
+    --color-warn-soft: #2e2410;
+    --color-danger: #f4667c;
+    --color-danger-soft: #331419;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
+    --shadow-pop: 0 4px 10px rgb(0 0 0 / 0.45), 0 16px 32px rgb(0 0 0 / 0.5);
+    --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.45), 0 6px 14px rgb(0 0 0 / 0.4);
+
+    color-scheme: dark;
+  }
+}
+
+/* The same block again for the explicit choice, which has to win in both
+ * directions — including on a machine set to light. There is no way to write
+ * this once in plain CSS without `@custom-media`, and duplicating fifteen
+ * declarations is cheaper than shipping a preprocessor for it. */
+:root[data-theme='dark'] {
+  --color-paper: #12181b;
+  --color-surface: #1a2226;
+  --color-surface-soft: #202a2f;
+
+  --color-ink: #e3eaed;
+  --color-ink-soft: #a9b8bf;
+  --color-ink-faint: #93a3aa;
+
+  --color-line: #2b3940;
+  --color-line-strong: #3d4e56;
+
+  --color-brand: #2ec4b6;
+  --color-brand-dark: #26b3a6;
+  --color-brand-deep: #6fd9cd;
+  --color-brand-soft: #10312f;
+
+  --color-accent: #f0a05e;
+  --color-accent-dark: #d98a48;
+  --color-accent-soft: #33240f;
+
+  --color-on-brand: #08151a;
+  --color-on-accent: #241806;
+
+  --color-ok: #4ec27f;
+  --color-ok-soft: #102c1c;
+  --color-warn: #e0a93f;
+  --color-warn-soft: #2e2410;
+  --color-danger: #f4667c;
+  --color-danger-soft: #331419;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-pop: 0 4px 10px rgb(0 0 0 / 0.45), 0 16px 32px rgb(0 0 0 / 0.5);
+  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.45), 0 6px 14px rgb(0 0 0 / 0.4);
+
+  color-scheme: dark;
+}
+
 @layer base {
   html {
     /* Larger than the web default — this is read at arm's length, often bifocally. */
     font-size: 17px;
     -webkit-text-size-adjust: 100%;
+  }
+
+  /* --- Compact ---------------------------------------------------------
+   *
+   * One number, and it moves the entire interface, which is the dividend of
+   * every size in this file being written in `rem`. The type scale, the control
+   * heights, the card padding, the gaps in every grid — all of it is relative to
+   * this, so a single step down is a genuinely proportional interface rather
+   * than a screen with smaller text and the same furniture around it.
+   *
+   * 15.5px against 17 is a step of about 9%, which returns roughly one extra row
+   * per ten on a list and one more half-hour on the calendar. It is deliberately
+   * short of the 15% that would make this a zoom control: the point is a denser
+   * workstation, not a smaller one, and past that the app stops being readable
+   * across a surgery.
+   *
+   * **Who it is for.** The mini-PC at reception, on a mouse, where the operator
+   * is a foot from the screen and wants to see the afternoon without scrolling.
+   * The default stays comfortable precisely because the surgery's screen is read
+   * at arm's length with gloves on, and that is the harder constraint of the two.
+   *
+   * The one thing that does *not* scale with it is the touch target. `min-h-12`
+   * is 3rem and would fall to 46.5px here, so the floor below holds the controls
+   * at 44px — the smallest thing anybody should have to hit — for the same
+   * reason `touch-action: manipulation` is set on all of them further down.
+   */
+  html[data-density='compact'] {
+    font-size: 15.5px;
+  }
+
+  html[data-density='compact'] .btn,
+  html[data-density='compact'] .segment,
+  html[data-density='compact'] .menu-item {
+    min-height: 44px;
   }
 
   body {
@@ -197,8 +463,21 @@
     touch-action: manipulation;
   }
 
+  /* Darker after dark, and not for taste: at 0.45 over a near-black page the
+   * dimming is invisible, so a dialog opens with nothing behind it saying the
+   * page underneath has gone inert. */
   dialog::backdrop {
     background: rgb(55 71 79 / 0.45);
+  }
+
+  :root[data-theme='dark'] dialog::backdrop {
+    background: rgb(0 0 0 / 0.72);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) dialog::backdrop {
+      background: rgb(0 0 0 / 0.72);
+    }
   }
 }
 
@@ -216,6 +495,54 @@
    * app never downloads a typeface it does not use. */
   .site-display {
     --font-display: var(--font-prata), 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  }
+
+  /* --- The storefront opts out of the evening theme ---------------------
+   *
+   * Worn by the same wrapper as `.site-display`, and it pins the app's surface
+   * and ink tokens back to their daylight values for that subtree.
+   *
+   * The storefront has a palette of its own — bone, navy, gilt — and almost
+   * never reaches for the workspace's. *Almost*: there are six `text-ink` and
+   * `border-ink` call sites in `components/site`, and on a machine set to dark
+   * every one of them would have become near-white type on warm cream. The
+   * honest fix is not to hunt those six down, because the seventh gets written
+   * next month by somebody who has no reason to know this rule exists. Pinning
+   * the tokens at the boundary makes the rule structural: nothing inside this
+   * wrapper can pick up the evening theme, whatever it asks for.
+   *
+   * `color-scheme: light` is the other half. Without it a dark-set browser
+   * paints its own scrollbars, form controls and autofill highlights dark, and
+   * the booking form on the cream page gets a black date picker.
+   */
+  .site-light {
+    --color-paper: #f4f6f7;
+    --color-surface: #ffffff;
+    --color-surface-soft: #fafbfc;
+    --color-ink: #37474f;
+    --color-ink-soft: #5f7178;
+    --color-ink-faint: #63737a;
+    --color-line: #e7ecee;
+    --color-line-strong: #cdd8dc;
+    --color-brand: #14a89e;
+    --color-brand-dark: #0c817a;
+    --color-brand-deep: #0b6f6a;
+    --color-brand-soft: #e3f5f3;
+    --color-accent: #f5a262;
+    --color-accent-dark: #e2884a;
+    --color-accent-soft: #fdeddf;
+    --color-on-brand: #ffffff;
+    --color-on-accent: #33230f;
+    --color-ok: #256f46;
+    --color-ok-soft: #e7f5ec;
+    --color-warn: #8f5f0d;
+    --color-warn-soft: #fdf2db;
+    --color-danger: #bf2f45;
+    --color-danger-soft: #fdecef;
+    --shadow-card: 0 1px 2px rgb(55 71 79 / 0.04), 0 2px 8px rgb(55 71 79 / 0.05);
+    --shadow-pop: 0 4px 10px rgb(55 71 79 / 0.08), 0 16px 32px rgb(55 71 79 / 0.1);
+    --shadow-lift: 0 1px 2px rgb(55 71 79 / 0.05), 0 6px 14px rgb(55 71 79 / 0.07);
+    color-scheme: light;
   }
 
   /* --- The section scale ------------------------------------------------
@@ -377,18 +704,70 @@
     }
   }
 
+  /* --- Three weights of card -------------------------------------------
+   *
+   * Every panel in the app was `.card`, and importance was signalled by
+   * swapping the border colour and nothing else. On the dashboard — nine panels
+   * on a busy morning — that produced a wall of identical white boxes in which
+   * today's schedule, a list of stock the cupboard is short of and a reminder
+   * to ring the laboratory all had exactly the same visual weight. The eye had
+   * no entry point, so the page was read top to bottom every time, which is the
+   * opposite of what a screen glanced at for ten seconds at nine in the morning
+   * is for.
+   *
+   * The shadow tokens to build a ladder with have existed since the beginning
+   * and were used decoratively — `card`, `lift` and `pop` scattered across
+   * components with no rule about which meant what. So:
+   *
+   *   card-lead  The one surface on a screen that is the reason the screen
+   *              exists. Lifted, and — the part that actually does the work —
+   *              **at most one per screen**. A second lead is a screen with no
+   *              lead.
+   *   card       The default. A panel with real content in it.
+   *   card-flat  Supporting apparatus: lists that are already inside something,
+   *              cards in a grid where the grid is the shape and a shadow under
+   *              each cell just makes stripes.
+   *
+   * Depth on the dark theme comes from `surface` standing above `paper` rather
+   * than from the shadow, which is why the ladder still reads there — see the
+   * evening theme's note. */
   .card {
     @apply rounded-[var(--radius-card)] border border-line bg-surface shadow-card;
   }
 
+  .card-lead {
+    @apply rounded-[var(--radius-card)] border border-line-strong bg-surface shadow-lift;
+  }
+
+  /* On the evening theme the shadow does almost nothing — there is no light for
+   * it to take away — so the lead card climbs one more step in lightness
+   * instead. This is the convention every dark interface converges on for the
+   * same physical reason, and it is why `surface-soft` exists up there at all.
+   * The hairline comes with it, or the lift reads as a smudge. */
+  :root[data-theme='dark'] .card-lead {
+    background-color: var(--color-surface-soft);
+    border-color: var(--color-line-strong);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .card-lead {
+      background-color: var(--color-surface-soft);
+      border-color: var(--color-line-strong);
+    }
+  }
+
+  .card-flat {
+    @apply rounded-[var(--radius-card)] border border-line bg-surface;
+  }
+
   .field-label {
-    @apply mb-1.5 block text-[0.95rem] font-semibold text-ink;
+    @apply mb-1.5 block text-meta font-semibold text-ink;
   }
 
   /* Still tall and boxed — only the border got quieter. */
   .field-input {
     @apply block w-full rounded-lg border border-line-strong bg-surface px-3.5 py-2.5
-      text-[1.02rem] text-ink transition-colors
+      text-body text-ink transition-colors
       hover:border-ink-faint focus:border-brand-dark focus:outline-none
       disabled:cursor-not-allowed disabled:bg-paper disabled:text-ink-faint;
   }
@@ -418,18 +797,24 @@
 
   .btn {
     @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border
-      px-4 py-2 text-[1rem] font-semibold transition-colors
+      px-4 py-2 text-body font-semibold transition-colors
       disabled:cursor-not-allowed disabled:opacity-55;
   }
 
+  /* `on-brand`, not `white`: in the evening theme the fill is a brighter teal
+   * that white cannot sit on. See the token's note. The hover deepens on light
+   * and lightens on dark, which `brand-deep` now does in both directions. */
   .btn-primary {
-    @apply border-brand-dark bg-brand-dark text-white hover:border-brand-deep hover:bg-brand-deep;
+    @apply border-brand-dark bg-brand-dark text-on-brand
+      hover:border-brand-deep hover:bg-brand-deep;
   }
 
-  /* Peach reads as light no matter what, so it takes ink — white on peach is
-   * roughly 2:1 and unreadable. */
+  /* Peach reads as light in either theme, so it always takes a dark ink — white
+   * on peach is roughly 2:1 and unreadable, and `text-ink` was only correct
+   * while `ink` happened to be dark. */
   .btn-accent {
-    @apply border-accent bg-accent text-ink hover:border-accent-dark hover:bg-accent-dark;
+    @apply border-accent bg-accent text-on-accent
+      hover:border-accent-dark hover:bg-accent-dark;
   }
 
   .btn-secondary {
@@ -445,11 +830,11 @@
   }
 
   .btn-sm {
-    @apply min-h-10 px-3 py-1.5 text-[0.92rem];
+    @apply min-h-10 px-3 py-1.5 text-meta;
   }
 
   .btn-lg {
-    @apply min-h-16 px-5 text-[1.1rem];
+    @apply min-h-16 px-5 text-lead;
   }
 
   /* --- A row in a menu -------------------------------------------------
@@ -463,7 +848,7 @@
    * is a link, a submit button or the button that opens a dialog. */
   .menu-item {
     @apply flex min-h-11 w-full items-center gap-2.5 px-4 py-2.5 text-left
-      text-[1rem] font-semibold text-ink no-underline transition-colors
+      text-body font-semibold text-ink no-underline transition-colors
       hover:bg-brand-soft;
   }
 
@@ -523,7 +908,7 @@
 
   .segment {
     @apply inline-flex min-h-11 items-center justify-center rounded-md px-3 py-1.5
-      text-center text-[0.95rem] font-bold whitespace-nowrap text-ink-soft no-underline
+      text-center text-meta font-bold whitespace-nowrap text-ink-soft no-underline
       transition-colors hover:bg-paper hover:text-ink;
   }
 
@@ -531,7 +916,40 @@
    * "not this one", and it must not light up. */
   .segment[aria-current]:not([aria-current='false']),
   .segment[aria-pressed='true'] {
-    @apply bg-brand-dark text-white hover:bg-brand-dark hover:text-white;
+    @apply bg-brand-dark text-on-brand hover:bg-brand-dark hover:text-on-brand;
+  }
+
+  /* --- How wide the work is allowed to be -------------------------------
+   *
+   * Every signed-in screen sat inside one centred 72rem box, which is a good
+   * measure for prose and a poor one for a diary. The rail exists *because* the
+   * old pinned masthead was costing the calendar half-hours of schedule it
+   * could not draw — and then the calendar was handed 1152px on a 2560px
+   * clinic monitor with eleven hundred pixels of empty paper either side of it.
+   * The register of laboratory cases is nine columns wide and was solving the
+   * same squeeze by collapsing to cards on a phone, having never once been
+   * given room on a desktop.
+   *
+   * So the cap is now a property of the screen rather than of the layout, and
+   * `:has()` is what makes that expressible without threading a prop through
+   * fifty-five routes: the wrapper asks whether the page inside it has declared
+   * itself wide. A page opts in by putting `data-measure="wide"` on its own
+   * root, which keeps the decision in the file that knows the answer.
+   *
+   * Prose stays capped. A patient record, a treatment plan and every form in
+   * the building keep the 72rem measure, because a line of text 2400px long is
+   * unreadable no matter how much screen there is — this is for the three
+   * screens that are a *grid*, where the extra width becomes extra information
+   * rather than a longer line.
+   *
+   * Older browsers without `:has()` simply keep the cap everywhere, which is
+   * exactly today's behaviour and a degradation rather than a break. */
+  .app-measure {
+    @apply mx-auto w-full max-w-6xl;
+  }
+
+  .app-measure:has([data-measure='wide']) {
+    max-width: min(120rem, 100%);
   }
 
   /* --- App chrome ---------------------------------------------------- */
@@ -551,6 +969,68 @@
    * That is what buys the workspace beside it the right to stay white. */
   .app-rail {
     background-image: linear-gradient(168deg, #0b8f86 0%, #16a89d 55%, #34bdb2 100%);
+  }
+
+  /* --- The chrome after dark -------------------------------------------
+   *
+   * The rail and the masthead are the one place all of the app's colour is
+   * spent, and at full strength on a dark page they stop being chrome and
+   * become the brightest object on the screen — a teal column glowing beside a
+   * near-black workspace, which is precisely the lamp-in-the-face problem the
+   * evening theme exists to solve.
+   *
+   * So the same gradient, walked down to about a third of its lightness. It is
+   * still recognisably the practice's teal and still the densest thing at the
+   * top; it simply stops out-shouting the work beside it. The white wordmark
+   * and the white rail controls keep more contrast than they had on the bright
+   * version, not less.
+   *
+   * The spectrum rule keeps all seven of its steps — it is six pixels of pure
+   * decoration and the only thing on the screen allowed to be saturated — but
+   * comes down in lightness with everything else so it reads as a filament
+   * rather than a strip light. */
+  :root[data-theme='dark'] .app-rail {
+    background-image: linear-gradient(168deg, #073a37 0%, #0a4f4a 55%, #0d635c 100%);
+  }
+
+  :root[data-theme='dark'] .app-header {
+    background-image: linear-gradient(100deg, #073a37 0%, #0a4f4a 46%, #0d635c 100%);
+  }
+
+  :root[data-theme='dark'] .app-spectrum {
+    background-image: linear-gradient(
+      90deg,
+      #06342f 0% 14%,
+      #0b544c 14% 28%,
+      #14756b 28% 42%,
+      #2b8f84 42% 56%,
+      #7a5340 56% 70%,
+      #8f5b45 70% 85%,
+      #99513f 85% 100%
+    );
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .app-rail {
+      background-image: linear-gradient(168deg, #073a37 0%, #0a4f4a 55%, #0d635c 100%);
+    }
+
+    :root:not([data-theme='light']) .app-header {
+      background-image: linear-gradient(100deg, #073a37 0%, #0a4f4a 46%, #0d635c 100%);
+    }
+
+    :root:not([data-theme='light']) .app-spectrum {
+      background-image: linear-gradient(
+        90deg,
+        #06342f 0% 14%,
+        #0b544c 14% 28%,
+        #14756b 28% 42%,
+        #2b8f84 42% 56%,
+        #7a5340 56% 70%,
+        #8f5b45 70% 85%,
+        #99513f 85% 100%
+      );
+    }
   }
 
   /* A flat spectrum rule under the masthead, teal walking round to peach.
@@ -653,6 +1133,56 @@
     font-size: 2.1mm;
     line-height: 1.2;
     color: #555;
+  }
+}
+
+/* --- The morph between a treatment card and its page ---------------------
+ *
+ * `share="morph"` on both ends of the pair (see `Treatments`, `/treatments` and
+ * `PageHero`) puts a `morph` class on the transition, which is what these
+ * pseudo-elements can reach.
+ *
+ * Deliberately outside `@layer components`: `::view-transition-*` pseudo-
+ * elements live in the browser's own top-level overlay and are not part of the
+ * document's cascade at all, so a layer here would be meaningless rather than
+ * merely unnecessary.
+ *
+ * 420ms rather than the browser's 250ms default. The photographs are large and
+ * travel most of the viewport; at a quarter of a second the movement reads as a
+ * glitch rather than as a thing being opened, which is the only reason to have
+ * it. The blur is three pixels at the midpoint and gone by the end — it hides
+ * the moment where the two crops disagree, since the card is 4:5 and the hero
+ * is full-bleed, and without it the mismatch shows as a shear.
+ *
+ * **Nothing here is a fallback.** A browser without the View Transitions API
+ * navigates exactly as it did before — React skips the animation, the page
+ * cuts, and no part of this file is consulted. It has always been an addition
+ * layered on top rather than a mechanism anything depends on, which is the same
+ * reasoning `.reveal` is written under.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(.morph) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-image-pair(.morph) {
+    animation-name: morph-blur;
+  }
+
+  @keyframes morph-blur {
+    30% {
+      filter: blur(3px);
+    }
+  }
+}
+
+/* Asked for less movement, given none: the pair still swaps, it simply does not
+ * travel. A morph is precisely the kind of large-area motion this query exists
+ * to switch off. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(.morph) {
+    animation: none;
   }
 }
 

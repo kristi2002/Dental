@@ -116,7 +116,7 @@ export function ToothSpanPicker({
       {/* What a press does, before anyone presses anything. Three words and two
           swatches — the alternative is a chart whose second state is discovered
           by accident. */}
-      <p className="mb-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.85rem] text-ink-soft">
+      <p className="mb-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-meta text-ink-soft">
         <span className="inline-flex items-center gap-1.5">
           <span
             aria-hidden
@@ -137,7 +137,7 @@ export function ToothSpanPicker({
             key={corner.quadrant}
             className={cn('w-full max-w-[19rem] sm:border-line-strong', corner.box, corner.align)}
           >
-            <p className="mb-1 text-[0.72rem] font-bold tracking-wide text-ink-faint uppercase">
+            <p className="mb-1 text-micro font-bold tracking-wide text-ink-faint uppercase">
               {tt(`quadrant_${corner.quadrant}`)}
             </p>
 
@@ -155,7 +155,7 @@ export function ToothSpanPicker({
                     }`}
                     className={cn(
                       'grid aspect-square w-full min-w-0 place-items-center rounded-md border',
-                      'text-[0.85rem] font-bold tabular-nums transition-colors',
+                      'text-meta font-bold tabular-nums transition-colors',
                       STATE_STYLE[state],
                     )}
                   >
@@ -174,17 +174,17 @@ export function ToothSpanPicker({
           is what catches a misread docket while the docket is still in hand. */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line pt-2.5">
         {positions.length === 0 ? (
-          <p className="text-[0.92rem] text-ink-faint">{t('teethNone')}</p>
+          <p className="text-meta text-ink-faint">{t('teethNone')}</p>
         ) : (
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <ToothSpan
               value={value}
               quadrantLabel={(quadrant) => tt(`quadrant_${quadrant}`)}
-              className="text-[1.05rem]"
+              className="text-body"
             />
-            <span aria-live="polite" className="text-[0.92rem] text-ink-soft">
+            <span aria-live="polite" className="text-meta text-ink-soft">
               {t('elements')}{' '}
-              <span className="text-[1.05rem] font-bold text-ink tabular-nums">
+              <span className="text-body font-bold text-ink tabular-nums">
                 {spanElements(value)}
               </span>
             </span>

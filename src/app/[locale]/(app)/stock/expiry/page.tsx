@@ -101,11 +101,11 @@ export default async function ExpiryPage({
               <span className="min-w-0">
                 <Link
                   href={`/stock?q=${encodeURIComponent(batch.item.name)}`}
-                  className="text-[1.05rem] font-bold text-ink"
+                  className="text-body font-bold text-ink"
                 >
                   {batch.item.name}
                 </Link>
-                <span className="block text-[0.92rem] text-ink-soft tabular-nums">
+                <span className="block text-meta text-ink-soft tabular-nums">
                   {t('inStock', { qty: batch.remaining })}
                   {batch.lotNumber ? ` · ${t('lotShort', { lot: batch.lotNumber })}` : ''}
                 </span>

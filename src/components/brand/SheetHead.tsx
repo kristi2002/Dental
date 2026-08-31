@@ -58,11 +58,11 @@ export function SheetHead({
         <ClinicLogo alt="" className="h-14 w-auto" />
 
         {name ? (
-          <p className="mt-2 text-[1.15rem] leading-tight font-bold text-ink">{name}</p>
+          <p className="mt-2 text-lead leading-tight font-bold text-ink">{name}</p>
         ) : null}
 
         {contact.length > 0 ? (
-          <p className="mt-1 text-[0.9rem] leading-snug text-ink-soft">
+          <p className="mt-1 text-meta leading-snug text-ink-soft">
             {contact.join(' · ')}
           </p>
         ) : null}
@@ -70,9 +70,9 @@ export function SheetHead({
 
       <div className="shrink-0 text-right">
         {title ? (
-          <p className="text-[1rem] font-bold tracking-wide text-ink-faint uppercase">{title}</p>
+          <p className="text-body font-bold tracking-wide text-ink-faint uppercase">{title}</p>
         ) : null}
-        {meta ? <p className="mt-1 text-[0.95rem] text-ink-soft">{meta}</p> : null}
+        {meta ? <p className="mt-1 text-body text-ink-soft">{meta}</p> : null}
       </div>
     </header>
   );

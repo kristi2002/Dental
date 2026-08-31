@@ -97,7 +97,7 @@ export function PhotoWall() {
   }
 
   return (
-    <section id="wall" className="scroll-mt-20 px-5 py-16 sm:px-8 sm:py-20">
+    <section id="wall" className="scroll-mt-20 px-5 py-band-aside sm:px-8">
       <div className="mx-auto w-full max-w-6xl">
         {/* The heading the page hero used to supply.
             This was a route of its own until the photographs were folded into
@@ -111,7 +111,7 @@ export function PhotoWall() {
             {t('gallery.wallTitle')}
           </h2>
 
-          <p className="mt-5 max-w-[56ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-5 max-w-[56ch] text-body leading-relaxed text-bone-ink-soft">
             {t('gallery.wallLede')}
           </p>
         </Reveal>
@@ -143,7 +143,7 @@ export function PhotoWall() {
                   onClick={() => setFilter(choice)}
                   onKeyDown={(event) => onKeyDown(event, index)}
                   className={cn(
-                    'inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-[0.92rem] font-semibold whitespace-nowrap transition-colors',
+                    'inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-meta font-semibold whitespace-nowrap transition-colors',
                     active
                       ? 'border-gilt-deep bg-gilt text-navy'
                       : 'border-bone-deep bg-bone-soft text-bone-ink-soft hover:border-gilt hover:text-bone-ink',
@@ -158,7 +158,7 @@ export function PhotoWall() {
           {/* How many are on screen. `aria-live` because the grid changes under
               a reader who cannot see it change, and "3 photographs" is the whole
               of what happened. */}
-          <p aria-live="polite" className="text-[0.92rem] text-bone-ink-faint tabular-nums">
+          <p aria-live="polite" className="text-meta text-bone-ink-faint tabular-nums">
             {t('gallery.count', { count: shown.length })}
           </p>
         </div>
@@ -244,7 +244,7 @@ export function PhotoWall() {
                     >
                       <span className="glass-card m-2 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left">
                         <Expand size={15} className="shrink-0 text-gilt" />
-                        <span className="min-w-0 truncate text-[0.85rem] font-semibold text-white">
+                        <span className="min-w-0 truncate text-meta font-semibold text-white">
                           {t(`gallery.alt.${photo.key}`)}
                         </span>
                       </span>
@@ -259,7 +259,7 @@ export function PhotoWall() {
         {/* The same note the practice section carries, for the same reason:
             these are not photographs of this surgery, and the page says so where
             they appear rather than in a footer nobody reads. */}
-        <p className="mt-8 text-[0.88rem] text-bone-ink-faint">{t('how.illustrative')}</p>
+        <p className="mt-8 text-meta text-bone-ink-faint">{t('how.illustrative')}</p>
       </div>
 
       {/* The arrows step through what is on screen rather than through all nine

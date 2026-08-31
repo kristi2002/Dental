@@ -60,7 +60,7 @@ export function TakeOutForm({
       </form>
 
       {state.status === "error" ? (
-        <p role="alert" className="text-[0.88rem] font-semibold text-danger">
+        <p role="alert" className="text-meta font-semibold text-danger">
           {state.message}
         </p>
       ) : null}

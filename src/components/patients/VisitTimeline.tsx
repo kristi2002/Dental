@@ -114,10 +114,10 @@ export function VisitTimeline({
                 aria-hidden
                 className="absolute top-0 left-0 flex h-14 w-14 flex-col items-center justify-center rounded-xl border border-line-strong bg-surface shadow-card"
               >
-                <span className="text-[1.25rem] leading-none font-bold text-ink tabular-nums">
+                <span className="text-title leading-none font-bold text-ink tabular-nums">
                   {format.dateTime(date, { day: 'numeric' })}
                 </span>
-                <span className="text-[0.72rem] font-bold tracking-wide text-ink-faint uppercase">
+                <span className="text-micro font-bold tracking-wide text-ink-faint uppercase">
                   {format.dateTime(date, { month: 'short' })}
                 </span>
               </span>
@@ -125,14 +125,14 @@ export function VisitTimeline({
               <article className="rounded-[var(--radius-card)] border border-line bg-surface-soft px-4 py-3.5">
                 <header className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[1.05rem] font-bold text-ink">
+                    <p className="text-body font-bold text-ink">
                       {format.dateTime(date, {
                         weekday: 'long',
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric',
                       })}
-                      <span className="ml-2 text-[0.9rem] font-normal text-ink-faint">
+                      <span className="ml-2 text-meta font-normal text-ink-faint">
                         {format.relativeTime(date, reference)}
                       </span>
                     </p>
@@ -141,7 +141,7 @@ export function VisitTimeline({
                         by X" is noise on every line of a solo practice's
                         history. The initials give the row a face at a glance. */}
                     {visit.performedBy || visit.recordedBy ? (
-                      <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[0.9rem] text-ink-soft">
+                      <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-meta text-ink-soft">
                         <Initial name={visit.performedBy || visit.recordedBy} />
                         {visit.performedBy && visit.performedBy !== visit.recordedBy
                           ? t('treatedBy', { name: visit.performedBy })
@@ -173,7 +173,7 @@ export function VisitTimeline({
                   ) : null}
                 </header>
 
-                <p className="mt-2 text-[1.02rem] whitespace-pre-line text-ink">{visit.notes}</p>
+                <p className="mt-2 text-body whitespace-pre-line text-ink">{visit.notes}</p>
 
                 {visit.performed.length > 0 ? (
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -191,7 +191,7 @@ export function VisitTimeline({
                     record: "filling on the upper left" versus the tooth. */}
                 {visit.teeth.length > 0 ? (
                   <div className="mt-3 rounded-lg border border-line bg-surface px-3 py-2.5">
-                    <p className="mb-1.5 text-[0.8rem] font-bold tracking-wide text-ink-faint uppercase">
+                    <p className="mb-1.5 text-caption font-bold tracking-wide text-ink-faint uppercase">
                       {t('visitTeeth')}
                     </p>
                     <ul className="flex flex-wrap gap-3">
@@ -210,10 +210,10 @@ export function VisitTimeline({
                                 surfaces={parseSurfaces(tooth.surfaces)}
                               />
                             </span>
-                            <span className="text-center text-[0.78rem] leading-tight font-bold text-ink tabular-nums">
+                            <span className="text-center text-caption leading-tight font-bold text-ink tabular-nums">
                               {toothLabelFor(tooth.toothNum, numbering)}
                             </span>
-                            <span className="text-center text-[0.72rem] leading-tight text-ink-soft">
+                            <span className="text-center text-micro leading-tight text-ink-soft">
                               {tt(`status_${status}`)}
                             </span>
                           </li>
@@ -226,7 +226,7 @@ export function VisitTimeline({
                 {(visit.materials.length > 0 || visit.prescriptions.length > 0) && (
                   <div className="mt-2.5 flex flex-wrap gap-x-5 gap-y-2">
                     {visit.materials.length > 0 ? (
-                      <p className="flex flex-wrap items-center gap-1.5 text-[0.9rem] text-ink-soft">
+                      <p className="flex flex-wrap items-center gap-1.5 text-meta text-ink-soft">
                         <Package size={15} aria-hidden className="text-ink-faint" />
                         {visit.materials.map((material) => (
                           <span key={material.name} className="font-semibold">
@@ -240,7 +240,7 @@ export function VisitTimeline({
                     {/* Written on the way out, so it belongs to the visit even
                         though nothing in the schema ties the two together. */}
                     {visit.prescriptions.length > 0 ? (
-                      <p className="flex items-center gap-1.5 text-[0.9rem] text-ink-soft">
+                      <p className="flex items-center gap-1.5 text-meta text-ink-soft">
                         <Pill size={15} aria-hidden className="text-ink-faint" />
                         <span className="font-semibold">
                           {tp('issuedCount', { count: visit.prescriptions.length })}
@@ -265,7 +265,7 @@ function Initial({ name }: { name: string }) {
       aria-hidden
       className={cn(
         'grid size-6 shrink-0 place-items-center rounded-full',
-        'bg-brand-soft text-[0.7rem] font-bold text-brand-deep',
+        'bg-brand-soft text-micro font-bold text-brand-deep',
       )}
     >
       {initials(first, last)}

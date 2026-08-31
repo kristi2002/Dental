@@ -99,8 +99,8 @@ export default async function WorkProceduresPage({
               className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4"
             >
               <div className="min-w-0">
-                <p className="text-[1.05rem] font-bold text-ink">{procedure.name}</p>
-                <p className="text-[0.92rem] text-ink-soft">
+                <p className="text-body font-bold text-ink">{procedure.name}</p>
+                <p className="text-meta text-ink-soft">
                   {t('lineCount', { count: linesUsing(usage, procedure.name) })}
                 </p>
               </div>
@@ -138,8 +138,8 @@ export default async function WorkProceduresPage({
               <Sparkles size={22} aria-hidden />
             </span>
             <div>
-              <h2 className="text-[1.15rem] font-bold text-ink">{t('suggestions')}</h2>
-              <p className="text-[0.95rem] text-ink-soft">{t('suggestionsHint')}</p>
+              <h2 className="text-lead font-bold text-ink">{t('suggestions')}</h2>
+              <p className="text-body text-ink-soft">{t('suggestionsHint')}</p>
             </div>
           </header>
 
@@ -150,8 +150,8 @@ export default async function WorkProceduresPage({
                 className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3"
               >
                 <div className="min-w-0">
-                  <p className="text-[1rem] font-semibold text-ink">{suggestion.name}</p>
-                  <p className="text-[0.9rem] text-ink-soft">
+                  <p className="text-body font-semibold text-ink">{suggestion.name}</p>
+                  <p className="text-meta text-ink-soft">
                     {t('lineCount', { count: suggestion.lines })}
                   </p>
                 </div>

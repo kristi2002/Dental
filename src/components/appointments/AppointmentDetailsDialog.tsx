@@ -45,10 +45,10 @@ function Fact({
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-[0.82rem] font-semibold tracking-wide text-ink-faint uppercase">
+        <p className="text-caption font-semibold tracking-wide text-ink-faint uppercase">
           {label}
         </p>
-        <div className="text-[1.02rem] text-ink">{children}</div>
+        <div className="text-body text-ink">{children}</div>
       </div>
     </div>
   );

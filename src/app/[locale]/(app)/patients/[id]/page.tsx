@@ -497,7 +497,7 @@ export default async function PatientDetailPage({
       <header className="card mb-6 flex flex-wrap items-start gap-5 p-5">
         <span
           aria-hidden
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-line-strong bg-paper text-[1.4rem] font-bold text-ink-soft"
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-line-strong bg-paper text-figure font-bold text-ink-soft"
         >
           {initials(patient.firstName, patient.lastName)}
         </span>
@@ -527,7 +527,7 @@ export default async function PatientDetailPage({
             ) : null}
             <ReliabilityBadge reliability={reliability} />
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[1.02rem] text-ink-soft">
+          <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-body text-ink-soft">
             {/* Not links any more. A `tel:` or `mailto:` does nothing at all on
                 a workstation with no handler registered for the scheme, and
                 that is the ordinary state of a browser-only front desk — so
@@ -545,7 +545,7 @@ export default async function PatientDetailPage({
               </span>
             ) : null}
           </div>
-          <p className="mt-1 text-[0.92rem] text-ink-faint">
+          <p className="mt-1 text-meta text-ink-faint">
             {t('registered', {
               date: format.dateTime(patient.createdAt, {
                 day: 'numeric',
@@ -862,10 +862,10 @@ export default async function PatientDetailPage({
                         >
                           <TriangleAlert size={20} aria-hidden className="mt-0.5 shrink-0" />
                           <span className="min-w-0">
-                            <span className="block text-[0.85rem] font-bold tracking-wide uppercase">
+                            <span className="block text-meta font-bold tracking-wide uppercase">
                               {t('allergyBadge')}
                             </span>
-                            <span className="block text-[1.05rem] font-bold">
+                            <span className="block text-body font-bold">
                               {allergies.join(' · ')}
                             </span>
                           </span>
@@ -874,7 +874,7 @@ export default async function PatientDetailPage({
 
                       <p
                         className={cn(
-                          'text-[1.05rem] whitespace-pre-line',
+                          'text-body whitespace-pre-line',
                           medicalNotes ? 'text-ink' : 'text-ink-faint',
                         )}
                       >
@@ -882,7 +882,7 @@ export default async function PatientDetailPage({
                       </p>
                     </>
                   ) : (
-                    <p className="text-[1.05rem] text-ink-faint">{t('medicalHidden')}</p>
+                    <p className="text-body text-ink-faint">{t('medicalHidden')}</p>
                   )}
                 </CardBody>
               </Card>
@@ -897,12 +897,12 @@ export default async function PatientDetailPage({
                   {patient.recallMonths > 0 ? (
                     <>
                       <div>
-                        <p className="text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                        <p className="text-meta font-bold tracking-wide text-ink-faint uppercase">
                           {t('recallNext')}
                         </p>
                         <p
                           className={cn(
-                            'text-[1.35rem] font-bold',
+                            'text-title font-bold',
                             recall.overdue ? 'text-warn' : 'text-ink',
                           )}
                         >
@@ -921,7 +921,7 @@ export default async function PatientDetailPage({
                         {recall.overdue ? <Badge tone="warn">{t('recallDue')}</Badge> : null}
                       </p>
 
-                      <p className="text-[0.95rem] text-ink-soft">
+                      <p className="text-body text-ink-soft">
                         {lastVisitDate
                           ? t('lastVisitOn', {
                               date: format.dateTime(lastVisitDate, {
@@ -934,7 +934,7 @@ export default async function PatientDetailPage({
                       </p>
                     </>
                   ) : (
-                    <p className="text-[1.05rem] text-ink-faint">{t('recallOff')}</p>
+                    <p className="text-body text-ink-faint">{t('recallOff')}</p>
                   )}
                 </CardBody>
               </Card>
@@ -1324,11 +1324,11 @@ function Fact({
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[0.82rem] font-bold tracking-wide text-ink-faint uppercase">{label}</p>
+        <p className="text-caption font-bold tracking-wide text-ink-faint uppercase">{label}</p>
         <div className="flex min-w-0 items-center gap-1">
           <p
             className={cn(
-              'min-w-0 flex-1 text-[1.02rem] font-semibold',
+              'min-w-0 flex-1 text-body font-semibold',
               value ? 'text-ink' : 'text-ink-faint',
             )}
           >
@@ -1350,7 +1350,7 @@ function Fact({
             />
           ) : null}
         </div>
-        {note ? <p className="truncate text-[0.9rem] text-ink-soft">{note}</p> : null}
+        {note ? <p className="truncate text-meta text-ink-soft">{note}</p> : null}
       </div>
     </div>
   );

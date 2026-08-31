@@ -82,14 +82,14 @@ export function RecallCard({
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/patients/${id}`}
-            className="truncate text-[1.12rem] font-bold text-ink no-underline hover:text-brand-deep"
+            className="truncate text-lead font-bold text-ink no-underline hover:text-brand-deep"
           >
             {lastName} {firstName}
           </Link>
           <Badge tone={tone}>{detail}</Badge>
         </div>
 
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.93rem] text-ink-soft">
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-ink-soft">
           <span className="flex items-center gap-1.5">
             <CalendarClock size={15} aria-hidden />
             {lastVisit
@@ -160,7 +160,7 @@ export function RecallCard({
             </ActionForm>
           </>
         ) : (
-          <span className="text-[0.9rem] text-ink-faint">{tc('viewOnly')}</span>
+          <span className="text-meta text-ink-faint">{tc('viewOnly')}</span>
         )}
       </div>
     </li>

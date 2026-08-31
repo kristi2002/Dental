@@ -81,7 +81,7 @@ export function WaitlistPanel({
       />
 
       {onThisDay.length > 0 ? (
-        <p className="flex flex-wrap items-center gap-2 border-b border-line bg-surface-soft px-5 py-3 text-[0.95rem] text-ink-soft">
+        <p className="flex flex-wrap items-center gap-2 border-b border-line bg-surface-soft px-5 py-3 text-body text-ink-soft">
           <Clock size={16} aria-hidden className="text-brand" />
           {t('freeOn', { day: dayLabel })}
           {onThisDay.map((gap) => (
@@ -115,14 +115,14 @@ export function WaitlistPanel({
                   <p className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/patients/${entry.patientId}`}
-                      className="truncate text-[1.05rem] font-bold text-ink no-underline hover:text-brand-deep"
+                      className="truncate text-body font-bold text-ink no-underline hover:text-brand-deep"
                     >
                       {entry.patientName}
                     </Link>
                     {entry.urgent ? <Badge tone="danger">{t('urgent')}</Badge> : null}
                     {entry.serviceName ? <Badge tone="brand">{entry.serviceName}</Badge> : null}
                   </p>
-                  <p className="mt-0.5 text-[0.92rem] text-ink-soft">
+                  <p className="mt-0.5 text-meta text-ink-soft">
                     {entry.durationMin} {tc('minutes')}
                     {' · '}
                     {t('waitingSince', { days: entry.waitingDays })}
@@ -133,7 +133,7 @@ export function WaitlistPanel({
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      'flex items-center gap-1.5 text-[0.92rem] font-semibold',
+                      'flex items-center gap-1.5 text-meta font-semibold',
                       gap ? 'text-ok' : 'text-ink-faint',
                     )}
                   >

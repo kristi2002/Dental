@@ -85,7 +85,7 @@ export function BookFab() {
       // exists to avoid. It also keeps the control out of the way entirely from
       // `sm` up, where the masthead's own button is present.
       hidden={onBookingPage || !shown}
-      className="fab fixed right-4 bottom-4 z-40 inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-5 text-[0.95rem] font-bold text-navy no-underline shadow-pop focus-visible:outline-gilt-deep sm:hidden"
+      className="fab fixed right-4 bottom-4 z-40 inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-5 text-body font-bold text-navy no-underline shadow-pop focus-visible:outline-gilt-deep sm:hidden"
     >
       <CalendarCheck size={19} aria-hidden />
       {t('nav.book')}

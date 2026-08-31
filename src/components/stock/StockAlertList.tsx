@@ -93,7 +93,7 @@ export async function StockAlertList({
                 ) : null}
               </p>
 
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.9rem] text-ink-soft">
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta text-ink-soft">
                 {/* Two numbers, because one of them is meaningless alone: three
                     boxes is a crisis for a material that wants twenty and a full
                     shelf for one that wants two. */}
@@ -118,7 +118,7 @@ export async function StockAlertList({
                   with — an order with no date at all is a different call from
                   one that was due a week ago, and the supplier will ask. */}
               {late ? (
-                <p className="mt-0.5 text-[0.9rem] font-semibold text-danger">
+                <p className="mt-0.5 text-meta font-semibold text-danger">
                   {alert.expectedAt
                     ? t('stockOrderExpected', {
                         date: format.dateTime(alert.expectedAt, {

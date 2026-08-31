@@ -88,7 +88,7 @@ export function StatusFilter({
         {all ? null : (
           <span
             aria-hidden
-            className="grid min-w-6 place-items-center rounded-full bg-brand-dark px-1.5 text-[0.8rem] tabular-nums text-white"
+            className="grid min-w-6 place-items-center rounded-full bg-brand-dark px-1.5 text-caption tabular-nums text-white"
           >
             {active.length}
           </span>
@@ -132,7 +132,7 @@ export function StatusFilter({
                   />
                   <span
                     className={cn(
-                      'text-[0.95rem]',
+                      'text-body',
                       on ? 'font-semibold text-ink' : 'text-ink-soft',
                     )}
                   >

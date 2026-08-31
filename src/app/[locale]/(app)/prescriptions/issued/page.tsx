@@ -148,14 +148,14 @@ export default async function IssuedPrescriptionsPage({
                       name, never by somebody holding a prescription id. */}
                   <Link
                     href={`/patients/${row.patient.id}?tab=prescriptions`}
-                    className="text-[1.06rem] font-bold text-ink"
+                    className="text-body font-bold text-ink"
                   >
                     {row.patient.lastName} {row.patient.firstName}
                   </Link>
                   {row.template?.name ? <Badge>{row.template.name}</Badge> : null}
                 </p>
 
-                <p className="text-[0.92rem] text-ink-soft">
+                <p className="text-meta text-ink-soft">
                   {format.dateTime(row.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}
                   {row.issuedBy
                     ? ` · ${row.issuedBy.firstName} ${row.issuedBy.lastName}`
@@ -165,7 +165,7 @@ export default async function IssuedPrescriptionsPage({
 
               {/* The wording as issued, not the template's — a later edit to the
                   standard text must not rewrite what somebody walked out with. */}
-              <p className="mt-1 line-clamp-3 text-[0.95rem] whitespace-pre-line text-ink-soft">
+              <p className="mt-1 line-clamp-3 text-body whitespace-pre-line text-ink-soft">
                 {row.body}
               </p>
 
@@ -194,7 +194,7 @@ export default async function IssuedPrescriptionsPage({
             <span />
           )}
 
-          <span className="text-[0.95rem] font-semibold text-ink-soft tabular-nums">
+          <span className="text-body font-semibold text-ink-soft tabular-nums">
             {tpat('pageOf', { page, pages })}
           </span>
 

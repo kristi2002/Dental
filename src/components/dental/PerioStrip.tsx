@@ -59,7 +59,7 @@ function SiteRow({
           <span
             key={site}
             className={cn(
-              'w-[var(--perio-site,0.95rem)] rounded-[3px] text-center text-[0.68rem] leading-[1.15rem] font-bold tabular-nums',
+              'w-[var(--perio-site,0.95rem)] rounded-[3px] text-center text-micro leading-[1.15rem] font-bold tabular-nums',
               BAND_STYLE[pocketBand(depth)],
               // A bled site carries its own mark as well as its colour, so the
               // finding survives a greyscale printout and colour-blind eyes.
@@ -111,7 +111,7 @@ export function PerioStrip({
       {showMobility ? (
         <span
           className={cn(
-            'mt-px rounded-[3px] px-1 text-[0.62rem] leading-[0.95rem] font-bold',
+            'mt-px rounded-[3px] px-1 text-micro leading-[0.95rem] font-bold',
             summary.mobility !== null && summary.mobility > 0
               ? summary.mobility >= 2
                 ? 'bg-danger-soft text-danger'

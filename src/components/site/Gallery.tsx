@@ -71,7 +71,7 @@ export function Gallery() {
   }, [embla]);
 
   return (
-    <section id="gallery" className="scroll-mt-20 py-20 sm:py-28">
+    <section id="gallery" className="scroll-mt-20 py-band">
       <div className="mx-auto mb-12 w-full max-w-6xl px-5 sm:px-8">
         <Reveal>
           <SectionEyebrow className="text-gilt-deep">{t('gallery.eyebrow')}</SectionEyebrow>
@@ -113,7 +113,7 @@ export function Gallery() {
             </div>
           </div>
 
-          <p className="mt-5 max-w-[56ch] text-[1.05rem] text-bone-ink-soft">
+          <p className="mt-5 max-w-[56ch] text-body text-bone-ink-soft">
             {t('gallery.lede')}
           </p>
         </Reveal>
@@ -182,7 +182,7 @@ export function Gallery() {
                   <span
                     aria-hidden
                     className={cn(
-                      'absolute inset-x-0 bottom-0 flex h-3/5 items-end bg-gradient-to-t from-navy/78 via-navy/16 via-42% to-transparent p-4 pr-16 text-left text-[0.84rem] leading-snug font-medium text-white transition-opacity duration-500 sm:p-5 sm:pr-18 motion-reduce:transition-none',
+                      'absolute inset-x-0 bottom-0 flex h-3/5 items-end bg-gradient-to-t from-navy/78 via-navy/16 via-42% to-transparent p-4 pr-16 text-left text-caption leading-snug font-medium text-white transition-opacity duration-500 sm:p-5 sm:pr-18 motion-reduce:transition-none',
                       inView.includes(index) ? 'opacity-100' : 'opacity-0',
                     )}
                   >
@@ -267,7 +267,7 @@ export function Gallery() {
             screens down, which is the commonest way a "see all" goes wrong. */}
         <Link
           href="/practice#wall"
-          className="group/all inline-flex min-h-11 items-center gap-2 text-[0.98rem] font-semibold text-bone-ink no-underline underline-offset-4 transition-colors hover:text-gilt-deep hover:underline"
+          className="group/all inline-flex min-h-11 items-center gap-2 text-body font-semibold text-bone-ink no-underline underline-offset-4 transition-colors hover:text-gilt-deep hover:underline"
         >
           {t('gallery.all', { count: GALLERY.length })}
           <ArrowRight

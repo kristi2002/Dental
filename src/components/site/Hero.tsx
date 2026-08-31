@@ -216,7 +216,7 @@ export async function Hero({
 
               <p
                 style={{ '--i': 3 } as React.CSSProperties}
-                className="rise mt-3.5 max-w-[46ch] text-[0.99rem] leading-relaxed text-navy-ink sm:text-[1.04rem]"
+                className="rise mt-3.5 max-w-[46ch] text-body leading-relaxed text-navy-ink sm:text-body"
               >
                 {t('hero.ledeShort')}
               </p>
@@ -239,7 +239,7 @@ export async function Hero({
                     when you pointed at it. See `.cta-fill` in globals.css. */}
                 <Link
                   href="/book"
-                  className="cta-fill group inline-flex min-h-13 items-center sm:min-h-14 gap-2.5 rounded-full bg-gilt px-7 text-[1.02rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
+                  className="cta-fill group inline-flex min-h-13 items-center sm:min-h-14 gap-2.5 rounded-full bg-gilt px-7 text-body font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
                 >
                   {t('hero.book')}
                   <ArrowRight
@@ -255,7 +255,7 @@ export async function Hero({
                 {contact.telHref ? (
                   <a
                     href={contact.telHref}
-                    className="inline-flex min-h-13 items-center sm:min-h-14 gap-2.5 rounded-full border border-white/30 px-6 text-[1.02rem] font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
+                    className="inline-flex min-h-13 items-center sm:min-h-14 gap-2.5 rounded-full border border-white/30 px-6 text-body font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
                   >
                     <Phone size={18} aria-hidden />
                     {contact.phone}
@@ -295,7 +295,7 @@ export async function Hero({
                * stays in the rule beside it, which is decoration and carries no
                * contrast requirement.
                */}
-              <p className="flex items-center gap-3 text-[0.72rem] font-semibold tracking-[0.28em] text-white uppercase">
+              <p className="flex items-center gap-3 text-micro font-semibold tracking-[0.28em] text-white uppercase">
                 <span aria-hidden className="h-px w-8 bg-gilt" />
                 {t('hero.eyebrow')}
               </p>
@@ -318,7 +318,7 @@ export async function Hero({
                * somebody else's rating as your own review markup is specifically
                * what Google's guidelines forbid. See `page.tsx`.
                */}
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.92rem] text-navy-ink lg:justify-end">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-navy-ink lg:justify-end">
                 <span aria-hidden className="flex gap-0.5 text-gilt">
                   {[0, 1, 2, 3, 4].map((star) => (
                     <Star key={star} size={13} fill="currentColor" strokeWidth={0} />

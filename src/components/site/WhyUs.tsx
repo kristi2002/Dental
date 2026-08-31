@@ -54,7 +54,7 @@ export async function WhyUs() {
       // `clip` and never `hidden`, as everywhere on this storefront: see the
       // note under `.drift`. Nothing inside is on a scroll timeline today and
       // the next thing put here must not have to discover why that matters.
-      className="relative overflow-clip px-5 py-20 sm:px-8 sm:py-24"
+      className="relative overflow-clip px-5 py-band sm:px-8"
     >
       {/* Latin, untranslated, one per section. Hung off the right edge, clear of
           the heading that sits on the left. */}
@@ -68,7 +68,7 @@ export async function WhyUs() {
           <h2 className="type-section mt-5 max-w-[18ch] text-bone-ink">
             {t('pages.visit.clinic.title')}
           </h2>
-          <p className="mt-5 max-w-[58ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-5 max-w-[58ch] text-body leading-relaxed text-bone-ink-soft">
             {t('pages.visit.clinic.lede')}
           </p>
         </Reveal>
@@ -88,10 +88,10 @@ export async function WhyUs() {
                 <point.icon size={20} />
               </span>
 
-              <h3 className="mt-5 text-[1.14rem] font-bold text-bone-ink">
+              <h3 className="mt-5 text-lead font-bold text-bone-ink">
                 {t(`pages.visit.clinic.${point.key}.title`)}
               </h3>
-              <p className="mt-2.5 text-[1rem] leading-relaxed text-bone-ink-soft">
+              <p className="mt-2.5 text-body leading-relaxed text-bone-ink-soft">
                 {t(`pages.visit.clinic.${point.key}.body`)}
               </p>
             </Reveal>
@@ -111,7 +111,7 @@ export async function WhyUs() {
           step={2}
           className="mt-11 flex flex-wrap items-center justify-between gap-x-8 gap-y-6 border-t border-bone-deep pt-8"
         >
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[1rem] text-bone-ink-soft">
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-body text-bone-ink-soft">
             {/* Decoration, and marked as such: the sentence beside it already
                 says "4.9 out of 5" in words, so five drawn stars announced one
                 by one would be five repetitions of a thing already read. */}
@@ -128,7 +128,7 @@ export async function WhyUs() {
             // The storefront's one call to action, in the class that owns its
             // hover outright rather than in three utilities fighting over it.
             // See `.cta-fill` in globals.css.
-            className="cta-fill group inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-[1rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone"
+            className="cta-fill group inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-body font-bold text-navy no-underline hover:text-bone focus-visible:text-bone"
           >
             {t('nav.book')}
             <ArrowRight

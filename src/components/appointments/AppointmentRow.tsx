@@ -114,12 +114,12 @@ export async function AppointmentRow({
       <article className="grid items-baseline gap-x-4 gap-y-3 px-4 py-3.5 @[30rem]:grid-cols-[10.5rem_minmax(0,1fr)] @[75rem]:grid-cols-[10.5rem_minmax(0,1fr)_max-content]">
         <div className="flex items-baseline gap-2 @[30rem]:flex-col @[30rem]:gap-0.5">
           <span className="text-2xl font-bold tabular-nums text-ink">{appointment.startTime}</span>
-          <span className="flex items-center gap-1 text-[0.9rem] text-ink-faint tabular-nums">
+          <span className="flex items-center gap-1 text-meta text-ink-faint tabular-nums">
             <Clock size={14} aria-hidden />
             {endTime} · {t('durationValue', { min: appointment.durationMin })}
           </span>
           {showDate ? (
-            <span className="text-[0.9rem] font-semibold text-ink-soft">{appointment.date}</span>
+            <span className="text-meta font-semibold text-ink-soft">{appointment.date}</span>
           ) : null}
         </div>
 
@@ -130,7 +130,7 @@ export async function AppointmentRow({
                 the accessible label and the focus ring. */}
             <Link
               href={`/patients/${appointment.patient.id}`}
-              className="text-[1.15rem]/8 font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-4 after:absolute after:inset-0 after:rounded-[var(--radius-card)] hover:decoration-brand"
+              className="text-lead/8 font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-4 after:absolute after:inset-0 after:rounded-[var(--radius-card)] hover:decoration-brand"
             >
               {patientName}
             </Link>
@@ -180,15 +180,15 @@ export async function AppointmentRow({
           </div>
 
           {appointment.serviceName ? (
-            <p className="mt-1 text-[1.02rem] text-ink-soft">{appointment.serviceName}</p>
+            <p className="mt-1 text-body text-ink-soft">{appointment.serviceName}</p>
           ) : null}
           {appointment.staffName || appointment.operatoryName ? (
-            <p className="mt-1 text-[0.98rem] font-semibold text-ink-soft">
+            <p className="mt-1 text-body font-semibold text-ink-soft">
               {[appointment.staffName, appointment.operatoryName].filter(Boolean).join(' · ')}
             </p>
           ) : null}
           {appointment.notes ? (
-            <p className="mt-1 text-[0.95rem] text-ink-faint">{appointment.notes}</p>
+            <p className="mt-1 text-body text-ink-faint">{appointment.notes}</p>
           ) : null}
         </div>
 

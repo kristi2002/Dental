@@ -157,7 +157,7 @@ export function ReminderCenter({
             aria-hidden
             className={cn(
               'absolute -top-1.5 -right-1.5 grid min-w-5 place-items-center rounded-full',
-              'px-1.5 text-[0.75rem] font-bold tabular-nums ring-2',
+              'px-1.5 text-micro font-bold tabular-nums ring-2',
               // The ring is what lifts the badge off whatever it overlaps, so it
               // has to be the colour behind the button rather than a fixed white.
               buttonTone === 'brand' ? 'ring-brand-deep' : 'ring-surface',
@@ -188,14 +188,14 @@ export function ReminderCenter({
                 <Bell size={22} />
               </span>
               <div className="min-w-0">
-                <h2 id={titleId} className="text-[1.35rem] leading-tight font-bold text-ink">
+                <h2 id={titleId} className="text-title leading-tight font-bold text-ink">
                   {t('title')}
                 </h2>
                 {/* Dropped on a phone. Beside the "new" button there is about
                     a third of the width left for it, which turns one line of
                     explanation into four lines of squeezed column — and the
                     heading above it already says what this is. */}
-                <p className="mt-0.5 hidden text-[0.92rem] text-ink-soft sm:block">
+                <p className="mt-0.5 hidden text-meta text-ink-soft sm:block">
                   {t('subtitle')}
                 </p>
               </div>
@@ -245,8 +245,8 @@ export function ReminderCenter({
                 <span className="text-ok" aria-hidden>
                   <CircleCheck size={44} />
                 </span>
-                <p className="text-[1.1rem] font-bold text-ink">{t('none')}</p>
-                <p className="max-w-sm text-[0.95rem] text-ink-soft">{t('noneHint')}</p>
+                <p className="text-lead font-bold text-ink">{t('none')}</p>
+                <p className="max-w-sm text-body text-ink-soft">{t('noneHint')}</p>
               </div>
             ) : (
               <>
@@ -276,7 +276,7 @@ export function ReminderCenter({
                     {counts.open > 0 ? (
                       followUpList
                     ) : (
-                      <p className="px-5 py-5 text-center text-[0.95rem] text-ink-soft sm:px-6">
+                      <p className="px-5 py-5 text-center text-body text-ink-soft sm:px-6">
                         {tf('empty')}
                       </p>
                     )}
@@ -314,10 +314,10 @@ function Stat({
         <Icon size={20} />
       </span>
       <span className="min-w-0">
-        <span className={cn('block text-[1.5rem] leading-none font-bold tabular-nums', palette)}>
+        <span className={cn('block text-figure leading-none font-bold tabular-nums', palette)}>
           {value}
         </span>
-        <span className="mt-1 block truncate text-[0.85rem] font-semibold text-ink-soft">
+        <span className="mt-1 block truncate text-meta font-semibold text-ink-soft">
           {label}
         </span>
       </span>
@@ -340,9 +340,9 @@ function Section({
   return (
     <section className="border-b border-line last:border-b-0">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 bg-paper px-5 py-2.5 sm:px-6">
-        <h3 className="text-[0.8rem] font-bold tracking-wide text-ink-soft uppercase">{title}</h3>
-        <p className="text-[0.85rem] font-semibold tabular-nums text-ink-faint">{count}</p>
-        <p className="w-full text-[0.88rem] text-ink-faint">{hint}</p>
+        <h3 className="text-caption font-bold tracking-wide text-ink-soft uppercase">{title}</h3>
+        <p className="text-meta font-semibold tabular-nums text-ink-faint">{count}</p>
+        <p className="w-full text-meta text-ink-faint">{hint}</p>
       </header>
       {children}
     </section>

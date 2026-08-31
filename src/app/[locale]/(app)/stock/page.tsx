@@ -283,7 +283,7 @@ export default async function StockPage({
           because "archived by mistake" must not need a database client. */}
       {canEdit && archived.length > 0 ? (
         <details className="card mb-6">
-          <summary className="cursor-pointer list-none px-5 py-4 text-[1.1rem] font-bold text-ink">
+          <summary className="cursor-pointer list-none px-5 py-4 text-lead font-bold text-ink">
             {t('archivedTitle')}
             <span className="ml-2 font-normal text-ink-soft">
               ({archived.length})
@@ -297,10 +297,10 @@ export default async function StockPage({
                 className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3"
               >
                 <div className="min-w-0">
-                  <p className="text-[1.05rem] font-bold text-ink">
+                  <p className="text-body font-bold text-ink">
                     {item.name}
                   </p>
-                  <p className="text-[0.92rem] text-ink-soft">
+                  <p className="text-meta text-ink-soft">
                     {t('inStock', { qty: item.quantity })}
                     {item.archivedAt
                       ? ` · ${t("archivedOn", {
@@ -389,14 +389,14 @@ export default async function StockPage({
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                    <p className="text-[1.2rem] font-bold text-ink">
+                    <p className="text-title font-bold text-ink">
                       {item.name}
                     </p>
                     {/* Which one of the eight it is — the shade, the size, the
                         gauge. Chipped rather than run into the name, so a list
                         of siblings reads down the variant column. */}
                     {item.variantName ? (
-                      <span className="rounded-md bg-paper px-2 py-0.5 text-[0.92rem] font-semibold text-ink-soft">
+                      <span className="rounded-md bg-paper px-2 py-0.5 text-meta font-semibold text-ink-soft">
                         {item.variantName}
                       </span>
                     ) : null}
@@ -422,13 +422,13 @@ export default async function StockPage({
 
                   {/* Where it comes from and where it is filed — the two things
                       read while writing an order. */}
-                  <p className="mt-1.5 text-[1rem] text-ink-soft">
+                  <p className="mt-1.5 text-body text-ink-soft">
                     {item.supplier ? `${item.supplier.name} · ` : ''}
                     {item.category?.name || t('uncategorized')}
                   </p>
 
                   {/* The bookkeeping, a step quieter than the name above it. */}
-                  <p className="mt-0.5 text-[0.9rem] text-ink-faint">
+                  <p className="mt-0.5 text-meta text-ink-faint">
                     {t('minShort', { min: item.minLimit })} ·{' '}
                     {/* How much of what was bought has gone. Quiet until there
                         is something to say. */}
@@ -484,7 +484,7 @@ export default async function StockPage({
                         >
                           <button
                             type="submit"
-                            className="text-[0.88rem] font-semibold text-ink-faint underline hover:text-ink"
+                            className="text-meta font-semibold text-ink-faint underline hover:text-ink"
                           >
                             {t('clearOrdered')}
                           </button>
@@ -551,13 +551,13 @@ export default async function StockPage({
                     <span className="flex flex-1 flex-col items-center justify-center px-2 py-2 leading-none">
                       <span
                         className={cn(
-                          'text-[1.45rem] font-bold tabular-nums',
+                          'text-figure font-bold tabular-nums',
                           isLow ? 'text-warn' : 'text-ink',
                         )}
                       >
                         {item.quantity}
                       </span>
-                      <span className="mt-1 text-[0.8rem] font-semibold text-ink-soft">
+                      <span className="mt-1 text-caption font-semibold text-ink-soft">
                         {t('boxes', { count: item.quantity })}
                       </span>
                     </span>

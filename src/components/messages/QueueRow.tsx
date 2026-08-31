@@ -83,7 +83,7 @@ export async function QueueRow({
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/patients/${patient.id}`}
-            className="truncate text-[1.12rem] font-bold text-ink no-underline hover:text-brand-deep"
+            className="truncate text-lead font-bold text-ink no-underline hover:text-brand-deep"
           >
             {patientName}
           </Link>
@@ -104,7 +104,7 @@ export async function QueueRow({
           ) : null}
         </div>
 
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.93rem] text-ink-soft">
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-ink-soft">
           {appointment ? (
             <span className="flex items-center gap-1.5">
               <CalendarClock size={15} aria-hidden />
@@ -142,7 +142,7 @@ export async function QueueRow({
         </p>
 
         {note ? (
-          <p className="mt-1 text-[0.9rem] text-ink-faint">
+          <p className="mt-1 text-meta text-ink-faint">
             {note}
             {message.resolvedBy ? ` — ${message.resolvedBy}` : ''}
           </p>
@@ -151,7 +151,7 @@ export async function QueueRow({
 
       <div className="flex flex-wrap items-center gap-2">
         {!canSend ? (
-          <span className="text-[0.9rem] text-ink-faint">{tc('viewOnly')}</span>
+          <span className="text-meta text-ink-faint">{tc('viewOnly')}</span>
         ) : mode === 'send' && reminder ? (
           <>
             <QueueSendLinks

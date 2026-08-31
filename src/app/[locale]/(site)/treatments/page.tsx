@@ -1,3 +1,4 @@
+import { ViewTransition } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -17,6 +18,7 @@ import {
   TREATMENT_KEYS,
   TREATMENT_TIMING,
   treatmentPath,
+  treatmentTransitionName,
   type TreatmentKey,
 } from '@/lib/site-content';
 import { sitePageMetadata } from '@/lib/site-meta';
@@ -113,7 +115,7 @@ async function TreatmentEntry({
     <section
       id={`t-${treatmentKey}`}
       className={cn(
-        'relative scroll-mt-32 overflow-clip px-5 py-16 sm:px-8 sm:py-20',
+        'relative scroll-mt-32 overflow-clip px-5 py-band',
         flipped ? 'bg-bone-soft' : 'bg-bone',
       )}
     >
@@ -138,17 +140,27 @@ async function TreatmentEntry({
           {/* The clip carries the corner so the photograph inside can be a plain
               rectangle that grows past its own edges. See `.drift`. */}
           <div className="drift-clip relative rounded-2xl border border-bone-deep bg-navy shadow-lift">
-            {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
-            <img
-              src={photo.src}
-              width={photo.width}
-              height={photo.height}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              sizes="(min-width: 1024px) 560px, calc(100vw - 2.5rem)"
-              className="drift block aspect-4/3 w-full object-cover"
-            />
+            {/* The same morph the homepage grid does, from the other list that
+                leads to these pages. Both ends carry the name from
+                `treatmentTransitionName`, so whichever of the two lists a reader
+                pressed, the photograph they pressed is the one that opens. */}
+            <ViewTransition
+              name={treatmentTransitionName(treatmentKey)}
+              share="morph"
+              default="none"
+            >
+              {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
+              <img
+                src={photo.src}
+                width={photo.width}
+                height={photo.height}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                sizes="(min-width: 1024px) 560px, calc(100vw - 2.5rem)"
+                className="drift block aspect-4/3 w-full object-cover"
+              />
+            </ViewTransition>
           </div>
         </Reveal>
 
@@ -159,7 +171,7 @@ async function TreatmentEntry({
            * identical spreads it is the only thing that tells a reader how far
            * through they are without looking at a scrollbar.
            */}
-          <p aria-hidden className="font-display text-[1.05rem] tracking-[0.28em] text-gilt-deep">
+          <p aria-hidden className="font-display text-body tracking-[0.28em] text-gilt-deep">
             {String(index + 1).padStart(2, '0')} / {String(TREATMENT_KEYS.length).padStart(2, '0')}
           </p>
 
@@ -183,11 +195,11 @@ async function TreatmentEntry({
             </Link>
           </h2>
 
-          <p className="mt-5 max-w-[52ch] text-[1.08rem] leading-relaxed text-bone-ink">
+          <p className="mt-5 max-w-[52ch] text-lead leading-relaxed text-bone-ink">
             {t(`treatments.${treatmentKey}.body`)}
           </p>
 
-          <p className="mt-4 max-w-[54ch] text-[1.01rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-bone-ink-soft">
             {t(`pages.treatments.detail.${treatmentKey}`)}
           </p>
 
@@ -201,7 +213,7 @@ async function TreatmentEntry({
                 most of them. */}
             <Link
               href={treatmentPath(treatmentKey)}
-              className="inline-flex min-h-12 items-center gap-2 rounded-full border border-bone-deep px-5 text-[0.95rem] font-semibold text-bone-ink no-underline transition-colors hover:border-gilt hover:text-gilt-deep focus-visible:outline-gilt-deep"
+              className="inline-flex min-h-12 items-center gap-2 rounded-full border border-bone-deep px-5 text-body font-semibold text-bone-ink no-underline transition-colors hover:border-gilt hover:text-gilt-deep focus-visible:outline-gilt-deep"
             >
               {t('pages.treatment.more')}
               <ArrowUpRight size={17} aria-hidden className="text-gilt-deep" />
@@ -246,7 +258,7 @@ export default async function TreatmentsPage({
           {['one', 'two', 'three'].map((key) => (
             <li
               key={key}
-              className="inline-flex min-h-9 items-center rounded-full border border-navy-line px-3.5 text-[0.86rem] font-semibold text-navy-ink"
+              className="inline-flex min-h-9 items-center rounded-full border border-navy-line px-3.5 text-meta font-semibold text-navy-ink"
             >
               {t(`strip.${key}`)}
             </li>
@@ -282,7 +294,7 @@ export default async function TreatmentsPage({
 
         <div className="relative mx-auto w-full max-w-6xl">
           <Swash />
-          <p className="mt-8 max-w-[62ch] text-[0.95rem] leading-relaxed text-bone-ink-faint">
+          <p className="mt-8 max-w-[62ch] text-body leading-relaxed text-bone-ink-faint">
             {t('trip.caveat')}
           </p>
         </div>

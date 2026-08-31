@@ -74,7 +74,7 @@ export function FirstVisit() {
       // `clip` and never `hidden`: the line and every node inside are on
       // `view()` timelines, and `hidden` would make this section their scroll
       // container and freeze all six. See the note on `.drift` in globals.css.
-      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band sm:px-8"
     >
       <Watermark className="-top-24 -left-28 w-[30rem] text-gilt/[0.05]" />
 
@@ -83,7 +83,7 @@ export function FirstVisit() {
           <h2 className="type-section max-w-[18ch] text-bone-ink">
             {t('pages.practice.first.title')}
           </h2>
-          <p className="mt-5 max-w-[54ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-5 max-w-[54ch] text-body leading-relaxed text-bone-ink-soft">
             {t('pages.practice.first.lede')}
           </p>
         </Reveal>
@@ -129,10 +129,10 @@ export function FirstVisit() {
                         : 'border-transparent bg-transparent',
                     )}
                   >
-                    <h3 className="text-[1.16rem] font-bold text-bone-ink">
+                    <h3 className="text-lead font-bold text-bone-ink">
                       {t(`pages.practice.first.steps.${step}.title`)}
                     </h3>
-                    <p className="mt-2.5 max-w-[52ch] text-[1.01rem] leading-relaxed text-bone-ink-soft">
+                    <p className="mt-2.5 max-w-[52ch] text-body leading-relaxed text-bone-ink-soft">
                       {t(`pages.practice.first.steps.${step}.body`)}
                     </p>
                   </div>
@@ -197,10 +197,10 @@ export function FirstVisit() {
                   row of pixels. At `navy/70` the bronze ordinal disappeared into
                   a lightbox full of radiographs. */}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy from-12% via-navy/88 via-48% to-transparent to-90% p-6 pt-20">
-                <p className="font-display text-[0.95rem] tracking-[0.28em] text-gilt">
+                <p className="font-display text-body tracking-[0.28em] text-gilt">
                   {String(active + 1).padStart(2, '0')} / {String(STEPS.length).padStart(2, '0')}
                 </p>
-                <p className="mt-2 text-[1.12rem] font-bold text-white">
+                <p className="mt-2 text-lead font-bold text-white">
                   {t(`pages.practice.first.steps.${STEPS[active]}.title`)}
                 </p>
               </div>

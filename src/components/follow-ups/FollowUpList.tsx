@@ -109,7 +109,7 @@ export async function FollowUpList({
                 ) : null}
                 {item._count.attachments > 0 ? (
                   <span
-                    className="inline-flex items-center gap-1 text-[0.85rem] font-semibold text-ink-faint tabular-nums"
+                    className="inline-flex items-center gap-1 text-meta font-semibold text-ink-faint tabular-nums"
                     title={t('attachmentCount', { count: item._count.attachments })}
                   >
                     <Paperclip size={13} aria-hidden />
@@ -118,7 +118,7 @@ export async function FollowUpList({
                 ) : null}
               </p>
 
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.9rem] text-ink-soft">
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta text-ink-soft">
                 <span
                   className={cn(
                     'font-semibold tabular-nums',
@@ -163,7 +163,7 @@ export async function FollowUpList({
                   a note that is now allowed to be a checklist would otherwise
                   print its dashes and asterisks into the bell. */}
               {item.notes ? (
-                <p className="mt-1 text-[0.88rem] text-ink-faint">{excerpt(item.notes, 120)}</p>
+                <p className="mt-1 text-meta text-ink-faint">{excerpt(item.notes, 120)}</p>
               ) : null}
 
               {/* The working verbs, and only in the bell. The dashboard card is
@@ -171,7 +171,7 @@ export async function FollowUpList({
                   at on their way past is a mis-tap waiting to happen. */}
               {canEdit && variant === 'popover' ? (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[0.82rem] font-semibold text-ink-faint">
+                  <span className="text-caption font-semibold text-ink-faint">
                     {t('snooze')}
                   </span>
                   {SNOOZE_DAYS.map((days) => (

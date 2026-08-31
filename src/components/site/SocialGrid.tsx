@@ -34,7 +34,7 @@ export async function SocialGrid() {
   const t = await getTranslations('site');
 
   return (
-    <section className="seam relative overflow-clip bg-navy px-5 py-20 text-white sm:px-8 sm:py-28">
+    <section className="seam relative overflow-clip bg-navy px-5 py-band-aside text-white sm:px-8">
       <Ambience />
       <Watermark className="-bottom-40 -left-28 w-[32rem] text-white/[0.045]" />
 
@@ -51,7 +51,7 @@ export async function SocialGrid() {
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-14 items-center gap-2.5 rounded-xl bg-white px-6 text-[1.02rem] font-bold text-navy no-underline transition-transform hover:-translate-y-0.5 focus-visible:outline-white motion-reduce:hover:translate-y-0"
+              className="inline-flex min-h-14 items-center gap-2.5 rounded-xl bg-white px-6 text-body font-bold text-navy no-underline transition-transform hover:-translate-y-0.5 focus-visible:outline-white motion-reduce:hover:translate-y-0"
             >
               <InstagramGlyph size={20} />@{INSTAGRAM_HANDLE}
             </a>
@@ -101,7 +101,7 @@ export async function SocialGrid() {
         {/* The line that keeps this honest. See the note at the top of this
             file — it comes out when real posts go in. */}
         <Reveal step={1}>
-          <p className="mt-6 text-[0.86rem] text-navy-ink-soft">{t('social.placeholder')}</p>
+          <p className="mt-6 text-meta text-navy-ink-soft">{t('social.placeholder')}</p>
         </Reveal>
       </div>
     </section>

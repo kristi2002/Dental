@@ -51,7 +51,7 @@ export function AskAbout({
       href="/book"
       onClick={() => setTopic(topic)}
       className={cn(
-        'group inline-flex min-h-12 items-center gap-2.5 rounded-full bg-gilt px-6 text-[0.98rem] font-bold text-navy no-underline transition-transform hover:-translate-y-0.5 focus-visible:outline-gilt-deep motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+        'group inline-flex min-h-12 items-center gap-2.5 rounded-full bg-gilt px-6 text-body font-bold text-navy no-underline transition-transform hover:-translate-y-0.5 focus-visible:outline-gilt-deep motion-reduce:transition-none motion-reduce:hover:translate-y-0',
         className,
       )}
     >

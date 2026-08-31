@@ -65,7 +65,7 @@ export function StocktakeForm({ items }: { items: StocktakeItem[] }) {
       <div className="card divide-y-2 divide-line">
         {[...groups].map(([category, groupItems]) => (
           <section key={category}>
-            <h2 className="bg-paper px-5 py-2.5 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+            <h2 className="bg-paper px-5 py-2.5 text-meta font-bold tracking-wide text-ink-faint uppercase">
               {category}
             </h2>
 
@@ -80,7 +80,7 @@ export function StocktakeForm({ items }: { items: StocktakeItem[] }) {
                     className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3"
                   >
                     <div className="min-w-48 flex-1">
-                      <label htmlFor={fieldId} className="text-[1.05rem] font-bold text-ink">
+                      <label htmlFor={fieldId} className="text-body font-bold text-ink">
                         {item.name}
                         {/* Counting is done off the shelf labels, and the labels
                             are numbered. Matching the row to the box is the
@@ -91,7 +91,7 @@ export function StocktakeForm({ items }: { items: StocktakeItem[] }) {
                           </span>
                         ) : null}
                       </label>
-                      <p className="text-[0.9rem] text-ink-soft">
+                      <p className="text-meta text-ink-soft">
                         {t('stocktakeOnRecord', { qty: item.quantity })}
                       </p>
                     </div>
@@ -101,7 +101,7 @@ export function StocktakeForm({ items }: { items: StocktakeItem[] }) {
                         appear is what catches it before the save. */}
                     <span
                       className={cn(
-                        'min-w-16 text-right text-[0.95rem] font-bold tabular-nums',
+                        'min-w-16 text-right text-body font-bold tabular-nums',
                         difference === null || difference === 0
                           ? 'text-ink-faint'
                           : difference < 0
@@ -127,7 +127,7 @@ export function StocktakeForm({ items }: { items: StocktakeItem[] }) {
                       aria-label={t('stocktakeCountOf', { name: item.name })}
                       className="field-input w-24 py-1.5 text-center tabular-nums"
                     />
-                    <span className="w-16 shrink-0 text-[0.9rem] text-ink-soft">
+                    <span className="w-16 shrink-0 text-meta text-ink-soft">
                       {t('boxes', { count: Number(shown(item)) || 0 })}
                     </span>
 

@@ -79,7 +79,7 @@ export function ReminderLinks({
         className={
           inMenu
             ? 'menu-item menu-item-muted'
-            : 'flex items-center gap-1.5 text-[0.9rem] font-semibold text-ink-faint'
+            : 'flex items-center gap-1.5 text-meta font-semibold text-ink-faint'
         }
       >
         <BellOff size={iconSize} aria-hidden className="shrink-0" />

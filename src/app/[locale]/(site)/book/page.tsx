@@ -122,7 +122,7 @@ export default async function BookPage({
               {contact.telHref ? (
                 <a
                   href={contact.telHref}
-                  className="inline-flex min-h-12 items-center gap-2.5 rounded-full border border-white/30 px-5 text-[1rem] font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
+                  className="inline-flex min-h-12 items-center gap-2.5 rounded-full border border-white/30 px-5 text-body font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
                 >
                   <PhoneCall size={17} aria-hidden className="text-gilt" />
                   {contact.phone}
@@ -134,7 +134,7 @@ export default async function BookPage({
                   href={contact.whatsappHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-12 items-center gap-2.5 rounded-full border border-white/30 px-5 text-[1rem] font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
+                  className="inline-flex min-h-12 items-center gap-2.5 rounded-full border border-white/30 px-5 text-body font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
                 >
                   <MessageCircle size={17} aria-hidden className="text-gilt" />
                   {t('visit.whatsappLabel')}
@@ -158,7 +158,7 @@ export default async function BookPage({
        */}
       <section
         id="desk"
-        className="relative scroll-mt-24 overflow-clip px-5 py-16 sm:px-8 sm:py-20 lg:py-24"
+        className="relative scroll-mt-24 overflow-clip px-5 py-band sm:px-8"
       >
         {/* Latin, untranslated, one per section — the house rule in `GhostWord`.
             A long word on purpose: these bleed off the right edge by design, and
@@ -170,7 +170,7 @@ export default async function BookPage({
         <div className="relative mx-auto w-full max-w-6xl">
           <Reveal className="max-w-3xl">
             <SectionEyebrow className="text-gilt-deep">{t('book.eyebrow')}</SectionEyebrow>
-            <p className="mt-5 text-[1.06rem] leading-relaxed text-balance text-bone-ink-soft">
+            <p className="mt-5 text-body leading-relaxed text-balance text-bone-ink-soft">
               {t('book.lede')}
             </p>
           </Reveal>
@@ -192,7 +192,7 @@ export default async function BookPage({
        * page *is* the call to action, and a second "book a visit" four hundred
        * pixels under the form would be the site asking twice.
        */}
-      <section className="relative overflow-clip bg-navy px-5 py-16 text-white sm:px-8 sm:py-20">
+      <section className="relative overflow-clip bg-navy px-5 py-band-aside text-white sm:px-8">
         <Watermark className="-top-24 -right-24 w-[24rem] text-white/[0.045]" />
 
         <div className="relative mx-auto w-full max-w-6xl">
@@ -212,10 +212,10 @@ export default async function BookPage({
                 >
                   {`0${index + 1}`}
                 </p>
-                <h3 className="mt-4 text-[1.08rem] font-bold text-white">
+                <h3 className="mt-4 text-lead font-bold text-white">
                   {t(`book.next.${step}.title`)}
                 </h3>
-                <p className="mt-2.5 text-[0.99rem] leading-relaxed text-navy-ink">
+                <p className="mt-2.5 text-body leading-relaxed text-navy-ink">
                   {t(`book.next.${step}.body`)}
                 </p>
               </Reveal>
@@ -230,7 +230,7 @@ export default async function BookPage({
             <Reveal className="mt-10 flex flex-wrap items-center gap-3">
               <a
                 href={contact.telHref}
-                className="cta-fill group inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-[1rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
+                className="cta-fill group inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-body font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
               >
                 <PhoneCall size={18} aria-hidden />
                 {t('book.callInstead')}

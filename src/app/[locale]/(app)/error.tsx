@@ -45,7 +45,7 @@ export default function AppError({
   return (
     <div className="card mx-auto max-w-lg p-8 text-center">
       <h1 className="text-3xl font-bold text-ink">{t('crashed')}</h1>
-      <p className="mt-2 text-[1.05rem] text-ink-soft">{t('crashedText')}</p>
+      <p className="mt-2 text-body text-ink-soft">{t('crashedText')}</p>
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {/* Re-renders the segment rather than reloading the tab, so the attempt

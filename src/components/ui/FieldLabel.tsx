@@ -45,7 +45,7 @@ export function FieldLabel({
           <span className="ml-1.5 font-normal text-ink-faint">({optional})</span>
         ) : null}
       </label>
-      {hint ? <p className="mb-1.5 text-[0.9rem] text-ink-soft">{hint}</p> : null}
+      {hint ? <p className="mb-1.5 text-meta text-ink-soft">{hint}</p> : null}
     </>
   );
 }

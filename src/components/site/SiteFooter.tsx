@@ -79,13 +79,13 @@ export async function SiteFooter({
           {/* --- Who --------------------------------------------------- */}
           <div className="lg:col-span-1">
             <ClinicLogo variant="inverse" alt={contact.name} className="h-14 w-auto" />
-            <p className="mt-5 max-w-[26ch] text-[0.97rem] leading-relaxed">{t('footer.blurb')}</p>
+            <p className="mt-5 max-w-[26ch] text-body leading-relaxed">{t('footer.blurb')}</p>
 
             <a
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noreferrer"
-              className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/25 px-4 text-[0.94rem] font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
+              className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/25 px-4 text-body font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
             >
               <InstagramGlyph size={17} />@{INSTAGRAM_HANDLE}
             </a>
@@ -93,11 +93,11 @@ export async function SiteFooter({
 
           {/* --- Where ------------------------------------------------- */}
           <div>
-            <h2 className="text-[0.78rem] font-semibold tracking-[0.2em] text-gilt uppercase">
+            <h2 className="text-caption font-semibold tracking-[0.2em] text-gilt uppercase">
               {t('visit.addressLabel')}
             </h2>
             {contact.address ? (
-              <p className="mt-4 flex items-start gap-2.5 text-[0.97rem]">
+              <p className="mt-4 flex items-start gap-2.5 text-body">
                 <MapPin size={18} aria-hidden className="mt-0.5 shrink-0 text-gilt" />
                 <span>{contact.address}</span>
               </p>
@@ -109,7 +109,7 @@ export async function SiteFooter({
                 )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 inline-block text-[0.94rem] font-semibold text-white underline underline-offset-4"
+                className="mt-3 inline-block text-body font-semibold text-white underline underline-offset-4"
               >
                 {t('visit.openInMaps')}
               </a>
@@ -118,11 +118,11 @@ export async function SiteFooter({
 
           {/* --- When -------------------------------------------------- */}
           <div>
-            <h2 className="text-[0.78rem] font-semibold tracking-[0.2em] text-gilt uppercase">
+            <h2 className="text-caption font-semibold tracking-[0.2em] text-gilt uppercase">
               {t('visit.hoursTitle')}
             </h2>
             {hours ? (
-              <ul className="mt-4 space-y-1.5 text-[0.95rem]">
+              <ul className="mt-4 space-y-1.5 text-body">
                 {/* Grouped rather than seven rows: a footer that reprints the
                     whole week table is a footer nobody reads.
 
@@ -156,10 +156,10 @@ export async function SiteFooter({
 
           {/* --- How --------------------------------------------------- */}
           <div>
-            <h2 className="text-[0.78rem] font-semibold tracking-[0.2em] text-gilt uppercase">
+            <h2 className="text-caption font-semibold tracking-[0.2em] text-gilt uppercase">
               {t('footer.reach')}
             </h2>
-            <ul className="mt-4 space-y-2.5 text-[0.97rem]">
+            <ul className="mt-4 space-y-2.5 text-body">
               {contact.telHref ? (
                 <li className="flex items-center gap-2.5">
                   <Phone size={18} aria-hidden className="shrink-0 text-gilt" />
@@ -212,7 +212,7 @@ export async function SiteFooter({
               <li key={page.href}>
                 <Link
                   href={page.href}
-                  className="inline-flex min-h-9 items-center text-[0.82rem] font-semibold tracking-[0.14em] text-navy-ink uppercase no-underline transition-colors hover:text-gilt focus-visible:outline-white"
+                  className="inline-flex min-h-9 items-center text-caption font-semibold tracking-[0.14em] text-navy-ink uppercase no-underline transition-colors hover:text-gilt focus-visible:outline-white"
                 >
                   {t(`nav.${page.key}`)}
                 </Link>
@@ -221,7 +221,7 @@ export async function SiteFooter({
           </ul>
         </nav>
 
-        <div className="mt-7 flex flex-col gap-4 text-[0.88rem] text-navy-ink-soft sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-7 flex flex-col gap-4 text-meta text-navy-ink-soft sm:flex-row sm:items-center sm:justify-between">
           <p>{contact.name}</p>
 
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -269,7 +269,7 @@ export async function SiteFooter({
          * `lang` is set so a screen reader in Albanian or Italian does not try to
          * pronounce it in the page's language.
          */}
-        <p lang="en" className="mt-6 text-[0.82rem] text-navy-ink-soft">
+        <p lang="en" className="mt-6 text-caption text-navy-ink-soft">
           Tooth illustrations designed by{' '}
           <a
             href="https://www.freepik.com/free-vector/dental-anatomy-chart-with-permanent-human-teeth-realistic-vector-illustration_40274091.htm"

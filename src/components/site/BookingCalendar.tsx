@@ -199,7 +199,7 @@ export function BookingCalendar({
               key={toDateKey(day)}
               title={dates.date(day, 'weekdayLong')}
               className={cn(
-                'pb-2 text-center text-[0.66rem] font-bold tracking-[0.12em] uppercase no-underline',
+                'pb-2 text-center text-micro font-bold tracking-[0.12em] uppercase no-underline',
                 // The weekend in bronze rather than in red: this is a grid of
                 // days a practice is open, not a wall calendar, and red here
                 // would read as "unavailable" on a Saturday it works.
@@ -292,7 +292,7 @@ export function BookingCalendar({
           actually carry a closure get a line; a September with nothing but
           Sundays shut says nothing, because nobody needs Sunday explained. */}
       {closures.length > 0 ? (
-        <p className="border-t border-bone-deep/70 px-4 py-3 text-[0.85rem] leading-relaxed text-bone-ink-soft sm:px-5">
+        <p className="border-t border-bone-deep/70 px-4 py-3 text-meta leading-relaxed text-bone-ink-soft sm:px-5">
           <span className="font-semibold text-bone-ink">{t('book.closedNote')}</span>{' '}
           {closures.join(' · ')}
         </p>

@@ -201,7 +201,7 @@ export function RequestFiles({
         <span className="font-normal text-bone-ink-soft">{t('form.optional')}</span>
       </label>
 
-      <p className="mb-2 text-[0.9rem] leading-relaxed text-bone-ink-soft">
+      <p className="mb-2 text-meta leading-relaxed text-bone-ink-soft">
         {t('form.filesHint', { count: MAX_REQUEST_FILES, max: maxMegabytes })}
       </p>
 
@@ -240,7 +240,7 @@ export function RequestFiles({
           onChange={(event) => accept(event.target.files)}
           className="req-file-input"
         />
-        <p aria-hidden className="mt-2 text-[0.88rem] text-bone-ink-faint">
+        <p aria-hidden className="mt-2 text-meta text-bone-ink-faint">
           {t('form.filesDrop')}
         </p>
       </div>
@@ -248,7 +248,7 @@ export function RequestFiles({
       {problem ? (
         <p
           role="alert"
-          className="mt-2.5 rounded-lg border border-danger bg-danger-soft px-3.5 py-2.5 text-[0.92rem] font-semibold text-danger"
+          className="mt-2.5 rounded-lg border border-danger bg-danger-soft px-3.5 py-2.5 text-meta font-semibold text-danger"
         >
           {problem === 'tooMany'
             ? t('form.filesTooMany', { max: MAX_REQUEST_FILES })
@@ -264,7 +264,7 @@ export function RequestFiles({
       <div aria-live="polite">
         {files.length > 0 ? (
           <>
-            <p className="mt-3 flex items-center gap-2 text-[0.9rem] font-semibold text-bone-ink">
+            <p className="mt-3 flex items-center gap-2 text-meta font-semibold text-bone-ink">
               <Paperclip size={15} aria-hidden className="text-gilt-deep" />
               {t('form.filesChosen', { count: files.length, size: formatBytes(total) })}
             </p>
@@ -292,7 +292,7 @@ export function RequestFiles({
                     <span className="block truncate font-semibold text-bone-ink">
                       {file.name}
                     </span>
-                    <span className="block text-[0.85rem] text-bone-ink-soft">
+                    <span className="block text-meta text-bone-ink-soft">
                       {formatBytes(file.size)}
                     </span>
                   </span>

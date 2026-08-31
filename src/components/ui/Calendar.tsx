@@ -57,7 +57,7 @@ function cellClass(state: {
   disabled: boolean;
 }) {
   return cn(
-    'relative flex w-full items-center justify-center rounded-lg text-[0.95rem]',
+    'relative flex w-full items-center justify-center rounded-lg text-body',
     'font-semibold tabular-nums transition-colors',
     state.disabled
       ? 'cursor-not-allowed text-ink-faint/45'
@@ -244,7 +244,7 @@ export function Calendar({
           type="button"
           className={cn(
             'flex min-h-9 flex-1 items-center justify-center gap-1 rounded-lg px-2',
-            'text-[1rem] font-bold text-ink transition-colors',
+            'text-body font-bold text-ink transition-colors',
             'hover:bg-brand-soft hover:text-brand-deep',
           )}
           aria-label={t('changeView')}
@@ -291,7 +291,7 @@ export function Calendar({
                   <abbr
                     title={dates.date(day, 'weekdayLong')}
                     className={cn(
-                      'text-[0.72rem] font-bold tracking-wide uppercase no-underline',
+                      'text-micro font-bold tracking-wide uppercase no-underline',
                       // Saturday and Sunday in red, the way a paper calendar
                       // prints them — and the way the month view already does.
                       index > 4 ? 'text-danger' : 'text-ink-faint',

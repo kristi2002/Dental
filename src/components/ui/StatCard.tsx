@@ -5,9 +5,14 @@ import { cn } from '@/lib/utils';
 /* Three ways for a number to matter: it is just the count, it is a number
  * somebody should act on this week, or it is one that must be dealt with before
  * a box reaches a patient. */
+/* `warn-soft`, not `accent-soft`. The palette note in `globals.css` reserves
+ * peach for "add something new" and nothing else, and a low-stock count tinted
+ * peach was quietly spending the one accent this design system rations — while
+ * pairing a peach tile with amber-brown digits beside it, which is two warm
+ * hues doing one job. */
 const TONES = {
   neutral: { chip: 'bg-brand-soft text-brand-deep', value: 'text-brand-deep' },
-  warn: { chip: 'bg-accent-soft text-warn', value: 'text-warn' },
+  warn: { chip: 'bg-warn-soft text-warn', value: 'text-warn' },
   danger: { chip: 'bg-danger-soft text-danger', value: 'text-danger' },
 } as const;
 
@@ -46,13 +51,16 @@ export function StatCard({
         >
           {value}
         </span>
-        <span className="mt-1 block text-[0.95rem] font-semibold text-ink-soft">{label}</span>
+        <span className="mt-1 block text-body font-semibold text-ink-soft">{label}</span>
       </span>
     </>
   );
 
+  // `card-flat`: four of these sit in a row, and a shadow under each cell turns
+  // the row into stripes rather than lifting anything. A stat card that is a
+  // link earns its shadow on hover, where the lift means "this opens".
   const className = cn(
-    'card flex items-center gap-3 px-4 py-3.5 no-underline transition-shadow transition-colors',
+    'card-flat flex items-center gap-3 px-4 py-3.5 no-underline transition-shadow transition-colors',
     'sm:gap-4 sm:px-5 sm:py-4',
     href && 'hover:border-brand hover:shadow-pop',
   );

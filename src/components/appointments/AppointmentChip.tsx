@@ -79,7 +79,7 @@ export async function AppointmentChip({
         </span>
         <Link
           href={`/patients/${appointment.patient.id}`}
-          className="text-[1.05rem] font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-2 after:absolute after:inset-0 after:rounded-lg hover:decoration-brand"
+          className="text-body font-bold text-ink underline decoration-line-strong decoration-2 underline-offset-2 after:absolute after:inset-0 after:rounded-lg hover:decoration-brand"
         >
           {patientName}
         </Link>
@@ -87,11 +87,11 @@ export async function AppointmentChip({
       </div>
 
       {appointment.serviceName ? (
-        <p className="text-[0.95rem] text-ink-soft">{appointment.serviceName}</p>
+        <p className="text-body text-ink-soft">{appointment.serviceName}</p>
       ) : null}
 
       {appointment.staffName || appointment.operatoryName ? (
-        <p className="text-[0.95rem] font-semibold text-ink-soft">
+        <p className="text-body font-semibold text-ink-soft">
           {[appointment.staffName, appointment.operatoryName].filter(Boolean).join(' · ')}
         </p>
       ) : null}

@@ -1,8 +1,31 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <section className={cn('card', className)}>{children}</section>;
+/**
+ * `lead` is the one panel on a screen that is the reason the screen exists, and
+ * there may be exactly one — a second lead is a screen with no lead. `flat`
+ * is for a panel already inside something, or one cell of a grid where the grid
+ * is the shape and a shadow under every cell only makes stripes. See the note
+ * on `.card-lead` in `globals.css`.
+ */
+export type CardWeight = 'lead' | 'default' | 'flat';
+
+const WEIGHTS: Record<CardWeight, string> = {
+  lead: 'card-lead',
+  default: 'card',
+  flat: 'card-flat',
+};
+
+export function Card({
+  className,
+  children,
+  weight = 'default',
+}: {
+  className?: string;
+  children: ReactNode;
+  weight?: CardWeight;
+}) {
+  return <section className={cn(WEIGHTS[weight], className)}>{children}</section>;
 }
 
 export function CardHeader({
@@ -29,7 +52,7 @@ export function CardHeader({
         {icon ? <span className="text-brand">{icon}</span> : null}
         <div>
           <h2 className="text-xl font-bold text-ink">{title}</h2>
-          {subtitle ? <p className="text-[0.95rem] text-ink-soft">{subtitle}</p> : null}
+          {subtitle ? <p className="text-body text-ink-soft">{subtitle}</p> : null}
         </div>
       </div>
       {action}

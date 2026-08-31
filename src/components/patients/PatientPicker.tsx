@@ -125,7 +125,7 @@ export function PatientPicker({
 
       {chosen || addingNew ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border-2 border-brand bg-brand-soft px-3.5 py-2.5">
-          <span className="min-w-0 flex-1 text-[1.05rem] font-bold text-brand-deep">
+          <span className="min-w-0 flex-1 text-body font-bold text-brand-deep">
             {addingNew ? ta('newPatientTitle') : chosen?.name}
             {!addingNew && chosen?.phone ? (
               <span className="ml-2 font-normal text-ink-soft tabular-nums">{chosen.phone}</span>
@@ -180,11 +180,11 @@ export function PatientPicker({
                     onClick={() => pick(patient)}
                     className="flex w-full items-baseline gap-3 px-3.5 py-2.5 text-left hover:bg-paper"
                   >
-                    <span className="min-w-0 flex-1 text-[1.02rem] font-semibold text-ink">
+                    <span className="min-w-0 flex-1 text-body font-semibold text-ink">
                       {patient.name}
                     </span>
                     {patient.phone ? (
-                      <span className="text-[0.92rem] text-ink-soft tabular-nums">
+                      <span className="text-meta text-ink-soft tabular-nums">
                         {patient.phone}
                       </span>
                     ) : null}
@@ -197,7 +197,7 @@ export function PatientPicker({
           {/* Only once a search has actually come back — "nothing found" while
               the query is still in flight is a lie that flickers. */}
           {searched && !pending && results.length === 0 ? (
-            <p className="mt-2 text-[0.95rem] text-ink-soft">
+            <p className="mt-2 text-body text-ink-soft">
               {t('emptySearch', { query: query.trim() })}
             </p>
           ) : null}

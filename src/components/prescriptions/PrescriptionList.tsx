@@ -69,7 +69,7 @@ export function PrescriptionList({
       {prescriptions.map((prescription) => (
         <li key={prescription.id} className="px-5 py-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="text-[0.95rem] text-ink-soft">
+            <p className="text-body text-ink-soft">
               {format.dateTime(new Date(prescription.createdAt), {
                 day: 'numeric',
                 month: 'long',
@@ -106,7 +106,7 @@ export function PrescriptionList({
             </div>
           </div>
 
-          <p className="mt-2 rounded-lg border border-line bg-surface-soft px-3.5 py-3 text-[1.02rem] whitespace-pre-line text-ink">
+          <p className="mt-2 rounded-lg border border-line bg-surface-soft px-3.5 py-3 text-body whitespace-pre-line text-ink">
             {prescription.body}
           </p>
         </li>

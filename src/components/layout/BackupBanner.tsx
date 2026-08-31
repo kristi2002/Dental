@@ -72,12 +72,12 @@ export async function BackupBanner({ status }: { status: BackupStatus }) {
           className={critical ? 'text-danger' : 'text-warn'}
           aria-hidden
         />
-        <p className={`text-[1.02rem] font-bold ${critical ? 'text-danger' : 'text-warn'}`}>
+        <p className={`text-body font-bold ${critical ? 'text-danger' : 'text-warn'}`}>
           {message()}
         </p>
         <Link
           href="/staff"
-          className={`text-[0.95rem] font-bold underline underline-offset-2 ${
+          className={`text-body font-bold underline underline-offset-2 ${
             critical ? 'text-danger' : 'text-warn'
           }`}
         >

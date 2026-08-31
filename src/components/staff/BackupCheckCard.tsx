@@ -41,7 +41,7 @@ export function BackupCheckCard() {
       <CardHeader title={t('checkTitle')} icon={<ShieldQuestion size={22} aria-hidden />} />
 
       <form action={formAction} className="space-y-4 p-5">
-        <p className="text-[1.02rem] text-ink-soft">{t('checkDescription')}</p>
+        <p className="text-body text-ink-soft">{t('checkDescription')}</p>
 
         <div className="max-w-md">
           <label className="field-label" htmlFor={`${uid}-file`}>
@@ -64,7 +64,7 @@ export function BackupCheckCard() {
             {t('passphrase')}
             <span className="ml-1.5 font-normal text-ink-faint">({tc('optional')})</span>
           </label>
-          <p className="mb-1.5 text-[0.9rem] text-ink-soft">{t('checkPassphraseHint')}</p>
+          <p className="mb-1.5 text-meta text-ink-soft">{t('checkPassphraseHint')}</p>
           <input
             id={`${uid}-check-passphrase`}
             name="passphrase"
@@ -91,9 +91,9 @@ export function BackupCheckCard() {
 
       {report ? (
         <div className="border-t border-line px-5 py-5">
-          <p className="text-[1.05rem] font-bold text-ok">{t('checkGood')}</p>
+          <p className="text-body font-bold text-ok">{t('checkGood')}</p>
 
-          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[1rem]">
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body">
             <dt className="font-bold text-ink-faint">{t('checkTaken')}</dt>
             <dd className="text-ink tabular-nums">
               {/* As written in the file, not reformatted: this is the one fact
@@ -113,7 +113,7 @@ export function BackupCheckCard() {
           {/* Table by table, because "it decrypted" is not the same as "the
               practice is in it" — a backup taken against a fresh database
               decrypts perfectly and contains nobody. */}
-          <ul className="mt-4 grid gap-x-6 gap-y-1 text-[0.98rem] sm:grid-cols-2">
+          <ul className="mt-4 grid gap-x-6 gap-y-1 text-body sm:grid-cols-2">
             {report.tables
               .filter((row) => row.rows > 0)
               .map((row) => (
@@ -131,7 +131,7 @@ export function BackupCheckCard() {
               {report.notes.map((note) => (
                 <li
                   key={note}
-                  className="flex items-start gap-2.5 text-[0.95rem] text-ink-soft"
+                  className="flex items-start gap-2.5 text-body text-ink-soft"
                 >
                   <Info size={17} aria-hidden className="mt-0.5 shrink-0 text-ink-faint" />
                   {t(NOTE_LABEL[note])}
@@ -142,7 +142,7 @@ export function BackupCheckCard() {
 
           {/* Said here rather than left to be discovered: this screen proves a
               file, and the way back from it is a script and an empty database. */}
-          <p className="mt-4 text-[0.95rem] text-ink-faint">{t('checkRestoreNote')}</p>
+          <p className="mt-4 text-body text-ink-faint">{t('checkRestoreNote')}</p>
         </div>
       ) : null}
     </Card>

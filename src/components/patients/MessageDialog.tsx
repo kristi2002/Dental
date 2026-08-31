@@ -171,7 +171,7 @@ export function MessageDialog({
                     Albanian who is about to send Italian should know that is
                     deliberate rather than a bug she is looking at. */}
                 {messageLocale !== readerLocale ? (
-                  <p className="flex items-center gap-2 rounded-lg border border-line bg-surface-soft px-3 py-2 text-[0.92rem] text-ink-soft">
+                  <p className="flex items-center gap-2 rounded-lg border border-line bg-surface-soft px-3 py-2 text-meta text-ink-soft">
                     <Languages size={17} aria-hidden className="shrink-0" />
                     {t('writtenIn', { language: t(`language_${messageLocale}`) })}
                   </p>
@@ -206,7 +206,7 @@ export function MessageDialog({
                     value={body}
                     onChange={(event) => setBody(event.target.value)}
                   />
-                  <p className="mt-1 text-right text-[0.85rem] text-ink-faint tabular-nums">
+                  <p className="mt-1 text-right text-meta text-ink-faint tabular-nums">
                     {body.length} / {MAX_MESSAGE_LENGTH}
                   </p>
                 </div>

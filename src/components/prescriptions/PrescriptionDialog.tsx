@@ -110,14 +110,14 @@ export function PrescriptionDialog({
       >
         <span className="flex items-center gap-1.5">
           {chosen ? <Check size={15} aria-hidden className="text-brand-deep" /> : null}
-          <span className="text-[0.98rem] font-bold text-ink">{template.name}</span>
+          <span className="text-body font-bold text-ink">{template.name}</span>
           {template.category ? (
-            <span className="text-[0.82rem] text-ink-faint">{template.category}</span>
+            <span className="text-caption text-ink-faint">{template.category}</span>
           ) : null}
         </span>
         {/* Two lines of the actual wording. A template chosen by name alone is a
             template read after it has already been issued. */}
-        <span className="line-clamp-2 text-[0.88rem] whitespace-pre-line text-ink-soft">
+        <span className="line-clamp-2 text-meta whitespace-pre-line text-ink-soft">
           {template.body}
         </span>
       </button>
@@ -154,7 +154,7 @@ export function PrescriptionDialog({
           <input type="hidden" name="templateId" value={templateId} />
           {force ? <input type="hidden" name="force" value="1" /> : null}
 
-          <p className="text-[1rem] text-ink-soft">{t('forPatient', { name: patientName })}</p>
+          <p className="text-body text-ink-soft">{t('forPatient', { name: patientName })}</p>
 
           {/* What was just done, and the wording that normally follows it. */}
           {suggested.length > 0 ? (
@@ -231,7 +231,7 @@ export function PrescriptionDialog({
                   {/* Tying it to what was just done is what makes it a
                       suggestion next time rather than one more row in a list. */}
                   {recent.serviceIds.length > 0 ? (
-                    <label className="flex cursor-pointer items-start gap-2.5 text-[0.95rem] font-semibold text-ink sm:col-span-2">
+                    <label className="flex cursor-pointer items-start gap-2.5 text-body font-semibold text-ink sm:col-span-2">
                       <input
                         type="checkbox"
                         name="templateServiceIds"

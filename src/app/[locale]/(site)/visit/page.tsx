@@ -181,7 +181,7 @@ export default async function VisitPage({
               usually looking for exactly one line of text, and making them
               scroll for it is the commonest way a contact page fails. */}
           {contact.address ? (
-            <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[1.02rem] text-navy-ink">
+            <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-body text-navy-ink">
               <MapPin size={18} aria-hidden className="shrink-0 text-gilt" />
               {contact.address}
               {mapsHref ? (
@@ -198,7 +198,7 @@ export default async function VisitPage({
           ) : null}
 
           {contact.telHref ? (
-            <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[1.02rem] text-navy-ink">
+            <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-body text-navy-ink">
               <Phone size={18} aria-hidden className="shrink-0 text-gilt" />
               <a
                 href={contact.telHref}
@@ -255,13 +255,13 @@ export default async function VisitPage({
        */}
       <section className="px-5 sm:px-8">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-10 gap-y-5 border-t border-bone-deep py-11">
-          <p className="max-w-[52ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="max-w-[52ch] text-body leading-relaxed text-bone-ink-soft">
             {t('pages.visit.fromAbroad')}
           </p>
 
           <Link
             href="/abroad"
-            className="group inline-flex min-h-11 shrink-0 items-center gap-2 text-[1rem] font-semibold text-bone-ink no-underline underline-offset-4 transition-colors hover:text-gilt-deep hover:underline"
+            className="group inline-flex min-h-11 shrink-0 items-center gap-2 text-body font-semibold text-bone-ink no-underline underline-offset-4 transition-colors hover:text-gilt-deep hover:underline"
           >
             {t('nav.abroad')}
             <ArrowRight

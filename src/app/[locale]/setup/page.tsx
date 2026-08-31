@@ -71,7 +71,7 @@ export default async function SetupPage({
           </span>
 
           <h1 className="text-2xl font-bold text-ink">{t('title')}</h1>
-          <p className="mt-1 mb-6 text-[1.02rem] text-ink-soft">{t('subtitle')}</p>
+          <p className="mt-1 mb-6 text-body text-ink-soft">{t('subtitle')}</p>
 
           <SetupForm />
         </div>

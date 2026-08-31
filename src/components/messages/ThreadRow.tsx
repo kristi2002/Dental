@@ -50,7 +50,7 @@ export async function ThreadRow({ thread }: { thread: ThreadSummary }) {
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <span
               className={cn(
-                'min-w-0 truncate text-[1.06rem] text-ink',
+                'min-w-0 truncate text-body text-ink',
                 unread ? 'font-bold' : 'font-semibold',
               )}
             >
@@ -65,7 +65,7 @@ export async function ThreadRow({ thread }: { thread: ThreadSummary }) {
 
             {unread ? <Badge tone="brand">{t('unread', { count: thread.unread })}</Badge> : null}
 
-            <span className="ml-auto shrink-0 text-[0.88rem] text-ink-faint tabular-nums">
+            <span className="ml-auto shrink-0 text-meta text-ink-faint tabular-nums">
               {format.dateTime(thread.lastMessageAt, {
                 day: 'numeric',
                 month: 'short',
@@ -75,12 +75,12 @@ export async function ThreadRow({ thread }: { thread: ThreadSummary }) {
             </span>
           </div>
 
-          <p className="mt-0.5 truncate text-[0.95rem] font-semibold text-ink-soft">
+          <p className="mt-0.5 truncate text-body font-semibold text-ink-soft">
             {thread.subject}
           </p>
 
           {thread.preview ? (
-            <p className="mt-0.5 flex items-center gap-1.5 text-[0.93rem] text-ink-faint">
+            <p className="mt-0.5 flex items-center gap-1.5 text-meta text-ink-faint">
               {/* Which way the last message went. Without it a list of threads
                   reads as a list of things people said to you, and half of them
                   are things you said to them. */}

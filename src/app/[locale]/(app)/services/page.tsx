@@ -195,7 +195,7 @@ export default async function ServicesPage({
         <div className="space-y-6">
           {grouped.map(({ department, items }) => (
             <section key={department || 'uncategorized'}>
-              <h2 className="mb-2 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+              <h2 className="mb-2 text-meta font-bold tracking-wide text-ink-faint uppercase">
                 {department || t('uncategorized')}
               </h2>
 
@@ -207,13 +207,13 @@ export default async function ServicesPage({
                   >
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2">
-                        <span className="text-[1.12rem] font-bold text-ink">{service.name}</span>
+                        <span className="text-lead font-bold text-ink">{service.name}</span>
                         {/* Which part of the department this sits in. On the row
                             rather than as its own heading, so the catalogue
                             still reads as one list per department. */}
                         {service.subcategory ? <Badge>{service.subcategory}</Badge> : null}
                       </p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.95rem] text-ink-soft">
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-body text-ink-soft">
                         <span className="flex items-center gap-1.5">
                           <Clock size={15} aria-hidden />
                           {service.durationMin} {tc('minutes')}

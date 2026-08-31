@@ -244,7 +244,7 @@ export function ScanConsole({
               {t('directionOut')}
             </button>
           </div>
-          <p className="mt-2 text-[0.9rem] text-ink-soft">
+          <p className="mt-2 text-meta text-ink-soft">
             {direction === 'in' ? t('directionInHint') : t('directionOutHint')}
           </p>
         </div>
@@ -275,7 +275,7 @@ export function ScanConsole({
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center text-white/70">
                 <ScanBarcode size={36} aria-hidden />
-                <p className="text-[0.9rem]">
+                <p className="text-meta">
                   {camera.state === 'unsupported'
                     ? t('cameraUnsupported')
                     : camera.state === 'denied'
@@ -329,7 +329,7 @@ export function ScanConsole({
             placeholder={t('manualPlaceholder')}
             autoComplete="off"
           />
-          <p className="text-[0.9rem] text-ink-soft">{t('wedgeHint')}</p>
+          <p className="text-meta text-ink-soft">{t('wedgeHint')}</p>
         </form>
       </div>
 
@@ -338,11 +338,11 @@ export function ScanConsole({
             they are the only thing here that needs a decision. */}
         {unknown.length > 0 ? (
           <section className="card border-warn/40 p-4">
-            <h2 className="flex items-center gap-2 text-[1.05rem] font-bold text-warn">
+            <h2 className="flex items-center gap-2 text-body font-bold text-warn">
               <CircleAlert size={19} aria-hidden />
               {t('unknownTitle', { count: unknown.length })}
             </h2>
-            <p className="mt-1 mb-3 text-[0.95rem] text-ink-soft">{t('unknownHint')}</p>
+            <p className="mt-1 mb-3 text-body text-ink-soft">{t('unknownHint')}</p>
 
             <ul className="space-y-2">
               {unknown.map((scan) => (
@@ -351,7 +351,7 @@ export function ScanConsole({
                   className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface-soft px-3 py-2.5"
                 >
                   <div className="min-w-0">
-                    <p className="font-mono text-[0.95rem] font-bold break-all text-ink">
+                    <p className="font-mono text-body font-bold break-all text-ink">
                       {scan.key}
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-1.5">
@@ -397,8 +397,8 @@ export function ScanConsole({
           ) : null}
 
           <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
-            <h2 className="text-[1.15rem] font-bold text-ink">{t('basketTitle')}</h2>
-            <span className="text-[0.95rem] font-semibold text-ink-soft tabular-nums">
+            <h2 className="text-lead font-bold text-ink">{t('basketTitle')}</h2>
+            <span className="text-body font-semibold text-ink-soft tabular-nums">
               {t('basketCount', { count: basket.reduce((sum, line) => sum + line.quantity, 0) })}
             </span>
           </header>
@@ -416,7 +416,7 @@ export function ScanConsole({
                 return (
                   <li key={line.key} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[1.05rem] font-bold text-ink">{item.name}</p>
+                      <p className="text-body font-bold text-ink">{item.name}</p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-1.5">
                         {line.scan.lotNumber ? (
                           <Badge tone="brand">{t('lot', { lot: line.scan.lotNumber })}</Badge>
@@ -447,7 +447,7 @@ export function ScanConsole({
                         onChange={(event) => setQuantity(line.key, Number(event.target.value))}
                         className="field-input w-20 py-1.5 text-center tabular-nums"
                       />
-                      <span className="w-16 shrink-0 text-[0.9rem] text-ink-soft">
+                      <span className="w-16 shrink-0 text-meta text-ink-soft">
                         {tstock('boxes', { count: line.quantity })}
                       </span>
                       <button
@@ -490,7 +490,7 @@ export function ScanConsole({
             ) : null}
 
             {overdrawn ? (
-              <p className="flex items-start gap-2 rounded-lg border border-warn/40 bg-warn-soft px-3 py-2.5 text-[0.95rem] text-warn">
+              <p className="flex items-start gap-2 rounded-lg border border-warn/40 bg-warn-soft px-3 py-2.5 text-body text-warn">
                 <TriangleAlert size={18} aria-hidden className="mt-0.5 shrink-0" />
                 {t('overdrawnHint')}
               </p>

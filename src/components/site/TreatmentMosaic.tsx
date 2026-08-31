@@ -60,7 +60,7 @@ export async function TreatmentMosaic({
         // `clip` and never `hidden`: every photograph below is on a `view()`
         // timeline through `Reveal`, and `hidden` would make this a scroll
         // container and freeze all five. The whole argument is on `.drift`.
-        'relative overflow-clip px-5 py-16 sm:px-8 sm:py-20',
+        'relative overflow-clip px-5 py-band-aside sm:px-8',
         dark ? 'bg-navy text-white' : 'bg-bone-soft',
       )}
     >
@@ -85,7 +85,7 @@ export async function TreatmentMosaic({
           </SectionEyebrow>
           <p
             className={cn(
-              'mt-5 max-w-[54ch] text-[1.05rem] leading-relaxed',
+              'mt-5 max-w-[54ch] text-body leading-relaxed',
               dark ? 'text-navy-ink' : 'text-bone-ink-soft',
             )}
           >
@@ -152,7 +152,7 @@ export async function TreatmentMosaic({
 
         <p
           className={cn(
-            'mt-8 text-[0.88rem]',
+            'mt-8 text-meta',
             dark ? 'text-navy-ink-soft' : 'text-bone-ink-faint',
           )}
         >

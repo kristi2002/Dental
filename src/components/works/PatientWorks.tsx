@@ -66,7 +66,7 @@ export async function PatientWorks({
             <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2">
-                  <Link href={`/works?q=${work.number}`} className="text-[1.05rem] font-bold">
+                  <Link href={`/works?q=${work.number}`} className="text-body font-bold">
                     #{work.number}
                   </Link>
                   {work.urgent ? <Badge tone="alert">{t('urgent')}</Badge> : null}
@@ -91,7 +91,7 @@ export async function PatientWorks({
                   )}
                 </p>
 
-                <p className="mt-0.5 text-[0.93rem] text-ink-soft">
+                <p className="mt-0.5 text-meta text-ink-soft">
                   {t('sentOn', {
                     date: format.dateTime(work.sentAt, {
                       day: 'numeric',
@@ -108,7 +108,7 @@ export async function PatientWorks({
                 </p>
               </div>
 
-              <span className="text-[0.93rem] font-semibold text-ink-soft tabular-nums">
+              <span className="text-meta font-semibold text-ink-soft tabular-nums">
                 {t('elementsCount', { count: elementsOf(work) })}
               </span>
             </div>
@@ -118,7 +118,7 @@ export async function PatientWorks({
                 the follow-up question to "is it back". */}
             <ul className="mt-2 space-y-1">
               {work.lines.map((line, index) => (
-                <li key={index} className="text-[0.95rem] text-ink">
+                <li key={index} className="text-body text-ink">
                   <span className="font-semibold">{line.procedure}</span>
                   {line.teeth ? <span className="text-ink-soft"> · {line.teeth}</span> : null}
                 </li>
@@ -129,7 +129,7 @@ export async function PatientWorks({
                 needs no telephone number, and printing one would be the record
                 offering an errand that is finished. */}
             {state !== 'received' && labs.length > 0 ? (
-              <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.92rem]">
+              <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-meta">
                 {labs.map((lab) => (
                   <span
                     key={lab.id ?? lab.name}

@@ -4,6 +4,7 @@ import { CalendarClock, ChevronDown, LogOut, ScrollText, UserCog } from 'lucide-
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { ChangePinDialog } from '@/components/auth/ChangePinDialog';
+import { Appearance } from './Appearance';
 import { Link } from '@/i18n/navigation';
 import type { Role } from '@/generated/prisma/enums';
 import { signOut } from '@/lib/actions/auth';
@@ -76,7 +77,7 @@ export function UserMenu({
       >
         <span
           aria-hidden
-          className="grid size-8 shrink-0 place-items-center rounded-full bg-white/20 text-[0.85rem] font-bold text-white"
+          className="grid size-8 shrink-0 place-items-center rounded-full bg-white/20 text-meta font-bold text-white"
         >
           {initials(firstName, lastName)}
         </span>
@@ -85,10 +86,10 @@ export function UserMenu({
             {/* On a phone bar the name is the first thing to go — the initials
                 in the circle already say whose session this is. */}
             <span className="hidden min-w-0 flex-1 text-left sm:block">
-              <span className="block truncate text-[0.92rem] leading-tight font-bold text-white">
+              <span className="block truncate text-meta leading-tight font-bold text-white">
                 {firstName} {lastName}
               </span>
-              <span className="block truncate text-[0.78rem] leading-tight text-white/85">
+              <span className="block truncate text-caption leading-tight text-white/85">
                 {tr(role)}
               </span>
             </span>
@@ -101,7 +102,7 @@ export function UserMenu({
         <div
           role="menu"
           className={cn(
-            'absolute z-40 w-60 overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface py-1 shadow-pop',
+            'absolute z-40 w-68 overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface py-1 shadow-pop',
             // From the rail foot it opens upward and to the right, so a pinched
             // rail does not have to be wide enough to hold its own menu.
             placement === 'top' ? 'bottom-full left-0 mb-2' : 'right-0 mt-2',
@@ -110,7 +111,7 @@ export function UserMenu({
           {/* Wherever the button could not carry the name, the menu does. */}
           <p
             className={cn(
-              'border-b border-line px-4 py-2.5 text-[0.9rem] text-ink-soft',
+              'border-b border-line px-4 py-2.5 text-meta text-ink-soft',
               !compact && 'sm:hidden',
             )}
           >
@@ -125,7 +126,7 @@ export function UserMenu({
               href="/settings"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[1rem] font-semibold text-ink no-underline hover:bg-brand-soft"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-body font-semibold text-ink no-underline hover:bg-brand-soft"
             >
               <CalendarClock size={19} aria-hidden className="text-brand" />
               {t('settings')}
@@ -137,7 +138,7 @@ export function UserMenu({
               href="/staff"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[1rem] font-semibold text-ink no-underline hover:bg-brand-soft"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-body font-semibold text-ink no-underline hover:bg-brand-soft"
             >
               <UserCog size={19} aria-hidden className="text-brand" />
               {t('manageStaff')}
@@ -149,7 +150,7 @@ export function UserMenu({
               href="/activity"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[1rem] font-semibold text-ink no-underline hover:bg-brand-soft"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-body font-semibold text-ink no-underline hover:bg-brand-soft"
             >
               <ScrollText size={19} aria-hidden className="text-brand" />
               {t('activity')}
@@ -164,14 +165,21 @@ export function UserMenu({
               No permission branch — everybody has exactly one PIN and it is
               their own. See `changeOwnPin`, which never takes an id. */}
           <div className="border-t border-line">
-            <ChangePinDialog triggerClassName="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-[1rem] font-semibold text-ink hover:bg-brand-soft" />
+            <ChangePinDialog triggerClassName="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-body font-semibold text-ink hover:bg-brand-soft" />
           </div>
+
+          {/* Below the account's own settings and above the way out, because it
+              is the one thing in this menu that changes nothing anybody else
+              will ever see: it is a property of this screen in this room, and
+              it is stored on the machine rather than against the person. See
+              `Appearance` for why that distinction is the whole design. */}
+          <Appearance />
 
           <form action={signOut} className="border-t border-line">
             <button
               type="submit"
               role="menuitem"
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-[1rem] font-semibold text-danger hover:bg-danger-soft"
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-body font-semibold text-danger hover:bg-danger-soft"
             >
               <LogOut size={19} aria-hidden />
               {t('signOut')}

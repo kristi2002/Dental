@@ -101,7 +101,7 @@ export function TreatmentIndex() {
                 data-key={key}
                 aria-current={active ? 'true' : undefined}
                 className={cn(
-                  'inline-flex min-h-10 shrink-0 items-center rounded-full px-3.5 text-[0.83rem] font-semibold whitespace-nowrap no-underline transition-colors',
+                  'inline-flex min-h-10 shrink-0 items-center rounded-full px-3.5 text-caption font-semibold whitespace-nowrap no-underline transition-colors',
                   active
                     ? 'bg-gilt text-navy'
                     : 'text-bone-ink-soft hover:bg-gilt-soft hover:text-bone-ink',

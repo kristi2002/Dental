@@ -88,8 +88,8 @@ export function ClinicProfileForm({
           saying before somebody wonders why filling them in did nothing
           visible. */}
       <div className="border-t border-line px-5 py-5">
-        <h3 className="text-[1.05rem] font-bold text-ink">{t('letterheadTitle')}</h3>
-        <p className="mt-1 text-[0.95rem] text-ink-soft">{t('letterheadHint')}</p>
+        <h3 className="text-body font-bold text-ink">{t('letterheadTitle')}</h3>
+        <p className="mt-1 text-body text-ink-soft">{t('letterheadHint')}</p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <TextField

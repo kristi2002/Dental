@@ -313,7 +313,7 @@ export function StepList({
 
                 <span
                   aria-hidden
-                  className="grid size-7 shrink-0 place-items-center rounded-full bg-surface text-[0.85rem] font-bold text-ink-soft"
+                  className="grid size-7 shrink-0 place-items-center rounded-full bg-surface text-meta font-bold text-ink-soft"
                 >
                   {index + 1}
                 </span>
@@ -321,19 +321,19 @@ export function StepList({
                 <div className="min-w-0 flex-1 basis-48">
                   <p
                     className={cn(
-                      'text-[1.02rem] font-semibold',
+                      'text-body font-semibold',
                       isDone ? 'text-ok' : isSkipped ? 'text-ink-faint line-through' : 'text-ink',
                     )}
                   >
                     {step.title}
                     {step.toothNum ? (
-                      <span className="ml-2 text-[0.9rem] font-normal text-ink-soft">
+                      <span className="ml-2 text-meta font-normal text-ink-soft">
                         {tooth(step.toothNum)}
                       </span>
                     ) : null}
                   </p>
                   {step.notes && !compact ? (
-                    <p className="text-[0.9rem] text-ink-soft">{step.notes}</p>
+                    <p className="text-meta text-ink-soft">{step.notes}</p>
                   ) : null}
 
                   {/* The slot it is booked into — as a link into the diary, not as
@@ -342,7 +342,7 @@ export function StepList({
                   {step.booked ? (
                     <Link
                       href={`/appointments?view=day&date=${toDateKey(step.booked.date)}`}
-                      className="flex items-center gap-1.5 text-[0.9rem] font-semibold text-brand-deep no-underline tabular-nums hover:underline"
+                      className="flex items-center gap-1.5 text-meta font-semibold text-brand-deep no-underline tabular-nums hover:underline"
                     >
                       <CalendarCheck size={15} aria-hidden />
                       {t('bookedOn', {
@@ -494,7 +494,7 @@ export function StepList({
       </ol>
 
       {canEdit ? (
-        <p id={`${planId}-reorder-help`} className="mt-1.5 text-[0.85rem] text-ink-faint">
+        <p id={`${planId}-reorder-help`} className="mt-1.5 text-meta text-ink-faint">
           {t('reorderHint')}
         </p>
       ) : null}

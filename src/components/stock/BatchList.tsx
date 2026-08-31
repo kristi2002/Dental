@@ -53,7 +53,7 @@ export async function BatchList({
           <li
             key={batch.id}
             className={cn(
-              'flex flex-col gap-0.5 rounded-md border px-2.5 py-1.5 text-[0.9rem]',
+              'flex flex-col gap-0.5 rounded-md border px-2.5 py-1.5 text-meta',
               level === 'EXPIRED'
                 ? 'border-danger bg-danger-soft text-danger'
                 : level === 'SOON'
@@ -102,7 +102,7 @@ export async function BatchList({
             </div>
 
             {hasProvenance ? (
-              <div className="flex flex-wrap items-center gap-x-2 text-[0.82rem] opacity-75">
+              <div className="flex flex-wrap items-center gap-x-2 text-caption opacity-75">
                 {purchased ? (
                   <span className="tabular-nums">
                     {t('batchBoughtOn', {

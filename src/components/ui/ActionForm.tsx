@@ -96,7 +96,7 @@ export function ReportingActionForm({
       {state.status === 'error' ? (
         <span
           role="alert"
-          className="ml-1.5 rounded-md bg-danger-soft px-2 py-0.5 text-[0.85rem] font-semibold text-danger"
+          className="ml-1.5 rounded-md bg-danger-soft px-2 py-0.5 text-meta font-semibold text-danger"
         >
           {state.message}
         </span>

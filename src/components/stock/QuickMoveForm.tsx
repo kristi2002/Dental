@@ -117,7 +117,7 @@ export function QuickMoveForm({
           </button>
         </div>
 
-        <p className="mt-1.5 text-center text-[0.95rem] font-semibold text-ink-soft">
+        <p className="mt-1.5 text-center text-body font-semibold text-ink-soft">
           {t('boxes', { count: quantity })}
         </p>
 
@@ -168,7 +168,7 @@ export function QuickMoveForm({
         <SubmitButton
           name="direction"
           value="in"
-          className="h-16 flex-col gap-0.5 text-[1.05rem]"
+          className="h-16 flex-col gap-0.5 text-body"
           label={t('movePutBackAction', { count: quantity })}
           pendingLabel={tc('saving')}
           icon={<PackagePlus size={22} aria-hidden />}
@@ -177,7 +177,7 @@ export function QuickMoveForm({
           name="direction"
           value="out"
           variant="secondary"
-          className="h-16 flex-col gap-0.5 text-[1.05rem]"
+          className="h-16 flex-col gap-0.5 text-body"
           label={t('moveTakeOutAction', { count: quantity })}
           pendingLabel={tc('saving')}
           // Refused server-side too; this is only so the button does not invite
@@ -188,7 +188,7 @@ export function QuickMoveForm({
       </div>
 
       {short ? (
-        <p className="text-center text-[0.95rem] text-warn">
+        <p className="text-center text-body text-warn">
           {t('moveShort', { have: onHand })}
         </p>
       ) : null}

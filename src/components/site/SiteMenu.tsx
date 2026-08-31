@@ -92,7 +92,7 @@ export function SiteMenu({ contact }: { contact: SiteContact }) {
       >
         <div className="site-display flex h-full flex-col bg-navy text-white">
           <div className="flex items-center justify-between border-b border-navy-line px-5 py-4">
-            <p className="text-[0.74rem] font-bold tracking-[0.16em] text-navy-ink-soft uppercase">
+            <p className="text-micro font-bold tracking-[0.16em] text-navy-ink-soft uppercase">
               {t('nav.sections')}
             </p>
             <button
@@ -135,7 +135,7 @@ export function SiteMenu({ contact }: { contact: SiteContact }) {
                         // restarts its animations; this is only here to give the
                         // first open one to restart from.
                         className={cn(
-                          'flex min-h-14 flex-1 items-center justify-between gap-4 font-display text-[1.45rem] no-underline transition-colors',
+                          'flex min-h-14 flex-1 items-center justify-between gap-4 font-display text-figure no-underline transition-colors',
                           open && 'rise',
                           current ? 'text-gilt' : 'text-white hover:text-gilt',
                         )}
@@ -189,7 +189,7 @@ export function SiteMenu({ contact }: { contact: SiteContact }) {
                                 href={href}
                                 aria-current={here ? 'page' : undefined}
                                 className={cn(
-                                  'flex min-h-12 items-center justify-between gap-3 border-l-2 pl-4 text-[1.02rem] font-semibold no-underline transition-colors',
+                                  'flex min-h-12 items-center justify-between gap-3 border-l-2 pl-4 text-body font-semibold no-underline transition-colors',
                                   here
                                     ? 'border-gilt text-gilt'
                                     : 'border-navy-line text-navy-ink hover:border-gilt hover:text-white',
@@ -214,7 +214,7 @@ export function SiteMenu({ contact }: { contact: SiteContact }) {
 
             <Link
               href="/book"
-              className="mt-8 flex min-h-13 items-center justify-center gap-2.5 rounded-full bg-gilt px-6 text-[1rem] font-bold text-navy no-underline focus-visible:outline-gilt-soft"
+              className="mt-8 flex min-h-13 items-center justify-center gap-2.5 rounded-full bg-gilt px-6 text-body font-bold text-navy no-underline focus-visible:outline-gilt-soft"
             >
               {t('nav.book')}
               <ArrowRight size={17} aria-hidden />
@@ -223,7 +223,7 @@ export function SiteMenu({ contact }: { contact: SiteContact }) {
             {contact.telHref ? (
               <a
                 href={contact.telHref}
-                className="mt-3 flex min-h-13 items-center justify-center gap-2.5 rounded-full border border-navy-line px-6 text-[0.98rem] font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
+                className="mt-3 flex min-h-13 items-center justify-center gap-2.5 rounded-full border border-navy-line px-6 text-body font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
               >
                 <Phone size={16} aria-hidden className="text-gilt" />
                 {contact.phone}

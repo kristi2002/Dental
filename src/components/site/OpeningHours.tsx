@@ -67,7 +67,7 @@ export async function OpeningHours({ hours }: { hours: SiteHours }) {
       // carries, `clip` and never `hidden` for the reason given under `.drift`:
       // `hidden` would make this the scroll container for anything inside it on
       // a `view()` timeline, and freeze it.
-      className="seam relative scroll-mt-20 overflow-clip bg-navy px-5 py-20 text-white sm:px-8 sm:py-24"
+      className="seam relative scroll-mt-20 overflow-clip bg-navy px-5 py-band text-white sm:px-8"
     >
       {/* Latin, untranslated, one per section — and hung off the left edge here
           because the board occupies the right half of this section at every
@@ -80,7 +80,7 @@ export async function OpeningHours({ hours }: { hours: SiteHours }) {
           <h2 className="type-section mt-5 max-w-[15ch] text-white">
             {t('pages.visit.hours.title')}
           </h2>
-          <p className="mt-5 max-w-[46ch] text-[1.05rem] leading-relaxed text-navy-ink">
+          <p className="mt-5 max-w-[46ch] text-body leading-relaxed text-navy-ink">
             {t('pages.visit.hours.lede')}
           </p>
 
@@ -88,7 +88,7 @@ export async function OpeningHours({ hours }: { hours: SiteHours }) {
               rather than implied: a week of opening hours is not a list of free
               appointments, and somebody who reads it as one turns up to a full
               book. */}
-          <p className="mt-7 flex gap-3.5 border-t border-navy-line/60 pt-6 text-[0.97rem] leading-relaxed text-navy-ink-soft">
+          <p className="mt-7 flex gap-3.5 border-t border-navy-line/60 pt-6 text-body leading-relaxed text-navy-ink-soft">
             <CalendarDays size={19} aria-hidden className="mt-0.5 shrink-0 text-gilt" />
             {t('pages.visit.hours.note')}
           </p>
@@ -129,7 +129,7 @@ export async function OpeningHours({ hours }: { hours: SiteHours }) {
           </table>
 
           {hasBreak ? (
-            <p className="mt-5 text-[0.92rem] leading-relaxed text-navy-ink-soft">
+            <p className="mt-5 text-meta leading-relaxed text-navy-ink-soft">
               {t('pages.visit.hours.breakNote')}
             </p>
           ) : null}

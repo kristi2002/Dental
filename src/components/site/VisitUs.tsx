@@ -87,7 +87,7 @@ export async function VisitUs({
       // No ground: the page wrapper carries the one cream for the whole
       // storefront, so the fixed light behind it runs through this section and
       // the two either side of it without a seam. See `(site)/layout.tsx`.
-      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band-lead sm:px-8"
     >
       {/* Top right, clear of the heading on the left and above the hours table
           rather than across it — a grey word behind a column of opening times
@@ -120,10 +120,10 @@ export async function VisitUs({
              */}
             {hours && showHours ? (
               <div>
-                <h3 className="text-[1.05rem] font-bold text-bone-ink">
+                <h3 className="text-body font-bold text-bone-ink">
                   {t('visit.hoursTitle')}
                 </h3>
-                <table className="hours-list mt-4 text-[1rem]">
+                <table className="hours-list mt-4 text-body">
                   <caption className="sr-only">{t('visit.hoursTitle')}</caption>
                   <tbody>
                     {hours.week.map((day) => {
@@ -264,10 +264,10 @@ export async function VisitUs({
                   />
                 </div>
                 <div className="p-5 sm:p-6">
-                  <h3 className="text-[1.05rem] font-bold text-bone-ink">
+                  <h3 className="text-body font-bold text-bone-ink">
                     {t('visit.travelTitle')}
                   </h3>
-                  <p className="mt-2 text-[0.99rem] leading-relaxed text-bone-ink-soft">
+                  <p className="mt-2 text-body leading-relaxed text-bone-ink-soft">
                     {t('visit.travelBody')}
                   </p>
                 </div>
@@ -306,7 +306,7 @@ export async function VisitUs({
               <h3 className="type-section mt-5 max-w-[16ch] text-white">
                 {t('visit.bookTitle')}
               </h3>
-              <p className="mt-4 max-w-[42ch] text-[1.02rem] leading-relaxed text-navy-ink">
+              <p className="mt-4 max-w-[42ch] text-body leading-relaxed text-navy-ink">
                 {t('visit.bookBody')}
               </p>
 
@@ -315,7 +315,7 @@ export async function VisitUs({
                 // The storefront's one call to action, in the class that owns
                 // its hover outright rather than in the three utilities that
                 // used to fight over it. See `.cta-fill` in globals.css.
-                className="cta-fill group mt-8 inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-[1rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
+                className="cta-fill group mt-8 inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-body font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
               >
                 <CalendarCheck size={18} aria-hidden />
                 {t('nav.book')}
@@ -332,7 +332,7 @@ export async function VisitUs({
                   two — a line rather than a second button, so the pair above it
                   keeps its one obvious answer. */}
               {contact.telHref ? (
-                <p className="mt-6 border-t border-navy-line/60 pt-5 text-[0.97rem] text-navy-ink-soft">
+                <p className="mt-6 border-t border-navy-line/60 pt-5 text-body text-navy-ink-soft">
                   {t('visit.bookOrCall')}{' '}
                   <a
                     href={contact.telHref}

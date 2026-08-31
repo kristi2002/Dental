@@ -172,7 +172,7 @@ export default async function SettingsPage({
                   )}
                 >
                   <p className="flex flex-wrap items-center gap-2">
-                    <span className="text-[1.08rem] font-bold text-ink">{room.name}</span>
+                    <span className="text-lead font-bold text-ink">{room.name}</span>
                     {!room.active ? <Badge tone="neutral">{t('operatoryRetired')}</Badge> : null}
                   </p>
 
@@ -224,7 +224,7 @@ export default async function SettingsPage({
                   >
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2">
-                        <span className="text-[1.08rem] font-bold text-ink">
+                        <span className="text-lead font-bold text-ink">
                           {closure.reason}
                         </span>
                         {closure.staffUser ? (
@@ -238,7 +238,7 @@ export default async function SettingsPage({
                           <Badge tone="warn">{t('closureNow')}</Badge>
                         ) : null}
                       </p>
-                      <p className="mt-0.5 text-[0.95rem] text-ink-soft tabular-nums">
+                      <p className="mt-0.5 text-body text-ink-soft tabular-nums">
                         {single
                           ? dayLabel(closure.from)
                           : `${dayLabel(closure.from)} – ${dayLabel(closure.to)}`}

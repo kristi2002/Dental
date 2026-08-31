@@ -340,7 +340,7 @@ export default async function PlansPage({
                   {t(`filter_${option}`)}
                   <span
                     className={cn(
-                      'text-[0.85rem] font-bold tabular-nums',
+                      'text-meta font-bold tabular-nums',
                       // Full white, not a transparency of it: white at 75% on
                       // the chosen segment's teal is 3.4:1, which is a number
                       // nobody with tired eyes should have to squint at. The gap
@@ -384,7 +384,7 @@ export default async function PlansPage({
               defaultValue={query}
               aria-label={tc('search')}
               placeholder={t('searchPlaceholder')}
-              className="field-input w-full py-1.5 pl-9 text-[0.95rem] sm:w-64"
+              className="field-input w-full py-1.5 pl-9 text-body sm:w-64"
             />
           </div>
           <button type="submit" className="btn btn-secondary btn-sm">
@@ -433,13 +433,13 @@ export default async function PlansPage({
           the count, not against the rows loaded — the query already stopped at
           the cap, so the two are equal exactly when the list is truncated. */}
       {isArchive(filter) && counts[filter] > visible.length ? (
-        <p className="mt-3 text-[0.92rem] text-ink-faint">
+        <p className="mt-3 text-meta text-ink-faint">
           {t('showingRecent', { count: visible.length, total: counts[filter] })}
         </p>
       ) : null}
 
       {!isArchive(filter) && activeTotal > openRows.length ? (
-        <p className="mt-3 text-[0.92rem] text-ink-faint">
+        <p className="mt-3 text-meta text-ink-faint">
           {t('showingRecent', { count: visible.length, total: activeTotal })}
         </p>
       ) : null}

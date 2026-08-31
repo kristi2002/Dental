@@ -185,7 +185,7 @@ function RailRow({
     'focus-visible:outline-white focus-visible:outline-offset-[-1px]',
     // Still a thumb-sized target one level down — a phone drawer is where
     // these get tapped, and 40px is not enough to tap reliably.
-    nested ? 'min-h-11 text-[0.9rem]' : 'min-h-12 text-[0.95rem]',
+    nested ? 'min-h-11 text-meta' : 'min-h-12 text-body',
     collapsed && 'lg:justify-center lg:px-0',
     // A solid white tab, not tinted text — the current screen has to be
     // findable without relying on colour alone, and white is what ties the
@@ -209,10 +209,10 @@ function RailRow({
       {badge > 0 ? (
         <span
           className={cn(
-            'shrink-0 rounded-full px-1.5 py-0.5 text-[0.72rem] font-bold tabular-nums',
+            'shrink-0 rounded-full px-1.5 py-0.5 text-micro font-bold tabular-nums',
             active ? 'bg-brand-dark text-white' : 'bg-white text-brand-deep',
             collapsed &&
-              'lg:absolute lg:top-1 lg:right-1 lg:px-1 lg:py-0 lg:text-[0.62rem] lg:leading-4',
+              'lg:absolute lg:top-1 lg:right-1 lg:px-1 lg:py-0 lg:text-micro lg:leading-4',
           )}
         >
           {badge > 99 ? '99+' : badge}
@@ -510,7 +510,7 @@ export function Sidebar({
           {/* The tagline is gone from the phone bar and the name truncates:
               between the menu button and the account button there is only so
               much room, and the two buttons are the ones that get tapped. */}
-          <span className="truncate text-[1.05rem] leading-tight font-bold tracking-tight text-white">
+          <span className="truncate text-body leading-tight font-bold tracking-tight text-white">
             {clinicName}
           </span>
         </Link>
@@ -563,10 +563,10 @@ export function Sidebar({
                 pinched one, where 4.5rem less the padding is all there is. */}
             <ClinicMark variant="inverse" alt="" className="h-7 w-auto shrink-0" />
             <span className={cn('min-w-0', collapsed && 'lg:sr-only')}>
-              <span className="block truncate text-[1rem] leading-tight font-bold tracking-tight text-white">
+              <span className="block truncate text-body leading-tight font-bold tracking-tight text-white">
                 {clinicName}
               </span>
-              <span className="block truncate text-[0.76rem] text-white/85">
+              <span className="block truncate text-micro text-white/85">
                 {tApp('tagline')}
               </span>
             </span>
@@ -619,7 +619,7 @@ export function Sidebar({
                 <p
                   id={`rail-block-${block.group}`}
                   className={cn(
-                    'px-3 pt-1 pb-1.5 text-[0.68rem] font-bold tracking-[0.1em] text-white/60 uppercase',
+                    'px-3 pt-1 pb-1.5 text-micro font-bold tracking-[0.1em] text-white/60 uppercase',
                     // Still the list's accessible name when it cannot be read:
                     // `aria-labelledby` does not care whether its target is
                     // drawn, and a screen reader gets the block either way.

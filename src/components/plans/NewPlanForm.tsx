@@ -211,17 +211,17 @@ export function NewPlanForm({
              whether this is worth saving yet — a plan with a name and no steps
              is the thing that gets written and then never worked. */
           <FormPreview title={t('previewTitle')}>
-            <p className="text-[1.12rem] font-bold text-ink">
+            <p className="text-lead font-bold text-ink">
               {title.trim() || <span className="text-ink-faint">{t('new')}</span>}
             </p>
-            <p className="mt-1 text-[0.95rem] text-ink-soft">
+            <p className="mt-1 text-body text-ink-soft">
               {t('stepCount', { count: steps.length })}
             </p>
 
             {steps.length > 0 ? (
               <ol className="mt-3 space-y-1">
                 {steps.map((step, index) => (
-                  <li key={step.key} className="flex gap-2 text-[0.95rem] text-ink-soft">
+                  <li key={step.key} className="flex gap-2 text-body text-ink-soft">
                     <span aria-hidden className="shrink-0 font-bold tabular-nums text-ink-faint">
                       {index + 1}.
                     </span>
@@ -280,14 +280,14 @@ export function NewPlanForm({
                 <ClipboardCopy size={16} aria-hidden className="text-brand-deep" />
                 {t('fromTemplate')}
               </legend>
-              <p className="mb-1.5 text-[0.9rem] text-ink-soft">{t('fromTemplateHint')}</p>
+              <p className="mb-1.5 text-meta text-ink-soft">{t('fromTemplateHint')}</p>
               <div className="flex flex-wrap gap-2">
                 {templates.map((template) => (
                   <button
                     key={template.id}
                     type="button"
                     onClick={() => useTemplate(template)}
-                    className="flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 py-1.5 text-[0.9rem] font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep"
+                    className="flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 py-1.5 text-meta font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep"
                   >
                     <ClipboardCopy size={15} aria-hidden />
                     {template.title}
@@ -309,7 +309,7 @@ export function NewPlanForm({
                 <Sparkles size={16} aria-hidden className="text-accent-dark" />
                 {t('fromChart')}
               </legend>
-              <p className="mb-1.5 text-[0.9rem] text-ink-soft">{t('fromChartHint')}</p>
+              <p className="mb-1.5 text-meta text-ink-soft">{t('fromChartHint')}</p>
               <div className="flex flex-wrap gap-2">
                 {findings.map((finding) => {
                   const surfaces = formatSurfaces(finding.surfaces);
@@ -323,7 +323,7 @@ export function NewPlanForm({
                           finding.toothNum,
                         )
                       }
-                      className="flex items-center gap-1.5 rounded-full border border-accent bg-accent-soft px-3 py-1.5 text-[0.9rem] font-semibold text-ink transition-colors hover:border-accent-dark hover:bg-accent"
+                      className="flex items-center gap-1.5 rounded-full border border-accent bg-accent-soft px-3 py-1.5 text-meta font-semibold text-ink transition-colors hover:border-accent-dark hover:bg-accent"
                     >
                       <Plus size={15} aria-hidden />
                       {tt('tooth', { num: label(finding.toothNum) })} ·{' '}
@@ -344,7 +344,7 @@ export function NewPlanForm({
               <div className="space-y-2.5">
                 {byDepartment(services).map(({ department, items }) => (
                   <div key={department || 'none'}>
-                    <p className="mb-1 text-[0.78rem] font-bold tracking-wide text-ink-faint uppercase">
+                    <p className="mb-1 text-caption font-bold tracking-wide text-ink-faint uppercase">
                       {department || tc('category')}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -353,7 +353,7 @@ export function NewPlanForm({
                           key={service.id}
                           type="button"
                           onClick={() => addStep(service.name, null, service.id)}
-                          className="rounded-full border border-line-strong bg-surface px-3 py-1.5 text-[0.88rem] font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep"
+                          className="rounded-full border border-line-strong bg-surface px-3 py-1.5 text-meta font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep"
                         >
                           {service.name}
                         </button>
@@ -411,7 +411,7 @@ export function NewPlanForm({
               {announcement}
             </p>
             {steps.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-line-strong px-3.5 py-4 text-center text-[0.95rem] text-ink-faint">
+              <p className="rounded-lg border border-dashed border-line-strong px-3.5 py-4 text-center text-body text-ink-faint">
                 {t('noStepsYet')}
               </p>
             ) : (
@@ -486,11 +486,11 @@ export function NewPlanForm({
 
                         <span
                           aria-hidden
-                          className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-soft text-[0.78rem] font-bold text-brand-deep"
+                          className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-soft text-caption font-bold text-brand-deep"
                         >
                           {index + 1}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-[1rem] font-semibold text-ink">
+                        <span className="min-w-0 flex-1 truncate text-body font-semibold text-ink">
                           {step.title}
                         </span>
 
@@ -501,7 +501,7 @@ export function NewPlanForm({
                             setOpenTooth((open) => (open === step.key ? null : step.key))
                           }
                           className={cn(
-                            'rounded-full border px-2.5 py-1 text-[0.85rem] font-semibold transition-colors',
+                            'rounded-full border px-2.5 py-1 text-meta font-semibold transition-colors',
                             step.toothNum
                               ? 'border-brand-dark bg-brand-soft text-brand-deep'
                               : 'border-line-strong text-ink-soft hover:border-ink hover:text-ink',
@@ -600,7 +600,7 @@ export function NewPlanForm({
               </ol>
             )}
             {steps.length > 1 ? (
-              <p className="mt-1.5 text-[0.85rem] text-ink-faint">{t('reorderHint')}</p>
+              <p className="mt-1.5 text-meta text-ink-faint">{t('reorderHint')}</p>
             ) : null}
           </div>
         </FormSection>

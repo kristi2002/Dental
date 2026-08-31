@@ -323,7 +323,9 @@ export default async function AppointmentsPage({
         : format.dateTime(anchor, { month: 'long', year: 'numeric' });
 
   return (
-    <>
+    // The diary is one of the three screens that is a grid rather than
+    // prose, so it takes the whole monitor. See `.app-measure`.
+    <div data-measure="wide">
       {/* Booking sits beside the title, where every other screen keeps its
           primary action. It used to share a row with the date and the view
           switcher, which asked one 620px column to hold 900px of controls. */}
@@ -389,9 +391,9 @@ export default async function AppointmentsPage({
                 to spend on it; on a phone the date may take a second line
                 rather than push the arrows out past the calendar. */}
             <div className="min-w-0 px-1 text-center sm:min-w-[9rem] xl:min-w-[9.5rem]">
-              <p className="text-[1.1rem] font-semibold leading-tight text-ink">{label}</p>
+              <p className="text-lead font-semibold leading-tight text-ink">{label}</p>
               {view === 'day' ? (
-                <p className="text-[0.88rem] leading-tight text-ink-soft tabular-nums">
+                <p className="text-meta leading-tight text-ink-soft tabular-nums">
                   {schedule.closed
                     ? (schedule.closureReason ?? t('closedDay'))
                     : describeRanges(schedule.ranges)}
@@ -414,7 +416,7 @@ export default async function AppointmentsPage({
               aria-current={showingNow ? 'date' : undefined}
               className={cn(
                 NUDGE,
-                'px-3 text-[0.95rem] font-semibold',
+                'px-3 text-body font-semibold',
                 showingNow && 'bg-brand-soft text-brand-deep hover:bg-brand-soft hover:text-brand-deep',
               )}
             >
@@ -598,6 +600,6 @@ export default async function AppointmentsPage({
           </div>
         ) : null}
       </div>
-    </>
+    </div>
   );
 }

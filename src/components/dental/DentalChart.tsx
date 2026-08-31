@@ -605,7 +605,7 @@ export function DentalChart({
       <ToothDefs />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[1.02rem] text-ink-soft">
+        <p className="text-body text-ink-soft">
           {t(view === 'PERIO' ? 'perioSubtitle' : 'subtitle')}
         </p>
 
@@ -626,7 +626,7 @@ export function DentalChart({
               aria-pressed={view === option}
               onClick={() => setView(option)}
               className={cn(
-                'flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[0.92rem] font-bold',
+                'flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-meta font-bold',
                 view === option
                   ? 'bg-brand-dark text-white'
                   : 'text-ink-soft hover:bg-brand-soft hover:text-brand-deep',
@@ -678,8 +678,8 @@ export function DentalChart({
                 squashing — a compressed odontogram is an unreadable one. */}
             <div className="w-max">
               <div className="flex justify-between px-1 pb-1">
-                <span className="text-[0.85rem] font-bold text-ink-faint">{t('right')}</span>
-                <span className="text-[0.85rem] font-bold text-ink-faint">{t('left')}</span>
+                <span className="text-meta font-bold text-ink-faint">{t('right')}</span>
+                <span className="text-meta font-bold text-ink-faint">{t('left')}</span>
               </div>
 
               {/* The upper arch's bottom edge and the midline are the same cyan,
@@ -719,7 +719,7 @@ export function DentalChart({
             // chart, smaller. Where the chart can be edited the palette *is*
             // this legend, and showing both would be the same key twice.
             <div className="rounded-lg border border-line bg-paper px-4 py-3">
-              <p className="mb-2 text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</p>
+              <p className="mb-2 text-meta font-bold text-ink-faint uppercase">{t('legend')}</p>
               <ul className="grid grid-cols-4 gap-x-3 gap-y-2 @min-[40rem]:grid-cols-8">
                 {TOOTH_STATUSES.map((option) => (
                   <li key={option} className="flex flex-col items-center gap-0.5 text-center">
@@ -730,7 +730,7 @@ export function DentalChart({
                         surfaces={option === 'CARIES' || option === 'FILLED' ? ['O'] : []}
                       />
                     </span>
-                    <span className="text-[0.82rem] leading-tight font-semibold text-ink">
+                    <span className="text-caption leading-tight font-semibold text-ink">
                       {t(`status_${option}`)}
                     </span>
                   </li>
@@ -828,7 +828,7 @@ export function DentalChart({
                     <ClipboardList size={20} aria-hidden className="mt-0.5 shrink-0" />
                     <span className="min-w-0">
                       <span className="block font-bold">{tp('chartOfferTitle')}</span>
-                      <span className="block text-[0.95rem]">
+                      <span className="block text-body">
                         {tp('chartOfferBody', { tooth: label(offerFor) })}
                       </span>
                     </span>
@@ -891,7 +891,7 @@ export function DentalChart({
                       aria-pressed={dialogTab === option}
                       onClick={() => setDialogTab(option)}
                       className={cn(
-                        '-mb-px border-b-2 px-3 py-2 text-[0.95rem] font-bold',
+                        '-mb-px border-b-2 px-3 py-2 text-body font-bold',
                         dialogTab === option
                           ? 'border-brand-dark text-brand-deep'
                           : 'border-transparent text-ink-soft hover:text-ink',
@@ -955,7 +955,7 @@ export function DentalChart({
                     <div className="space-y-4 px-5 py-5">
                       <div>
                         <p className="field-label">{t('condition')}</p>
-                        <p className="text-[1.05rem] font-semibold text-ink">
+                        <p className="text-body font-semibold text-ink">
                           {t(`status_${openCondition.status}`)}
                         </p>
                       </div>
@@ -963,7 +963,7 @@ export function DentalChart({
                         <p className="field-label">{t('notes')}</p>
                         <p
                           className={cn(
-                            'text-[1.02rem] whitespace-pre-line',
+                            'text-body whitespace-pre-line',
                             current?.notes ? 'text-ink' : 'text-ink-faint',
                           )}
                         >
@@ -1003,7 +1003,7 @@ export function DentalChart({
                               key={option}
                               className={cn(
                                 'flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-line-strong px-1 py-2',
-                                'text-center text-[0.82rem] leading-tight font-semibold hover:border-ink',
+                                'text-center text-caption leading-tight font-semibold hover:border-ink',
                                 'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
                               )}
                             >
@@ -1044,7 +1044,7 @@ export function DentalChart({
                                 key={surface}
                                 className={cn(
                                   'flex cursor-pointer items-center gap-2 rounded-lg border border-line-strong px-3 py-2',
-                                  'text-[0.92rem] font-semibold hover:border-ink',
+                                  'text-meta font-semibold hover:border-ink',
                                   'has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
                                 )}
                               >
@@ -1128,27 +1128,27 @@ function PerioLegend() {
 
   return (
     <div className="rounded-lg border border-line bg-paper px-4 py-3">
-      <p className="mb-2 text-[0.9rem] font-bold text-ink-faint uppercase">{t('legend')}</p>
+      <p className="mb-2 text-meta font-bold text-ink-faint uppercase">{t('legend')}</p>
       <ul className="flex flex-wrap gap-x-4 gap-y-2">
         {bands.map((band) => (
           <li key={band.key} className="flex items-center gap-2">
-            <span className={cn('rounded px-2 py-0.5 text-[0.85rem] font-bold', band.className)}>
+            <span className={cn('rounded px-2 py-0.5 text-meta font-bold', band.className)}>
               {t(`${band.key}Range`)}
             </span>
-            <span className="text-[0.9rem] text-ink">{t(band.key)}</span>
+            <span className="text-meta text-ink">{t(band.key)}</span>
           </li>
         ))}
         <li className="flex items-center gap-2">
-          <span className="rounded px-2 py-0.5 text-[0.85rem] font-bold text-ink underline decoration-danger decoration-2 underline-offset-[2px]">
+          <span className="rounded px-2 py-0.5 text-meta font-bold text-ink underline decoration-danger decoration-2 underline-offset-[2px]">
             4
           </span>
-          <span className="text-[0.9rem] text-ink">{t('perioBleeding')}</span>
+          <span className="text-meta text-ink">{t('perioBleeding')}</span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="rounded bg-warn-soft px-2 py-0.5 text-[0.85rem] font-bold text-warn">
+          <span className="rounded bg-warn-soft px-2 py-0.5 text-meta font-bold text-warn">
             MII
           </span>
-          <span className="text-[0.9rem] text-ink">{t('mobility')}</span>
+          <span className="text-meta text-ink">{t('mobility')}</span>
         </li>
       </ul>
     </div>
@@ -1161,7 +1161,7 @@ function PerioReadout({ summary, toothNum }: { summary: PerioSummary; toothNum: 
   const tc = useTranslations('common');
 
   if (!summary.recorded) {
-    return <p className="text-[1.02rem] text-ink-faint">{t('perioNone')}</p>;
+    return <p className="text-body text-ink-faint">{t('perioNone')}</p>;
   }
 
   return (
@@ -1170,7 +1170,7 @@ function PerioReadout({ summary, toothNum }: { summary: PerioSummary; toothNum: 
         <p className="field-label">{t('perioDepths')}</p>
         <div className="mt-1 flex items-center gap-3">
           <PerioStrip toothNum={toothNum} summary={summary} className="scale-125 origin-left" />
-          <p className="text-[0.95rem] text-ink-soft">
+          <p className="text-body text-ink-soft">
             {PERIO_SITES.map((site, index) =>
               summary.depths[index] === null
                 ? null
@@ -1185,7 +1185,7 @@ function PerioReadout({ summary, toothNum }: { summary: PerioSummary; toothNum: 
       <div className="flex flex-wrap gap-x-6 gap-y-2">
         <p>
           <span className="field-label">{t('perioBleeding')}</span>
-          <span className="text-[1.02rem] font-semibold text-ink">
+          <span className="text-body font-semibold text-ink">
             {summary.bleedingCount > 0
               ? t('perioBleedingCount', { count: summary.bleedingCount })
               : tc('none')}
@@ -1193,7 +1193,7 @@ function PerioReadout({ summary, toothNum }: { summary: PerioSummary; toothNum: 
         </p>
         <p>
           <span className="field-label">{t('mobility')}</span>
-          <span className="text-[1.02rem] font-semibold text-ink">
+          <span className="text-body font-semibold text-ink">
             {summary.mobility === null
               ? t('mobilityUnknown')
               : `${MOBILITY_LABEL[summary.mobility]} — ${t(`mobility_${summary.mobility}`)}`}
@@ -1290,7 +1290,7 @@ function ChartFindings({
   return (
     <aside className="overflow-hidden rounded-lg border border-line bg-paper">
       <div className="border-b border-line px-4 py-3">
-        <p className="flex items-center gap-2 text-[0.9rem] font-bold text-ink-faint uppercase">
+        <p className="flex items-center gap-2 text-meta font-bold text-ink-faint uppercase">
           {perio ? <Activity size={17} aria-hidden /> : <Stethoscope size={17} aria-hidden />}
           {t(perio ? 'perioFindings' : 'findings')}
         </p>
@@ -1305,7 +1305,7 @@ function ChartFindings({
                 {overview.deepest !== null ? (
                   <li
                     className={cn(
-                      'rounded-full border px-2.5 py-0.5 text-[0.82rem] font-bold',
+                      'rounded-full border px-2.5 py-0.5 text-caption font-bold',
                       overview.deepest >= 6
                         ? 'border-danger bg-danger-soft text-danger'
                         : overview.deepest > 3
@@ -1320,7 +1320,7 @@ function ChartFindings({
                 {overview.bleedingPercent !== null ? (
                   <li
                     className={cn(
-                      'flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[0.82rem] font-bold',
+                      'flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-caption font-bold',
                       overview.bleedingPercent >= 10
                         ? 'border-danger bg-danger-soft text-danger'
                         : 'border-line-strong bg-surface text-ink-soft',
@@ -1345,7 +1345,7 @@ function ChartFindings({
                   <li
                     key={status}
                     className={cn(
-                      'rounded-full border px-2.5 py-0.5 text-[0.82rem] font-bold',
+                      'rounded-full border px-2.5 py-0.5 text-caption font-bold',
                       TOOTH_STATUS_STYLE[status].swatch,
                     )}
                   >
@@ -1360,7 +1360,7 @@ function ChartFindings({
       </div>
 
       {findings.length === 0 ? (
-        <p className="px-4 py-6 text-center text-[0.98rem] text-ink-faint">
+        <p className="px-4 py-6 text-center text-body text-ink-faint">
           {t(perio ? 'perioFindingsEmpty' : 'findingsEmpty')}
         </p>
       ) : (
@@ -1391,7 +1391,7 @@ function ChartFindings({
 
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="text-[1.05rem] leading-tight font-bold text-ink tabular-nums">
+                      <span className="text-body leading-tight font-bold text-ink tabular-nums">
                         {numberLabel(finding.toothNum)}
                       </span>
                       {perio ? (
@@ -1399,7 +1399,7 @@ function ChartFindings({
                           {finding.perio.deepest !== null ? (
                             <span
                               className={cn(
-                                'rounded-full border px-2 py-0.5 text-[0.78rem] font-bold tabular-nums',
+                                'rounded-full border px-2 py-0.5 text-caption font-bold tabular-nums',
                                 finding.perio.deepest >= 6
                                   ? 'border-danger bg-danger-soft text-danger'
                                   : finding.perio.deepest > 3
@@ -1416,7 +1416,7 @@ function ChartFindings({
                             // how bad the same grade is.
                             <span
                               className={cn(
-                                'rounded-full border px-2 py-0.5 text-[0.78rem] font-bold',
+                                'rounded-full border px-2 py-0.5 text-caption font-bold',
                                 finding.perio.mobility >= 2
                                   ? 'border-danger bg-danger-soft text-danger'
                                   : 'border-warn bg-warn-soft text-warn',
@@ -1426,7 +1426,7 @@ function ChartFindings({
                             </span>
                           ) : null}
                           {finding.perio.bleedingCount > 0 ? (
-                            <span className="flex items-center gap-1 rounded-full border border-danger bg-danger-soft px-2 py-0.5 text-[0.78rem] font-bold text-danger">
+                            <span className="flex items-center gap-1 rounded-full border border-danger bg-danger-soft px-2 py-0.5 text-caption font-bold text-danger">
                               <Droplet size={12} aria-hidden />
                               <span className="tabular-nums">{finding.perio.bleedingCount}</span>
                             </span>
@@ -1435,7 +1435,7 @@ function ChartFindings({
                       ) : (
                         <span
                           className={cn(
-                            'rounded-full border px-2 py-0.5 text-[0.78rem] font-bold',
+                            'rounded-full border px-2 py-0.5 text-caption font-bold',
                             TOOTH_STATUS_STYLE[finding.status].swatch,
                           )}
                         >
@@ -1444,7 +1444,7 @@ function ChartFindings({
                       )}
                     </span>
 
-                    <span className="mt-0.5 block text-[0.88rem] leading-snug text-ink-soft">
+                    <span className="mt-0.5 block text-meta leading-snug text-ink-soft">
                       {t(`quadrant_${quadrantOf(finding.toothNum)}`)}
                       {kind ? ` · ${t(`name_${kind}`)}` : ''}
                       {dentitionOf(finding.toothNum) === 'PRIMARY' ? ` · ${t('primaryTooth')}` : ''}
@@ -1465,7 +1465,7 @@ function ChartFindings({
                             anyone outside the surgery, and the names alone are too
                             long to scan. */}
                         {finding.surfaces.length > 0 ? (
-                          <span className="mt-1 block text-[0.88rem] leading-snug text-ink">
+                          <span className="mt-1 block text-meta leading-snug text-ink">
                             <span className="font-bold tracking-wide">
                               {finding.surfaces.join('')}
                             </span>
@@ -1483,13 +1483,13 @@ function ChartFindings({
                         ) : null}
 
                         {finding.notes ? (
-                          <span className="mt-1 block line-clamp-3 text-[0.92rem] leading-snug whitespace-pre-line text-ink">
+                          <span className="mt-1 block line-clamp-3 text-meta leading-snug whitespace-pre-line text-ink">
                             {finding.notes}
                           </span>
                         ) : null}
 
                         {finding.chartedOn ? (
-                          <span className="mt-1 block text-[0.8rem] text-ink-faint">
+                          <span className="mt-1 block text-caption text-ink-faint">
                             {t('chartedOn', { date: finding.chartedOn })}
                           </span>
                         ) : null}
@@ -1649,13 +1649,13 @@ function ToothCell({
   const number = (
     <span
       className={cn(
-        'block text-center text-[0.85rem] leading-5 font-bold tabular-nums',
+        'block text-center text-meta leading-5 font-bold tabular-nums',
         status === 'HEALTHY' ? 'text-ink-faint' : 'text-ink',
       )}
     >
       {numberLabel(toothNum)}
       {style.short ? (
-        <span aria-hidden className="ml-0.5 text-[0.7rem] opacity-80">
+        <span aria-hidden className="ml-0.5 text-micro opacity-80">
           {style.short}
         </span>
       ) : null}

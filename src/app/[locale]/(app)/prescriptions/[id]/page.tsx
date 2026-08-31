@@ -81,7 +81,7 @@ export default async function PrescriptionSheet({
           })}
         />
 
-        <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[1.05rem]">
+        <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-body">
           <dt className="font-bold text-ink-faint">{t('sheetPatient')}</dt>
           <dd className="text-ink">
             {prescription.patient.lastName} {prescription.patient.firstName}
@@ -97,16 +97,16 @@ export default async function PrescriptionSheet({
           ) : null}
         </dl>
 
-        <p className="mt-6 min-h-40 text-[1.15rem] leading-relaxed whitespace-pre-line text-ink">
+        <p className="mt-6 min-h-40 text-lead leading-relaxed whitespace-pre-line text-ink">
           {prescription.body}
         </p>
 
         <footer className="mt-10 flex justify-end">
-          <div className="w-64 border-t-2 border-line pt-2 text-center text-[0.95rem] text-ink-soft">
+          <div className="w-64 border-t-2 border-line pt-2 text-center text-body text-ink-soft">
             {prescription.issuedBy
               ? `${prescription.issuedBy.firstName} ${prescription.issuedBy.lastName}`
               : ''}
-            <span className="block text-[0.85rem] text-ink-faint">{t('sheetSignature')}</span>
+            <span className="block text-meta text-ink-faint">{t('sheetSignature')}</span>
           </div>
         </footer>
       </article>

@@ -94,7 +94,7 @@ export function DayView({
           >
             <div
               className={cn(
-                'border-r border-line px-3 py-3 text-right text-[1.05rem] font-bold tabular-nums',
+                'border-r border-line px-3 py-3 text-right text-body font-bold tabular-nums',
                 slot.length > 0 ? 'text-ink' : 'text-ink-faint',
               )}
             >
@@ -102,7 +102,7 @@ export function DayView({
             </div>
             <div className={cn('space-y-2 p-2', slot.length === 0 && 'min-h-14')}>
               {slot.length === 0 && !open ? (
-                <p className="px-1 py-2 text-[0.9rem] text-ink-faint">{t('closedHour')}</p>
+                <p className="px-1 py-2 text-meta text-ink-faint">{t('closedHour')}</p>
               ) : null}
 
               {/* An empty open hour books itself.

@@ -57,7 +57,7 @@ export function NewOperatoryForm({ existing }: { existing: string[] }) {
                 {existing.map((room) => (
                   <li
                     key={room}
-                    className="rounded-full border border-line-strong bg-surface px-3 py-1 text-[0.9rem] font-semibold text-ink-soft"
+                    className="rounded-full border border-line-strong bg-surface px-3 py-1 text-meta font-semibold text-ink-soft"
                   >
                     {room}
                   </li>

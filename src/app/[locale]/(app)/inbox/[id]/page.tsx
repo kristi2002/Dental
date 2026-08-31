@@ -137,7 +137,7 @@ export default async function ThreadPage({
                   message.inbound ? 'border-line bg-surface-soft' : 'border-brand/35 bg-brand-soft',
                 )}
               >
-                <p className="mb-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.88rem] text-ink-soft">
+                <p className="mb-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-meta text-ink-soft">
                   <span className="font-bold text-ink">
                     {message.inbound
                       ? message.fromName || message.fromAddress
@@ -163,7 +163,7 @@ export default async function ThreadPage({
                   ) : null}
                 </p>
 
-                <p className="text-[1.02rem] whitespace-pre-wrap text-ink">{message.text}</p>
+                <p className="text-body whitespace-pre-wrap text-ink">{message.text}</p>
 
                 {message.attachments.length > 0 ? (
                   <ul className="mt-3 flex flex-wrap gap-2">
@@ -194,7 +194,7 @@ export default async function ThreadPage({
                   <p className="mt-2">
                     <a
                       href={`/api/mail/original/${message.id}`}
-                      className="text-[0.9rem] font-semibold text-ink-soft underline"
+                      className="text-meta font-semibold text-ink-soft underline"
                       download
                     >
                       {t('viewOriginal')}

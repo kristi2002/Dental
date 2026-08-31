@@ -80,7 +80,7 @@ export function NewStockForm({
              that is worth seeing before it is saved rather than after. */
           <FormPreview title={t('previewTitle')}>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[1.12rem] font-bold text-ink">
+              <p className="text-lead font-bold text-ink">
                 {preview.name.trim() || <span className="text-ink-faint">{t('new')}</span>}
                 {preview.variantName.trim() ? (
                   <span className="ml-1.5 font-semibold text-ink-soft">
@@ -102,12 +102,12 @@ export function NewStockForm({
               )}
             </div>
 
-            <p className="mt-1 text-[0.95rem] text-ink-soft">
+            <p className="mt-1 text-body text-ink-soft">
               {category?.name || t('uncategorized')} · {t('minShort', { min: minLimit })}
             </p>
 
-            <p className="mt-3 text-[1.15rem] font-bold tabular-nums text-ink">
-              {quantity} <span className="text-[0.9rem] font-semibold">{t('boxes', { count: quantity })}</span>
+            <p className="mt-3 text-lead font-bold tabular-nums text-ink">
+              {quantity} <span className="text-meta font-semibold">{t('boxes', { count: quantity })}</span>
             </p>
           </FormPreview>
         }

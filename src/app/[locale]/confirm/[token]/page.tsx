@@ -52,7 +52,7 @@ export default async function ConfirmPage({
   if (!limit.allowed) {
     return (
       <main className="mx-auto max-w-md px-5 py-20 text-center">
-        <p role="alert" className="text-[1.1rem] font-semibold text-ink">
+        <p role="alert" className="text-lead font-semibold text-ink">
           {t('tooMany')}
         </p>
       </main>
@@ -98,7 +98,7 @@ export default async function ConfirmPage({
           {!appointment ? (
             <>
               <h1 className="text-2xl font-bold text-ink">{t('invalidTitle')}</h1>
-              <p className="mt-2 text-[1.05rem] text-ink-soft">{t('invalidText')}</p>
+              <p className="mt-2 text-body text-ink-soft">{t('invalidText')}</p>
             </>
           ) : (
             <>
@@ -109,9 +109,9 @@ export default async function ConfirmPage({
               <h1 className="text-2xl font-bold text-ink">
                 {t('greeting', { name: appointment.patient.firstName })}
               </h1>
-              <p className="mt-1 text-[1.05rem] text-ink-soft">{t('intro')}</p>
+              <p className="mt-1 text-body text-ink-soft">{t('intro')}</p>
 
-              <dl className="mt-5 rounded-lg border border-line bg-surface-soft px-4 py-3.5 text-[1.05rem]">
+              <dl className="mt-5 rounded-lg border border-line bg-surface-soft px-4 py-3.5 text-body">
                 <div className="flex justify-between gap-4 py-1">
                   <dt className="text-ink-soft">{t('when')}</dt>
                   <dd className="text-right font-bold text-ink">

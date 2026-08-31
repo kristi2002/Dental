@@ -121,10 +121,10 @@ export function CatalogueImport({ kind }: { kind: CatalogueKind }) {
   return (
     <div className="space-y-5">
       <div className="card p-5">
-        <label htmlFor={`${uid}-file`} className="block text-[1.05rem] font-bold text-ink">
+        <label htmlFor={`${uid}-file`} className="block text-body font-bold text-ink">
           {ti('choose')}
         </label>
-        <p className="mt-1 mb-3 text-[0.98rem] text-ink-soft">
+        <p className="mt-1 mb-3 text-body text-ink-soft">
           {kind === 'services' ? ti('chooseServices') : ti('chooseStock')}
         </p>
 
@@ -137,7 +137,7 @@ export function CatalogueImport({ kind }: { kind: CatalogueKind }) {
         />
 
         {stage.at === 'reading' || checking ? (
-          <p className="mt-3 text-[0.98rem] text-ink-soft">{tc('loading')}</p>
+          <p className="mt-3 text-body text-ink-soft">{tc('loading')}</p>
         ) : null}
 
         {stage.at === 'failed' ? (
@@ -157,17 +157,17 @@ export function CatalogueImport({ kind }: { kind: CatalogueKind }) {
       {stage.at === 'ready' && rows.length > 0 ? (
         <div className="card overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
-            <p className="flex items-center gap-2.5 text-[1.05rem] font-bold text-ink">
+            <p className="flex items-center gap-2.5 text-body font-bold text-ink">
               <FileSpreadsheet size={20} aria-hidden className="shrink-0 text-ink-faint" />
               {stage.name}
             </p>
-            <p className="text-[0.98rem] text-ink-soft tabular-nums">
+            <p className="text-body text-ink-soft tabular-nums">
               {ti('summary', { usable: usable.length, total: rows.length })}
             </p>
           </div>
 
           <div className="max-h-[32rem] overflow-auto">
-            <table className="w-full border-collapse text-left text-[0.95rem]">
+            <table className="w-full border-collapse text-left text-body">
               <thead className="sticky top-0 bg-surface-soft">
                 <tr className="border-b border-line">
                   <Th className="w-12 text-right">#</Th>
@@ -271,7 +271,7 @@ function Th({ children, className }: { children: ReactNode; className?: string }
   return (
     <th
       className={cn(
-        'px-3 py-2 text-[0.8rem] font-bold tracking-wide text-ink-faint uppercase',
+        'px-3 py-2 text-caption font-bold tracking-wide text-ink-faint uppercase',
         className,
       )}
     >

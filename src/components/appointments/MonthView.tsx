@@ -97,7 +97,7 @@ export function MonthView({
               key={toDateKey(day)}
               title={dates.date(day, 'weekdayLong')}
               className={cn(
-                'border-r border-line py-2 text-center text-[0.78rem] font-bold tracking-wide uppercase no-underline last:border-r-0',
+                'border-r border-line py-2 text-center text-caption font-bold tracking-wide uppercase no-underline last:border-r-0',
                 // Saturday and Sunday in red, the way a paper calendar prints them.
                 index > 4 ? 'text-danger' : 'text-ink-faint',
               )}
@@ -134,7 +134,7 @@ export function MonthView({
                     href={dayHrefs[key] ?? '#'}
                     aria-current={isToday ? 'date' : undefined}
                     className={cn(
-                      'flex h-8 min-w-8 items-center justify-center rounded-full px-1.5 text-[0.98rem] font-bold tabular-nums no-underline transition-colors',
+                      'flex h-8 min-w-8 items-center justify-center rounded-full px-1.5 text-body font-bold tabular-nums no-underline transition-colors',
                       isToday
                         ? 'bg-brand-dark text-white'
                         : cn(
@@ -151,7 +151,7 @@ export function MonthView({
                   </Link>
 
                   {booked.length > 0 ? (
-                    <span className="text-[0.75rem] font-semibold tabular-nums text-ink-faint">
+                    <span className="text-micro font-semibold tabular-nums text-ink-faint">
                       <span aria-hidden>{booked.length}</span>
                       <span className="sr-only">{t('dayCount', { count: booked.length })}</span>
                     </span>
@@ -172,7 +172,7 @@ export function MonthView({
                           appointment.serviceName ? ` · ${appointment.serviceName}` : ''
                         }`}
                         className={cn(
-                          'flex w-full cursor-pointer items-baseline gap-1.5 overflow-hidden rounded border-l-4 px-1.5 py-0.5 text-left text-[0.8rem] leading-snug transition-shadow hover:shadow-card',
+                          'flex w-full cursor-pointer items-baseline gap-1.5 overflow-hidden rounded border-l-4 px-1.5 py-0.5 text-left text-caption leading-snug transition-shadow hover:shadow-card',
                           blockStyle(appointment.status),
                         )}
                       >
@@ -190,7 +190,7 @@ export function MonthView({
                     <li>
                       <Link
                         href={dayHrefs[key] ?? '#'}
-                        className="block px-1.5 text-[0.78rem] font-semibold text-brand-deep"
+                        className="block px-1.5 text-caption font-semibold text-brand-deep"
                       >
                         {t('moreCount', { count: hidden })}
                       </Link>

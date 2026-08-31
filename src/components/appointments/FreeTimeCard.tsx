@@ -52,10 +52,10 @@ export async function FreeTimeCard({
               className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5 last:border-b-0"
             >
               <span className="min-w-0">
-                <span className="block text-[1.05rem] font-bold text-ink tabular-nums">
+                <span className="block text-body font-bold text-ink tabular-nums">
                   {gap.startTime} – {gap.endTime}
                 </span>
-                <span className="block text-[0.9rem] text-ink-soft">
+                <span className="block text-meta text-ink-soft">
                   {gap.minutes} {tc('minutes')}
                 </span>
               </span>

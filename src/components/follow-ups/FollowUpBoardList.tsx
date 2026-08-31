@@ -72,7 +72,7 @@ export async function FollowUpBoardList({
                 <Link
                   href={`/follow-ups/${item.id}`}
                   className={cn(
-                    'text-[1.05rem] font-bold text-ink',
+                    'text-body font-bold text-ink',
                     done && 'text-ink-soft line-through',
                   )}
                 >
@@ -83,7 +83,7 @@ export async function FollowUpBoardList({
                 ) : null}
                 {item._count.attachments > 0 ? (
                   <span
-                    className="inline-flex items-center gap-1 text-[0.85rem] font-semibold text-ink-faint tabular-nums"
+                    className="inline-flex items-center gap-1 text-meta font-semibold text-ink-faint tabular-nums"
                     title={t('attachmentCount', { count: item._count.attachments })}
                   >
                     <Paperclip size={13} aria-hidden />
@@ -92,7 +92,7 @@ export async function FollowUpBoardList({
                 ) : null}
               </p>
 
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.9rem] text-ink-soft">
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta text-ink-soft">
                 <span
                   className={cn(
                     'font-semibold tabular-nums',
@@ -140,7 +140,7 @@ export async function FollowUpBoardList({
               </p>
 
               {item.notes ? (
-                <p className="mt-1.5 text-[0.92rem] text-ink-faint">{excerpt(item.notes, 200)}</p>
+                <p className="mt-1.5 text-meta text-ink-faint">{excerpt(item.notes, 200)}</p>
               ) : null}
 
               {/* Snooze only on what is still open — pushing a closed line back
@@ -148,7 +148,7 @@ export async function FollowUpBoardList({
                   reopens what it touches. */}
               {canEdit && !done ? (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[0.82rem] font-semibold text-ink-faint">
+                  <span className="text-caption font-semibold text-ink-faint">
                     {t('snooze')}
                   </span>
                   {SNOOZE_DAYS.map((days) => (

@@ -50,19 +50,19 @@ export function NewTemplateForm({
              the record, so it is what the preview is mostly made of. */
           <FormPreview title={t('previewTitle')}>
             <p className="flex flex-wrap items-center gap-2">
-              <span className="text-[1.08rem] font-bold text-ink">
+              <span className="text-lead font-bold text-ink">
                 {preview.name.trim() || <span className="text-ink-faint">{t('newTemplate')}</span>}
               </span>
               {preview.category.trim() ? <Badge>{preview.category.trim()}</Badge> : null}
             </p>
 
             {preview.linked > 0 ? (
-              <p className="mt-1 text-[0.92rem] text-ink-soft">
+              <p className="mt-1 text-meta text-ink-soft">
                 {t('afterTreatmentCount', { count: preview.linked })}
               </p>
             ) : null}
 
-            <p className="mt-2 text-[0.95rem] whitespace-pre-line text-ink-soft">
+            <p className="mt-2 text-body whitespace-pre-line text-ink-soft">
               {preview.body.trim() || (
                 <span className="text-ink-faint">{t('templateBodyHint')}</span>
               )}

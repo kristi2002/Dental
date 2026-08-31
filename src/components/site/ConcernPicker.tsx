@@ -156,13 +156,13 @@ export function ConcernPicker() {
   return (
     <section
       id="concerns"
-      className="relative scroll-mt-20 overflow-clip px-5 py-16 sm:px-8 sm:py-20"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band-aside sm:px-8"
     >
       <div className="relative mx-auto w-full max-w-6xl">
         <Reveal>
           <SectionEyebrow className="text-gilt-deep">{t('concerns.eyebrow')}</SectionEyebrow>
           <h2 className="type-section mt-5 max-w-[18ch] text-bone-ink">{t('concerns.title')}</h2>
-          <p className="mt-4 max-w-[46ch] text-[1.02rem] text-pretty text-bone-ink-soft">
+          <p className="mt-4 max-w-[46ch] text-body text-pretty text-bone-ink-soft">
             {t('concerns.hint')}
           </p>
         </Reveal>
@@ -200,7 +200,7 @@ export function ConcernPicker() {
                   onKeyDown={(event) => onKeyDown(event, index)}
                   className={cn(
                     'inline-flex min-h-11 shrink-0 items-center gap-3 rounded-full border px-4',
-                    'text-[0.92rem] font-semibold whitespace-nowrap transition-colors',
+                    'text-meta font-semibold whitespace-nowrap transition-colors',
                     'lg:min-h-13 lg:w-full lg:shrink lg:rounded-xl lg:px-4 lg:text-left lg:whitespace-normal',
                     active
                       ? 'border-navy bg-navy text-bone lg:shadow-lift'
@@ -302,7 +302,7 @@ export function ConcernPicker() {
                       className="absolute inset-0 h-full w-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-navy from-8% via-navy/55 via-45% to-transparent to-80%" />
-                    <p className="absolute inset-x-0 bottom-0 p-4 text-[0.86rem] font-bold text-white">
+                    <p className="absolute inset-x-0 bottom-0 p-4 text-meta font-bold text-white">
                       {t(`topics.${key}`)}
                     </p>
                   </li>
@@ -315,11 +315,11 @@ export function ConcernPicker() {
                   two or three lines; on a five-line paragraph the browser stops
                   applying it altogether above its line cap, and where it does
                   apply it narrows the measure for no gain. */}
-              <p className="max-w-[52ch] text-[1.06rem] leading-relaxed text-pretty text-bone-ink">
+              <p className="max-w-[52ch] text-body leading-relaxed text-pretty text-bone-ink">
                 {t(`concerns.${concern.key}.body`)}
               </p>
 
-              <p className="mt-5 text-[0.95rem] text-bone-ink-soft">
+              <p className="mt-5 text-body text-bone-ink-soft">
                 <span className="font-semibold text-bone-ink">{t('concerns.usually')}</span>{' '}
                 {/* Rendered from the treatment names the rest of the page already
                   uses, so a concern can never name a treatment this practice has
@@ -349,7 +349,7 @@ export function ConcernPicker() {
                 <Link
                   href="/book"
                   onClick={() => setTopic(concern.topic)}
-                  className="cta-fill group inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-[0.98rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone"
+                  className="cta-fill group inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-body font-bold text-navy no-underline hover:text-bone focus-visible:text-bone"
                 >
                   <CalendarCheck size={18} aria-hidden />
                   {t('concerns.ask')}
@@ -361,7 +361,7 @@ export function ConcernPicker() {
                     the grid could only label. */}
                 <Link
                   href="/treatments"
-                  className="group inline-flex min-h-13 items-center gap-2 rounded-full border border-bone-deep px-6 text-[0.98rem] font-semibold text-bone-ink no-underline transition-colors hover:border-gilt hover:bg-gilt-soft"
+                  className="group inline-flex min-h-13 items-center gap-2 rounded-full border border-bone-deep px-6 text-body font-semibold text-bone-ink no-underline transition-colors hover:border-gilt hover:bg-gilt-soft"
                 >
                   {t('concerns.see')}
                   <ArrowRight

@@ -78,14 +78,14 @@ export default async function SuppliersPage({
               className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4"
             >
               <div className="min-w-0">
-                <p className="text-[1.05rem] font-bold text-ink">{supplier.name}</p>
-                <p className="text-[0.92rem] text-ink-soft">
+                <p className="text-body font-bold text-ink">{supplier.name}</p>
+                <p className="text-meta text-ink-soft">
                   {[supplier.phone, supplier.email].filter(Boolean).join(' · ') || t('noContact')}
                   {' · '}
                   {t('itemCount', { count: supplier._count.items })}
                 </p>
                 {supplier.notes ? (
-                  <p className="mt-1 text-[0.92rem] whitespace-pre-line text-ink-soft">
+                  <p className="mt-1 text-meta whitespace-pre-line text-ink-soft">
                     {supplier.notes}
                   </p>
                 ) : null}

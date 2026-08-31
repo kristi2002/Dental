@@ -53,7 +53,7 @@ export function PinPad({
             key={digit}
             type="button"
             onClick={() => press(digit)}
-            className="rounded-[var(--radius-card)] border border-line-strong bg-surface py-4 text-[1.6rem] font-bold text-ink transition-colors hover:border-brand hover:bg-brand-soft"
+            className="rounded-[var(--radius-card)] border border-line-strong bg-surface py-4 text-figure font-bold text-ink transition-colors hover:border-brand hover:bg-brand-soft"
           >
             {digit}
           </button>
@@ -63,14 +63,14 @@ export function PinPad({
           type="button"
           onClick={() => onChange('')}
           disabled={pin.length === 0}
-          className="rounded-[var(--radius-card)] border border-line-strong bg-surface py-4 text-[0.95rem] font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink disabled:opacity-40"
+          className="rounded-[var(--radius-card)] border border-line-strong bg-surface py-4 text-body font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink disabled:opacity-40"
         >
           {t('clear')}
         </button>
         <button
           type="button"
           onClick={() => press('0')}
-          className="rounded-[var(--radius-card)] border border-line-strong bg-surface py-4 text-[1.6rem] font-bold text-ink transition-colors hover:border-brand hover:bg-brand-soft"
+          className="rounded-[var(--radius-card)] border border-line-strong bg-surface py-4 text-figure font-bold text-ink transition-colors hover:border-brand hover:bg-brand-soft"
         >
           0
         </button>

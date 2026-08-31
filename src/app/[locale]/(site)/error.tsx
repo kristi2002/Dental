@@ -49,7 +49,7 @@ export default function SiteError({
       <h1 className="font-display text-[2.1rem] leading-tight text-ink sm:text-[2.6rem]">
         {t('broke.title')}
       </h1>
-      <p className="mt-4 text-[1.1rem] leading-relaxed text-ink-soft">{t('broke.lede')}</p>
+      <p className="mt-4 text-lead leading-relaxed text-ink-soft">{t('broke.lede')}</p>
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         <button type="button" onClick={reset} className="btn btn-primary btn-lg">
@@ -62,7 +62,7 @@ export default function SiteError({
       </div>
 
       {href ? (
-        <p className="mt-10 text-[1.05rem] text-ink-soft">
+        <p className="mt-10 text-body text-ink-soft">
           {t('broke.callInstead')}{' '}
           <a href={href} className="font-bold text-ink">
             <Phone size={17} aria-hidden className="mr-1 inline align-[-2px]" />

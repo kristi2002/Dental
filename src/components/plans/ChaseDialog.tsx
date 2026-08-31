@@ -59,7 +59,7 @@ export function ChaseDialog({
     >
       <input type="hidden" name="id" value={planId} />
 
-      <p className="text-[0.95rem] text-ink-soft">{t('chaseHint')}</p>
+      <p className="text-body text-ink-soft">{t('chaseHint')}</p>
 
       <fieldset>
         <legend className="field-label">{t('chaseWhen')}</legend>
@@ -74,8 +74,8 @@ export function ChaseDialog({
                 onClick={() => setDay(value)}
                 className={
                   day === value
-                    ? 'rounded-full border border-brand-dark bg-brand-dark px-3 py-1.5 text-[0.9rem] font-semibold text-white'
-                    : 'rounded-full border border-line-strong bg-surface px-3 py-1.5 text-[0.9rem] font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep'
+                    ? 'rounded-full border border-brand-dark bg-brand-dark px-3 py-1.5 text-meta font-semibold text-white'
+                    : 'rounded-full border border-line-strong bg-surface px-3 py-1.5 text-meta font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep'
                 }
               >
                 {t('chaseInWeeks', { weeks })}
@@ -88,8 +88,8 @@ export function ChaseDialog({
             onClick={() => setDay('')}
             className={
               day === ''
-                ? 'rounded-full border border-brand-dark bg-brand-dark px-3 py-1.5 text-[0.9rem] font-semibold text-white'
-                : 'rounded-full border border-line-strong bg-surface px-3 py-1.5 text-[0.9rem] font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep'
+                ? 'rounded-full border border-brand-dark bg-brand-dark px-3 py-1.5 text-meta font-semibold text-white'
+                : 'rounded-full border border-line-strong bg-surface px-3 py-1.5 text-meta font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep'
             }
           >
             {t('chaseNoDate')}

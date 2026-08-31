@@ -1703,6 +1703,16 @@
     "confirmNewPin": "Ripeti il nuovo PIN",
     "pinChanged": "Il tuo PIN è stato cambiato."
   },
+  "appearance": {
+    "title": "Aspetto",
+    "theme": "Tema",
+    "light": "Chiaro",
+    "system": "Di sistema",
+    "dark": "Scuro",
+    "density": "Densità",
+    "comfortable": "Comoda",
+    "compact": "Compatta"
+  },
   "staff": {
     "title": "Personale e ruoli",
     "subtitle": "Chi lavora qui e cosa può fare ciascuno",

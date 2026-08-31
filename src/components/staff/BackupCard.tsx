@@ -23,14 +23,14 @@ export function BackupCard() {
       <CardHeader title={t('title')} icon={<ShieldCheck size={22} aria-hidden />} />
 
       <form action="/api/backup" method="post" className="space-y-4 p-5">
-        <p className="text-[1.02rem] text-ink-soft">{t('description')}</p>
+        <p className="text-body text-ink-soft">{t('description')}</p>
 
         <div className="max-w-md">
           <label className="field-label" htmlFor={`${uid}-passphrase`}>
             {t('passphrase')}
             <span className="ml-1.5 font-normal text-ink-faint">({tc('optional')})</span>
           </label>
-          <p className="mb-1.5 text-[0.9rem] text-ink-soft">{t('passphraseHint')}</p>
+          <p className="mb-1.5 text-meta text-ink-soft">{t('passphraseHint')}</p>
           <input
             id={`${uid}-passphrase`}
             name="passphrase"
@@ -40,7 +40,7 @@ export function BackupCard() {
           />
         </div>
 
-        <p className="rounded-lg border border-warn bg-warn-soft px-3 py-2.5 text-[0.95rem] font-semibold text-warn">
+        <p className="rounded-lg border border-warn bg-warn-soft px-3 py-2.5 text-body font-semibold text-warn">
           {t('warning')}
         </p>
 

@@ -74,7 +74,7 @@ export async function Aftercare() {
       id="aftercare"
       // `clip` and never `hidden`, as everywhere on this storefront — see the
       // note under `.drift` in globals.css.
-      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band sm:px-8"
     >
       {/* Latin, untranslated, one per section — the going home. */}
       <GhostWord className="-right-[5vw] top-8 text-navy/[0.045]">Reditus</GhostWord>
@@ -87,7 +87,7 @@ export async function Aftercare() {
             {t('aftercare.title')}
           </h2>
 
-          <p className="mt-5 max-w-[58ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-5 max-w-[58ch] text-body leading-relaxed text-bone-ink-soft">
             {t('aftercare.lede')}
           </p>
         </Reveal>
@@ -107,10 +107,10 @@ export async function Aftercare() {
                 <point.icon size={20} />
               </span>
 
-              <h3 className="mt-5 text-[1.14rem] font-bold text-bone-ink">
+              <h3 className="mt-5 text-lead font-bold text-bone-ink">
                 {t(`aftercare.${point.key}.title`)}
               </h3>
-              <p className="mt-2.5 text-[1rem] leading-relaxed text-bone-ink-soft">
+              <p className="mt-2.5 text-body leading-relaxed text-bone-ink-soft">
                 {t(`aftercare.${point.key}.body`)}
               </p>
             </Reveal>
@@ -126,12 +126,12 @@ export async function Aftercare() {
          */}
         {guaranteed.length > 0 ? (
           <Reveal step={2} className="mt-11 border-t border-bone-deep pt-8">
-            <h3 className="flex items-center gap-2.5 text-[1.14rem] font-bold text-bone-ink">
+            <h3 className="flex items-center gap-2.5 text-lead font-bold text-bone-ink">
               <ShieldCheck size={20} aria-hidden className="shrink-0 text-gilt-deep" />
               {t('aftercare.guaranteeTitle')}
             </h3>
 
-            <p className="mt-2.5 max-w-[58ch] text-[1rem] leading-relaxed text-bone-ink-soft">
+            <p className="mt-2.5 max-w-[58ch] text-body leading-relaxed text-bone-ink-soft">
               {t('aftercare.guaranteeLede')}
             </p>
 
@@ -141,10 +141,10 @@ export async function Aftercare() {
                   key={key}
                   className="flex items-baseline justify-between gap-4 border-b border-bone-deep pb-3"
                 >
-                  <span className="text-[1rem] font-semibold text-bone-ink">
+                  <span className="text-body font-semibold text-bone-ink">
                     {t(`treatments.${key}.title`)}
                   </span>
-                  <span className="shrink-0 text-[1rem] text-bone-ink-soft tabular-nums">
+                  <span className="shrink-0 text-body text-bone-ink-soft tabular-nums">
                     {t('aftercare.years', { count: TREATMENT_GUARANTEES[key]!.years })}
                   </span>
                 </li>
@@ -154,7 +154,7 @@ export async function Aftercare() {
             {/* The date, for the reason the price line carries one: a term with
                 nothing saying when it was last confirmed is a term nobody can
                 rely on. `hasGuarantees` has already established it is set. */}
-            <p className="mt-6 text-[0.88rem] text-bone-ink-faint">
+            <p className="mt-6 text-meta text-bone-ink-faint">
               {t('aftercare.guaranteeReviewed', { date: GUARANTEES_REVIEWED! })}
             </p>
           </Reveal>

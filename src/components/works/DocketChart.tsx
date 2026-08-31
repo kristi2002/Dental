@@ -48,7 +48,7 @@ export function DocketChart({
           chart is drawn from the patient's point of view, so the teeth on the
           left of the page are the ones on their right, and every dentist has
           been caught out by that at least once. */}
-      <th scope="row" className="w-7 pr-1.5 text-right text-[0.72rem] font-bold text-ink-faint">
+      <th scope="row" className="w-7 pr-1.5 text-right text-micro font-bold text-ink-faint">
         <span aria-hidden>R</span>
         <span className="sr-only">
           {labels.right} — {arch}
@@ -63,7 +63,7 @@ export function DocketChart({
           <td
             key={toothNum}
             className={cn(
-              'h-8 border border-line-strong text-center text-[0.95rem] tabular-nums',
+              'h-8 border border-line-strong text-center text-body tabular-nums',
               // The midline, heavier than the cell borders. Without it the two
               // quadrants read as one run of sixteen and `5` stops meaning a
               // particular tooth — the same reason `spanQuadrants` exists.
@@ -83,7 +83,7 @@ export function DocketChart({
 
       {/* The mirror margin. Purely the printed pad's own furniture — the row
           already announced itself through the header cell above. */}
-      <td aria-hidden className="w-7 pl-1.5 text-left text-[0.72rem] font-bold text-ink-faint">
+      <td aria-hidden className="w-7 pl-1.5 text-left text-micro font-bold text-ink-faint">
         L
       </td>
     </tr>

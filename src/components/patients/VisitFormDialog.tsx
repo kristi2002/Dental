@@ -164,7 +164,7 @@ export function VisitFormDialog({
           <div className="mt-2.5 space-y-3">
             {byDepartment(catalog).map(({ department, items }) => (
               <div key={department || 'none'}>
-                <p className="mb-1.5 text-[0.8rem] font-bold tracking-wide text-ink-faint uppercase">
+                <p className="mb-1.5 text-caption font-bold tracking-wide text-ink-faint uppercase">
                   {department || ts('uncategorized')}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -177,7 +177,7 @@ export function VisitFormDialog({
                         aria-pressed={active}
                         onClick={() => toggleService(service.name)}
                         className={cn(
-                          'rounded-full border px-3 py-1.5 text-[0.9rem] font-semibold transition-colors',
+                          'rounded-full border px-3 py-1.5 text-meta font-semibold transition-colors',
                           active
                             ? 'border-brand-dark bg-brand-dark text-white'
                             : 'border-line-strong bg-surface text-ink-soft hover:border-ink hover:text-ink',
@@ -266,7 +266,7 @@ export function VisitFormDialog({
                   written up is the important half of this form, and refusing to
                   record a treatment because the follow-up slot was busy would
                   lose the wrong thing. See `saveVisit`. */}
-              <p className="text-[0.9rem] text-ink-soft">{t('bookFollowUpHint')}</p>
+              <p className="text-meta text-ink-soft">{t('bookFollowUpHint')}</p>
             </div>
           ) : null}
         </div>

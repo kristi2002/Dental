@@ -107,7 +107,7 @@ export default async function StockLabelPage({
           }
         />
 
-        <p className="mb-4 flex items-center gap-2 text-[1.05rem] text-ink-soft">
+        <p className="mb-4 flex items-center gap-2 text-body text-ink-soft">
           <Boxes size={20} aria-hidden />
           {t('moveWhichVariant')}
         </p>
@@ -146,17 +146,17 @@ export default async function StockLabelPage({
                     />
 
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[1.15rem] font-bold text-ink">
+                      <span className="block text-lead font-bold text-ink">
                         {item.variantName ?? item.name}
                       </span>
-                      <span className="mt-0.5 block text-[0.95rem] text-ink-soft">
+                      <span className="mt-0.5 block text-body text-ink-soft">
                         {t('inStock', { qty: item.quantity })}
                       </span>
                     </span>
 
                     <span
                       className={cn(
-                        'text-[1.75rem] leading-none font-bold tabular-nums',
+                        'text-figure leading-none font-bold tabular-nums',
                         isOut ? 'text-danger' : isLow ? 'text-warn' : 'text-ink',
                       )}
                     >
@@ -230,8 +230,8 @@ export default async function StockLabelPage({
           />
 
           <div className="min-w-40 flex-1">
-            <p className="text-[1.25rem] font-bold text-ink">{item.name}</p>
-            <p className="mt-1 text-[0.95rem] text-ink-soft">
+            <p className="text-title font-bold text-ink">{item.name}</p>
+            <p className="mt-1 text-body text-ink-soft">
               {item.category?.name || t('uncategorized')}
               {item.supplier ? ` · ${item.supplier.name}` : ''}
               {item.code ? ` · #${item.code}` : ''}
@@ -261,7 +261,7 @@ export default async function StockLabelPage({
             >
               {item.quantity}
             </span>
-            <span className="text-[0.95rem] font-semibold text-ink-soft">
+            <span className="text-body font-semibold text-ink-soft">
               {t('boxes', { count: item.quantity })}
             </span>
           </div>

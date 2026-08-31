@@ -45,13 +45,13 @@ export function NewStaffForm() {
             <div className="flex items-center gap-3">
               <span
                 aria-hidden
-                className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-[1.05rem] font-bold text-brand-deep"
+                className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-body font-bold text-brand-deep"
               >
                 {initials(preview.firstName, preview.lastName) || '—'}
               </span>
 
               <div className="min-w-0">
-                <p className="truncate text-[1.12rem] font-bold text-ink">
+                <p className="truncate text-lead font-bold text-ink">
                   {`${preview.firstName} ${preview.lastName}`.trim() || (
                     <span className="text-ink-faint">{t('new')}</span>
                   )}

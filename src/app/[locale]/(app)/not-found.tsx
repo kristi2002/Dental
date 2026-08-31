@@ -7,7 +7,7 @@ export default function LocaleNotFound() {
   return (
     <div className="card mx-auto max-w-lg p-8 text-center">
       <h1 className="text-3xl font-bold text-ink">{t('notFound')}</h1>
-      <p className="mt-2 text-[1.05rem] text-ink-soft">{t('notFoundText')}</p>
+      <p className="mt-2 text-body text-ink-soft">{t('notFoundText')}</p>
       <Link href="/dashboard" className="btn btn-primary mt-6">
         {t('backHome')}
       </Link>

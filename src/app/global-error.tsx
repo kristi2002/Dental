@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { ClinicLogo } from '@/components/brand/ClinicLogo';
-import { poppins } from './fonts';
+import { bodyFont } from './fonts';
 import { routing } from '@/i18n/routing';
 import './globals.css';
 
@@ -32,7 +32,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang={routing.defaultLocale} className={poppins.variable}>
+    <html lang={routing.defaultLocale} className={bodyFont.variable}>
       <body>
         <div className="flex min-h-screen items-center justify-center p-8">
           <div className="card max-w-lg p-8 text-center">
@@ -41,10 +41,10 @@ export default function GlobalError({
                 file the server can still hand over is exactly the right thing
                 to be recognised by. */}
             <ClinicLogo variant="brand" alt="" className="mx-auto mb-6 h-14 w-auto max-w-full" />
-            <p className="mt-2 text-[1.05rem] text-ink-soft">
+            <p className="mt-2 text-body text-ink-soft">
               Diçka shkoi keq · Something went wrong · Qualcosa è andato storto
             </p>
-            <p className="mt-2 text-[1.05rem] text-ink-soft">
+            <p className="mt-2 text-body text-ink-soft">
               Asgjë nuk humbi · Nothing was lost · Nulla è andato perso
             </p>
             <button type="button" onClick={reset} className="btn btn-primary mt-6">

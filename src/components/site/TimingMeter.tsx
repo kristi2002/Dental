@@ -102,7 +102,7 @@ export async function TimingMeter({
                 dark ? 'text-navy-ink' : 'text-bone-ink-soft',
               )}
             >
-              <dt className="flex items-center gap-2 text-[0.85rem] font-semibold tracking-[0.08em] uppercase">
+              <dt className="flex items-center gap-2 text-meta font-semibold tracking-[0.08em] uppercase">
                 <span className={dark ? 'text-gilt' : 'text-gilt-deep'}>{row.icon}</span>
                 {row.label}
               </dt>
@@ -125,7 +125,7 @@ export async function TimingMeter({
                */}
               <dd
                 className={cn(
-                  'text-[1.2rem] font-bold tabular-nums',
+                  'text-title font-bold tabular-nums',
                   dark ? 'text-white' : 'text-bone-ink',
                 )}
               >
@@ -148,7 +148,7 @@ export async function TimingMeter({
       {timing.months[1] > 0 ? (
         <p
           className={cn(
-            'mt-5 flex items-start gap-2 text-[0.94rem] leading-relaxed',
+            'mt-5 flex items-start gap-2 text-body leading-relaxed',
             dark ? 'text-navy-ink' : 'text-bone-ink-soft',
           )}
         >

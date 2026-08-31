@@ -48,7 +48,7 @@ export async function FollowUpAttachments({
       </div>
 
       {attachments.length === 0 ? (
-        <p className="text-[0.95rem] text-ink-soft">{t('attachmentsEmpty')}</p>
+        <p className="text-body text-ink-soft">{t('attachmentsEmpty')}</p>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {attachments.map((file) => {
@@ -88,7 +88,7 @@ export async function FollowUpAttachments({
                     <p className="truncate font-semibold text-ink" title={file.fileName}>
                       {file.fileName}
                     </p>
-                    <p className="text-[0.85rem] text-ink-faint">
+                    <p className="text-meta text-ink-faint">
                       {formatBytes(file.sizeBytes)}
                       <span aria-hidden> · </span>
                       {format.dateTime(file.createdAt, { day: 'numeric', month: 'short' })}

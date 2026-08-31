@@ -91,7 +91,7 @@ export function MaterialSuggestions({
         <Package size={18} aria-hidden />
         {t('usedHere')}
       </p>
-      <p className="mt-0.5 text-[0.9rem] text-ink-soft">{t('usedHereHint')}</p>
+      <p className="mt-0.5 text-meta text-ink-soft">{t('usedHereHint')}</p>
 
       <ul className="mt-3 space-y-2">
         {suggestions.map((item) => {
@@ -109,7 +109,7 @@ export function MaterialSuggestions({
                 aria-pressed={on}
                 onClick={() => toggle(item)}
                 className={cn(
-                  'rounded-full border px-3 py-1.5 text-[0.9rem] font-semibold transition-colors',
+                  'rounded-full border px-3 py-1.5 text-meta font-semibold transition-colors',
                   on
                     ? 'border-brand-dark bg-brand-dark text-white'
                     : 'border-line-strong bg-surface text-ink-soft hover:border-ink hover:text-ink',
@@ -133,18 +133,18 @@ export function MaterialSuggestions({
                     }
                     className="field-input w-20 tabular-nums"
                   />
-                  <span className="text-[0.9rem] text-ink-soft">
+                  <span className="text-meta text-ink-soft">
                     {t('boxes', { count: quantity })} · {t('inStock', { qty: item.onHand })}
                   </span>
                   {short ? (
-                    <span className="flex items-center gap-1 text-[0.88rem] font-semibold text-warn">
+                    <span className="flex items-center gap-1 text-meta font-semibold text-warn">
                       <TriangleAlert size={15} aria-hidden />
                       {t('moreThanOnHand')}
                     </span>
                   ) : null}
                 </>
               ) : (
-                <span className="text-[0.88rem] text-ink-faint">
+                <span className="text-meta text-ink-faint">
                   {t('usedInVisits', { count: item.visits })}
                 </span>
               )}

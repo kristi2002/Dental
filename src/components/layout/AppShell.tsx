@@ -312,7 +312,7 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
         </div>
 
         <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
+          <div className="app-measure">{children}</div>
         </main>
 
         <footer className="border-t border-line bg-surface">
@@ -320,7 +320,7 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
               teal and scrolls away with nothing, while this one closes the page
               the way the letterhead opens the paper. Decorative: the practice's
               name is written right beside it. */}
-          <div className="mx-auto flex w-full max-w-6xl items-center gap-2.5 px-4 py-4 text-[0.9rem] text-ink-soft sm:px-8">
+          <div className="mx-auto flex w-full max-w-6xl items-center gap-2.5 px-4 py-4 text-meta text-ink-soft sm:px-8">
             <ClinicMark variant="brand" alt="" className="h-5 w-auto shrink-0 opacity-80" />
             <span className="min-w-0 truncate">
               {clinicName} · {t('tagline')}

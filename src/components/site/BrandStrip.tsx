@@ -71,7 +71,7 @@ export async function BrandStrip() {
               key={`${phrase}-${index}`}
               className="flex shrink-0 items-center gap-6 pr-6 sm:gap-9 sm:pr-9"
             >
-              <span className="font-display text-[1.35rem] whitespace-nowrap text-bone-ink sm:text-[1.7rem]">
+              <span className="font-display text-title whitespace-nowrap text-bone-ink sm:text-figure">
                 {phrase}
               </span>
               {/* The mark as the separator rather than a bullet — the one place

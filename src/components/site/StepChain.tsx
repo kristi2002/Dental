@@ -112,7 +112,7 @@ export async function StepChain({
         <div className="absolute inset-0 grid grid-cols-3 gap-5">
           {TREATMENT_STEPS.map((step, index) => (
             <div key={step} className="relative flex justify-center">
-              <span className="absolute bottom-0 flex h-14 w-14 translate-y-1/2 items-center justify-center rounded-full border border-gilt/55 bg-bone font-display text-[1.16rem] text-gilt-deep shadow-lift">
+              <span className="absolute bottom-0 flex h-14 w-14 translate-y-1/2 items-center justify-center rounded-full border border-gilt/55 bg-bone font-display text-lead text-gilt-deep shadow-lift">
                 {String(index + 1).padStart(2, '0')}
               </span>
             </div>
@@ -146,7 +146,7 @@ export async function StepChain({
              */}
             <span
               aria-hidden
-              className="absolute top-7 -left-8 z-10 flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-full border border-gilt/55 bg-bone font-display text-[0.98rem] text-gilt-deep shadow-lift sm:-left-9 sm:h-12 sm:w-12 lg:hidden"
+              className="absolute top-7 -left-8 z-10 flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-full border border-gilt/55 bg-bone font-display text-body text-gilt-deep shadow-lift sm:-left-9 sm:h-12 sm:w-12 lg:hidden"
             >
               {String(index + 1).padStart(2, '0')}
             </span>
@@ -181,7 +181,7 @@ export async function StepChain({
               />
 
               <div className="relative px-6 pt-24 pb-7 lg:pt-28">
-                <h3 className="text-[1.12rem] font-bold text-bone-ink">
+                <h3 className="text-lead font-bold text-bone-ink">
                   {t(`pages.treatment.steps.${treatmentKey}.${step}.title`)}
                 </h3>
 
@@ -189,7 +189,7 @@ export async function StepChain({
                     the eyebrow above every section on this site carries. */}
                 <span aria-hidden className="mt-3.5 block h-px w-10 bg-gilt" />
 
-                <p className="mt-3.5 text-[1rem] leading-relaxed text-bone-ink-soft">
+                <p className="mt-3.5 text-body leading-relaxed text-bone-ink-soft">
                   {t(`pages.treatment.steps.${treatmentKey}.${step}.body`)}
                 </p>
               </div>

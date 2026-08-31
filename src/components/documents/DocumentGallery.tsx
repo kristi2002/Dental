@@ -91,7 +91,7 @@ export function DocumentGallery({
                 ) : (
                   <span className="flex flex-col items-center gap-2 text-ink-soft">
                     <FileText size={40} aria-hidden />
-                    <span className="text-[0.9rem] font-semibold">PDF</span>
+                    <span className="text-meta font-semibold">PDF</span>
                   </span>
                 )}
               </a>
@@ -104,14 +104,14 @@ export function DocumentGallery({
                   ) : null}
                 </p>
 
-                <p className="truncate text-[1rem] font-bold text-ink" title={document.fileName}>
+                <p className="truncate text-body font-bold text-ink" title={document.fileName}>
                   {document.fileName}
                 </p>
                 {document.notes ? (
-                  <p className="text-[0.9rem] text-ink-soft">{document.notes}</p>
+                  <p className="text-meta text-ink-soft">{document.notes}</p>
                 ) : null}
 
-                <p className="mt-auto text-[0.85rem] text-ink-faint">
+                <p className="mt-auto text-meta text-ink-faint">
                   {format.dateTime(new Date(document.createdAt), {
                     day: 'numeric',
                     month: 'short',

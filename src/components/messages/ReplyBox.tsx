@@ -115,7 +115,7 @@ export function ReplyBox({
         ) : null}
 
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[0.85rem] text-ink-faint tabular-nums">
+          <span className="text-meta text-ink-faint tabular-nums">
             {body.length} / {MAX_MESSAGE_LENGTH}
           </span>
           <SubmitButton label={t('send')} pendingLabel={t('sending')} />

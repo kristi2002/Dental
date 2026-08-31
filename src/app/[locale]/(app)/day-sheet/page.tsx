@@ -109,7 +109,9 @@ export default async function DaySheetPage({
   });
 
   return (
-    <>
+    // A printed sheet on screen: a wide table and nothing that reads as prose.
+    // See `.app-measure`.
+    <div data-measure="wide">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3" data-print-hide>
         {/* The trail keeps the day and the provider filter in the link back, so
             returning to the diary returns to the day this sheet is of. */}
@@ -127,11 +129,11 @@ export default async function DaySheetPage({
 
       <article className="card p-8 print:border-0 print:p-0 print:shadow-none">
         <header className="mb-5 border-b-2 border-line pb-4">
-          <p className="text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+          <p className="text-meta font-bold tracking-wide text-ink-faint uppercase">
             {profile.name || 'Shehu Dental'}
           </p>
           <h1 className="text-2xl font-bold text-ink">{heading}</h1>
-          <p className="mt-1 text-[1rem] text-ink-soft tabular-nums">
+          <p className="mt-1 text-body text-ink-soft tabular-nums">
             {schedule.closed
               ? (schedule.closureReason ?? ta('closedDay'))
               : describeRanges(schedule.ranges)}
@@ -143,21 +145,21 @@ export default async function DaySheetPage({
         </header>
 
         {ordered.length === 0 ? (
-          <p className="py-8 text-center text-[1.05rem] text-ink-soft">{ta('emptyDay')}</p>
+          <p className="py-8 text-center text-body text-ink-soft">{ta('emptyDay')}</p>
         ) : (
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-line">
-                <th className="py-2 pr-3 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                <th className="py-2 pr-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                   {t('time')}
                 </th>
-                <th className="py-2 pr-3 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                <th className="py-2 pr-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                   {t('patient')}
                 </th>
-                <th className="py-2 pr-3 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                <th className="py-2 pr-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                   {t('treatment')}
                 </th>
-                <th className="py-2 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                <th className="py-2 text-meta font-bold tracking-wide text-ink-faint uppercase">
                   {t('done')}
                 </th>
               </tr>
@@ -172,16 +174,16 @@ export default async function DaySheetPage({
                   <tr key={appointment.id} className="border-b border-line align-top">
                     <td className="py-3 pr-3 font-bold tabular-nums whitespace-nowrap">
                       {appointment.startTime}
-                      <span className="block text-[0.85rem] font-normal text-ink-soft">
+                      <span className="block text-meta font-normal text-ink-soft">
                         {end}
                       </span>
                     </td>
 
                     <td className="py-3 pr-3">
-                      <span className="text-[1.05rem] font-bold text-ink">
+                      <span className="text-body font-bold text-ink">
                         {appointment.patient.lastName} {appointment.patient.firstName}
                       </span>
-                      <span className="block text-[0.9rem] text-ink-soft tabular-nums">
+                      <span className="block text-meta text-ink-soft tabular-nums">
                         {appointment.patient.phone}
                         {appointment.confirmedAt ? ` · ${ta('confirmed')}` : ''}
                       </span>
@@ -202,10 +204,10 @@ export default async function DaySheetPage({
                       ) : null}
                     </td>
 
-                    <td className="py-3 pr-3 text-[0.98rem] text-ink-soft">
+                    <td className="py-3 pr-3 text-body text-ink-soft">
                       {appointment.serviceName || '—'}
                       {appointment.staffUser || appointment.operatory ? (
-                        <span className="block text-[0.88rem] text-ink-faint">
+                        <span className="block text-meta text-ink-faint">
                           {[
                             appointment.staffUser
                               ? `${appointment.staffUser.firstName} ${appointment.staffUser.lastName}`
@@ -217,7 +219,7 @@ export default async function DaySheetPage({
                         </span>
                       ) : null}
                       {appointment.notes ? (
-                        <span className="block text-[0.88rem] text-ink-faint">
+                        <span className="block text-meta text-ink-faint">
                           {appointment.notes}
                         </span>
                       ) : null}
@@ -242,10 +244,10 @@ export default async function DaySheetPage({
             be read as a line to tick off. */}
         {freeGaps.length > 0 ? (
           <footer className="mt-5 border-t-2 border-line pt-3">
-            <p className="text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+            <p className="text-meta font-bold tracking-wide text-ink-faint uppercase">
               {t('freeTitle')}
             </p>
-            <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[1rem] font-semibold text-ink tabular-nums">
+            <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-body font-semibold text-ink tabular-nums">
               {freeGaps.map((gap) => (
                 <span key={gap.startTime}>
                   {gap.startTime}–{gap.endTime}
@@ -258,6 +260,6 @@ export default async function DaySheetPage({
           </footer>
         ) : null}
       </article>
-    </>
+    </div>
   );
 }

@@ -127,8 +127,8 @@ export default async function RequestsPage({
               <li key={request.id} className="card p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-[1.2rem] font-bold text-ink">{request.name}</h2>
-                    <p className="mt-0.5 text-[0.92rem] text-ink-faint">
+                    <h2 className="text-title font-bold text-ink">{request.name}</h2>
+                    <p className="mt-0.5 text-meta text-ink-faint">
                       {format.dateTime(request.createdAt, {
                         dateStyle: 'medium',
                         timeStyle: 'short',
@@ -199,7 +199,7 @@ export default async function RequestsPage({
                  * comes to believe the appointment already exists.
                  */}
                 {request.preferredDate ? (
-                  <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[1rem] text-ink-soft">
+                  <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-ink-soft">
                     <CalendarClock size={17} aria-hidden className="shrink-0 text-brand-dark" />
                     <span className="font-semibold text-ink">{t('preferredDay')}</span>
                     <span className="font-semibold text-ink first-letter:uppercase">
@@ -215,7 +215,7 @@ export default async function RequestsPage({
                 ) : null}
 
                 {request.message ? (
-                  <p className="mt-4 rounded-lg bg-paper px-4 py-3 text-[1rem] whitespace-pre-line text-ink">
+                  <p className="mt-4 rounded-lg bg-paper px-4 py-3 text-body whitespace-pre-line text-ink">
                     {request.message}
                   </p>
                 ) : null}
@@ -271,7 +271,7 @@ export default async function RequestsPage({
                   </Link>
 
                   {request.handledBy && request.handledAt ? (
-                    <p className="ml-auto text-[0.9rem] text-ink-faint">
+                    <p className="ml-auto text-meta text-ink-faint">
                       {t('handledBy', {
                         name: `${request.handledBy.firstName} ${request.handledBy.lastName}`,
                       })}
@@ -285,7 +285,7 @@ export default async function RequestsPage({
       )}
 
       {!showAll && waiting === 0 && requests.length > 0 ? (
-        <p className="mt-6 text-[0.95rem] text-ink-soft">{t('allPickedUp')}</p>
+        <p className="mt-6 text-body text-ink-soft">{t('allPickedUp')}</p>
       ) : null}
     </>
   );

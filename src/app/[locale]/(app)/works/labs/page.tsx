@@ -79,7 +79,7 @@ export default async function LabsPage({ params }: { params: Promise<{ locale: s
           with a name and no number, and a number is the whole point — so the gap
           is counted at the top rather than left to be noticed row by row. */}
       {missingPhone > 0 ? (
-        <p className="card mb-6 flex flex-wrap items-center gap-3 border-warn px-5 py-4 text-[1.02rem] font-semibold text-warn">
+        <p className="card mb-6 flex flex-wrap items-center gap-3 border-warn px-5 py-4 text-body font-semibold text-warn">
           <PhoneOff size={20} aria-hidden />
           {t('missingPhone', { count: missingPhone })}
         </p>
@@ -105,7 +105,7 @@ export default async function LabsPage({ params }: { params: Promise<{ locale: s
             >
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2">
-                  <span className="text-[1.08rem] font-bold text-ink">{lab.name}</span>
+                  <span className="text-lead font-bold text-ink">{lab.name}</span>
                   {lab.archivedAt ? <Badge>{t('retired')}</Badge> : null}
                   {/* What the register owes them. The second number is the one
                       that makes retiring a laboratory a decision rather than a
@@ -116,7 +116,7 @@ export default async function LabsPage({ params }: { params: Promise<{ locale: s
                   {lab.lines > 0 ? <Badge>{t('lines', { count: lab.lines })}</Badge> : null}
                 </p>
 
-                <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.95rem]">
+                <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-body">
                   {lab.phone ? (
                     <span className="flex items-center gap-1.5 text-ink-soft">
                       <Phone size={15} aria-hidden />
@@ -146,7 +146,7 @@ export default async function LabsPage({ params }: { params: Promise<{ locale: s
                 </p>
 
                 {lab.notes ? (
-                  <p className="mt-1 text-[0.93rem] whitespace-pre-line text-ink-soft">
+                  <p className="mt-1 text-meta whitespace-pre-line text-ink-soft">
                     {lab.notes}
                   </p>
                 ) : null}

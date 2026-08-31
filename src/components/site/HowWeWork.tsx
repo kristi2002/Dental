@@ -51,7 +51,7 @@ export async function HowWeWork() {
       // `relative` for `Ambience`, whose two layers are absolutely positioned
       // and would otherwise hang themselves off the page rather than off this
       // section.
-      className="seam relative scroll-mt-20 overflow-clip bg-navy px-5 py-20 text-white sm:px-8 sm:py-24"
+      className="seam relative scroll-mt-20 overflow-clip bg-navy px-5 py-band text-white sm:px-8"
     >
       <Ambience />
 
@@ -91,7 +91,7 @@ export async function HowWeWork() {
               and the deep one is 1.4:1. The rule the other way about on cream. */}
           <SectionEyebrow className="text-gilt">{t('how.eyebrow')}</SectionEyebrow>
           <h2 className="type-section mt-5 max-w-[16ch] text-white">{t('how.title')}</h2>
-          <p className="mt-5 max-w-[54ch] text-[1.05rem] leading-relaxed text-navy-ink">
+          <p className="mt-5 max-w-[54ch] text-body leading-relaxed text-navy-ink">
             {t('how.lede')}
           </p>
         </Reveal>
@@ -162,10 +162,10 @@ export async function HowWeWork() {
                  * there is nothing to overflow.
                  */}
                 <div className="glass-card relative m-3 p-5 sm:absolute sm:inset-x-5 sm:bottom-5 sm:m-0 sm:p-6">
-                  <h3 className="text-[1.15rem] font-bold text-white">
+                  <h3 className="text-lead font-bold text-white">
                     {t(`how.${panel.key}.title`)}
                   </h3>
-                  <p className="mt-2 max-w-[46ch] text-[0.99rem] leading-relaxed text-white/85">
+                  <p className="mt-2 max-w-[46ch] text-body leading-relaxed text-white/85">
                     {t(`how.${panel.key}.body`)}
                   </p>
                 </div>
@@ -177,7 +177,7 @@ export async function HowWeWork() {
         {/* The same note the practice section carries, for the same reason: these
             are not photographs of this surgery and the page says so where they
             appear rather than in a footer nobody reads. */}
-        <p className="mt-10 text-[0.88rem] text-navy-ink-soft">{t('how.illustrative')}</p>
+        <p className="mt-10 text-meta text-navy-ink-soft">{t('how.illustrative')}</p>
       </div>
     </section>
   );

@@ -50,7 +50,7 @@ export function ConditionPalette({
   return (
     <div className="rounded-lg border border-line bg-paper px-4 py-3">
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[0.9rem] font-bold text-ink-faint uppercase">{t('paletteTitle')}</p>
+        <p className="text-meta font-bold text-ink-faint uppercase">{t('paletteTitle')}</p>
 
         {/* Undo, because a marking tool without one is a tool people are afraid
             to use quickly — and quickly is the entire point of it. */}
@@ -106,7 +106,7 @@ export function ConditionPalette({
       {/* What the held tool will do, in words. The difference between clicking
           the tooth and clicking a segment of the wheel is the whole grammar of
           the palette, and it is not guessable from the drawing. */}
-      <p className="mt-2.5 text-[0.88rem] leading-snug text-ink-soft" aria-live="polite">
+      <p className="mt-2.5 text-meta leading-snug text-ink-soft" aria-live="polite">
         {tool === null ? t('toolHintRecord') : t('toolHintMark', { tool: t(`status_${tool}`) })}
       </p>
     </div>
@@ -131,7 +131,7 @@ function PaletteButton({
       aria-pressed={selected}
       className={cn(
         'flex w-full flex-col items-center gap-1 rounded-lg border px-1 py-2',
-        'text-center text-[0.82rem] leading-tight font-semibold',
+        'text-center text-caption leading-tight font-semibold',
         selected
           ? 'border-brand bg-brand-soft text-brand-deep ring-2 ring-brand'
           : 'border-line-strong bg-surface text-ink hover:border-ink',

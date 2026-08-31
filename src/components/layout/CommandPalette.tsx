@@ -283,9 +283,9 @@ export function CommandPalette({
         className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-left text-ink-faint transition-colors hover:border-brand hover:text-ink-soft"
       >
         <Search size={18} aria-hidden />
-        <span className="flex-1 truncate text-[0.95rem]">{label}</span>
+        <span className="flex-1 truncate text-body">{label}</span>
         {/* Not shown on a phone, where there is no keyboard to press it with. */}
-        <kbd className="hidden rounded border border-line-strong px-1.5 py-0.5 text-[0.75rem] font-semibold tabular-nums sm:inline">
+        <kbd className="hidden rounded border border-line-strong px-1.5 py-0.5 text-micro font-semibold tabular-nums sm:inline">
           {isMac ? '⌘ K' : 'Ctrl K'}
         </kbd>
       </button>
@@ -321,7 +321,7 @@ export function CommandPalette({
             onKeyDown={onInputKey}
             placeholder={placeholder}
             aria-label={label}
-            className="min-w-0 flex-1 bg-transparent text-[1.05rem] outline-none placeholder:text-ink-faint"
+            className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-ink-faint"
           />
           {pending ? (
             <Loader2 size={18} aria-hidden className="shrink-0 animate-spin text-ink-faint" />
@@ -357,7 +357,7 @@ export function CommandPalette({
             <div key={section.id} role="group" aria-labelledby={`${uid}-${section.id}`}>
               <p
                 id={`${uid}-${section.id}`}
-                className="px-2 pb-1 pt-2 text-[0.8rem] font-bold uppercase tracking-wide text-ink-faint"
+                className="px-2 pb-1 pt-2 text-caption font-bold uppercase tracking-wide text-ink-faint"
               >
                 {section.heading}
               </p>
@@ -387,11 +387,11 @@ export function CommandPalette({
                       <>
                         <User size={17} aria-hidden className="shrink-0 text-ink-faint" />
                         <span className="min-w-0">
-                          <span className="block truncate text-[1rem] font-semibold text-ink">
+                          <span className="block truncate text-body font-semibold text-ink">
                             {row.person.name}
                           </span>
                           {row.person.phone ? (
-                            <span className="block truncate text-[0.88rem] text-ink-soft">
+                            <span className="block truncate text-meta text-ink-soft">
                               {row.person.phone}
                             </span>
                           ) : null}
@@ -404,7 +404,7 @@ export function CommandPalette({
                         ) : (
                           <ArrowRight size={17} aria-hidden className="shrink-0 text-ink-faint" />
                         )}
-                        <span className="min-w-0 truncate text-[1rem] font-semibold text-ink">
+                        <span className="min-w-0 truncate text-body font-semibold text-ink">
                           {row.label}
                         </span>
                       </>
@@ -416,13 +416,13 @@ export function CommandPalette({
           ))}
 
           {text.length < MIN_QUERY ? (
-            <p className="px-2.5 pb-2 pt-3 text-[0.88rem] text-ink-faint">{emptyLabel}</p>
+            <p className="px-2.5 pb-2 pt-3 text-meta text-ink-faint">{emptyLabel}</p>
           ) : null}
         </div>
 
         {/* The keys, where somebody who has never pressed them can read them.
             Not on a phone: there is no keyboard down there to press. */}
-        <div className="hidden items-center gap-4 border-t border-line px-4 py-2 text-[0.78rem] text-ink-faint sm:flex">
+        <div className="hidden items-center gap-4 border-t border-line px-4 py-2 text-caption text-ink-faint sm:flex">
           <span className="flex items-center gap-1.5">
             <Keycap>↑</Keycap>
             <Keycap>↓</Keycap>
@@ -444,7 +444,7 @@ export function CommandPalette({
 
 function Keycap({ children }: { children: ReactNode }) {
   return (
-    <kbd className="rounded border border-line-strong px-1 py-0.5 text-[0.72rem] font-semibold leading-none">
+    <kbd className="rounded border border-line-strong px-1 py-0.5 text-micro font-semibold leading-none">
       {children}
     </kbd>
   );

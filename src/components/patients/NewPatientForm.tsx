@@ -81,17 +81,17 @@ export function NewPatientForm({
             <div className="flex items-start gap-4">
               <span
                 aria-hidden
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-line-strong bg-paper text-[1.05rem] font-bold text-ink-soft"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-line-strong bg-paper text-body font-bold text-ink-soft"
               >
                 {initials(preview.firstName, preview.lastName) || '—'}
               </span>
 
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[1.15rem] font-bold text-ink">
+                <p className="truncate text-lead font-bold text-ink">
                   {fullName || <span className="text-ink-faint">{t('new')}</span>}
                 </p>
 
-                <p className="mt-1 flex items-center gap-1.5 text-[0.95rem] text-ink-soft">
+                <p className="mt-1 flex items-center gap-1.5 text-body text-ink-soft">
                   <Phone size={15} aria-hidden />
                   <span className="truncate">
                     {preview.phone || <span className="text-ink-faint">{t('noPhone')}</span>}
@@ -99,7 +99,7 @@ export function NewPatientForm({
                 </p>
 
                 {years !== null ? (
-                  <p className="mt-0.5 flex items-center gap-1.5 text-[0.95rem] text-ink-faint">
+                  <p className="mt-0.5 flex items-center gap-1.5 text-body text-ink-faint">
                     <Cake size={15} aria-hidden />
                     {t('age', { age: years })}
                   </p>

@@ -62,7 +62,7 @@ export async function ContactHistory({ contacts }: { contacts: ContactView[] }) 
                 <span className="font-bold text-ink">{t(`purpose_${contact.purpose}`)}</span>
                 <Badge tone="neutral">{t(`channel_${contact.channel}`)}</Badge>
                 {isPatientReply ? <Badge tone="ok">{t('patientReplied')}</Badge> : null}
-                <span className="text-[0.9rem] text-ink-faint tabular-nums">
+                <span className="text-meta text-ink-faint tabular-nums">
                   {format.dateTime(new Date(contact.createdAt), {
                     day: 'numeric',
                     month: 'short',
@@ -74,7 +74,7 @@ export async function ContactHistory({ contacts }: { contacts: ContactView[] }) 
               </p>
 
               {contact.actorName ? (
-                <p className="text-[0.9rem] text-ink-faint">
+                <p className="text-meta text-ink-faint">
                   {t('by', { name: contact.actorName })}
                 </p>
               ) : null}
@@ -82,7 +82,7 @@ export async function ContactHistory({ contacts }: { contacts: ContactView[] }) 
               {contact.appointment ? (
                 <Link
                   href={`/appointments?view=day&date=${contact.appointment.date}`}
-                  className="flex w-fit items-center gap-1.5 text-[0.9rem] font-semibold text-brand-deep no-underline hover:underline"
+                  className="flex w-fit items-center gap-1.5 text-meta font-semibold text-brand-deep no-underline hover:underline"
                 >
                   <CalendarClock size={14} aria-hidden />
                   {t('forAppointment', {

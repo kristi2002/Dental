@@ -26,7 +26,7 @@ export function ListView({
     <div>
       {days.map((day) => (
         <section key={day}>
-          <h3 className="border-b border-line bg-paper px-5 py-2.5 text-[1.05rem] font-bold text-ink">
+          <h3 className="border-b border-line bg-paper px-5 py-2.5 text-body font-bold text-ink">
             {format.dateTime(new Date(`${day}T00:00:00.000Z`), {
               weekday: 'long',
               day: 'numeric',

@@ -49,15 +49,15 @@ export function LoginForm({ staff }: { staff: StaffOption[] }) {
               >
                 <span
                   aria-hidden
-                  className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-[1.05rem] font-bold text-brand-deep"
+                  className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-body font-bold text-brand-deep"
                 >
                   {initials(person.firstName, person.lastName)}
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-[1.05rem] font-bold text-ink">
+                  <span className="block truncate text-body font-bold text-ink">
                     {person.firstName} {person.lastName}
                   </span>
-                  <span className="block truncate text-[0.9rem] text-ink-soft">
+                  <span className="block truncate text-meta text-ink-soft">
                     {tr(person.role)}
                   </span>
                 </span>
@@ -114,7 +114,7 @@ export function LoginForm({ staff }: { staff: StaffOption[] }) {
         className="btn-lg w-full disabled:opacity-50"
       />
 
-      <p className="text-center text-[0.9rem] text-ink-soft">
+      <p className="text-center text-meta text-ink-soft">
         <LogIn size={15} aria-hidden className="mr-1 inline align-[-2px]" />
         {t('pinHint', { min: PIN_MIN_LENGTH, max: PIN_MAX_LENGTH })}
       </p>

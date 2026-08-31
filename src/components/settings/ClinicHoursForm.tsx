@@ -52,16 +52,16 @@ export function ClinicHoursForm({
         <table className="w-full min-w-[38rem] border-collapse text-left">
           <thead>
             <tr className="border-b-2 border-line">
-              <th className="px-5 py-3 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="px-5 py-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                 {t('day')}
               </th>
-              <th className="px-3 py-3 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="px-3 py-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                 {t('openFrom')}
               </th>
-              <th className="px-3 py-3 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="px-3 py-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                 {t('openTo')}
               </th>
-              <th className="px-3 py-3 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="px-3 py-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                 {t('breakColumn')}
               </th>
             </tr>

@@ -60,7 +60,7 @@ export async function Arrival() {
       id="arrival"
       // `clip` and never `hidden`, as everywhere on this storefront: see the
       // note under `.drift` in globals.css.
-      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band sm:px-8"
     >
       {/* Latin, untranslated, one per section — the threshold. */}
       <GhostWord className="-left-[5vw] top-8 hidden text-navy/[0.045] lg:block">Limen</GhostWord>
@@ -75,7 +75,7 @@ export async function Arrival() {
             {t('pages.visit.arrival.title')}
           </h2>
 
-          <p className="mt-5 max-w-[58ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-5 max-w-[58ch] text-body leading-relaxed text-bone-ink-soft">
             {t('pages.visit.arrival.lede')}
           </p>
         </Reveal>
@@ -103,10 +103,10 @@ export async function Arrival() {
                 </span>
 
                 <span className="min-w-0">
-                  <h3 className="text-[1.08rem] font-bold text-bone-ink">
+                  <h3 className="text-lead font-bold text-bone-ink">
                     {t(`pages.visit.arrival.${key}.title`)}
                   </h3>
-                  <p className="mt-1.5 text-[1rem] leading-relaxed text-bone-ink-soft">
+                  <p className="mt-1.5 text-body leading-relaxed text-bone-ink-soft">
                     {t(`pages.visit.arrival.${key}.body`)}
                   </p>
                 </span>

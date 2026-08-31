@@ -77,7 +77,7 @@ export function SetupForm() {
         </p>
       ) : null}
 
-      <p className="flex items-start gap-2.5 rounded-lg border border-line-strong bg-paper px-4 py-3 text-[0.95rem] text-ink-soft">
+      <p className="flex items-start gap-2.5 rounded-lg border border-line-strong bg-paper px-4 py-3 text-body text-ink-soft">
         <ShieldCheck size={18} aria-hidden className="mt-0.5 shrink-0 text-brand" />
         {t('afterHint')}
       </p>

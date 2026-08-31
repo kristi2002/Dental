@@ -160,7 +160,7 @@ export default async function PatientRecordPage({
 
           <h1 className="text-2xl font-bold text-ink">{fullName}</h1>
 
-          <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[1.02rem] sm:grid-cols-[auto_1fr_auto_1fr]">
+          <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-body sm:grid-cols-[auto_1fr_auto_1fr]">
             {patient.dateOfBirth ? (
               <Row
                 label={t('dateOfBirth')}
@@ -185,7 +185,7 @@ export default async function PatientRecordPage({
               patient.alerts.length > 0 ? (
                 <ul className="space-y-1.5">
                   {patient.alerts.map((alert) => (
-                    <li key={alert.id} className="text-[1.02rem] font-semibold text-ink">
+                    <li key={alert.id} className="text-body font-semibold text-ink">
                       {/* Composed exactly as `PatientAlerts` composes it on the
                           screen — "Allergy: penicillin" — so the printed sheet
                           and the record it came from say the same words. */}
@@ -211,7 +211,7 @@ export default async function PatientRecordPage({
 
           {canSeeMedical && patient.medicalNotes ? (
             <Section title={t('medicalNotes')}>
-              <p className="text-[1.02rem] whitespace-pre-wrap text-ink">{patient.medicalNotes}</p>
+              <p className="text-body whitespace-pre-wrap text-ink">{patient.medicalNotes}</p>
             </Section>
           ) : null}
 
@@ -239,8 +239,8 @@ export default async function PatientRecordPage({
                   return (
                     <li key={plan.id} className="border-b border-line pb-3 last:border-0">
                       <p className="flex flex-wrap items-baseline justify-between gap-x-3">
-                        <span className="text-[1.05rem] font-bold text-ink">{plan.title}</span>
-                        <span className="text-[0.95rem] font-semibold text-ink-soft tabular-nums">
+                        <span className="text-body font-bold text-ink">{plan.title}</span>
+                        <span className="text-body font-semibold text-ink-soft tabular-nums">
                           {tpl('progress', { done: progress.done, total: progress.relevant })}
                           {plan.status === TreatmentPlanStatus.ACTIVE
                             ? ''
@@ -248,7 +248,7 @@ export default async function PatientRecordPage({
                         </span>
                       </p>
                       {plan.notes ? (
-                        <p className="mt-0.5 text-[0.95rem] text-ink-soft">{plan.notes}</p>
+                        <p className="mt-0.5 text-body text-ink-soft">{plan.notes}</p>
                       ) : null}
                     </li>
                   );
@@ -267,11 +267,11 @@ export default async function PatientRecordPage({
                 {patient.visitRecords.map((visit) => (
                   <li key={visit.id} className="border-b border-line pb-3 last:border-0">
                     <p className="flex flex-wrap items-baseline justify-between gap-x-3">
-                      <span className="text-[1.02rem] font-bold text-ink tabular-nums">
+                      <span className="text-body font-bold text-ink tabular-nums">
                         {day(visit.visitDate)}
                       </span>
                       {visit.performedBy ? (
-                        <span className="text-[0.92rem] text-ink-faint">
+                        <span className="text-meta text-ink-faint">
                           {visit.performedBy.firstName} {visit.performedBy.lastName}
                         </span>
                       ) : null}
@@ -281,12 +281,12 @@ export default async function PatientRecordPage({
                         an older visit predates the link table and would
                         otherwise print as a date with nothing under it. */}
                     {named(visit.services) ? (
-                      <p className="mt-0.5 text-[1rem] text-ink">{named(visit.services)}</p>
+                      <p className="mt-0.5 text-body text-ink">{named(visit.services)}</p>
                     ) : visit.servicesText ? (
-                      <p className="mt-0.5 text-[1rem] text-ink">{visit.servicesText}</p>
+                      <p className="mt-0.5 text-body text-ink">{visit.servicesText}</p>
                     ) : null}
                     {visit.notes ? (
-                      <p className="mt-0.5 text-[0.95rem] whitespace-pre-wrap text-ink-soft">
+                      <p className="mt-0.5 text-body whitespace-pre-wrap text-ink-soft">
                         {visit.notes}
                       </p>
                     ) : null}
@@ -337,7 +337,7 @@ function Row({ label, value }: { label: string; value: string | null }) {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mt-7 break-inside-avoid">
-      <h2 className="mb-2.5 border-b border-line pb-1 text-[0.88rem] font-bold tracking-wide text-ink-faint uppercase">
+      <h2 className="mb-2.5 border-b border-line pb-1 text-meta font-bold tracking-wide text-ink-faint uppercase">
         {title}
       </h2>
       {children}
@@ -346,7 +346,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Empty({ children }: { children: ReactNode }) {
-  return <p className="text-[0.98rem] text-ink-faint">{children}</p>;
+  return <p className="text-body text-ink-faint">{children}</p>;
 }
 
 /**
@@ -355,5 +355,5 @@ function Empty({ children }: { children: ReactNode }) {
  * referral those two mean opposite things.
  */
 function Withheld({ children }: { children: ReactNode }) {
-  return <p className="text-[0.98rem] text-ink-faint italic">{children}</p>;
+  return <p className="text-body text-ink-faint italic">{children}</p>;
 }

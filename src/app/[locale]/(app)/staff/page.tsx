@@ -85,14 +85,14 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <span
                       aria-hidden
-                      className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-[1.05rem] font-bold text-brand-deep"
+                      className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-body font-bold text-brand-deep"
                     >
                       {initials(person.firstName, person.lastName)}
                     </span>
 
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-[1.12rem] font-bold text-ink">
+                        <span className="truncate text-lead font-bold text-ink">
                           {person.firstName} {person.lastName}
                         </span>
                         <RoleBadge role={person.role} />
@@ -102,7 +102,7 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
                         {!person.active ? <Badge tone="danger">{t('disabled')}</Badge> : null}
                         {locked ? <Badge tone="warn">{t('locked')}</Badge> : null}
                       </p>
-                      <p className="mt-0.5 text-[0.93rem] text-ink-soft">
+                      <p className="mt-0.5 text-meta text-ink-soft">
                         {person.lastLoginAt
                           ? t('lastSeen', {
                               when: format.dateTime(person.lastLoginAt, {
@@ -137,7 +137,7 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
                     ) : null}
 
                     {isLastOwner ? (
-                      <span className="text-[0.9rem] text-ink-faint">{t('lastOwnerHint')}</span>
+                      <span className="text-meta text-ink-faint">{t('lastOwnerHint')}</span>
                     ) : (
                       <ActionForm
                         action={setStaffActive}
@@ -172,7 +172,7 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
             <table className="w-full min-w-[40rem] border-collapse text-left">
               <thead>
                 <tr className="border-b-2 border-line">
-                  <th className="px-5 py-3 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+                  <th className="px-5 py-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                     {t('capability')}
                   </th>
                   {ROLE_ORDER.map((role) => (
@@ -185,14 +185,14 @@ export default async function StaffPage({ params }: { params: Promise<{ locale: 
               <tbody>
                 {ROLE_PERMISSIONS[Role.OWNER].map((permission) => (
                   <tr key={permission} className="border-b border-line last:border-b-0">
-                    <td className="px-5 py-2.5 text-[1rem] text-ink">{tp(permission)}</td>
+                    <td className="px-5 py-2.5 text-body text-ink">{tp(permission)}</td>
                     {ROLE_ORDER.map((role) => {
                       const allowed = ROLE_PERMISSIONS[role].includes(permission);
                       return (
                         <td key={role} className="px-3 py-2.5 text-center">
                           <span
                             className={cn(
-                              'text-[1.15rem] font-bold',
+                              'text-lead font-bold',
                               allowed ? 'text-ok' : 'text-line-strong',
                             )}
                           >

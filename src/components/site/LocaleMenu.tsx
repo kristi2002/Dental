@@ -111,7 +111,7 @@ export function LocaleMenu({ className }: { className?: string }) {
         // does. Without this a screen reader announces "Shqip, menu button",
         // which is a fact and not an explanation.
         aria-label={t('language')}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/25 bg-navy/40 px-3 text-[0.92rem] font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/20 focus-visible:outline-white disabled:opacity-60 sm:px-3.5"
+        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/25 bg-navy/40 px-3 text-meta font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/20 focus-visible:outline-white disabled:opacity-60 sm:px-3.5"
       >
         <Flag locale={active} className="h-4" />
         {/* The endonym where there is room for it, the two-letter code where
@@ -150,7 +150,7 @@ export function LocaleMenu({ className }: { className?: string }) {
                 lang={locale}
                 onClick={() => switchTo(locale)}
                 className={cn(
-                  'flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-[0.98rem] transition-colors',
+                  'flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-body transition-colors',
                   current
                     ? 'font-bold text-bone-ink'
                     : 'font-semibold text-bone-ink-soft hover:bg-gilt-soft hover:text-bone-ink',

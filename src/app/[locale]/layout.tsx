@@ -7,7 +7,8 @@ import { DateNamesProvider } from '@/components/shared/DateNamesProvider';
 import { routing } from '@/i18n/routing';
 import { dateNamesFor } from '@/lib/date-names';
 import { clinicDisplayName, getClinicProfile } from '@/lib/queries';
-import { poppins } from '../fonts';
+import { bodyFont } from '../fonts';
+import { ThemeScript } from '@/components/layout/theme-script';
 import '../globals.css';
 
 export function generateStaticParams() {
@@ -76,7 +77,13 @@ export default async function LocaleLayout({
   // The signed-in chrome lives in `(app)/layout.tsx`; the login screen renders
   // inside this document without it.
   return (
-    <html lang={locale} className={poppins.variable}>
+    <html lang={locale} className={bodyFont.variable}>
+      <head>
+        {/* Before anything is painted. A theme applied by React arrives a frame
+            late, and on a dim surgery screen that frame is a white flash — the
+            exact thing somebody turned the evening theme on to stop. */}
+        <ThemeScript />
+      </head>
       <body>
         <NextIntlClientProvider>
           {/* Measured here, on Node, because Chrome has no Albanian locale data

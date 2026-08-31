@@ -62,7 +62,7 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
       <main className="flex flex-1 items-start justify-center px-4 py-10 sm:py-16">
         <div className="card w-full max-w-md p-6 sm:p-8">
           <h1 className="text-2xl font-bold text-ink">{t('signIn')}</h1>
-          <p className="mt-1 mb-6 text-[1.02rem] text-ink-soft">{t('subtitle')}</p>
+          <p className="mt-1 mb-6 text-body text-ink-soft">{t('subtitle')}</p>
 
           <LoginForm staff={staff} />
         </div>

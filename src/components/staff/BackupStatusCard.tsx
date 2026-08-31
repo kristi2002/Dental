@@ -36,8 +36,8 @@ const TONES: Record<BackupSeverity, BadgeTone> = {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5">
-      <dt className="text-[0.95rem] text-ink-soft">{label}</dt>
-      <dd className="text-[1.02rem] font-semibold text-ink">{children}</dd>
+      <dt className="text-body text-ink-soft">{label}</dt>
+      <dd className="text-body font-semibold text-ink">{children}</dd>
     </div>
   );
 }
@@ -59,8 +59,8 @@ export async function BackupStatusCard({ status }: { status: BackupStatus }) {
           action={<Badge tone="neutral">{t('badge.unconfigured')}</Badge>}
         />
         <div className="space-y-3 p-5">
-          <p className="text-[1.02rem] text-ink-soft">{t('notConfigured')}</p>
-          <p className="rounded-lg border border-warn bg-warn-soft px-3 py-2.5 text-[0.95rem] font-semibold text-warn">
+          <p className="text-body text-ink-soft">{t('notConfigured')}</p>
+          <p className="rounded-lg border border-warn bg-warn-soft px-3 py-2.5 text-body font-semibold text-warn">
             {t('notConfiguredHint')}
           </p>
         </div>
@@ -87,7 +87,7 @@ export async function BackupStatusCard({ status }: { status: BackupStatus }) {
 
       <div className="p-5">
         {run.state === 'failed' && run.message ? (
-          <p className="mb-4 rounded-lg border border-danger bg-danger-soft px-3 py-2.5 text-[0.95rem] font-semibold text-danger">
+          <p className="mb-4 rounded-lg border border-danger bg-danger-soft px-3 py-2.5 text-body font-semibold text-danger">
             {t('lastRunFailed', { message: run.message })}
           </p>
         ) : null}
@@ -175,12 +175,12 @@ export async function BackupStatusCard({ status }: { status: BackupStatus }) {
 
         {verification && verification.files.missing > 0 ? (
           <div className="mt-4 rounded-lg border border-danger bg-danger-soft px-3 py-2.5">
-            <p className="text-[0.95rem] font-semibold text-danger">
+            <p className="text-body font-semibold text-danger">
               <TriangleAlert size={17} className="mr-1.5 inline align-text-bottom" aria-hidden />
               {t('filesMissingHint')}
             </p>
             {verification.files.missingSamples.length > 0 ? (
-              <ul className="mt-2 font-mono text-[0.85rem] break-all text-danger">
+              <ul className="mt-2 font-mono text-meta break-all text-danger">
                 {verification.files.missingSamples.map((key) => (
                   <li key={key}>{key}</li>
                 ))}

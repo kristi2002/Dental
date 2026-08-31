@@ -53,7 +53,7 @@ export function QueueSendLinks({
   // setting is decorative on the one screen built for sending things.
   if (consent === false) {
     return (
-      <p className="flex items-center gap-1.5 text-[0.9rem] font-semibold text-ink-faint">
+      <p className="flex items-center gap-1.5 text-meta font-semibold text-ink-faint">
         <BellOff size={17} aria-hidden className="shrink-0" />
         {t('optedOut')}
       </p>

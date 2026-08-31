@@ -1,3 +1,4 @@
+import { ViewTransition } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { TREATMENT_PHOTOS } from '@/components/site/photos';
@@ -6,7 +7,7 @@ import { Reveal } from '@/components/site/Reveal';
 import { SectionEyebrow } from '@/components/site/SectionEyebrow';
 import { Watermark } from '@/components/site/Watermark';
 import { Link } from '@/i18n/navigation';
-import { TREATMENTS, treatmentPath } from '@/lib/site-content';
+import { TREATMENTS, treatmentPath, treatmentTransitionName } from '@/lib/site-content';
 import { cn } from '@/lib/utils';
 
 /**
@@ -45,7 +46,7 @@ export async function Treatments() {
   return (
     <section
       id="treatments"
-      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-28"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band-lead sm:px-8"
     >
       <Watermark className="-top-24 -right-32 w-[34rem] text-gilt/[0.05]" />
 
@@ -53,7 +54,7 @@ export async function Treatments() {
         <Reveal>
           <SectionEyebrow className="text-gilt-deep">{t('treatments.eyebrow')}</SectionEyebrow>
           <h2 className="type-lead mt-5 max-w-[16ch] text-bone-ink">{t('treatments.title')}</h2>
-          <p className="mt-5 max-w-[54ch] text-[1.05rem] text-bone-ink-soft">
+          <p className="mt-5 max-w-[54ch] text-body text-bone-ink-soft">
             {t('treatments.lede')}
           </p>
         </Reveal>
@@ -117,25 +118,57 @@ export async function Treatments() {
                  * cascade to it and never appear at all. See `.tilt-plate`.
                  */}
                 <div className="tilt-plate">
-                  {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
-                  <img
-                    src={photo.src}
-                    width={photo.width}
-                    height={photo.height}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    className={cn(
-                      'w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100',
-                      // The lead card is two columns wide, so it gets a landscape
-                      // crop. Left at 4:5 it would be a portrait stretched to
-                      // twice the width — the one way to make a feature card look
-                      // like a mistake. The breakpoint tracks the span exactly:
-                      // both start at `sm`, and they have to, or the card is
-                      // double width for one breakpoint while still cropped tall.
-                      index === 0 ? 'aspect-4/5 sm:aspect-16/10' : 'aspect-4/5',
-                    )}
-                  />
+                  {/*
+                   * The near end of the morph into the treatment's own page.
+                   *
+                   * The card and the hero it opens are two photographs of the
+                   * same thing, and cutting between them made the reader check
+                   * they had pressed the right one. Carrying the same
+                   * `view-transition-name` on both sides, the browser animates a
+                   * single object from this grid cell to the hero slot instead.
+                   *
+                   * **The plain CSS property rather than React's
+                   * `<ViewTransition>`.** The component is the documented route
+                   * and it does not work here: on this React it never stamps the
+                   * name, so the only thing the browser is handed at navigation
+                   * is `root` and the pair silently never forms. Next *does*
+                   * wrap the navigation in `startViewTransition` — which is the
+                   * whole mechanism — so naming the two elements directly gets
+                   * the morph the component was going to ask for anyway, with
+                   * nothing between us and the browser. See
+                   * `treatmentTransitionName`.
+                   *
+                   * It goes on the `<img>` rather than on the tilt plate around
+                   * it: the plate carries a hover transform, and a snapshot is
+                   * taken of an element's *rendered* box — so the capture would
+                   * happen mid-tilt for anybody whose pointer was still on the
+                   * card as they pressed it, which is everybody.
+                   */}
+                  <ViewTransition
+                    name={treatmentTransitionName(treatment.key)}
+                    share="morph"
+                    default="none"
+                  >
+                    {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
+                    <img
+                      src={photo.src}
+                      width={photo.width}
+                      height={photo.height}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className={cn(
+                        'w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100',
+                        // The lead card is two columns wide, so it gets a landscape
+                        // crop. Left at 4:5 it would be a portrait stretched to
+                        // twice the width — the one way to make a feature card look
+                        // like a mistake. The breakpoint tracks the span exactly:
+                        // both start at `sm`, and they have to, or the card is
+                        // double width for one breakpoint while still cropped tall.
+                        index === 0 ? 'aspect-4/5 sm:aspect-16/10' : 'aspect-4/5',
+                      )}
+                    />
+                  </ViewTransition>
 
                   {/* Three stops rather than two, and the middle one moved down
                       the card. The first pass ran `via-navy/55` through the centre,
@@ -149,7 +182,7 @@ export async function Treatments() {
                   />
 
                   <div className="absolute inset-x-0 bottom-0 p-5">
-                    <h3 className="flex items-start gap-1.5 text-[1.1rem] font-bold text-white">
+                    <h3 className="flex items-start gap-1.5 text-lead font-bold text-white">
                       {t(`treatments.${treatment.key}.title`)}
                       <ArrowUpRight
                         size={17}
@@ -157,7 +190,7 @@ export async function Treatments() {
                         className="reveal-on-hover mt-1 shrink-0 text-gilt opacity-0 transition-opacity group-hover:opacity-100"
                       />
                     </h3>
-                    <p className="mt-1.5 text-[0.93rem] leading-relaxed text-navy-ink">
+                    <p className="mt-1.5 text-meta leading-relaxed text-navy-ink">
                       {t(`treatments.${treatment.key}.body`)}
                     </p>
                   </div>

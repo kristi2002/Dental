@@ -42,7 +42,7 @@ export default function SiteNotFound() {
               <Link
                 href={href}
                 className="flex items-center gap-3 rounded-2xl border border-ink/10 bg-white/70 px-5 py-4
-                  text-[1.05rem] font-semibold text-ink no-underline transition-colors hover:bg-white"
+                  text-body font-semibold text-ink no-underline transition-colors hover:bg-white"
               >
                 <Compass size={20} aria-hidden className="shrink-0 text-gilt-deep" />
                 {t(`nav.${key}`)}

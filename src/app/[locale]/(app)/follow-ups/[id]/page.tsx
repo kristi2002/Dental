@@ -110,7 +110,7 @@ export default async function FollowUpDetailPage({
       {/* The facts about the line that are not fields — what it is about, who
           wrote it, who closed it. Kept above the form rather than inside it, so
           nothing here looks editable when it is not. */}
-      <Card className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 text-[0.95rem] text-ink-soft">
+      <Card className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 text-body text-ink-soft">
         {followUp.priority === 'URGENT' && !done ? <Badge tone="danger">{t('urgent')}</Badge> : null}
         {done ? <Badge tone="ok">{t('statusDone')}</Badge> : null}
 

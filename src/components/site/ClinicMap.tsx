@@ -10,7 +10,7 @@ import type { SiteContact } from '@/lib/site';
  *
  * ⚠️ **This is the one third-party thing on the whole storefront, and it was a
  * deliberate exception rather than an oversight.** Every other byte this site
- * serves comes from its own origin — `next/font` self-hosts Poppins, the
+ * serves comes from its own origin — `next/font` self-hosts the body face, the
  * barcode decoder's WebAssembly is copied into `public/` rather than pulled off
  * a CDN, there is no analytics and there was, until this section, no embedded
  * anything. `VisitUs` still says as much in its own note, and the argument it
@@ -67,7 +67,7 @@ export async function ClinicMap({ contact }: { contact: SiteContact }) {
       id="map"
       // Cream, and the page's last section before a navy footer. `clip` and
       // never `hidden` — see the note under `.drift`.
-      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band sm:px-8"
     >
       <GhostWord className="-left-[5vw] top-8 hidden text-navy/[0.045] lg:block">Locus</GhostWord>
 
@@ -77,7 +77,7 @@ export async function ClinicMap({ contact }: { contact: SiteContact }) {
           <h2 className="type-section mt-5 max-w-[16ch] text-bone-ink">
             {t('pages.visit.map.title')}
           </h2>
-          <p className="mt-5 max-w-[56ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-5 max-w-[56ch] text-body leading-relaxed text-bone-ink-soft">
             {t('pages.visit.map.lede')}
           </p>
         </Reveal>
@@ -87,7 +87,7 @@ export async function ClinicMap({ contact }: { contact: SiteContact }) {
             {/* The address as type, above the frame rather than only inside it.
                 A pin is not selectable and cannot be pasted into a taxi app;
                 the line under it can. */}
-            <p className="flex gap-3 text-[1.08rem] leading-relaxed font-semibold text-bone-ink">
+            <p className="flex gap-3 text-lead leading-relaxed font-semibold text-bone-ink">
               <MapPin size={20} aria-hidden className="mt-1 shrink-0 text-gilt" />
               <span>{contact.address}</span>
             </p>
@@ -100,7 +100,7 @@ export async function ClinicMap({ contact }: { contact: SiteContact }) {
                 href={directionsHref}
                 target="_blank"
                 rel="noreferrer"
-                className="cta-fill group inline-flex min-h-13 items-center justify-center gap-2.5 rounded-full bg-gilt px-7 text-[1rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone"
+                className="cta-fill group inline-flex min-h-13 items-center justify-center gap-2.5 rounded-full bg-gilt px-7 text-body font-bold text-navy no-underline hover:text-bone focus-visible:text-bone"
               >
                 <Navigation size={18} aria-hidden />
                 {t('pages.visit.map.directions')}
@@ -110,7 +110,7 @@ export async function ClinicMap({ contact }: { contact: SiteContact }) {
                 href={searchHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-13 items-center justify-center gap-2.5 rounded-full border border-bone-deep bg-bone-soft px-7 text-[1rem] font-semibold text-bone-ink no-underline transition-colors hover:border-gilt"
+                className="inline-flex min-h-13 items-center justify-center gap-2.5 rounded-full border border-bone-deep bg-bone-soft px-7 text-body font-semibold text-bone-ink no-underline transition-colors hover:border-gilt"
               >
                 <ExternalLink size={17} aria-hidden />
                 {t('visit.openInMaps')}
@@ -119,7 +119,7 @@ export async function ClinicMap({ contact }: { contact: SiteContact }) {
 
             {/* The disclosure, in the place a reader is standing when the frame
                 beside them loads — not in a policy page nobody opens. */}
-            <p className="mt-7 border-t border-bone-deep pt-6 text-[0.92rem] leading-relaxed text-bone-ink-faint">
+            <p className="mt-7 border-t border-bone-deep pt-6 text-meta leading-relaxed text-bone-ink-faint">
               {t('pages.visit.map.privacy')}
             </p>
           </Reveal>

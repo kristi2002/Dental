@@ -59,7 +59,7 @@ export function NewCategoryForm({ existing }: { existing: string[] }) {
                 {existing.map((shelf) => (
                   <li
                     key={shelf}
-                    className="rounded-full border border-line-strong bg-surface px-3 py-1 text-[0.9rem] font-semibold text-ink-soft"
+                    className="rounded-full border border-line-strong bg-surface px-3 py-1 text-meta font-semibold text-ink-soft"
                   >
                     {shelf}
                   </li>

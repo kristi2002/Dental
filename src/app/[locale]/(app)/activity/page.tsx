@@ -339,7 +339,7 @@ export default async function ActivityPage({
                   <div className="flex min-w-0 flex-1 items-start gap-3">
                     <span
                       aria-hidden
-                      className="grid size-9 shrink-0 place-items-center rounded-full bg-paper text-[0.82rem] font-bold text-ink-soft"
+                      className="grid size-9 shrink-0 place-items-center rounded-full bg-paper text-caption font-bold text-ink-soft"
                     >
                       {initials(firstName, lastName || firstName)}
                     </span>
@@ -349,23 +349,23 @@ export default async function ActivityPage({
                         <Badge tone={ACTION_TONES[entry.action] ?? 'neutral'}>
                           {t(`action_${entry.action}`)}
                         </Badge>
-                        <span className="text-[1rem] font-semibold text-ink">
+                        <span className="text-body font-semibold text-ink">
                           {t(`entity_${entry.entity}`)}
                         </span>
                         {linked ? (
                           <Link
                             href={linked.href}
-                            className="min-w-0 truncate text-[1rem] font-semibold text-brand-deep underline-offset-2 hover:underline"
+                            className="min-w-0 truncate text-body font-semibold text-brand-deep underline-offset-2 hover:underline"
                           >
                             {entry.summary}
                           </Link>
                         ) : (
-                          <span className="min-w-0 truncate text-[1rem] text-ink-soft">
+                          <span className="min-w-0 truncate text-body text-ink-soft">
                             {entry.summary}
                           </span>
                         )}
                       </p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[0.9rem] text-ink-soft">
+                      <p className="mt-0.5 flex flex-wrap items-center gap-2 text-meta text-ink-soft">
                         {entry.actorName}
                         {/* No role means the patient acted, not a member of staff. */}
                         {entry.actorRole ? (
@@ -379,7 +379,7 @@ export default async function ActivityPage({
 
                   <time
                     dateTime={entry.createdAt.toISOString()}
-                    className="shrink-0 text-[0.9rem] whitespace-nowrap text-ink-faint"
+                    className="shrink-0 text-meta whitespace-nowrap text-ink-faint"
                   >
                     {format.dateTime(entry.createdAt, {
                       day: 'numeric',
@@ -412,7 +412,7 @@ export default async function ActivityPage({
             <span />
           )}
 
-          <span className="text-[0.95rem] font-semibold text-ink-soft tabular-nums">
+          <span className="text-body font-semibold text-ink-soft tabular-nums">
             {t('pageOf', { page: pageNumber, pages })}
           </span>
 

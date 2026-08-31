@@ -110,7 +110,7 @@ export async function StockAlerts({
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ok-soft text-ok">
           <CircleCheck size={22} aria-hidden />
         </span>
-        <span className="text-[1.05rem] font-bold text-ok">{t('lowAlert', { count: 0 })}</span>
+        <span className="text-body font-bold text-ok">{t('lowAlert', { count: 0 })}</span>
       </section>
     );
   }

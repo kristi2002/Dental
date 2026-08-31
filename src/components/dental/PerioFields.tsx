@@ -81,7 +81,7 @@ export function PerioFields({ summary, toothNum }: { summary: PerioSummary; toot
         <div className="space-y-2.5">
           {(buccalFirst ? rows : [rows[1], rows[0]]).map((row) => (
             <div key={row.label} className="flex items-center gap-3">
-              <span className="w-28 shrink-0 text-[0.85rem] leading-tight font-semibold text-ink-soft">
+              <span className="w-28 shrink-0 text-meta leading-tight font-semibold text-ink-soft">
                 {row.label}
               </span>
 
@@ -108,7 +108,7 @@ export function PerioFields({ summary, toothNum }: { summary: PerioSummary; toot
                         autoComplete="off"
                         maxLength={2}
                         className={cn(
-                          'h-11 w-11 rounded-lg border-2 text-center text-[1.1rem] font-bold tabular-nums',
+                          'h-11 w-11 rounded-lg border-2 text-center text-lead font-bold tabular-nums',
                           'focus:border-brand-dark focus:outline-none',
                           band === 'DISEASED'
                             ? 'border-danger bg-danger-soft text-danger'
@@ -181,7 +181,7 @@ export function PerioFields({ summary, toothNum }: { summary: PerioSummary; toot
           ))}
         </div>
 
-        <p className="mt-2 text-[0.85rem] text-ink-faint">{t('perioHint')}</p>
+        <p className="mt-2 text-meta text-ink-faint">{t('perioHint')}</p>
       </fieldset>
 
       <fieldset>
@@ -192,7 +192,7 @@ export function PerioFields({ summary, toothNum }: { summary: PerioSummary; toot
               must not report one as the other. */}
           <label
             className={cn(
-              'cursor-pointer rounded-lg border border-line-strong px-3 py-2 text-[0.92rem] font-semibold',
+              'cursor-pointer rounded-lg border border-line-strong px-3 py-2 text-meta font-semibold',
               'hover:border-ink has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
             )}
           >
@@ -210,7 +210,7 @@ export function PerioFields({ summary, toothNum }: { summary: PerioSummary; toot
             <label
               key={grade}
               className={cn(
-                'cursor-pointer rounded-lg border border-line-strong px-3 py-2 text-[0.92rem] font-semibold',
+                'cursor-pointer rounded-lg border border-line-strong px-3 py-2 text-meta font-semibold',
                 'hover:border-ink has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
               )}
             >

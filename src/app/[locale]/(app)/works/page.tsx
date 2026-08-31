@@ -57,7 +57,7 @@ const CASE_TOP = 'border-t-2 border-line';
 const LINE_TOP = 'border-t border-line';
 
 const HEAD_BASE =
-  'bg-surface px-3 py-3 text-left align-bottom text-[0.82rem] font-bold tracking-wide text-ink-faint uppercase';
+  'bg-surface px-3 py-3 text-left align-bottom text-caption font-bold tracking-wide text-ink-faint uppercase';
 
 /**
  * The headings stay put while the month scrolls under them. `inset` shadow
@@ -276,7 +276,9 @@ export default async function WorksPage({
   const columnCount = 8 + (showActions ? 1 : 0);
 
   return (
-    <>
+    // The register is nine columns of laboratory case and has never once had
+    // room for them on a desktop. See `.app-measure`.
+    <div data-measure="wide">
       <PageHeader
         title={t('title')}
         subtitle={t('subtitle')}
@@ -479,7 +481,7 @@ export default async function WorksPage({
                       <ToothSpan
                         value={line.teeth}
                         quadrantLabel={(quadrant) => tt(`quadrant_${quadrant}`)}
-                        className="text-[0.95rem]"
+                        className="text-body"
                       />
                     ) : (
                       <span className="text-ink-faint">—</span>
@@ -491,21 +493,21 @@ export default async function WorksPage({
                     className={cn(
                       CELL,
                       edge,
-                      'text-right text-[1rem] font-bold text-ink tabular-nums',
+                      'text-right text-body font-bold text-ink tabular-nums',
                     )}
                   >
                     {line.elements}
                   </td>
                   <td
                     data-cell="procedure"
-                    className={cn(CELL, edge, 'text-[0.98rem] font-semibold break-words text-ink')}
+                    className={cn(CELL, edge, 'text-body font-semibold break-words text-ink')}
                   >
                     {line.procedure}
                   </td>
                   <td
                     data-cell="lab"
                     data-label={t('lab')}
-                    className={cn(CELL, edge, 'text-[0.95rem] break-words text-ink-soft')}
+                    className={cn(CELL, edge, 'text-body break-words text-ink-soft')}
                   >
                     {line.lab || '—'}
                   </td>
@@ -525,7 +527,7 @@ export default async function WorksPage({
                       className={cn(
                         CELL,
                         CASE_TOP,
-                        'text-[0.95rem] text-ink-soft tabular-nums md:pl-5',
+                        'text-body text-ink-soft tabular-nums md:pl-5',
                       )}
                     >
                       {shortDate(work.sentAt)}
@@ -538,7 +540,7 @@ export default async function WorksPage({
                       rowSpan={rowSpan}
                       data-cell="due"
                       data-label={t('dueAt')}
-                      className={cn(CELL, CASE_TOP, 'text-[0.95rem] tabular-nums')}
+                      className={cn(CELL, CASE_TOP, 'text-body tabular-nums')}
                     >
                       {work.receivedAt ? (
                         <>
@@ -574,7 +576,7 @@ export default async function WorksPage({
                       className={cn(
                         CELL,
                         CASE_TOP,
-                        'text-[1rem] font-semibold text-ink tabular-nums',
+                        'text-body font-semibold text-ink tabular-nums',
                       )}
                     >
                       {work.labSerial || <span className="text-ink-faint">—</span>}
@@ -583,7 +585,7 @@ export default async function WorksPage({
                     <td
                       rowSpan={rowSpan}
                       data-cell="patient"
-                      className={cn(CELL, CASE_TOP, 'text-[1rem] text-ink')}
+                      className={cn(CELL, CASE_TOP, 'text-body text-ink')}
                     >
                       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         {/* The link is there when the case was written against a
@@ -605,20 +607,20 @@ export default async function WorksPage({
                       {phone ? (
                         <a
                           href={`tel:${phone.replace(/\s/g, '')}`}
-                          className="mt-0.5 block text-[0.95rem] text-ink-soft tabular-nums"
+                          className="mt-0.5 block text-body text-ink-soft tabular-nums"
                         >
                           {work.phone}
                         </a>
                       ) : null}
 
                       {legacySpan ? (
-                        <span className="mt-0.5 block text-[0.92rem] text-ink-soft tabular-nums">
+                        <span className="mt-0.5 block text-meta text-ink-soft tabular-nums">
                           {legacySpan}
                         </span>
                       ) : null}
 
                       {work.notes ? (
-                        <span className="mt-0.5 block text-[0.88rem] text-ink-faint italic">
+                        <span className="mt-0.5 block text-meta text-ink-faint italic">
                           {work.notes}
                         </span>
                       ) : null}
@@ -630,7 +632,7 @@ export default async function WorksPage({
                       <td
                         colSpan={4}
                         data-cell="no-lines"
-                        className={cn(CELL, CASE_TOP, 'text-[0.95rem] text-ink-faint')}
+                        className={cn(CELL, CASE_TOP, 'text-body text-ink-faint')}
                       >
                         —
                       </td>
@@ -785,7 +787,7 @@ export default async function WorksPage({
                         className={cn(
                           CELL,
                           LINE_TOP,
-                          'text-right text-[0.82rem] font-semibold tracking-wide text-ink-faint uppercase',
+                          'text-right text-caption font-semibold tracking-wide text-ink-faint uppercase',
                         )}
                       >
                         {t('elementsTotal')}
@@ -795,7 +797,7 @@ export default async function WorksPage({
                         className={cn(
                           CELL,
                           LINE_TOP,
-                          'text-right text-[1rem] font-bold text-ink tabular-nums',
+                          'text-right text-body font-bold text-ink tabular-nums',
                         )}
                       >
                         {elementsOf(work)}
@@ -821,13 +823,13 @@ export default async function WorksPage({
                   )}
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-                    <span className="text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+                    <span className="text-meta font-bold tracking-wide text-ink-faint uppercase">
                       {monthFilter ? monthLabel(monthFilter) : t('allMonths')} ·{' '}
                       {t('caseCount', { count: works.length })}
                     </span>
-                    <span className="text-[1.05rem] font-semibold text-ink-soft">
+                    <span className="text-body font-semibold text-ink-soft">
                       {t('elementsTotal')}{' '}
-                      <span className="text-[1.6rem] font-bold text-ink tabular-nums">
+                      <span className="text-figure font-bold text-ink tabular-nums">
                         {elementTotal}
                       </span>
                     </span>
@@ -838,6 +840,6 @@ export default async function WorksPage({
           </table>
         </div>
       )}
-    </>
+    </div>
   );
 }

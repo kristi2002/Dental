@@ -39,7 +39,7 @@ export function ContactBody({
       <p
         ref={ref}
         className={cn(
-          'mt-1 text-[0.95rem] whitespace-pre-line text-ink-soft',
+          'mt-1 text-body whitespace-pre-line text-ink-soft',
           !expanded && 'line-clamp-3',
         )}
       >
@@ -49,7 +49,7 @@ export function ContactBody({
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="mt-1 text-[0.85rem] font-semibold text-brand-deep hover:underline"
+          className="mt-1 text-meta font-semibold text-brand-deep hover:underline"
         >
           {expanded ? showLess : showMore}
         </button>

@@ -97,10 +97,10 @@ export function RoleField({
       </SelectField>
 
       <div className="rounded-lg border border-line bg-surface-soft px-3.5 py-3">
-        <p className="mb-1.5 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+        <p className="mb-1.5 text-meta font-bold tracking-wide text-ink-faint uppercase">
           {t('roleAllows')}
         </p>
-        <ul className="grid gap-x-4 gap-y-1 text-[0.95rem] text-ink-soft sm:grid-cols-2">
+        <ul className="grid gap-x-4 gap-y-1 text-body text-ink-soft sm:grid-cols-2">
           {ROLE_PERMISSIONS[role].map((permission) => (
             <li key={permission} className="flex items-start gap-1.5">
               <span aria-hidden className="mt-[3px] text-brand">

@@ -258,7 +258,7 @@ export function FilterBar({
       </form>
 
       {isFiltered && summary ? (
-        <p aria-live="polite" className="mt-3 text-[0.95rem] text-ink-soft">
+        <p aria-live="polite" className="mt-3 text-body text-ink-soft">
           {summary}
         </p>
       ) : null}

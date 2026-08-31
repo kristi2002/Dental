@@ -43,8 +43,8 @@ export function FormSection({
       <header className="flex items-start gap-3 border-b border-line bg-surface-soft px-5 py-4">
         <span className="mt-0.5 text-brand">{icon}</span>
         <div>
-          <h2 className="text-[1.15rem] font-bold text-ink">{title}</h2>
-          <p className="text-[0.95rem] text-ink-soft">{subtitle}</p>
+          <h2 className="text-lead font-bold text-ink">{title}</h2>
+          <p className="text-body text-ink-soft">{subtitle}</p>
         </div>
       </header>
       <div className={className ?? 'space-y-4 p-5'}>{children}</div>
@@ -77,7 +77,7 @@ export function FormLayout({ children, aside }: { children: ReactNode; aside?: R
 export function FormPreview({ title, children }: { title: string; children: ReactNode }) {
   return (
     <aside className="card sticky top-6 hidden p-5 xl:block">
-      <h2 className="mb-3 text-[0.9rem] font-bold tracking-wide text-ink-faint uppercase">
+      <h2 className="mb-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
         {title}
       </h2>
       {children}

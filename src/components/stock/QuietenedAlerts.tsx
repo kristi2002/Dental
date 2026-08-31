@@ -34,7 +34,7 @@ export async function QuietenedAlerts({ alerts }: { alerts: ReadonlyArray<StockA
 
   return (
     <details className="group border-t border-line bg-paper">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-[0.88rem] font-semibold text-ink-faint hover:text-ink sm:px-6">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-meta font-semibold text-ink-faint hover:text-ink sm:px-6">
         <ChevronDown
           size={16}
           aria-hidden
@@ -58,7 +58,7 @@ export async function QuietenedAlerts({ alerts }: { alerts: ReadonlyArray<StockA
                   problem. A name makes it obvious whose decision is being
                   reopened — which is the difference between undoing a mistake
                   and overruling a colleague. */}
-              <p className="mt-0.5 text-[0.88rem] text-ink-faint">
+              <p className="mt-0.5 text-meta text-ink-faint">
                 {t('quietenedAt', { qty: alert.usable, min: alert.minLimit })}
                 {alert.dismissedAt
                   ? ` · ${

@@ -132,8 +132,8 @@ export function ChartSheet({
             keeps itself whole instead. */}
         <div className="w-max break-inside-avoid">
           <div className="flex justify-between px-1 pb-1">
-            <span className="text-[0.8rem] font-bold text-ink-faint">{t('right')}</span>
-            <span className="text-[0.8rem] font-bold text-ink-faint">{t('left')}</span>
+            <span className="text-caption font-bold text-ink-faint">{t('right')}</span>
+            <span className="text-caption font-bold text-ink-faint">{t('left')}</span>
           </div>
 
           {/* The upper arch's bottom edge and the midline are the same cyan and
@@ -165,7 +165,7 @@ export function ChartSheet({
           swatches are the teeth themselves rather than lettered squares, so
           there is no second notation to learn off a sheet of paper. */}
       <div className="break-inside-avoid rounded-lg border border-line px-3 py-2">
-        <p className="mb-1.5 text-[0.78rem] font-bold tracking-wide text-ink-faint uppercase">
+        <p className="mb-1.5 text-caption font-bold tracking-wide text-ink-faint uppercase">
           {t('legend')}
         </p>
         <ul className="grid grid-cols-4 gap-x-3 gap-y-1 print:grid-cols-8 sm:grid-cols-8">
@@ -178,7 +178,7 @@ export function ChartSheet({
                   surfaces={status === 'CARIES' || status === 'FILLED' ? ['O'] : []}
                 />
               </span>
-              <span className="text-[0.74rem] leading-tight font-semibold text-ink">
+              <span className="text-micro leading-tight font-semibold text-ink">
                 {t(`status_${status}`)}
               </span>
             </li>
@@ -188,10 +188,10 @@ export function ChartSheet({
 
       <div className="break-inside-avoid">
         <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-[0.88rem] font-bold tracking-wide text-ink-faint uppercase">
+          <span className="text-meta font-bold tracking-wide text-ink-faint uppercase">
             {t('findings')}
           </span>
-          <span className="text-[0.95rem] font-semibold text-ink-soft">
+          <span className="text-body font-semibold text-ink-soft">
             {[
               t('summary', { count: flagged.length }),
               probed ? t('perioSummary', { count: overview.teethProbed }) : null,
@@ -211,7 +211,7 @@ export function ChartSheet({
               <li
                 key={status}
                 className={cn(
-                  'rounded-full border px-2 py-0.5 text-[0.8rem] font-bold',
+                  'rounded-full border px-2 py-0.5 text-caption font-bold',
                   TOOTH_STATUS_STYLE[status].swatch,
                 )}
               >
@@ -224,7 +224,7 @@ export function ChartSheet({
       </div>
 
       {findings.length === 0 ? (
-        <p className="text-[0.95rem] text-ink-faint">{t('findingsEmpty')}</p>
+        <p className="text-body text-ink-faint">{t('findingsEmpty')}</p>
       ) : (
         <table className="w-full border-collapse text-left">
           <thead>
@@ -243,10 +243,10 @@ export function ChartSheet({
               return (
                 <tr key={finding.toothNum} className="break-inside-avoid border-b border-line">
                   <Td className="whitespace-nowrap">
-                    <span className="text-[1rem] font-bold text-ink tabular-nums">
+                    <span className="text-body font-bold text-ink tabular-nums">
                       {label(finding.toothNum)}
                     </span>
-                    <span className="block text-[0.76rem] leading-tight text-ink-faint">
+                    <span className="block text-micro leading-tight text-ink-faint">
                       {t(`quadrant_${quadrantOf(finding.toothNum)}`)}
                       {kind ? ` · ${t(`name_${kind}`)}` : ''}
                       {dentitionOf(finding.toothNum) === 'PRIMARY' ? ` · ${t('primaryTooth')}` : ''}
@@ -271,7 +271,7 @@ export function ChartSheet({
                         <span className="font-bold tracking-wide text-ink">
                           {finding.surfaces.join('')}
                         </span>
-                        <span className="block text-[0.76rem] leading-tight text-ink-faint">
+                        <span className="block text-micro leading-tight text-ink-faint">
                           {finding.surfaces
                             .map((surface) =>
                               surface === 'O'
@@ -309,7 +309,7 @@ export function ChartSheet({
                           <span className="font-bold text-ink">
                             M{MOBILITY_LABEL[finding.perio.mobility]}
                           </span>
-                          <span className="block text-[0.76rem] leading-tight text-ink-faint">
+                          <span className="block text-micro leading-tight text-ink-faint">
                             {t(`mobility_${finding.perio.mobility}`)}
                           </span>
                         </>
@@ -324,7 +324,7 @@ export function ChartSheet({
                       <span className="block whitespace-pre-line text-ink">{finding.notes}</span>
                     ) : null}
                     {finding.chartedOn ? (
-                      <span className="block text-[0.76rem] leading-tight text-ink-faint">
+                      <span className="block text-micro leading-tight text-ink-faint">
                         {t('chartedOn', { date: finding.chartedOn })}
                       </span>
                     ) : null}
@@ -348,7 +348,7 @@ function Th({ children }: { children: ReactNode }) {
   return (
     <th
       scope="col"
-      className="py-1 pr-3 align-bottom text-[0.72rem] font-bold tracking-wide text-ink-faint uppercase last:pr-0"
+      className="py-1 pr-3 align-bottom text-micro font-bold tracking-wide text-ink-faint uppercase last:pr-0"
     >
       {children}
     </th>
@@ -357,7 +357,7 @@ function Th({ children }: { children: ReactNode }) {
 
 function Td({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <td className={cn('py-1.5 pr-3 align-top text-[0.92rem] last:pr-0', className)}>{children}</td>
+    <td className={cn('py-1.5 pr-3 align-top text-meta last:pr-0', className)}>{children}</td>
   );
 }
 
@@ -464,13 +464,13 @@ function SheetCell({
   const number = (
     <span
       className={cn(
-        'block text-center text-[0.8rem] leading-4 font-bold tabular-nums',
+        'block text-center text-caption leading-4 font-bold tabular-nums',
         status === DEFAULT_TOOTH_STATUS ? 'text-ink-faint' : 'text-ink',
       )}
     >
       {numberLabel(toothNum)}
       {style.short ? (
-        <span aria-hidden className="ml-0.5 text-[0.68rem] opacity-80">
+        <span aria-hidden className="ml-0.5 text-micro opacity-80">
           {style.short}
         </span>
       ) : null}

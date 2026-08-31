@@ -49,7 +49,7 @@ export default async function SiteLayout({
     // rather than a default nobody saw: every cream section below is
     // transparent and this is what shows through them. See the backdrop note
     // immediately below.
-    <div className={`${prata.variable} site-display bg-bone`}>
+    <div className={`${prata.variable} site-display site-light bg-bone`}>
       {/*
        * One light, for the entire page.
        *

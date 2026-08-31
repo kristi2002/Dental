@@ -463,19 +463,19 @@ export function WeekView({
                 >
                   <span
                     className={cn(
-                      'block text-[0.78rem] font-bold tracking-wide uppercase',
+                      'block text-caption font-bold tracking-wide uppercase',
                       isToday ? 'text-white' : 'text-ink-faint',
                     )}
                   >
                     {dates.date(day, 'weekdayShort')}
                   </span>
-                  <span className="block text-[1.15rem] font-bold tabular-nums">
+                  <span className="block text-lead font-bold tabular-nums">
                     {format.dateTime(day, { day: 'numeric' })}
                   </span>
                   {schedules[index].closed ? (
                     <span
                       className={cn(
-                        'block text-[0.72rem] font-semibold',
+                        'block text-micro font-semibold',
                         isToday ? 'text-white' : 'text-ink-faint',
                       )}
                     >
@@ -503,8 +503,8 @@ export function WeekView({
                       'border-b pr-2 text-right tabular-nums last:border-b-0',
                       (minute + SLOT_MIN) % 60 === 0 ? 'border-line-strong' : 'border-line',
                       onTheHour
-                        ? 'text-[0.95rem] font-bold text-ink'
-                        : 'text-[0.82rem] font-semibold text-ink-faint',
+                        ? 'text-body font-bold text-ink'
+                        : 'text-caption font-semibold text-ink-faint',
                     )}
                   >
                     {minutesToTime(minute)}
@@ -625,18 +625,18 @@ export function WeekView({
                             line: the block's position on the ruler already
                             says when. */}
                         {height < 2.3 ? (
-                          <span className="block truncate text-[0.8rem] font-semibold">
+                          <span className="block truncate text-caption font-semibold">
                             <span className="tabular-nums">{appointment.startTime}</span>{' '}
                             {appointment.patient.lastName}
                           </span>
                         ) : (
                           <>
-                            <span className="block truncate text-[0.88rem] font-bold">{name}</span>
-                            <span className="block truncate text-[0.78rem] font-semibold tabular-nums">
+                            <span className="block truncate text-meta font-bold">{name}</span>
+                            <span className="block truncate text-caption font-semibold tabular-nums">
                               {appointment.startTime} – {endTime}
                             </span>
                             {height >= 3.4 && appointment.serviceName ? (
-                              <span className="block truncate text-[0.78rem]">
+                              <span className="block truncate text-caption">
                                 {appointment.serviceName}
                               </span>
                             ) : null}
@@ -660,7 +660,7 @@ export function WeekView({
                           Math.max(MIN_BLOCK_REM, (drag.duration / SLOT_MIN) * SLOT_REM),
                         )}rem`,
                       }}
-                      className="pointer-events-none absolute inset-x-[0.15rem] z-10 overflow-hidden rounded-md border-2 border-dashed border-brand-dark bg-brand-soft/90 px-1.5 py-0.5 text-[0.8rem] font-bold tabular-nums text-brand-deep shadow-card"
+                      className="pointer-events-none absolute inset-x-[0.15rem] z-10 overflow-hidden rounded-md border-2 border-dashed border-brand-dark bg-brand-soft/90 px-1.5 py-0.5 text-caption font-bold tabular-nums text-brand-deep shadow-card"
                     >
                       {minutesToTime(drag.start)} – {minutesToTime(drag.start + drag.duration)}
                     </div>
@@ -689,7 +689,7 @@ export function WeekView({
           none. */}
       {canEdit ? (
         <p
-          className="hidden border-t border-line px-4 py-2 text-[0.85rem] text-ink-faint sm:block"
+          className="hidden border-t border-line px-4 py-2 text-meta text-ink-faint sm:block"
           data-print-hide
         >
           {t('gridHint')}

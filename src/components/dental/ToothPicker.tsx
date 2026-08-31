@@ -93,7 +93,7 @@ export function ToothPicker({
                     )}
                   >
                     {row.upper ? null : (
-                      <span className="text-[0.66rem] leading-none font-bold text-ink-faint tabular-nums">
+                      <span className="text-micro leading-none font-bold text-ink-faint tabular-nums">
                         {toothLabelFor(toothNum, numbering)}
                       </span>
                     )}
@@ -105,7 +105,7 @@ export function ToothPicker({
                       />
                     </span>
                     {row.upper ? (
-                      <span className="text-[0.66rem] leading-none font-bold text-ink-faint tabular-nums">
+                      <span className="text-micro leading-none font-bold text-ink-faint tabular-nums">
                         {toothLabelFor(toothNum, numbering)}
                       </span>
                     ) : null}
@@ -117,7 +117,7 @@ export function ToothPicker({
         </div>
       </div>
 
-      <p className="mt-1.5 flex items-center gap-2 text-[0.92rem] text-ink-soft">
+      <p className="mt-1.5 flex items-center gap-2 text-meta text-ink-soft">
         {value === null ? (
           tc('none')
         ) : (

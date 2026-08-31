@@ -118,13 +118,13 @@ export function TripPlanner() {
       // `clip` and never `hidden`, as everywhere on this storefront — see the
       // note under `.drift`. The padding is the section scale the rest of the
       // page uses; this had been two steps smaller than its neighbours.
-      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band-aside sm:px-8"
     >
       <div className="relative mx-auto w-full max-w-6xl">
         <Reveal>
           <SectionEyebrow className="text-gilt-deep">{t('trip.eyebrow')}</SectionEyebrow>
           <h2 className="type-section mt-5 max-w-[18ch] text-bone-ink">{t('trip.title')}</h2>
-          <p className="mt-5 max-w-[58ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-5 max-w-[58ch] text-body leading-relaxed text-bone-ink-soft">
             {t('trip.lede')}
           </p>
         </Reveal>
@@ -201,7 +201,7 @@ export function TripPlanner() {
                   <button
                     type="button"
                     onClick={() => setPicked([])}
-                    className="rounded-full px-3 py-1.5 text-[0.9rem] font-semibold text-bone-ink-soft underline underline-offset-4 transition-colors hover:text-bone-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gilt-deep"
+                    className="rounded-full px-3 py-1.5 text-meta font-semibold text-bone-ink-soft underline underline-offset-4 transition-colors hover:text-bone-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gilt-deep"
                   >
                     {t('trip.clear')}
                   </button>
@@ -263,7 +263,7 @@ export function TripPlanner() {
                 <div className="mt-7 border-t border-navy-line/60 pt-6">
                   {chosen ? (
                     <>
-                      <p className="text-[1rem] leading-relaxed text-navy-ink">
+                      <p className="text-body leading-relaxed text-navy-ink">
                         {estimate.trips === 2 ? t('trip.twoTrips') : t('trip.oneTrip')}
                       </p>
 
@@ -271,7 +271,7 @@ export function TripPlanner() {
                           demoted out of a gauge that spent most of its life
                           empty. A labelled line on the days it applies. */}
                       {estimate.months[1] > 0 ? (
-                        <p className="mt-4 flex items-baseline justify-between gap-4 text-[0.94rem] text-navy-ink-soft">
+                        <p className="mt-4 flex items-baseline justify-between gap-4 text-body text-navy-ink-soft">
                           {t('trip.months')}
                           <span className="font-semibold tabular-nums text-white">
                             {span(estimate.months)}
@@ -288,7 +288,7 @@ export function TripPlanner() {
                        */}
                       {floor ? (
                         <p className="mt-5 border-t border-navy-line/60 pt-5">
-                          <span className="font-display text-[1.8rem] tabular-nums text-white">
+                          <span className="font-display text-figure tabular-nums text-white">
                             {t('trip.fromPrice', {
                               amount: new Intl.NumberFormat(locale, {
                                 style: 'currency',
@@ -298,7 +298,7 @@ export function TripPlanner() {
                             })}
                           </span>
                           {PRICES_REVIEWED ? (
-                            <span className="mt-1 block text-[0.86rem] text-navy-ink-soft">
+                            <span className="mt-1 block text-meta text-navy-ink-soft">
                               {t('trip.pricesReviewed', { date: PRICES_REVIEWED })}
                             </span>
                           ) : null}
@@ -306,7 +306,7 @@ export function TripPlanner() {
                       ) : null}
                     </>
                   ) : (
-                    <p className="text-[1rem] leading-relaxed text-navy-ink-soft">
+                    <p className="text-body leading-relaxed text-navy-ink-soft">
                       {t('trip.empty')}
                     </p>
                   )}
@@ -342,14 +342,14 @@ export function TripPlanner() {
                       onClick={() => setTopic(picked[0])}
                       // `self-start`, or a flex column stretches the pill to the
                       // panel's full width and it stops reading as a button.
-                      className="cta-fill group inline-flex min-h-13 self-start items-center gap-2.5 rounded-full bg-gilt px-7 text-[1rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
+                      className="cta-fill group inline-flex min-h-13 self-start items-center gap-2.5 rounded-full bg-gilt px-7 text-body font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
                     >
                       <CalendarCheck size={18} aria-hidden />
                       {t('trip.ask')}
                     </Link>
                   ) : null}
 
-                  <p className="text-[0.88rem] leading-relaxed text-navy-ink-soft">
+                  <p className="text-meta leading-relaxed text-navy-ink-soft">
                     {t('trip.caveat')}
                   </p>
                 </div>
@@ -393,7 +393,7 @@ function Gauge({
           planning a trip from Italy. Three lists of one pair is the honest
           shape of what this actually is. */}
       <dl className="mt-3 flex flex-col-reverse">
-        <dt className="mt-2 text-[0.82rem] leading-snug text-navy-ink-soft">{label}</dt>
+        <dt className="mt-2 text-caption leading-snug text-navy-ink-soft">{label}</dt>
         <dd
           className={cn(
             'font-display text-[clamp(1.75rem,4vw,2.4rem)] leading-none tabular-nums',

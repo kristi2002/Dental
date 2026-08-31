@@ -94,12 +94,12 @@ export function AfterTreatmentField({
         <input key={serviceId} type="hidden" name="serviceIds" value={serviceId} />
       ))}
 
-      <p className="mb-1.5 text-[0.9rem] text-ink-soft">{t('afterTreatmentHint')}</p>
+      <p className="mb-1.5 text-meta text-ink-soft">{t('afterTreatmentHint')}</p>
 
       <div className={cn('space-y-2.5', scroll && 'max-h-56 overflow-y-auto')}>
         {byDepartment(services).map(({ department, items }) => (
           <div key={department || 'none'}>
-            <p className="mb-1 text-[0.78rem] font-bold tracking-wide text-ink-faint uppercase">
+            <p className="mb-1 text-caption font-bold tracking-wide text-ink-faint uppercase">
               {department || tc('category')}
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -120,7 +120,7 @@ export function AfterTreatmentField({
                       })
                     }
                     className={cn(
-                      'rounded-full border px-3 py-1.5 text-[0.88rem] font-semibold transition-colors',
+                      'rounded-full border px-3 py-1.5 text-meta font-semibold transition-colors',
                       on
                         ? 'border-brand-dark bg-brand-dark text-white'
                         : 'border-line-strong bg-surface text-ink-soft hover:border-ink hover:text-ink',

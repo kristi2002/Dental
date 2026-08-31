@@ -68,9 +68,9 @@ export function BarcodeLinkDialog({
     >
       <input type="hidden" name="raw" value={scan.raw} />
 
-      <p className="rounded-lg border border-line bg-surface-soft px-3 py-2.5 text-[0.95rem] text-ink-soft">
+      <p className="rounded-lg border border-line bg-surface-soft px-3 py-2.5 text-body text-ink-soft">
         {t('linkIntro')}
-        <span className="mt-1 block font-mono text-[0.9rem] font-bold break-all text-ink">
+        <span className="mt-1 block font-mono text-meta font-bold break-all text-ink">
           {scan.key}
         </span>
       </p>

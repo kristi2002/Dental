@@ -64,7 +64,7 @@ export async function BarcodeList({ barcodes }: { barcodes: ReadonlyArray<Linked
                   {/* Monospaced and tabular: this is the one string on the
                       screen somebody will compare digit by digit against the
                       number printed under the symbol on the box. */}
-                  <span className="font-mono text-[1.02rem] font-bold tracking-tight text-ink tabular-nums">
+                  <span className="font-mono text-body font-bold tracking-tight text-ink tabular-nums">
                     {barcode.code}
                   </span>
                   {/* Only when it is not one. A carton and a single box carry
@@ -76,7 +76,7 @@ export async function BarcodeList({ barcodes }: { barcodes: ReadonlyArray<Linked
                   ) : null}
                   {barcode.label ? <Badge>{barcode.label}</Badge> : null}
                 </p>
-                <p className="mt-0.5 text-[0.9rem] text-ink-soft">
+                <p className="mt-0.5 text-meta text-ink-soft">
                   {t('linkedSince', {
                     date: format.dateTime(barcode.createdAt, {
                       day: 'numeric',

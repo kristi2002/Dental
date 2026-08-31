@@ -64,7 +64,7 @@ export function SlotFinder({
           )}
           {t('findSlot')}
         </button>
-        <span className="text-[0.9rem] text-ink-soft">
+        <span className="text-meta text-ink-soft">
           {t('findSlotFor', { minutes })}
         </span>
       </div>
@@ -73,7 +73,7 @@ export function SlotFinder({
           "nothing free for a month", which is a different and much worse claim. */}
       {slots !== null ? (
         slots.length === 0 ? (
-          <p className="mt-2.5 text-[0.92rem] font-semibold text-warn">{t('findSlotNone')}</p>
+          <p className="mt-2.5 text-meta font-semibold text-warn">{t('findSlotNone')}</p>
         ) : (
           <ul className="mt-2.5 flex flex-wrap gap-2">
             {slots.map((slot) => (

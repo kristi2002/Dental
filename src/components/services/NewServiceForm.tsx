@@ -48,18 +48,18 @@ export function NewServiceForm({ categories }: { categories: ServiceCategoryOpti
       <FormLayout
         aside={
           <FormPreview title={t('previewTitle')}>
-            <p className="text-[1.12rem] font-bold text-ink">
+            <p className="text-lead font-bold text-ink">
               {preview.name.trim() || <span className="text-ink-faint">{t('new')}</span>}
             </p>
 
-            <p className="mt-1 text-[0.95rem] text-ink-soft">
+            <p className="mt-1 text-body text-ink-soft">
               {[department?.name || t('uncategorized'), subcategory?.name]
                 .filter(Boolean)
                 .join(' · ')}
             </p>
 
-            <p className="mt-3 text-[1.15rem] font-bold tabular-nums text-ink">
-              {minutes} <span className="text-[0.9rem] font-semibold">{tc('minutes')}</span>
+            <p className="mt-3 text-lead font-bold tabular-nums text-ink">
+              {minutes} <span className="text-meta font-semibold">{tc('minutes')}</span>
             </p>
           </FormPreview>
         }

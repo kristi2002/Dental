@@ -135,13 +135,13 @@ export function Compare({
             "after". */}
         <span
           aria-hidden
-          className="pointer-events-none absolute top-4 left-4 rounded-full bg-navy/75 px-3 py-1 text-[0.78rem] font-bold tracking-[0.1em] text-white uppercase backdrop-blur-sm"
+          className="pointer-events-none absolute top-4 left-4 rounded-full bg-navy/75 px-3 py-1 text-caption font-bold tracking-[0.1em] text-white uppercase backdrop-blur-sm"
         >
           {t('compare.before')}
         </span>
         <span
           aria-hidden
-          className="pointer-events-none absolute top-4 right-4 rounded-full bg-navy/75 px-3 py-1 text-[0.78rem] font-bold tracking-[0.1em] text-white uppercase backdrop-blur-sm"
+          className="pointer-events-none absolute top-4 right-4 rounded-full bg-navy/75 px-3 py-1 text-caption font-bold tracking-[0.1em] text-white uppercase backdrop-blur-sm"
         >
           {t('compare.after')}
         </span>
@@ -175,7 +175,7 @@ export function Compare({
         className="mt-4 w-full cursor-pointer accent-gilt-deep max-sm:h-11"
       />
 
-      <figcaption className="mt-3 text-[0.88rem] text-bone-ink-faint">{caption}</figcaption>
+      <figcaption className="mt-3 text-meta text-bone-ink-faint">{caption}</figcaption>
     </figure>
   );
 }

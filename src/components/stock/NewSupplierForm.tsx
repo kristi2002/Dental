@@ -36,10 +36,10 @@ export function NewSupplierForm() {
       <FormLayout
         aside={
           <FormPreview title={t('previewTitle')}>
-            <p className="text-[1.12rem] font-bold text-ink">
+            <p className="text-lead font-bold text-ink">
               {preview.name.trim() || <span className="text-ink-faint">{t('new')}</span>}
             </p>
-            <p className="mt-1 text-[0.95rem] text-ink-soft">
+            <p className="mt-1 text-body text-ink-soft">
               {[preview.phone.trim(), preview.email.trim()].filter(Boolean).join(' · ') ||
                 t('noContact')}
             </p>

@@ -137,7 +137,7 @@ export function WorkFormDialog({
       {work.diagnosis ? (
         <div>
           <p className="field-label">{t('teethLegacy')}</p>
-          <p className="rounded-lg border border-line bg-paper px-3.5 py-2 text-[1rem] text-ink tabular-nums">
+          <p className="rounded-lg border border-line bg-paper px-3.5 py-2 text-body text-ink tabular-nums">
             {work.diagnosis}
           </p>
         </div>

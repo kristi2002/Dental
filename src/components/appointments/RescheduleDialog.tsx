@@ -75,7 +75,7 @@ export function RescheduleDialog({
           <input type="hidden" name="id" value={appointment.id} />
           {force ? <input type="hidden" name="force" value="1" /> : null}
 
-          <p className="rounded-lg border border-line bg-surface-soft px-3 py-2 text-[0.95rem] text-ink-soft">
+          <p className="rounded-lg border border-line bg-surface-soft px-3 py-2 text-body text-ink-soft">
             {t('moveFrom', { date: appointment.date, time: appointment.startTime })}
           </p>
 

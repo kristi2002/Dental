@@ -43,7 +43,7 @@ export function NewLabForm({ existing }: { existing: string[] }) {
           {existing.length > 0 ? (
             <div>
               <p className="field-label">{t('alreadyNamed')}</p>
-              <p className="text-[0.95rem] text-ink-soft">{existing.join(' · ')}</p>
+              <p className="text-body text-ink-soft">{existing.join(' · ')}</p>
             </div>
           ) : null}
         </FormSection>

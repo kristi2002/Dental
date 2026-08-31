@@ -123,7 +123,7 @@ export function TreatmentPlans({
           >
             <header className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="flex flex-wrap items-center gap-2 text-[1.12rem] font-bold text-ink">
+                <h3 className="flex flex-wrap items-center gap-2 text-lead font-bold text-ink">
                   {/* The plan's own page. Reading a patient is one job and
                       working a single course of treatment is another; this tab
                       is the first, and the link is how you get to the second
@@ -137,7 +137,7 @@ export function TreatmentPlans({
                   <Badge tone={PLAN_TONES[plan.status]}>{t(`status_${plan.status}`)}</Badge>
                 </h3>
                 {plan.notes ? (
-                  <p className="mt-0.5 text-[0.95rem] whitespace-pre-line text-ink-soft">
+                  <p className="mt-0.5 text-body whitespace-pre-line text-ink-soft">
                     {plan.notes}
                   </p>
                 ) : null}
@@ -192,7 +192,7 @@ export function TreatmentPlans({
                   style={{ width: `${percent}%` }}
                 />
               </div>
-              <span className="shrink-0 text-[0.92rem] font-bold text-ink-soft tabular-nums">
+              <span className="shrink-0 text-meta font-bold text-ink-soft tabular-nums">
                 {t('progress', { done, total: relevant })}
               </span>
             </div>

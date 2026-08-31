@@ -207,7 +207,7 @@ export function SiteNav() {
               aria-expanded={hasPanel ? open : undefined}
               aria-controls={hasPanel ? 'nav-treatments' : undefined}
               className={cn(
-                'relative inline-flex min-h-11 items-center gap-1.5 px-1 text-[0.76rem] font-semibold tracking-[0.16em] whitespace-nowrap uppercase no-underline transition-colors after:absolute after:inset-x-1 after:bottom-2.5 after:h-px after:origin-left after:bg-gilt after:transition-transform hover:text-white focus-visible:outline-white motion-reduce:after:transition-none',
+                'relative inline-flex min-h-11 items-center gap-1.5 px-1 text-micro font-semibold tracking-[0.16em] whitespace-nowrap uppercase no-underline transition-colors after:absolute after:inset-x-1 after:bottom-2.5 after:h-px after:origin-left after:bg-gilt after:transition-transform hover:text-white focus-visible:outline-white motion-reduce:after:transition-none',
                 current
                   ? 'text-white after:scale-x-100'
                   : 'text-navy-ink after:scale-x-0 hover:after:scale-x-100',
@@ -264,7 +264,7 @@ export function SiteNav() {
                             aria-current={here ? 'page' : undefined}
                             tabIndex={open ? undefined : -1}
                             className={cn(
-                              'flex min-h-10 items-center rounded-lg px-3 text-[0.92rem] font-semibold no-underline transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-white',
+                              'flex min-h-10 items-center rounded-lg px-3 text-meta font-semibold no-underline transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-white',
                               here ? 'text-gilt' : 'text-navy-ink',
                             )}
                           >
@@ -280,7 +280,7 @@ export function SiteNav() {
                   <Link
                     href="/treatments"
                     tabIndex={open ? undefined : -1}
-                    className="group flex min-h-12 items-center justify-between gap-4 border-t border-navy-line bg-white/[0.03] px-6 text-[0.8rem] font-semibold tracking-[0.14em] text-gilt uppercase no-underline transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-white"
+                    className="group flex min-h-12 items-center justify-between gap-4 border-t border-navy-line bg-white/[0.03] px-6 text-caption font-semibold tracking-[0.14em] text-gilt uppercase no-underline transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-white"
                   >
                     {t('pages.treatment.backToAll')}
                     <ArrowRight

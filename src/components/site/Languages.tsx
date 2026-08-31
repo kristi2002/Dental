@@ -27,13 +27,13 @@ export async function Languages() {
   const t = await getTranslations('site');
 
   return (
-    <section className="bg-bone px-5 py-20 sm:px-8 sm:py-24">
+    <section className="bg-bone px-5 py-band sm:px-8">
       <div className="mx-auto w-full max-w-6xl">
         <Reveal>
           <h2 className="type-section max-w-[20ch] text-bone-ink">
             {t('pages.practice.languages.title')}
           </h2>
-          <p className="mt-5 max-w-[56ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-5 max-w-[56ch] text-body leading-relaxed text-bone-ink-soft">
             {t('pages.practice.languages.lede')}
           </p>
         </Reveal>
@@ -61,10 +61,10 @@ export async function Languages() {
                     word on this card that is not in the page's language — and a
                     screen reader reading "Shqip" with an English voice produces
                     something no Albanian speaker would recognise. */}
-                <h3 lang={locale} className="font-display text-[1.5rem] text-bone-ink">
+                <h3 lang={locale} className="font-display text-figure text-bone-ink">
                   {localeLabels[locale]}
                 </h3>
-                <p className="mt-2.5 text-[1rem] leading-relaxed text-bone-ink-soft">
+                <p className="mt-2.5 text-body leading-relaxed text-bone-ink-soft">
                   {t(`pages.practice.languages.${locale}`)}
                 </p>
               </div>

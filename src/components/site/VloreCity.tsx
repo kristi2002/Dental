@@ -45,7 +45,7 @@ export async function VloreCity() {
     <section
       // `seam` for the bronze wash every navy band on this site carries at both
       // edges; `clip` and never `hidden` — see the note under `.drift`.
-      className="seam relative overflow-clip bg-navy px-5 py-20 text-white sm:px-8 sm:py-24"
+      className="seam relative overflow-clip bg-navy px-5 py-band text-white sm:px-8"
     >
       <GhostWord className="-right-[4vw] top-10 hidden text-white/[0.05] lg:block">Vlora</GhostWord>
 
@@ -55,7 +55,7 @@ export async function VloreCity() {
           <h2 className="type-section mt-5 max-w-[16ch] text-white">
             {t('pages.abroad.city.title')}
           </h2>
-          <p className="mt-5 max-w-[58ch] text-[1.05rem] leading-relaxed text-navy-ink">
+          <p className="mt-5 max-w-[58ch] text-body leading-relaxed text-navy-ink">
             {t('pages.abroad.city.lede')}
           </p>
         </Reveal>
@@ -69,15 +69,15 @@ export async function VloreCity() {
                   twice. */}
               <span
                 aria-hidden
-                className="font-display text-[1.6rem] leading-none font-normal text-gilt"
+                className="font-display text-figure leading-none font-normal text-gilt"
               >
                 {String(index + 1).padStart(2, '0')}
               </span>
 
-              <h3 className="mt-4 text-[1.16rem] font-bold text-white">
+              <h3 className="mt-4 text-lead font-bold text-white">
                 {t(`pages.abroad.city.${key}.title`)}
               </h3>
-              <p className="mt-2.5 text-[1rem] leading-relaxed text-navy-ink-soft">
+              <p className="mt-2.5 text-body leading-relaxed text-navy-ink-soft">
                 {t(`pages.abroad.city.${key}.body`)}
               </p>
             </Reveal>
@@ -85,7 +85,7 @@ export async function VloreCity() {
         </ol>
 
         <Reveal step={3}>
-          <p className="mt-12 max-w-[62ch] text-[0.97rem] leading-relaxed text-navy-ink-soft">
+          <p className="mt-12 max-w-[62ch] text-body leading-relaxed text-navy-ink-soft">
             {t('pages.abroad.city.note')}
           </p>
         </Reveal>

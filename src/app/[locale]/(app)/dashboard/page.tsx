@@ -266,8 +266,24 @@ export default async function DashboardPage({
           medical alerts and above everything else — nothing outranks what
           changes the treatment, and this outranks every list of the practice's
           own errands, because the person on the other end of it is waiting. */}
+      {/* --- Elevation and colour are two channels, not one -----------------
+       *
+       * Every panel below that is an *exception* — a stranger waiting for a
+       * call back, an allergy on today's list, a case the laboratory is late
+       * with — is drawn `flat` and coloured, and the one panel that is the
+       * day's actual work is drawn `lead` and not coloured at all.
+       *
+       * That looks backwards for about a second and then does not. Elevation
+       * answers "which surface am I working on"; colour answers "what is
+       * wrong". Spending both on the same panels is what produced the wall this
+       * page used to be: nine white boxes, each with a differently coloured
+       * hairline, all at the same height, in which the schedule and a reminder
+       * to ring a supplier were typographically indistinguishable. Keeping the
+       * two channels separate means a day with nothing wrong reads as one lifted
+       * card and a quiet stack, and a bad morning reads as the same lifted card
+       * with warnings around it — rather than as nine equal alarms. */}
       {canSeeRequests && waitingRequests > 0 ? (
-        <Card className="mb-6 border-warn">
+        <Card weight="flat" className="mb-6 border-warn">
           <CardHeader
             title={t('requestsTitle')}
             subtitle={t('requestsWaiting', { count: waitingRequests })}
@@ -285,7 +301,7 @@ export default async function DashboardPage({
           that changes what happens in the chair. One line per person, loudest
           severity first, and gone entirely on a day with nothing to flag. */}
       {todaysAlerts.length > 0 ? (
-        <Card className="mb-6 border-danger">
+        <Card weight="flat" className="mb-6 border-danger">
           <CardHeader
             title={ta('todaysAlertsTitle')}
             subtitle={ta('todaysAlertsSubtitle')}
@@ -303,7 +319,7 @@ export default async function DashboardPage({
                 >
                   <Link
                     href={`/patients/${alert.patient.id}`}
-                    className="text-[1.05rem] font-bold text-ink"
+                    className="text-body font-bold text-ink"
                   >
                     {alert.patient.lastName} {alert.patient.firstName}
                   </Link>
@@ -313,7 +329,7 @@ export default async function DashboardPage({
                     {alert.substance ? `: ${alert.substance}` : ''}
                   </Badge>
                   {alert.notes ? (
-                    <span className="text-[0.93rem] text-ink-soft">{alert.notes}</span>
+                    <span className="text-meta text-ink-soft">{alert.notes}</span>
                   ) : null}
                 </li>
               ))}
@@ -326,7 +342,11 @@ export default async function DashboardPage({
             closed off" — both are the appointment list, so they belong in the
             same column rather than pushing today's schedule down the page. */}
         <div className="space-y-6">
-          <Card>
+          {/* The one lifted surface on this page. Everything else here is a
+              queue, an exception or an errand; this is the day itself, and on a
+              screen read for ten seconds at nine in the morning it has to be
+              the thing the eye lands on without being looked for. */}
+          <Card weight="lead">
             <CardHeader
               title={t('todaySchedule')}
               icon={<CalendarDays size={22} aria-hidden />}
@@ -359,7 +379,7 @@ export default async function DashboardPage({
               one is answered, so a practice that closes its days never sees
               it. */}
           {openPast.length > 0 ? (
-            <Card className="border-warn">
+            <Card weight="flat" className="border-warn">
               <CardHeader
                 className="border-b-warn/30 bg-warn-soft"
                 title={ta('openPastTitle')}
@@ -380,7 +400,7 @@ export default async function DashboardPage({
                   />
                 ))}
                 {openPastTotal > openPast.length ? (
-                  <p className="px-1 pb-1 text-[0.92rem] text-ink-soft">
+                  <p className="px-1 pb-1 text-meta text-ink-soft">
                     {ta('openPastMore', { shown: openPast.length, total: openPastTotal })}
                   </p>
                 ) : null}
@@ -393,7 +413,7 @@ export default async function DashboardPage({
               this is the copy somebody reads at nine in the morning without
               having to open anything. */}
           {canSeeFollowUps && dueFollowUps.length > 0 ? (
-            <Card className="border-warn">
+            <Card weight="flat" className="border-warn">
               <CardHeader
                 title={tf('title')}
                 subtitle={tf('dueCount', { count: dueFollowUps.length })}
@@ -422,7 +442,7 @@ export default async function DashboardPage({
               out of a promised date that has passed, which is the whole reason
               the register grew a column for one. */}
           {canSeeWorks && lateWorks.length > 0 ? (
-            <Card className="border-warn">
+            <Card weight="flat" className="border-warn">
               <CardHeader
                 title={twk('chaseTitle')}
                 subtitle={twk('chaseSubtitle', { count: lateWorks.length })}
@@ -442,7 +462,7 @@ export default async function DashboardPage({
                       className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-3"
                     >
                       <span className="min-w-0">
-                        <span className="text-[1.03rem] font-bold text-ink">
+                        <span className="text-body font-bold text-ink">
                           #{work.number}{' '}
                           {work.patientId ? (
                             <Link href={`/patients/${work.patientId}`}>{work.patientName}</Link>
@@ -465,7 +485,7 @@ export default async function DashboardPage({
                             "we sent this to Fier and cannot ring them" is the
                             more useful half of the truth, and it is a sentence
                             somebody can act on by filling the number in. */}
-                        <span className="block text-[0.9rem] text-ink-soft">
+                        <span className="block text-meta text-ink-soft">
                           {work.labs.length === 0 ? (
                             <span className="text-ink-faint italic">{twk('noLab')}</span>
                           ) : (
@@ -557,7 +577,7 @@ export default async function DashboardPage({
                   cannot hold anybody there is nothing here to act on, and the
                   card is only still present so the list can be added to. */}
               {fitsToday.length === 0 ? (
-                <p className="px-5 py-4 text-[0.95rem] text-ink-soft">{tw('noFitToday')}</p>
+                <p className="px-5 py-4 text-body text-ink-soft">{tw('noFitToday')}</p>
               ) : (
                 <ul className="divide-y divide-line">
                   {fitsToday.map(({ entry, gap }) => (
@@ -568,11 +588,11 @@ export default async function DashboardPage({
                       <span className="min-w-0">
                         <Link
                           href={`/patients/${entry.patient.id}`}
-                          className="text-[1.03rem] font-bold text-ink"
+                          className="text-body font-bold text-ink"
                         >
                           {entry.patient.lastName} {entry.patient.firstName}
                         </Link>
-                        <span className="block text-[0.9rem] text-ink-soft">
+                        <span className="block text-meta text-ink-soft">
                           {entry.serviceName ? `${entry.serviceName} · ` : ''}
                           {tw('fitsAt', { time: gap.startTime })}
                         </span>
@@ -581,7 +601,7 @@ export default async function DashboardPage({
                             call. Dropping it here made the offer above look
                             certain when it was not. */}
                         {entry.note ? (
-                          <span className="block text-[0.9rem] text-ink-soft">{entry.note}</span>
+                          <span className="block text-meta text-ink-soft">{entry.note}</span>
                         ) : null}
                       </span>
                       {entry.urgent ? <Badge tone="danger">{tw('urgent')}</Badge> : null}
@@ -594,7 +614,7 @@ export default async function DashboardPage({
 
           {/* Treated, but the note is still in somebody's head. */}
           {canEditMedical && unrecorded.length > 0 ? (
-            <Card className="border-warn">
+            <Card weight="flat" className="border-warn">
               <CardHeader
                 title={ta('unrecordedTitle')}
                 subtitle={ta('unrecordedSubtitle', { count: unrecorded.length })}
@@ -609,11 +629,11 @@ export default async function DashboardPage({
                     <span className="min-w-0">
                       <Link
                         href={`/patients/${appointment.patient.id}?tab=history`}
-                        className="text-[1.03rem] font-bold text-ink"
+                        className="text-body font-bold text-ink"
                       >
                         {appointment.patient.lastName} {appointment.patient.firstName}
                       </Link>
-                      <span className="block text-[0.9rem] text-ink-soft tabular-nums">
+                      <span className="block text-meta text-ink-soft tabular-nums">
                         {appointment.startTime}
                         {appointment.serviceName ? ` · ${appointment.serviceName}` : ''}
                       </span>
@@ -700,7 +720,7 @@ export default async function DashboardPage({
                           numbers after them. `alertLabel` is what the reminder
                           board has always used; this list was the one stock
                           surface that did not. */}
-                      <span className="block truncate text-[1.05rem] font-bold text-ink">
+                      <span className="block truncate text-body font-bold text-ink">
                         {alertLabel({ name: item.name, variantName: item.variantName ?? '' })}
                       </span>
                       {/* `usable`, which is what put the row on this list in the
@@ -710,7 +730,7 @@ export default async function DashboardPage({
                           expired read "30 in stock · min 20" and looked like a
                           false alarm. Same reasoning for the badge: everything
                           on the shelf being expired is *out*, not *low*. */}
-                      <span className="block text-[0.9rem] text-ink-soft">
+                      <span className="block text-meta text-ink-soft">
                         {ts('inStock', { qty: item.usable })} ·{' '}
                         {ts('minShort', { min: item.minLimit })}
                       </span>

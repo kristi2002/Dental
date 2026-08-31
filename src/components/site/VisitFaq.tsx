@@ -52,7 +52,7 @@ export async function VisitFaq() {
       id="questions"
       // `seam` for the bronze wash at both edges every navy band on this site
       // carries; `clip` and never `hidden` for the reason given under `.drift`.
-      className="seam relative scroll-mt-20 overflow-clip bg-navy px-5 py-20 text-white sm:px-8 sm:py-24"
+      className="seam relative scroll-mt-20 overflow-clip bg-navy px-5 py-band text-white sm:px-8"
     >
       <div className="relative mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-start lg:gap-16">
         <Reveal>
@@ -62,7 +62,7 @@ export async function VisitFaq() {
             {t('pages.visit.faq.title')}
           </h2>
 
-          <p className="mt-5 max-w-[46ch] text-[1.05rem] leading-relaxed text-navy-ink">
+          <p className="mt-5 max-w-[46ch] text-body leading-relaxed text-navy-ink">
             {t('pages.visit.faq.lede')}
           </p>
         </Reveal>
@@ -80,7 +80,7 @@ export async function VisitFaq() {
                     // `list-none` on both, because Safari draws its triangle
                     // through `::-webkit-details-marker` and Firefox through
                     // `list-style` — and the chevron below is the affordance.
-                    className="flex cursor-pointer list-none items-center justify-between gap-5 py-5 text-[1.08rem] font-semibold text-white [&::-webkit-details-marker]:hidden"
+                    className="flex cursor-pointer list-none items-center justify-between gap-5 py-5 text-lead font-semibold text-white [&::-webkit-details-marker]:hidden"
                   >
                     {t(`pages.visit.faq.${key}.question`)}
 
@@ -91,7 +91,7 @@ export async function VisitFaq() {
                     />
                   </summary>
 
-                  <p className="max-w-[62ch] pb-6 text-[1rem] leading-relaxed text-navy-ink-soft">
+                  <p className="max-w-[62ch] pb-6 text-body leading-relaxed text-navy-ink-soft">
                     {t(`pages.visit.faq.${key}.answer`)}
                   </p>
                 </details>

@@ -245,7 +245,7 @@ export default async function PlanDetailPage({
               ) : null}
               <Link
                 href={`/patients/${plan.patient.id}`}
-                className="text-[1rem] font-semibold text-brand-deep"
+                className="text-body font-semibold text-brand-deep"
               >
                 {t('forPatient')}: {patientName}
               </Link>
@@ -274,12 +274,12 @@ export default async function PlanDetailPage({
                   style={{ width: `${summary.percent}%` }}
                 />
               </div>
-              <span className="shrink-0 text-[0.95rem] font-bold text-ink-soft tabular-nums">
+              <span className="shrink-0 text-body font-bold text-ink-soft tabular-nums">
                 {t('progress', { done: summary.done, total: summary.relevant })}
               </span>
             </div>
 
-            <p className="mt-3 text-[1rem] text-ink-soft">
+            <p className="mt-3 text-body text-ink-soft">
               {summary.next ? (
                 <Link
                   href={`/appointments?view=day&date=${toDateKey(summary.next.appointment!.date)}`}
@@ -300,7 +300,7 @@ export default async function PlanDetailPage({
             </p>
 
             {plan.notes ? (
-              <p className="mt-4 whitespace-pre-wrap text-[1.02rem] text-ink-soft">{plan.notes}</p>
+              <p className="mt-4 whitespace-pre-wrap text-body text-ink-soft">{plan.notes}</p>
             ) : null}
           </CardBody>
         </Card>
@@ -309,7 +309,7 @@ export default async function PlanDetailPage({
           <CardHeader title={t('steps')} />
           <CardBody>
             {steps.length === 0 ? (
-              <p className="text-[1.05rem] text-ink-soft">{t('noStepsYet')}</p>
+              <p className="text-body text-ink-soft">{t('noStepsYet')}</p>
             ) : (
               <StepList
                 planId={plan.id}
@@ -325,7 +325,7 @@ export default async function PlanDetailPage({
         </Card>
       </div>
 
-      <p className="mt-5 text-[0.95rem] text-ink-faint">
+      <p className="mt-5 text-body text-ink-faint">
         {t('startedOn', {
           date: format.dateTime(plan.createdAt, {
             day: 'numeric',

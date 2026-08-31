@@ -82,7 +82,7 @@ export async function StepSpine({
              */}
             <span
               aria-hidden
-              className="absolute top-8 -left-8 z-10 flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-full border border-gilt/55 bg-navy font-display text-[0.98rem] text-gilt sm:-left-9 sm:h-12 sm:w-12 lg:top-1/2 lg:left-1/2 lg:h-14 lg:w-14 lg:-translate-y-1/2 lg:text-[1.16rem]"
+              className="absolute top-8 -left-8 z-10 flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-full border border-gilt/55 bg-navy font-display text-body text-gilt sm:-left-9 sm:h-12 sm:w-12 lg:top-1/2 lg:left-1/2 lg:h-14 lg:w-14 lg:-translate-y-1/2 lg:text-lead"
             >
               {String(index + 1).padStart(2, '0')}
             </span>
@@ -116,7 +116,7 @@ export async function StepSpine({
             </figure>
 
             <div className={cn('min-w-0', flipped && 'lg:order-1 lg:text-right')}>
-              <h3 className="text-[1.24rem] font-bold text-white">
+              <h3 className="text-title font-bold text-white">
                 {t(`pages.treatment.steps.${treatmentKey}.${step}.title`)}
               </h3>
 
@@ -130,7 +130,7 @@ export async function StepSpine({
 
               <p
                 className={cn(
-                  'mt-4 max-w-[44ch] text-[1.03rem] leading-relaxed text-navy-ink',
+                  'mt-4 max-w-[44ch] text-body leading-relaxed text-navy-ink',
                   flipped && 'lg:ml-auto',
                 )}
               >

@@ -121,8 +121,8 @@ export default async function PlanPrintPage({
             the page. */}
         <div className="mb-5">
           <h1 className="text-2xl font-bold text-ink">{plan.title}</h1>
-          <p className="mt-1 text-[1.05rem] text-ink-soft">{patientName}</p>
-          <p className="mt-1 text-[1rem] font-semibold text-ink-soft tabular-nums">
+          <p className="mt-1 text-body text-ink-soft">{patientName}</p>
+          <p className="mt-1 text-body font-semibold text-ink-soft tabular-nums">
             {/* Against the steps that still count — a skipped one is not work
                 left to do, and counting it would tell the patient they are
                 further behind than they are. */}
@@ -131,22 +131,22 @@ export default async function PlanPrintPage({
         </div>
 
         {plan.notes ? (
-          <p className="mb-5 whitespace-pre-wrap text-[1.02rem] text-ink-soft">{plan.notes}</p>
+          <p className="mb-5 whitespace-pre-wrap text-body text-ink-soft">{plan.notes}</p>
         ) : null}
 
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-line">
-              <th className="w-10 py-2 pr-3 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="w-10 py-2 pr-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                 #
               </th>
-              <th className="py-2 pr-3 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="py-2 pr-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                 {t('stepTitle')}
               </th>
-              <th className="py-2 pr-3 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="py-2 pr-3 text-meta font-bold tracking-wide text-ink-faint uppercase">
                 {tt('colTooth')}
               </th>
-              <th className="py-2 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="py-2 text-meta font-bold tracking-wide text-ink-faint uppercase">
                 {t('status')}
               </th>
             </tr>
@@ -156,9 +156,9 @@ export default async function PlanPrintPage({
               <tr key={step.id} className="border-b border-line align-top">
                 <td className="py-3 pr-3 font-bold tabular-nums">{step.position}</td>
                 <td className="py-3 pr-3">
-                  <span className="text-[1.05rem] font-semibold text-ink">{step.title}</span>
+                  <span className="text-body font-semibold text-ink">{step.title}</span>
                   {step.notes ? (
-                    <span className="block text-[0.92rem] text-ink-soft">{step.notes}</span>
+                    <span className="block text-meta text-ink-soft">{step.notes}</span>
                   ) : null}
                 </td>
                 <td className="py-3 pr-3 tabular-nums">
@@ -192,7 +192,7 @@ export default async function PlanPrintPage({
           </tbody>
         </table>
 
-        <p className="mt-6 text-[0.9rem] text-ink-faint">{t('printFooter')}</p>
+        <p className="mt-6 text-meta text-ink-faint">{t('printFooter')}</p>
       </article>
     </>
   );

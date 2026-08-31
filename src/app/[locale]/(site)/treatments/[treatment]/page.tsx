@@ -26,6 +26,7 @@ import {
   TREATMENT_TIMING,
   treatmentBySlug,
   treatmentPath,
+  treatmentTransitionName,
   type TreatmentKey,
   type TreatmentMovement,
 } from '@/lib/site-content';
@@ -265,7 +266,7 @@ export default async function TreatmentPage({
       <section
         key="steps"
         className={cn(
-          'relative overflow-clip px-5 py-16 sm:px-8 sm:py-20',
+          'relative overflow-clip px-5 py-band sm:px-8',
           bands.steps.ground,
           bands.steps.shape === 'spine' && 'text-white',
         )}
@@ -293,7 +294,7 @@ export default async function TreatmentPage({
             </SectionEyebrow>
             <p
               className={cn(
-                'mt-5 max-w-[54ch] text-[1.05rem] leading-relaxed',
+                'mt-5 max-w-[54ch] text-body leading-relaxed',
                 bands.steps.shape === 'spine' ? 'text-navy-ink' : 'text-bone-ink-soft',
               )}
             >
@@ -335,7 +336,7 @@ export default async function TreatmentPage({
       <section
         key="timing"
         className={cn(
-          'relative overflow-clip px-5 py-16 sm:px-8 sm:py-20',
+          'relative overflow-clip px-5 py-band sm:px-8',
           bands.timing.ground,
           bands.timing.tone === 'dark' && 'text-white',
         )}
@@ -363,7 +364,7 @@ export default async function TreatmentPage({
             </SectionEyebrow>
             <p
               className={cn(
-                'mt-5 max-w-[42ch] text-[1.05rem] leading-relaxed',
+                'mt-5 max-w-[42ch] text-body leading-relaxed',
                 bands.timing.tone === 'dark' ? 'text-navy-ink' : 'text-bone-ink-soft',
               )}
             >
@@ -375,7 +376,7 @@ export default async function TreatmentPage({
                 carry, and it is a stated rule rather than a disclaimer. */}
             <p
               className={cn(
-                'mt-6 max-w-[46ch] text-[0.93rem] leading-relaxed',
+                'mt-6 max-w-[46ch] text-meta leading-relaxed',
                 bands.timing.tone === 'dark' ? 'text-navy-ink-soft' : 'text-bone-ink-faint',
               )}
             >
@@ -401,13 +402,14 @@ export default async function TreatmentPage({
         // It is the same file either way; what changes is that the treatment is
         // the ground the page opens on instead of an illustration next to it.
         photo={photo}
+        transitionName={treatmentTransitionName(key)}
       >
         <div className="flex flex-wrap items-center gap-3">
           <AskAbout topic={key} label={t('pages.treatments.ask')} />
 
           <Link
             href="/treatments"
-            className="inline-flex min-h-12 items-center gap-2 rounded-full border border-navy-line px-5 text-[0.95rem] font-semibold text-navy-ink no-underline transition-colors hover:border-gilt hover:text-white focus-visible:outline-gilt"
+            className="inline-flex min-h-12 items-center gap-2 rounded-full border border-navy-line px-5 text-body font-semibold text-navy-ink no-underline transition-colors hover:border-gilt hover:text-white focus-visible:outline-gilt"
           >
             <ArrowLeft size={17} aria-hidden />
             {t('pages.treatment.backToAll')}
@@ -423,27 +425,27 @@ export default async function TreatmentPage({
        * treatment gets the substantive answer immediately rather than after a
        * band of navigation.
        */}
-      <section className="relative overflow-clip bg-bone px-5 py-16 sm:px-8 sm:py-20">
+      <section className="relative overflow-clip bg-bone px-5 py-band sm:px-8">
         <Watermark className="-top-24 -right-28 w-[30rem] text-gilt/[0.05]" />
 
         <div className="relative mx-auto w-full max-w-6xl">
           <Reveal>
             <Swash />
-            <p className="mt-8 max-w-[62ch] text-[1.16rem] leading-relaxed text-bone-ink">
+            <p className="mt-8 max-w-[62ch] text-lead leading-relaxed text-bone-ink">
               {t(`pages.treatments.detail.${key}`)}
             </p>
           </Reveal>
 
           {concerns.length > 0 ? (
             <Reveal className="mt-10">
-              <p className="text-[0.79rem] font-semibold tracking-[0.16em] text-bone-ink-faint uppercase">
+              <p className="text-caption font-semibold tracking-[0.16em] text-bone-ink-faint uppercase">
                 {t('pages.treatment.concernsTitle')}
               </p>
               <ul className="mt-4 flex flex-wrap gap-2.5">
                 {concerns.map((concern) => (
                   <li
                     key={concern.key}
-                    className="inline-flex min-h-9 items-center rounded-full border border-bone-deep bg-bone-soft px-3.5 text-[0.88rem] font-semibold text-bone-ink"
+                    className="inline-flex min-h-9 items-center rounded-full border border-bone-deep bg-bone-soft px-3.5 text-meta font-semibold text-bone-ink"
                   >
                     {t(`concerns.${concern.key}.label`)}
                   </li>
@@ -486,14 +488,14 @@ export default async function TreatmentPage({
        * the next treatment along.
        */}
       <section
-        className={cn('relative overflow-clip px-5 py-16 sm:px-8 sm:py-20', bands.related)}
+        className={cn('relative overflow-clip px-5 py-band sm:px-8', bands.related)}
       >
         <div className="relative mx-auto w-full max-w-6xl">
           <Reveal>
             <SectionEyebrow className="text-gilt-deep">
               {t('pages.treatment.relatedTitle')}
             </SectionEyebrow>
-            <p className="mt-5 max-w-[54ch] text-[1.05rem] text-bone-ink-soft">
+            <p className="mt-5 max-w-[54ch] text-body text-bone-ink-soft">
               {t('pages.treatment.relatedLede')}
             </p>
           </Reveal>
@@ -527,7 +529,7 @@ export default async function TreatmentPage({
                         className="absolute inset-0 bg-gradient-to-t from-navy from-5% via-navy/70 via-38% to-transparent to-78%"
                       />
                       <div className="absolute inset-x-0 bottom-0 p-5">
-                        <h2 className="flex items-start gap-1.5 text-[1.08rem] font-bold text-white">
+                        <h2 className="flex items-start gap-1.5 text-lead font-bold text-white">
                           {t(`treatments.${relatedKey}.title`)}
                           <ArrowUpRight
                             size={17}
@@ -535,7 +537,7 @@ export default async function TreatmentPage({
                             className="reveal-on-hover mt-1 shrink-0 text-gilt opacity-0 transition-opacity group-hover:opacity-100"
                           />
                         </h2>
-                        <p className="mt-1.5 text-[0.92rem] leading-relaxed text-navy-ink">
+                        <p className="mt-1.5 text-meta leading-relaxed text-navy-ink">
                           {t(`treatments.${relatedKey}.body`)}
                         </p>
                       </div>
@@ -614,10 +616,10 @@ export default async function TreatmentPage({
                     </span>
 
                     <span className="min-w-0">
-                      <span className="block text-[0.76rem] font-semibold tracking-[0.14em] text-bone-ink-faint uppercase">
+                      <span className="block text-micro font-semibold tracking-[0.14em] text-bone-ink-faint uppercase">
                         {pager.label}
                       </span>
-                      <span className="mt-0.5 block truncate text-[1.02rem] font-bold text-bone-ink">
+                      <span className="mt-0.5 block truncate text-body font-bold text-bone-ink">
                         {t(`treatments.${pager.key}.title`)}
                       </span>
                     </span>

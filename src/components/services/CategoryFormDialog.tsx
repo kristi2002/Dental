@@ -95,7 +95,7 @@ export function ServiceCategoryFormDialog({
       )}
 
       {category.hasChildren ? (
-        <p className="text-[0.9rem] text-ink-soft">{t('parentLocked')}</p>
+        <p className="text-meta text-ink-soft">{t('parentLocked')}</p>
       ) : null}
     </FormDialog>
   );

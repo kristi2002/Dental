@@ -52,7 +52,7 @@ export async function Practice() {
       // transparent now and the wrapper in `(site)/layout.tsx` carries the one
       // `bone` for all of them — which is what lets a single fixed light run
       // behind the lot without being cut into plates at each boundary.
-      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band-lead sm:px-8"
     >
       {/* Low and off the left edge, under the block of prose rather than behind
           the name. A grey word crossing a person's name reads as a printing
@@ -69,11 +69,11 @@ export async function Practice() {
           {/* The name in the wordmark's own serif, at the size a wordmark-led
               identity should give a person's name. */}
           <h2 className="type-lead mt-5 text-bone-ink">{t('practice.dentist')}</h2>
-          <p className="mt-2 text-[1.02rem] font-semibold text-gilt-deep">
+          <p className="mt-2 text-body font-semibold text-gilt-deep">
             {t('practice.dentistRole')}
           </p>
 
-          <div className="mt-6 space-y-4 text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <div className="mt-6 space-y-4 text-body leading-relaxed text-bone-ink-soft">
             <p>{t('practice.bodyOne')}</p>
             <p>{t('practice.bodyTwo')}</p>
           </div>
@@ -122,7 +122,7 @@ export async function Practice() {
               className="drift block w-full object-cover lg:aspect-4/3"
             />
           </div>
-          <figcaption className="mt-3 text-[0.88rem] text-bone-ink-faint">
+          <figcaption className="mt-3 text-meta text-bone-ink-faint">
             {t('practice.surgeryCaption')}
           </figcaption>
         </figure>
@@ -159,10 +159,10 @@ export async function Practice() {
                 data-tilt
                 className="glass-card glass-card-bone tilt-panel px-6 py-6"
               >
-                <dt className="text-[0.82rem] font-semibold tracking-[0.14em] text-bone-ink-faint uppercase">
+                <dt className="text-caption font-semibold tracking-[0.14em] text-bone-ink-faint uppercase">
                   {t(`practice.facts.${fact.key}`)}
                 </dt>
-                <dd className="mt-3 text-[1.06rem] leading-relaxed font-semibold text-bone-ink">
+                <dd className="mt-3 text-body leading-relaxed font-semibold text-bone-ink">
                   {fact.value}
                 </dd>
               </div>

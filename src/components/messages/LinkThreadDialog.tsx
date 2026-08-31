@@ -66,7 +66,7 @@ export function LinkThreadDialog({
 
         <form action={linkThreadToPatient} className="space-y-4 px-5 py-5">
           <input type="hidden" name="threadId" value={threadId} />
-          <p className="text-[0.98rem] text-ink-soft">{t('linkHint')}</p>
+          <p className="text-body text-ink-soft">{t('linkHint')}</p>
           <PatientPicker name="patientId" label={t('linkPatient')} required />
 
           <footer className="flex flex-wrap items-center justify-end gap-2 pt-1">

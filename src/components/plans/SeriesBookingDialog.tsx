@@ -69,7 +69,7 @@ export function SeriesBookingDialog({
     >
       <input type="hidden" name="planId" value={planId} />
 
-      <p className="text-[0.95rem] text-ink-soft">{t('bookSeriesHint')}</p>
+      <p className="text-body text-ink-soft">{t('bookSeriesHint')}</p>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField

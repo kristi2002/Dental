@@ -141,7 +141,7 @@ export default async function WorkDocketPage({
             where the pad has two, because a technician reads this by position as
             much as by label — after a few hundred of them the eye goes straight
             to the top right for the laboratory's name. */}
-        <dl className="grid grid-cols-[auto_1fr_auto_1fr] items-baseline gap-x-3 gap-y-2.5 text-[1.02rem]">
+        <dl className="grid grid-cols-[auto_1fr_auto_1fr] items-baseline gap-x-3 gap-y-2.5 text-body">
           <Entry label={t('docketStart')} value={day(work.sentAt)} />
           <Entry label={t('lab')} value={labs.join(' · ')} />
 
@@ -159,7 +159,7 @@ export default async function WorkDocketPage({
         </dl>
 
         {work.urgent ? (
-          <p className="mt-4 border-2 border-ink px-3 py-1.5 text-center text-[1rem] font-bold tracking-wide text-ink uppercase">
+          <p className="mt-4 border-2 border-ink px-3 py-1.5 text-center text-body font-bold tracking-wide text-ink uppercase">
             {t('urgent')}
           </p>
         ) : null}
@@ -170,13 +170,13 @@ export default async function WorkDocketPage({
         <table className="mt-6 w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-line">
-              <th className="py-2 pr-3 text-[0.82rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="py-2 pr-3 text-caption font-bold tracking-wide text-ink-faint uppercase">
                 {t('docketType')}
               </th>
-              <th className="py-2 pr-3 text-[0.82rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="py-2 pr-3 text-caption font-bold tracking-wide text-ink-faint uppercase">
                 {t('teeth')}
               </th>
-              <th className="w-16 py-2 text-right text-[0.82rem] font-bold tracking-wide text-ink-faint uppercase">
+              <th className="w-16 py-2 text-right text-caption font-bold tracking-wide text-ink-faint uppercase">
                 {t('elementsShort')}
               </th>
             </tr>
@@ -184,13 +184,13 @@ export default async function WorkDocketPage({
           <tbody>
             {work.lines.map((line) => (
               <tr key={line.id} className="border-b border-line align-top">
-                <td className="py-2.5 pr-3 text-[1.02rem] font-semibold text-ink">
+                <td className="py-2.5 pr-3 text-body font-semibold text-ink">
                   {line.procedure}
                 </td>
-                <td className="py-2.5 pr-3 text-[0.98rem] text-ink-soft tabular-nums">
+                <td className="py-2.5 pr-3 text-body text-ink-soft tabular-nums">
                   {spanCodes(line.teeth) || '—'}
                 </td>
-                <td className="py-2.5 text-right text-[1.02rem] font-bold tabular-nums">
+                <td className="py-2.5 text-right text-body font-bold tabular-nums">
                   {line.elements}
                 </td>
               </tr>
@@ -198,10 +198,10 @@ export default async function WorkDocketPage({
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={2} className="py-2.5 pr-3 text-right text-[0.95rem] font-bold text-ink-faint uppercase">
+              <td colSpan={2} className="py-2.5 pr-3 text-right text-body font-bold text-ink-faint uppercase">
                 {t('elementsTotal')}
               </td>
-              <td className="py-2.5 text-right text-[1.1rem] font-bold tabular-nums">
+              <td className="py-2.5 text-right text-lead font-bold tabular-nums">
                 {totalElements}
               </td>
             </tr>
@@ -221,7 +221,7 @@ export default async function WorkDocketPage({
         </div>
 
         {work.notes ? (
-          <p className="mt-5 text-[0.98rem] whitespace-pre-wrap text-ink-soft">{work.notes}</p>
+          <p className="mt-5 text-body whitespace-pre-wrap text-ink-soft">{work.notes}</p>
         ) : null}
 
         {/* The technician's half of the pad. Ruled and empty on purpose. */}
@@ -232,7 +232,7 @@ export default async function WorkDocketPage({
             t('docketStageFinish'),
             t('docketStageTray'),
           ].map((stage) => (
-            <div key={stage} className="mb-4 flex items-baseline gap-3 text-[1rem]">
+            <div key={stage} className="mb-4 flex items-baseline gap-3 text-body">
               <span className="shrink-0 font-semibold text-ink">{stage}:</span>
               <span className="min-w-0 flex-1 border-b border-line-strong" aria-hidden />
               <span className="shrink-0 font-semibold text-ink">{t('docketTime')}:</span>

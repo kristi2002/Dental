@@ -65,7 +65,7 @@ export function MergeDialog({
       />
 
       {chosen ? (
-        <p className="text-[0.95rem] text-ink-soft">
+        <p className="text-body text-ink-soft">
           {t('mergeExplain', { from: chosen.name, to: keepName })}
         </p>
       ) : null}

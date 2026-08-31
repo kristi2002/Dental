@@ -106,7 +106,7 @@ export default async function PracticePage({
           {['four', 'five'].map((key) => (
             <li
               key={key}
-              className="inline-flex min-h-9 items-center rounded-full border border-navy-line px-3.5 text-[0.86rem] font-semibold text-navy-ink"
+              className="inline-flex min-h-9 items-center rounded-full border border-navy-line px-3.5 text-meta font-semibold text-navy-ink"
             >
               {t(`strip.${key}`)}
             </li>

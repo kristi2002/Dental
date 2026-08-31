@@ -156,7 +156,7 @@ export function NoteEditor({
           <span className="ml-1.5 font-normal text-ink-faint">({optional})</span>
         ) : null}
       </label>
-      {hint ? <p className="mb-1.5 text-[0.9rem] text-ink-soft">{hint}</p> : null}
+      {hint ? <p className="mb-1.5 text-meta text-ink-soft">{hint}</p> : null}
 
       <div className="rounded-xl border border-line focus-within:border-line-strong">
         <div className="flex flex-wrap items-center gap-0.5 border-b border-line px-1.5 py-1">
@@ -229,7 +229,7 @@ export function NoteEditor({
         />
       </div>
 
-      <p className="mt-1 flex items-center justify-between gap-2 text-[0.85rem] text-ink-faint">
+      <p className="mt-1 flex items-center justify-between gap-2 text-meta text-ink-faint">
         <span>{t('hint')}</span>
         {/* Only once it is close enough to matter — a counter on an empty box is
             a limit advertised to somebody who was never going to reach it. */}

@@ -145,12 +145,12 @@ export function LabelCard({
           </div>
 
           <div>
-            <p className="text-[1.05rem] font-bold text-ink">{title}</p>
+            <p className="text-body font-bold text-ink">{title}</p>
             {subtitle ? <p className="font-semibold text-ink-soft">{subtitle}</p> : null}
-            {footnote ? <p className="text-[0.95rem] text-ink-faint">{footnote}</p> : null}
+            {footnote ? <p className="text-body text-ink-faint">{footnote}</p> : null}
           </div>
 
-          <p className="text-[0.95rem] text-ink-soft">{t('labelPrintOneHint')}</p>
+          <p className="text-body text-ink-soft">{t('labelPrintOneHint')}</p>
         </div>
 
         <footer className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">

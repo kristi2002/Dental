@@ -112,7 +112,7 @@ export function StepFormDialog({
         <div className="space-y-2.5">
           {byDepartment(services).map(({ department, items }) => (
             <div key={department || 'none'}>
-              <p className="mb-1 text-[0.78rem] font-bold tracking-wide text-ink-faint uppercase">
+              <p className="mb-1 text-caption font-bold tracking-wide text-ink-faint uppercase">
                 {department || tc('category')}
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -127,8 +127,8 @@ export function StepFormDialog({
                     }}
                     className={
                       serviceId === service.id
-                        ? 'rounded-full border border-brand-dark bg-brand-dark px-3 py-1.5 text-[0.88rem] font-semibold text-white'
-                        : 'rounded-full border border-line-strong bg-surface px-3 py-1.5 text-[0.88rem] font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep'
+                        ? 'rounded-full border border-brand-dark bg-brand-dark px-3 py-1.5 text-meta font-semibold text-white'
+                        : 'rounded-full border border-line-strong bg-surface px-3 py-1.5 text-meta font-semibold text-ink-soft transition-colors hover:border-brand-dark hover:bg-brand-soft hover:text-brand-deep'
                     }
                   >
                     {service.name}

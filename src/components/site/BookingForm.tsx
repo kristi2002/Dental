@@ -147,7 +147,7 @@ export function BookingForm({
               Thursday" — and it is the last chance to correct the one thing
               this form can get wrong without anybody noticing. */}
           {chosen ? (
-            <p className="mt-5 inline-flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 rounded-full border border-gilt/40 bg-gilt-soft/70 px-5 py-2.5 text-[1rem] font-semibold text-bone-ink">
+            <p className="mt-5 inline-flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 rounded-full border border-gilt/40 bg-gilt-soft/70 px-5 py-2.5 text-body font-semibold text-bone-ink">
               <CalendarCheck size={18} aria-hidden className="text-gilt-deep" />
               <span className="first-letter:uppercase">
                 {dates.date(fromDateKey(chosen.date), 'weekdayLongDayMonthLongYear')}
@@ -161,13 +161,13 @@ export function BookingForm({
               — they pressed the button, they saw a confirmation, and the desk
               rings back asking for an X-ray they believe they already sent. */}
           {attached > 0 ? (
-            <p className="mt-4 flex items-center justify-center gap-2 text-[0.98rem] font-semibold text-bone-ink">
+            <p className="mt-4 flex items-center justify-center gap-2 text-body font-semibold text-bone-ink">
               <Paperclip size={16} aria-hidden className="text-gilt-deep" />
               {t('form.sentFiles', { count: attached })}
             </p>
           ) : null}
 
-          <p className="mx-auto mt-6 max-w-[46ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mx-auto mt-6 max-w-[46ch] text-body leading-relaxed text-bone-ink-soft">
             {t('form.sentBody')}
           </p>
         </div>
@@ -220,7 +220,7 @@ export function BookingForm({
             <h2 id="book-when" className="type-section mt-4 text-bone-ink">
               {t('book.whenTitle')}
             </h2>
-            <p className="mt-3 max-w-[44ch] text-[1rem] leading-relaxed text-bone-ink-soft">
+            <p className="mt-3 max-w-[44ch] text-body leading-relaxed text-bone-ink-soft">
               {t('book.whenLede')}
             </p>
 
@@ -246,19 +246,19 @@ export function BookingForm({
             <div className="book-chosen mt-5 rounded-2xl px-5 py-4" aria-live="polite">
               {chosen ? (
                 <>
-                  <p className="text-[1.05rem] font-bold text-bone-ink first-letter:uppercase">
+                  <p className="text-body font-bold text-bone-ink first-letter:uppercase">
                     {dates.date(fromDateKey(chosen.date), 'weekdayLongDayMonthLongYear')}
                   </p>
-                  <p className="mt-1 text-[0.95rem] text-bone-ink-soft tabular-nums">
+                  <p className="mt-1 text-body text-bone-ink-soft tabular-nums">
                     {t('book.openThatDay', { hours: chosen.hours })}
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-[1.05rem] font-bold text-bone-ink">
+                  <p className="text-body font-bold text-bone-ink">
                     {t('book.noDayTitle')}
                   </p>
-                  <p className="mt-1 text-[0.95rem] text-bone-ink-soft">
+                  <p className="mt-1 text-body text-bone-ink-soft">
                     {t('book.noDayBody')}
                   </p>
                 </>
@@ -340,7 +340,7 @@ export function BookingForm({
           <div className="lg:pt-8">
             <p className="book-step-label">{t('book.stepWhen')}</p>
             <h2 className="type-section mt-4 text-bone-ink">{t('book.noCalendarTitle')}</h2>
-            <p className="mt-3 max-w-[46ch] text-[1rem] leading-relaxed text-bone-ink-soft">
+            <p className="mt-3 max-w-[46ch] text-body leading-relaxed text-bone-ink-soft">
               {t('book.noCalendarBody')}
             </p>
           </div>
@@ -356,7 +356,7 @@ export function BookingForm({
           </p>
 
           <h2 className="type-section mt-4 text-bone-ink">{t('book.whoTitle')}</h2>
-          <p className="mt-3 text-[1rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-3 text-body leading-relaxed text-bone-ink-soft">
             {t('book.whoLede')}
           </p>
 
@@ -388,7 +388,7 @@ export function BookingForm({
                 autoComplete="tel"
                 className="field-input"
               />
-              <p className="mt-1.5 text-[0.9rem] text-bone-ink-soft">{t('form.phoneHint')}</p>
+              <p className="mt-1.5 text-meta text-bone-ink-soft">{t('form.phoneHint')}</p>
             </div>
 
             <div>
@@ -478,7 +478,7 @@ export function BookingForm({
               className="w-full border-gilt bg-gilt text-navy hover:border-gilt hover:bg-gilt"
             />
 
-            <p className="text-[0.88rem] leading-relaxed text-bone-ink-faint">
+            <p className="text-meta leading-relaxed text-bone-ink-faint">
               {t('form.privacy')}
             </p>
           </div>

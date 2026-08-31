@@ -94,8 +94,8 @@ export default async function StockCategoriesPage({
               className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4"
             >
               <div className="min-w-0">
-                <p className="text-[1.05rem] font-bold text-ink">{category.name}</p>
-                <p className="text-[0.92rem] text-ink-soft">
+                <p className="text-body font-bold text-ink">{category.name}</p>
+                <p className="text-meta text-ink-soft">
                   {t('itemCount', { count: itemsPerCategory.get(category.id) ?? 0 })}
                 </p>
               </div>

@@ -105,8 +105,8 @@ export default async function ServiceCategoriesPage({
               <li key={department.id} className="px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                   <div className="min-w-0">
-                    <p className="text-[1.05rem] font-bold text-ink">{department.name}</p>
-                    <p className="text-[0.92rem] text-ink-soft">
+                    <p className="text-body font-bold text-ink">{department.name}</p>
+                    <p className="text-meta text-ink-soft">
                       {t('serviceCount', {
                         count: servicesPerCategory.get(department.id) ?? 0,
                       })}
@@ -161,7 +161,7 @@ export default async function ServiceCategoriesPage({
                       >
                         <div className="min-w-0">
                           <p className="font-semibold text-ink">{child.name}</p>
-                          <p className="text-[0.9rem] text-ink-soft">
+                          <p className="text-meta text-ink-soft">
                             {t('serviceCount', { count: servicesPerCategory.get(child.id) ?? 0 })}
                           </p>
                         </div>

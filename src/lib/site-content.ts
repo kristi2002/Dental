@@ -338,6 +338,19 @@ export const TREATMENT_SLUGS = {
 } as const satisfies Record<TreatmentKey, string>;
 
 /** `/treatments/root-canal`, under whatever locale the caller is in. */
+/**
+ * The shared-element name a treatment's photograph answers to on both sides of
+ * a navigation — the card in the grid, and the hero on the page it opens.
+ *
+ * A function rather than a template literal written out at each call site,
+ * because the two sides live in different files and a morph that stops pairing
+ * is the hardest kind of visual bug to notice: nothing breaks and no error is
+ * raised, the animation simply stops happening and the page cuts instead.
+ */
+export function treatmentTransitionName(key: TreatmentKey): string {
+  return `treatment-${key}`;
+}
+
 export function treatmentPath(key: TreatmentKey): string {
   return `/treatments/${TREATMENT_SLUGS[key]}`;
 }

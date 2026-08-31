@@ -69,7 +69,7 @@ export async function JobsCard({ jobs }: { jobs: ReadonlyArray<JobBoardRow> }) {
               <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2">
-                    <span className="text-[1.05rem] font-bold text-ink">{t(`name.${job.name}`)}</span>
+                    <span className="text-body font-bold text-ink">{t(`name.${job.name}`)}</span>
                     <Badge tone={TONES[severity]}>{t(`reason.${reason}`)}</Badge>
                   </p>
                   {/* What it is for, and how often it is meant to happen. The
@@ -77,7 +77,7 @@ export async function JobsCard({ jobs }: { jobs: ReadonlyArray<JobBoardRow> }) {
                       is what makes "four days ago" readable — four days is
                       nothing for the weekly sweep and four missed runs for the
                       nightly queue. */}
-                  <p className="mt-0.5 text-[0.93rem] text-ink-soft">
+                  <p className="mt-0.5 text-meta text-ink-soft">
                     {t(`hint.${job.name}`)} · {t('cadence', { hours: job.everyHours })}
                   </p>
                 </div>
@@ -101,10 +101,10 @@ export async function JobsCard({ jobs }: { jobs: ReadonlyArray<JobBoardRow> }) {
                     nothing — its *last attempt* is minutes old and its last
                     success may be from March. */}
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <dt className="text-[0.93rem] text-ink-soft">{t('lastSuccess')}</dt>
+                  <dt className="text-meta text-ink-soft">{t('lastSuccess')}</dt>
                   <dd
                     className={cn(
-                      'text-[0.98rem] font-semibold',
+                      'text-body font-semibold',
                       staleHours === null ? 'text-danger' : 'text-ink',
                     )}
                   >
@@ -113,8 +113,8 @@ export async function JobsCard({ jobs }: { jobs: ReadonlyArray<JobBoardRow> }) {
                 </div>
 
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <dt className="text-[0.93rem] text-ink-soft">{t('lastAttempt')}</dt>
-                  <dd className="text-[0.98rem] font-semibold text-ink">
+                  <dt className="text-meta text-ink-soft">{t('lastAttempt')}</dt>
+                  <dd className="text-body font-semibold text-ink">
                     {job.latest
                       ? format.dateTime(job.latest.startedAt, {
                           dateStyle: 'medium',
@@ -130,13 +130,13 @@ export async function JobsCard({ jobs }: { jobs: ReadonlyArray<JobBoardRow> }) {
                   a fortnight is what turns switching the sweep to delete from a
                   hopeful act into an informed one. */}
               {job.latest?.summary ? (
-                <p className="mt-2 rounded-lg bg-paper px-3 py-2 font-mono text-[0.85rem] break-words text-ink-soft">
+                <p className="mt-2 rounded-lg bg-paper px-3 py-2 font-mono text-meta break-words text-ink-soft">
                   {job.latest.summary}
                 </p>
               ) : null}
 
               {failure ? (
-                <p className="mt-2 rounded-lg border border-danger bg-danger-soft px-3 py-2 font-mono text-[0.85rem] break-words text-danger">
+                <p className="mt-2 rounded-lg border border-danger bg-danger-soft px-3 py-2 font-mono text-meta break-words text-danger">
                   {failure}
                 </p>
               ) : null}
@@ -146,7 +146,7 @@ export async function JobsCard({ jobs }: { jobs: ReadonlyArray<JobBoardRow> }) {
                   reaching the app, which is the failure this card was built for
                   and the one nothing else in the deployment reports. */}
               {reason === 'never' ? (
-                <p className="mt-2 text-[0.93rem] font-semibold text-warn">{t('neverHint')}</p>
+                <p className="mt-2 text-meta font-semibold text-warn">{t('neverHint')}</p>
               ) : null}
             </li>
           );
@@ -156,7 +156,7 @@ export async function JobsCard({ jobs }: { jobs: ReadonlyArray<JobBoardRow> }) {
       {/* Where the clock actually lives, because the commonest cause of every
           bad state above is outside this app entirely — a sidecar that was
           never started, or a secret that does not match. */}
-      <p className="border-t border-line px-5 py-3 text-[0.9rem] text-ink-faint">
+      <p className="border-t border-line px-5 py-3 text-meta text-ink-faint">
         {t('footnote')}
       </p>
     </Card>

@@ -41,22 +41,22 @@ export async function MailerCard({ canEdit }: { canEdit: boolean }) {
           {status.configured ? t('mailOn') : t(`mailProblem_${status.problem}`)}
         </Badge>
         {status.configured ? (
-          <span className="text-[0.93rem] text-ink-soft">
+          <span className="text-meta text-ink-soft">
             {t('mailVia', { provider: status.provider })}
           </span>
         ) : null}
       </div>
 
       {status.configured ? (
-        <dl className="grid gap-x-6 gap-y-1 text-[0.95rem] sm:grid-cols-[max-content_minmax(0,1fr)]">
+        <dl className="grid gap-x-6 gap-y-1 text-body sm:grid-cols-[max-content_minmax(0,1fr)]">
           <dt className="font-semibold text-ink-soft">{t('mailFrom')}</dt>
-          <dd className="font-mono text-[0.88rem] break-all">{status.from}</dd>
+          <dd className="font-mono text-meta break-all">{status.from}</dd>
           <dt className="font-semibold text-ink-soft">{t('mailReplyTo')}</dt>
           {/* The one optional setting worth nagging about. Unset means replies
               go to the sending address, and a `no-reply@` mailbox is one nobody
               reads — so a patient's "can we move it?" lands nowhere and the
               practice never learns it was asked. */}
-          <dd className={status.replyTo ? 'font-mono text-[0.88rem] break-all' : 'text-warn'}>
+          <dd className={status.replyTo ? 'font-mono text-meta break-all' : 'text-warn'}>
             {status.replyTo || t('mailReplyToUnset')}
           </dd>
           {/* Sending and receiving are two settings with two failure modes, and
@@ -69,7 +69,7 @@ export async function MailerCard({ canEdit }: { canEdit: boolean }) {
           </dd>
         </dl>
       ) : (
-        <p className="text-[0.98rem] text-ink-soft">{t('mailHint')}</p>
+        <p className="text-body text-ink-soft">{t('mailHint')}</p>
       )}
 
       {status.configured && canEdit ? (
@@ -80,13 +80,13 @@ export async function MailerCard({ canEdit }: { canEdit: boolean }) {
               {t('mailTest')}
             </button>
           </ReportingActionForm>
-          <span className="text-[0.9rem] text-ink-faint">
+          <span className="text-meta text-ink-faint">
             {t('mailTestHint', { to: status.replyTo ?? status.from })}
           </span>
         </div>
       ) : null}
 
-      <p className="text-[0.9rem] text-ink-faint">{t('mailDnsHint')}</p>
+      <p className="text-meta text-ink-faint">{t('mailDnsHint')}</p>
     </div>
   );
 }

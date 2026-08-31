@@ -132,7 +132,7 @@ export async function ReorderPanel({
                   >
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-[1.05rem] font-bold text-ink">
+                        <span className="truncate text-body font-bold text-ink">
                           {line.name}
                         </span>
                         {line.urgent ? <Badge tone="danger">{t('urgent')}</Badge> : null}
@@ -156,7 +156,7 @@ export async function ReorderPanel({
                           )
                         ) : null}
                       </p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[0.92rem] text-ink-soft">
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-meta text-ink-soft">
                         {/* Bulk stock is counted on the shelf every few months,
                             so its burn rate is lumpy and "days left" would be a
                             made-up number. What is on the shelf against the
@@ -191,10 +191,10 @@ export async function ReorderPanel({
                     </div>
 
                     <p className="shrink-0 text-right">
-                      <span className="block text-[1.15rem] font-bold text-brand-deep tabular-nums">
+                      <span className="block text-lead font-bold text-brand-deep tabular-nums">
                         +{orderAmount(line, boxes)}
                       </span>
-                      <span className="block text-[0.85rem] text-ink-faint">{t('suggested')}</span>
+                      <span className="block text-meta text-ink-faint">{t('suggested')}</span>
                     </p>
                   </li>
                 ))}

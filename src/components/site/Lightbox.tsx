@@ -102,8 +102,8 @@ export function Lightbox({
         />
 
         <div className="mt-4 flex items-center justify-between gap-4">
-          <p className="text-[0.95rem] text-white">{t(`gallery.alt.${photo.key}`)}</p>
-          <p className="shrink-0 text-[0.9rem] text-navy-ink-soft tabular-nums">
+          <p className="text-body text-white">{t(`gallery.alt.${photo.key}`)}</p>
+          <p className="shrink-0 text-meta text-navy-ink-soft tabular-nums">
             {current + 1} / {photos.length}
           </p>
         </div>

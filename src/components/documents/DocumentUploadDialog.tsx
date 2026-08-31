@@ -57,7 +57,7 @@ export function DocumentUploadDialog({
         <label className="field-label" htmlFor={`${uid}-file`}>
           {t('file')}
         </label>
-        <p className="mb-1.5 text-[0.9rem] text-ink-soft">
+        <p className="mb-1.5 text-meta text-ink-soft">
           {t('fileHint', { max: Math.floor(MAX_FILE_BYTES / (1024 * 1024)) })}
         </p>
         <input

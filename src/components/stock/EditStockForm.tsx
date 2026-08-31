@@ -98,7 +98,7 @@ export function EditStockForm({
         aside={
           <FormPreview title={t('editPreviewTitle')}>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[1.12rem] font-bold text-ink">
+              <p className="text-lead font-bold text-ink">
                 {preview.name.trim() || <span className="text-ink-faint">{t('edit')}</span>}
                 {preview.variantName.trim() ? (
                   <span className="ml-1.5 font-semibold text-ink-soft">
@@ -120,17 +120,17 @@ export function EditStockForm({
               )}
             </div>
 
-            <p className="mt-1 text-[0.95rem] text-ink-soft">
+            <p className="mt-1 text-body text-ink-soft">
               {category?.name || t('uncategorized')} · {t('minShort', { min: minLimit })}
             </p>
 
-            <p className="mt-3 flex items-baseline gap-2 text-[1.15rem] font-bold tabular-nums text-ink">
+            <p className="mt-3 flex items-baseline gap-2 text-lead font-bold tabular-nums text-ink">
               {quantity}
-              <span className="text-[0.9rem] font-semibold">{t('boxes', { count: quantity })}</span>
+              <span className="text-meta font-semibold">{t('boxes', { count: quantity })}</span>
               {delta !== 0 ? (
                 <span
                   className={cn(
-                    'text-[0.95rem] font-bold tabular-nums',
+                    'text-body font-bold tabular-nums',
                     delta < 0 ? 'text-warn' : 'text-ok',
                   )}
                 >
@@ -144,10 +144,10 @@ export function EditStockForm({
                 over it. Worth its own line only once the two differ. */}
             {delta !== 0 ? (
               <div className="mt-3 space-y-1 border-t border-line pt-3">
-                <p className="text-[0.9rem] font-semibold text-ink-soft tabular-nums">
+                <p className="text-meta font-semibold text-ink-soft tabular-nums">
                   {t('stocktakeOnRecord', { qty: item.quantity })}
                 </p>
-                <p className="text-[0.9rem] text-ink-faint">
+                <p className="text-meta text-ink-faint">
                   {t('editMovementNote', {
                     delta: `${delta > 0 ? '+' : '−'}${Math.abs(delta)} ${t('boxes', {
                       count: Math.abs(delta),

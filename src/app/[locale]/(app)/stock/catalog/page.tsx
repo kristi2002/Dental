@@ -263,15 +263,15 @@ export default async function StockCatalogPage({
                     />
 
                     <div className="min-w-52 flex-1">
-                      <p className="text-[1.25rem] font-bold text-ink">{product.name}</p>
-                      <p className="mt-0.5 text-[0.95rem] text-ink-soft">
+                      <p className="text-title font-bold text-ink">{product.name}</p>
+                      <p className="mt-0.5 text-body text-ink-soft">
                         {product.brand ? `${product.brand} · ` : ''}
                         {t('variantsCount', { count: group.rows.length })} ·{' '}
                         {t('groupTotal', {
                           count: group.rows.reduce((sum, row) => sum + row.quantity, 0),
                         })}
                       </p>
-                      <p className="mt-1 text-[0.88rem] text-ink-faint">{t('productPhotoHint')}</p>
+                      <p className="mt-1 text-meta text-ink-faint">{t('productPhotoHint')}</p>
                     </div>
 
                     {canEdit ? (
@@ -321,7 +321,7 @@ export default async function StockCatalogPage({
                                 overhead, so the row leads with the only part
                                 that differs — which is the part somebody is
                                 looking for. */}
-                            <p className="text-[1.15rem] font-bold text-ink">
+                            <p className="text-lead font-bold text-ink">
                               {banded ? (item.variantName ?? item.name) : item.name}
                             </p>
                             {!banded && item.variantName ? (
@@ -336,7 +336,7 @@ export default async function StockCatalogPage({
                             ) : null}
                           </div>
 
-                          <p className="mt-0.5 text-[0.95rem] text-ink-soft">
+                          <p className="mt-0.5 text-body text-ink-soft">
                             {item.category?.name || t('uncategorized')}
                             {item.supplier ? ` · ${item.supplier.name}` : ''}
                           </p>
@@ -353,7 +353,7 @@ export default async function StockCatalogPage({
                           >
                             {item.quantity}
                           </span>
-                          <span className="text-[0.95rem] font-semibold text-ink-soft">
+                          <span className="text-body font-semibold text-ink-soft">
                             {t('boxes', { count: item.quantity })}
                           </span>
                           {isOut ? (

@@ -99,7 +99,7 @@ export function WorkLinesField({
       />
 
       {value.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-line-strong px-3.5 py-4 text-center text-[0.95rem] text-ink-faint">
+        <p className="rounded-lg border border-dashed border-line-strong px-3.5 py-4 text-center text-body text-ink-faint">
           {t('noLinesYet')}
         </p>
       ) : (
@@ -121,14 +121,14 @@ export function WorkLinesField({
                 <div className="mb-2.5 flex items-center gap-2">
                   <span
                     aria-hidden
-                    className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-soft text-[0.78rem] font-bold text-brand-deep"
+                    className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-soft text-caption font-bold text-brand-deep"
                   >
                     {index + 1}
                   </span>
                   {/* The row says what it is as soon as the work is chosen,
                       which is what a case with three rows on it needs to be
                       readable while it is being written. */}
-                  <span className="min-w-0 truncate text-[0.95rem] font-semibold text-ink">
+                  <span className="min-w-0 truncate text-body font-semibold text-ink">
                     {line.procedure || <span className="text-ink-faint">{t('procedureChoose')}</span>}
                   </span>
 
@@ -166,7 +166,7 @@ export function WorkLinesField({
                         control is an empty list has to say where the list comes
                         from, or it is a dead end. */}
                     {options.length === 0 ? (
-                      <p className="mt-1.5 text-[0.9rem] text-ink-soft">
+                      <p className="mt-1.5 text-meta text-ink-soft">
                         {t('procedureNone')}{' '}
                         <Link href="/works/procedures" className="font-semibold underline">
                           {t('procedureManage')}
@@ -213,7 +213,7 @@ export function WorkLinesField({
                     {/* Only when there is nothing to pick — the same dead-end
                         rule the work catalogue follows one field to the left. */}
                     {labs.length === 0 ? (
-                      <p className="mt-1.5 text-[0.9rem] text-ink-soft">
+                      <p className="mt-1.5 text-meta text-ink-soft">
                         {t('labNone')}{' '}
                         <Link href="/works/labs" className="font-semibold underline">
                           {t('labManage')}
@@ -290,9 +290,9 @@ export function WorkLinesField({
 
         {/* The figure the invoice gets checked against, kept in step as the case
             is written rather than added up afterwards. */}
-        <p aria-live="polite" className="text-[0.95rem] text-ink-soft">
+        <p aria-live="polite" className="text-body text-ink-soft">
           {t('elementsTotal')}{' '}
-          <span className="text-[1.15rem] font-bold text-ink tabular-nums">
+          <span className="text-lead font-bold text-ink tabular-nums">
             {elementsOf({ lines: value })}
           </span>
         </p>

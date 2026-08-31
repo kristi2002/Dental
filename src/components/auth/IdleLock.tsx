@@ -196,10 +196,10 @@ export function IdleLock({
             >
               <Lock size={26} />
             </span>
-            <h2 id="idle-lock-title" className="text-[1.35rem] font-bold text-ink">
+            <h2 id="idle-lock-title" className="text-title font-bold text-ink">
               {t('lockedTitle')}
             </h2>
-            <p className="mt-1 text-[0.95rem] text-ink-soft">{t('lockedBody')}</p>
+            <p className="mt-1 text-body text-ink-soft">{t('lockedBody')}</p>
           </div>
   
           <form action={formAction} className="space-y-5">
@@ -209,11 +209,11 @@ export function IdleLock({
             <div className="flex items-center justify-center gap-3 rounded-[var(--radius-card)] border border-line-strong bg-surface px-3.5 py-3">
               <span
                 aria-hidden
-                className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-[1.05rem] font-bold text-brand-deep"
+                className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft text-body font-bold text-brand-deep"
               >
                 {initials(user.firstName, user.lastName)}
               </span>
-              <span className="min-w-0 truncate text-[1.05rem] font-bold text-ink">
+              <span className="min-w-0 truncate text-body font-bold text-ink">
                 {user.firstName} {user.lastName}
               </span>
             </div>

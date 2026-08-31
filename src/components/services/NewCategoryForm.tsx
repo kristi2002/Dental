@@ -51,18 +51,18 @@ export function NewCategoryForm({
           <FormPreview title={t('previewTitle')}>
             {parent ? (
               <>
-                <p className="text-[1.05rem] font-bold text-ink">{parent.name}</p>
-                <p className="mt-1 flex items-center gap-1.5 border-l-2 border-line pl-3 text-[1.02rem] font-semibold text-ink-soft">
+                <p className="text-body font-bold text-ink">{parent.name}</p>
+                <p className="mt-1 flex items-center gap-1.5 border-l-2 border-line pl-3 text-body font-semibold text-ink-soft">
                   <CornerDownRight size={16} aria-hidden className="text-ink-faint" />
                   {name.trim() || <span className="text-ink-faint">{t('newChild')}</span>}
                 </p>
               </>
             ) : (
               <>
-                <p className="text-[1.12rem] font-bold text-ink">
+                <p className="text-lead font-bold text-ink">
                   {name.trim() || <span className="text-ink-faint">{t('new')}</span>}
                 </p>
-                <p className="mt-1 text-[0.95rem] text-ink-soft">{t('topLevel')}</p>
+                <p className="mt-1 text-body text-ink-soft">{t('topLevel')}</p>
               </>
             )}
           </FormPreview>

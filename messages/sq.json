@@ -1703,6 +1703,16 @@
     "confirmNewPin": "PIN-i i ri përsëri",
     "pinChanged": "PIN-i juaj u ndryshua."
   },
+  "appearance": {
+    "title": "Pamja",
+    "theme": "Tema",
+    "light": "E çelët",
+    "system": "Sipas sistemit",
+    "dark": "E errët",
+    "density": "Dendësia",
+    "comfortable": "E rehatshme",
+    "compact": "Kompakte"
+  },
   "staff": {
     "title": "Stafi dhe rolet",
     "subtitle": "Kush punon këtu dhe çfarë lejohet të bëjë secili",

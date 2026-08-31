@@ -27,7 +27,7 @@ export async function Breadcrumbs({ items }: { items: Crumb[] }) {
 
   return (
     <nav aria-label={tc('breadcrumb')} className="mb-4">
-      <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[0.95rem]">
+      <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 text-body">
         <li className="flex items-center">
           <Link
             href="/dashboard"

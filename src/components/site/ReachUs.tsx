@@ -63,7 +63,7 @@ export async function ReachUs({ contact }: { contact: SiteContact }) {
       // note under `.drift` in globals.css. Nothing inside is on a scroll
       // timeline today and the next thing put here must not have to discover
       // why that matters.
-      className="relative scroll-mt-20 overflow-clip px-5 py-20 sm:px-8 sm:py-24"
+      className="relative scroll-mt-20 overflow-clip px-5 py-band sm:px-8"
     >
       {/* Latin, untranslated, one per section — the talking. */}
       <GhostWord className="-right-[5vw] top-8 text-navy/[0.045]">Colloquium</GhostWord>
@@ -78,7 +78,7 @@ export async function ReachUs({ contact }: { contact: SiteContact }) {
             {t('pages.visit.reach.title')}
           </h2>
 
-          <p className="mt-5 max-w-[58ch] text-[1.05rem] leading-relaxed text-bone-ink-soft">
+          <p className="mt-5 max-w-[58ch] text-body leading-relaxed text-bone-ink-soft">
             {t('pages.visit.reach.lede')}
           </p>
         </Reveal>
@@ -185,7 +185,7 @@ function ChannelCard({
         <span className="contact-tile-value break-words text-bone-ink">{value}</span>
       </span>
 
-      <span className="mt-3 block text-[1rem] leading-relaxed text-bone-ink-soft">{body}</span>
+      <span className="mt-3 block text-body leading-relaxed text-bone-ink-soft">{body}</span>
     </>
   );
 

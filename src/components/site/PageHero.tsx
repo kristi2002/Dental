@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
-import type { CSSProperties, ReactNode } from 'react';
+import { type CSSProperties, type ReactNode, ViewTransition } from 'react';
 import { Ambience } from '@/components/site/Ambience';
 import { srcSetFor, type SitePhoto } from '@/components/site/photos';
 import { Watermark } from '@/components/site/Watermark';
@@ -56,6 +56,13 @@ export async function PageHero({
    * that has no photograph worth the width should not be given a weak one.
    */
   photo,
+  /**
+   * The shared-element name this hero's photograph answers to, when the reader
+   * arrived by pressing a card carrying the same one. Omitted everywhere the
+   * page is reached cold, which is most of them — an unpaired name is harmless
+   * but meaningless.
+   */
+  transitionName,
   className,
 }: {
   eyebrow: string;
@@ -64,6 +71,7 @@ export async function PageHero({
   children?: ReactNode;
   aside?: ReactNode;
   photo?: SitePhoto;
+  transitionName?: string;
   className?: string;
 }) {
   const t = await getTranslations('site');
@@ -103,17 +111,36 @@ export async function PageHero({
        */}
       {photo ? (
         <div aria-hidden className="absolute inset-0">
-          {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
-          <img
-            src={photo.src}
-            srcSet={srcSetFor(photo)}
-            width={photo.width}
-            height={photo.height}
-            alt=""
-            decoding="async"
-            sizes="100vw"
-            className="h-full w-full scale-105 object-cover opacity-75"
-          />
+          {/*
+           * The far end of the morph, when the caller has named one.
+           *
+           * The browser pairs by `view-transition-name` across the navigation:
+           * the card the reader pressed on the previous page carries the same
+           * string, so one object animates from that grid cell to this hero
+           * instead of two swapping. It is the difference between "the page
+           * changed" and "the thing I pressed opened" — and on a page whose
+           * whole argument is that the practice is unhurried, a hard cut between
+           * two photographs of the same treatment was the one careless moment
+           * left in it.
+           *
+           * The plain CSS property rather than React's `<ViewTransition>`, for
+           * the reason set out at the near end in `Treatments`: the component
+           * never stamps the name on this React, so the pair silently never
+           * forms.
+           */}
+          <ViewTransition name={transitionName ?? 'auto'} share="morph" default="none">
+            {/* eslint-disable-next-line next/no-img-element, @next/next/no-img-element */}
+            <img
+              src={photo.src}
+              srcSet={srcSetFor(photo)}
+              width={photo.width}
+              height={photo.height}
+              alt=""
+              decoding="async"
+              sizes="100vw"
+              className="h-full w-full scale-105 object-cover opacity-75"
+            />
+          </ViewTransition>
           <div className="absolute inset-0 bg-gradient-to-r from-navy from-8% via-navy/78 via-42% to-navy/15" />
           <div className="absolute inset-0 bg-gradient-to-t from-navy from-1% via-transparent via-48% to-navy/55" />
         </div>
@@ -155,7 +182,7 @@ export async function PageHero({
            * to find here.
            */}
           <nav aria-label={t('pages.breadcrumb')} className="rise" style={{ '--i': '0' } as CSSProperties}>
-            <ol className="flex flex-wrap items-center gap-1.5 text-[0.76rem] font-semibold tracking-[0.14em] uppercase">
+            <ol className="flex flex-wrap items-center gap-1.5 text-micro font-semibold tracking-[0.14em] uppercase">
               <li>
                 <Link
                   href="/"
@@ -180,7 +207,7 @@ export async function PageHero({
 
           {lede ? (
             <p
-              className="rise mt-6 max-w-[54ch] text-[1.06rem] leading-relaxed text-navy-ink"
+              className="rise mt-6 max-w-[54ch] text-body leading-relaxed text-navy-ink"
               style={{ '--i': '2' } as CSSProperties}
             >
               {lede}

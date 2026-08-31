@@ -332,13 +332,13 @@ export default async function AnalyticsPage({
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b border-line">
-                  <th className="px-5 py-2 text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                  <th className="px-5 py-2 text-meta font-bold tracking-wide text-ink-faint uppercase">
                     {ta('provider')}
                   </th>
-                  <th className="px-5 py-2 text-right text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                  <th className="px-5 py-2 text-right text-meta font-bold tracking-wide text-ink-faint uppercase">
                     {t('pastAppointments')}
                   </th>
-                  <th className="px-5 py-2 text-right text-[0.85rem] font-bold tracking-wide text-ink-faint uppercase">
+                  <th className="px-5 py-2 text-right text-meta font-bold tracking-wide text-ink-faint uppercase">
                     {ta('status_NO_SHOW')}
                   </th>
                 </tr>

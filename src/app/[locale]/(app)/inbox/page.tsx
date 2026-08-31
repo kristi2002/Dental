@@ -119,7 +119,7 @@ export default async function InboxPage({
             href={tab.href}
             aria-current={tab.on ? 'page' : undefined}
             className={cn(
-              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-[1rem] font-semibold no-underline transition-colors',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-body font-semibold no-underline transition-colors',
               tab.on
                 ? 'bg-brand-soft text-brand-deep'
                 : 'text-ink-soft hover:bg-surface-soft hover:text-ink',
@@ -195,7 +195,7 @@ export default async function InboxPage({
             <span />
           )}
 
-          <span className="text-[0.95rem] font-semibold text-ink-soft tabular-nums">
+          <span className="text-body font-semibold text-ink-soft tabular-nums">
             {tc('pageOf', { page, pages })}
           </span>
 

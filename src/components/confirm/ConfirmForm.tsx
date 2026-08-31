@@ -68,7 +68,7 @@ export function ConfirmForm({
 
   if (closed) {
     return (
-      <p className="rounded-lg border border-line bg-surface-soft px-4 py-3 text-[1.02rem] text-ink-soft">
+      <p className="rounded-lg border border-line bg-surface-soft px-4 py-3 text-body text-ink-soft">
         {t('closed')}
       </p>
     );
@@ -83,11 +83,11 @@ export function ConfirmForm({
       <div className="space-y-3">
         <p
           role="status"
-          className="rounded-lg border border-line-strong bg-paper px-4 py-3 text-[1.05rem] font-semibold text-ink-soft"
+          className="rounded-lg border border-line-strong bg-paper px-4 py-3 text-body font-semibold text-ink-soft"
         >
           {t('thanksDeclined')}
         </p>
-        <p className="text-center text-[0.95rem] text-ink-soft">{t('cancelledNotice')}</p>
+        <p className="text-center text-body text-ink-soft">{t('cancelledNotice')}</p>
       </div>
     );
   }
@@ -100,7 +100,7 @@ export function ConfirmForm({
         <p
           role="status"
           className={cn(
-            'rounded-lg border px-4 py-3 text-[1.05rem] font-semibold',
+            'rounded-lg border px-4 py-3 text-body font-semibold',
             answered === 'yes'
               ? 'border-ok/30 bg-ok-soft text-ok'
               : 'border-line-strong bg-paper text-ink-soft',
@@ -124,7 +124,7 @@ export function ConfirmForm({
         <AnswerButton answer="no" label={t('no')} tone="secondary" onPick={setPicked} />
       </div>
 
-      <p className="text-center text-[0.9rem] text-ink-soft">{t('changeMind')}</p>
+      <p className="text-center text-meta text-ink-soft">{t('changeMind')}</p>
     </form>
   );
 }

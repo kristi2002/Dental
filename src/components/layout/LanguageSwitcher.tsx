@@ -58,7 +58,7 @@ export function LanguageSwitcher({
             className={cn(
               // Sitting on teal, so focus is ringed in white rather than in the
               // brand colour it would otherwise disappear into.
-              'min-h-9 rounded-md px-2 text-[0.85rem] font-bold transition-colors focus-visible:outline-white',
+              'min-h-9 rounded-md px-2 text-meta font-bold transition-colors focus-visible:outline-white',
               compact ? 'flex-1' : 'md:px-2.5',
               locale === active
                 ? 'bg-white text-brand-deep'

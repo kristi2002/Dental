@@ -42,9 +42,9 @@ export async function CtaBand({ contact }: { contact: SiteContact }) {
   const t = await getTranslations('site');
 
   return (
-    <section className="relative overflow-clip px-5 py-18 sm:px-8 sm:py-24">
+    <section className="relative overflow-clip px-5 py-band-aside sm:px-8">
       <div className="relative mx-auto w-full max-w-4xl">
-        <Reveal className="relative overflow-clip rounded-2xl bg-navy px-7 py-14 text-center shadow-lift sm:px-16 sm:py-18">
+        <Reveal className="relative overflow-clip rounded-2xl bg-navy px-7 py-14 text-center shadow-lift sm:px-16 sm:py-band-aside">
           {/* Top right, the same corner the practice's mark sits in on every
               other navy panel — see `VisitUs` and `TripPlanner`. */}
           <Watermark className="-top-16 -right-16 w-[18rem] text-white/[0.05]" />
@@ -61,7 +61,7 @@ export async function CtaBand({ contact }: { contact: SiteContact }) {
             <h2 className="type-section mx-auto max-w-[18ch] text-white">
               {t('pages.cta.title')}
             </h2>
-            <p className="mx-auto mt-5 max-w-[52ch] text-[1.04rem] leading-relaxed text-navy-ink">
+            <p className="mx-auto mt-5 max-w-[52ch] text-body leading-relaxed text-navy-ink">
               {t('pages.cta.body')}
             </p>
 
@@ -73,7 +73,7 @@ export async function CtaBand({ contact }: { contact: SiteContact }) {
                 // the one control the whole storefront exists to get pressed, and
                 // it should not be able to drift out of step with itself between
                 // the front page and the deep ones. See `.cta-fill`.
-                className="cta-fill group inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-[1rem] font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
+                className="cta-fill group inline-flex min-h-13 items-center gap-2.5 rounded-full bg-gilt px-7 text-body font-bold text-navy no-underline hover:text-bone focus-visible:text-bone focus-visible:outline-white"
               >
                 {t('nav.book')}
                 <ArrowRight
@@ -90,7 +90,7 @@ export async function CtaBand({ contact }: { contact: SiteContact }) {
               {contact.telHref ? (
                 <a
                   href={contact.telHref}
-                  className="inline-flex min-h-13 items-center gap-2.5 rounded-full border border-white/30 px-6 text-[1rem] font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
+                  className="inline-flex min-h-13 items-center gap-2.5 rounded-full border border-white/30 px-6 text-body font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
                 >
                   <Phone size={17} aria-hidden />
                   {contact.phone}
@@ -102,7 +102,7 @@ export async function CtaBand({ contact }: { contact: SiteContact }) {
                   href={contact.whatsappHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-13 items-center gap-2.5 rounded-full border border-white/30 px-6 text-[1rem] font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
+                  className="inline-flex min-h-13 items-center gap-2.5 rounded-full border border-white/30 px-6 text-body font-semibold text-white no-underline transition-colors hover:bg-white/10 focus-visible:outline-white"
                 >
                   <MessageCircle size={17} aria-hidden />
                   {t('visit.whatsappLabel')}

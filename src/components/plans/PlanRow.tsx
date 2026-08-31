@@ -203,7 +203,7 @@ export function PlanRow({
             aria-hidden
             className={cn(
               'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border',
-              'text-[0.95rem] font-bold',
+              'text-body font-bold',
               plan.stalled
                 ? 'border-warn/30 bg-surface text-warn'
                 : 'border-line-strong bg-paper text-ink-soft',
@@ -223,7 +223,7 @@ export function PlanRow({
             <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
               <Link
                 href={`/plans/${plan.id}`}
-                className="text-[1.1rem] font-bold text-ink no-underline hover:text-brand-deep hover:underline"
+                className="text-lead font-bold text-ink no-underline hover:text-brand-deep hover:underline"
               >
                 {plan.title}
               </Link>
@@ -255,7 +255,7 @@ export function PlanRow({
               ) : null}
             </h2>
 
-            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.95rem] text-ink-soft">
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-body text-ink-soft">
               {/* The patient's own record, not their plans tab: from here the
                   question is usually "who is this and when were they last in". */}
               <Link
@@ -332,7 +332,7 @@ export function PlanRow({
               style={{ width: `${plan.percent}%` }}
             />
           </div>
-          <span className="shrink-0 text-[0.92rem] font-bold text-ink-soft tabular-nums">
+          <span className="shrink-0 text-meta font-bold text-ink-soft tabular-nums">
             {t('progress', { done: plan.done, total: plan.relevant })}
           </span>
         </div>
@@ -351,20 +351,20 @@ export function PlanRow({
               plan.stalled ? 'border-warn/25 bg-surface' : 'border-line bg-paper',
             )}
           >
-            <span className="text-[0.75rem] font-bold tracking-wide text-ink-faint uppercase">
+            <span className="text-micro font-bold tracking-wide text-ink-faint uppercase">
               {t('nextStep')}
             </span>
-            <span className="min-w-0 flex-1 basis-48 text-[1.02rem] font-semibold text-ink">
+            <span className="min-w-0 flex-1 basis-48 text-body font-semibold text-ink">
               {next.title}
               {next.toothNum ? (
-                <span className="ml-2 text-[0.9rem] font-normal text-ink-soft">
+                <span className="ml-2 text-meta font-normal text-ink-soft">
                   {tooth(next.toothNum)}
                 </span>
               ) : null}
             </span>
 
             {next.booked ? (
-              <span className="flex items-center gap-1.5 text-[0.92rem] font-semibold text-brand-deep tabular-nums">
+              <span className="flex items-center gap-1.5 text-meta font-semibold text-brand-deep tabular-nums">
                 <CalendarCheck size={15} aria-hidden />
                 {slotLabel(next.booked)}
               </span>
@@ -433,7 +433,7 @@ export function PlanRow({
                 </Badge>
               ))}
               {hidden > 0 ? (
-                <span className="text-[0.88rem] font-semibold text-ink-soft">
+                <span className="text-meta font-semibold text-ink-soft">
                   {t('andMore', { count: hidden })}
                 </span>
               ) : null}

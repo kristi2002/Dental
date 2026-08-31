@@ -50,7 +50,7 @@ export async function RequestAttachments({
     <section className="mt-4" aria-labelledby={`files-${requestId}`}>
       <h3
         id={`files-${requestId}`}
-        className="flex items-center gap-2 text-[0.95rem] font-bold text-ink"
+        className="flex items-center gap-2 text-body font-bold text-ink"
       >
         <Paperclip size={17} aria-hidden />
         {t('attachments')}
@@ -95,7 +95,7 @@ export async function RequestAttachments({
                   <p className="truncate font-semibold text-ink" title={file.fileName}>
                     {file.fileName}
                   </p>
-                  <p className="text-[0.85rem] text-ink-faint">{formatBytes(file.sizeBytes)}</p>
+                  <p className="text-meta text-ink-faint">{formatBytes(file.sizeBytes)}</p>
                 </div>
 
                 {canEdit ? (

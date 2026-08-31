@@ -53,7 +53,7 @@ export function NewProcedureForm({ existing }: { existing: string[] }) {
                 {existing.map((procedure) => (
                   <li
                     key={procedure}
-                    className="rounded-full border border-line-strong bg-surface px-3 py-1 text-[0.9rem] font-semibold text-ink-soft"
+                    className="rounded-full border border-line-strong bg-surface px-3 py-1 text-meta font-semibold text-ink-soft"
                   >
                     {procedure}
                   </li>

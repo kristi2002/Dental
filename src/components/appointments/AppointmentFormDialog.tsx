@@ -251,7 +251,7 @@ export function AppointmentFormDialog({
                 <UserPlus size={18} aria-hidden />
                 {t('newPatientTitle')}
               </legend>
-              <p className="text-[0.9rem] text-ink-soft">{t('newPatientHint')}</p>
+              <p className="text-meta text-ink-soft">{t('newPatientHint')}</p>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <TextField
@@ -355,7 +355,7 @@ export function AppointmentFormDialog({
               className={
                 remaining < 0
                   ? 'rounded-lg border border-warn bg-warn-soft px-3 py-2 font-semibold text-warn'
-                  : 'text-[0.95rem] font-semibold text-ink-soft'
+                  : 'text-body font-semibold text-ink-soft'
               }
             >
               {remaining > 0
@@ -510,7 +510,7 @@ export function AppointmentFormDialog({
               or later, and those dates are left unbooked rather than
               double-booked. */}
           {repeat > 0 ? (
-            <p className="text-[0.92rem] text-ink-soft">{t('repeatHint')}</p>
+            <p className="text-meta text-ink-soft">{t('repeatHint')}</p>
           ) : null}
 
           {/* Both warnings are reported, not enforced, and both are overridden

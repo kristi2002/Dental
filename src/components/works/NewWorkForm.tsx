@@ -53,14 +53,14 @@ export function NewWorkForm({
       <FormLayout
         aside={
           <FormPreview title={t('previewTitle')}>
-            <p className="text-[1.12rem] font-bold text-ink">
+            <p className="text-lead font-bold text-ink">
               {preview.patientName.trim() || <span className="text-ink-faint">{t('new')}</span>}
             </p>
-            <p className="mt-1 text-[0.95rem] text-ink-soft tabular-nums">
+            <p className="mt-1 text-body text-ink-soft tabular-nums">
               {preview.phone.trim() || '—'}
             </p>
             {preview.labSerial.trim() ? (
-              <p className="mt-1 text-[0.95rem] text-ink-soft">
+              <p className="mt-1 text-body text-ink-soft">
                 {t('labSerial')}: <span className="tabular-nums">{preview.labSerial}</span>
               </p>
             ) : null}
@@ -70,11 +70,11 @@ export function NewWorkForm({
             <p className="mt-4 text-[2rem] leading-none font-bold text-ink tabular-nums">
               {elementsOf({ lines: lines.filter((line) => line.procedure.trim()) })}
             </p>
-            <p className="text-[0.9rem] font-semibold tracking-wide text-ink-faint uppercase">
+            <p className="text-meta font-semibold tracking-wide text-ink-faint uppercase">
               {t('elements')}
             </p>
 
-            <p className="mt-3 text-[0.95rem] text-ink-soft">
+            <p className="mt-3 text-body text-ink-soft">
               {t('lineCount', { count: lines.filter((line) => line.procedure.trim()).length })}
             </p>
 
@@ -82,7 +82,7 @@ export function NewWorkForm({
               {lines
                 .filter((line) => line.procedure.trim())
                 .map((line) => (
-                  <li key={line.key} className="text-[0.95rem] text-ink-soft">
+                  <li key={line.key} className="text-body text-ink-soft">
                     <span className="block truncate">
                       {[`${line.elements}×`, line.procedure, line.lab].filter(Boolean).join(' · ')}
                     </span>
@@ -92,7 +92,7 @@ export function NewWorkForm({
                     <ToothSpan
                       value={line.teeth}
                       quadrantLabel={(quadrant) => tt(`quadrant_${quadrant}`)}
-                      className="mt-0.5 text-[0.92rem]"
+                      className="mt-0.5 text-meta"
                     />
                   </li>
                 ))}
