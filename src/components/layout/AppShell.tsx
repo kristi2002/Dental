@@ -23,6 +23,7 @@ import {
   getOpenFollowUps,
   getStockAlerts,
 } from '@/lib/queries';
+import { HELP_TOPICS } from '@/lib/help/topics';
 import { HIDEABLE } from '@/lib/nav-visibility';
 import { stockAlertCounts } from '@/lib/stock-alerts';
 import { BackupBanner } from './BackupBanner';
@@ -51,8 +52,10 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   // The working screens the rail does not carry are named on their own pages,
   // and the palette calls them what those pages call themselves.
   const ts = await getTranslations('stock');
+  const torders = await getTranslations('orders');
   const tscan = await getTranslations('scan');
   const tday = await getTranslations('daySheet');
+  const th = await getTranslations('help');
 
   // Which shape the rail is in is read on the server, so a pinched rail does not
   // flash open before hydration. The layout is already dynamic — the session is
@@ -132,6 +135,14 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     ...(user.permissions.includes('appointment.view')
       ? [{ href: '/day-sheet', label: tday('title') }]
       : []),
+    // "Is the composite here yet" is a front-desk question and a reading one, so
+    // this is the one storage screen on `stock.view` rather than `stock.edit` —
+    // the page guards itself the same way. It has no row in the rail and is
+    // opened from a button on the storage list, which is exactly the case this
+    // list exists for.
+    ...(user.permissions.includes('stock.view')
+      ? [{ href: '/stock/orders', label: `${tn('stock')} · ${torders('title')}` }]
+      : []),
     ...(user.permissions.includes('stock.edit')
       ? [
           { href: '/stock/scan', label: `${tn('stock')} · ${tscan('title')}` },
@@ -148,6 +159,19 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   const searches = SEARCHABLE_LISTS.filter(({ permission }) => allowed(permission)).map(
     ({ href, key }) => ({ href, label: tn(key) }),
   );
+
+  // Which screens the help library lists, in the registry's own order.
+  //
+  // A topic earns its place by the *section* it belongs to being somewhere this
+  // person can go — the first segment of its first route, looked up in the
+  // permission-filtered destinations above. That is what keeps a receptionist
+  // from browsing an explanation of the statistics they may not open, and it
+  // covers the record screens for free: `/patients/:id` is reachable because
+  // `/patients` is, which is exactly the truth of it.
+  const helpTopics = HELP_TOPICS.filter((entry) => {
+    const section = `/${entry.routes[0].split('/')[1]}`;
+    return destinations.some((destination) => destination.href === section);
+  }).map((entry) => entry.id);
 
   // What the tailor menu offers to switch off: everything this person can reach,
   // named the way the menu they are editing names it. Permission-filtered here
@@ -370,6 +394,11 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
                 placeholder={t('palettePlaceholder')}
                 screensLabel={t('paletteScreens')}
                 patientsLabel={tn('patients')}
+                helpLabel={th('paletteHelp')}
+                topics={helpTopics.map((id) => ({
+                  href: id,
+                  label: th(`topics.${id}.title`),
+                }))}
                 emptyLabel={t('paletteHint')}
               />
             </div>
@@ -388,6 +417,7 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
             <PageHelp
               destinations={destinations}
               permissions={user.permissions}
+              topics={helpTopics}
               pointer={user.needsHelpPointer}
             />
             <TailorMenu items={tailorItems} hidden={user.hiddenNav} />

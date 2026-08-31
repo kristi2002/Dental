@@ -3,13 +3,13 @@ import type { ToothRecordMap } from '@/components/dental/DentalChart';
 import { PatientArch, type ArchMark } from '@/components/patients/PatientArch';
 import {
   ALL_TEETH,
-  DEFAULT_TOOTH_STATUS,
   dentitionOf,
-  isToothStatus,
+  headlineStatus,
+  NO_FINDINGS,
   quadrantOf,
   toothKind,
   TOOTH_STATUS_STYLE,
-  type ToothStatus,
+  type ToothCondition,
 } from '@/lib/teeth';
 
 /**
@@ -75,17 +75,25 @@ export async function PatientView({
   const t = await getTranslations('patients');
   const tt = await getTranslations('teeth');
 
-  const statusOf = (toothNum: number): ToothStatus => {
-    const raw = records[toothNum]?.status;
-    return raw && isToothStatus(raw) ? raw : DEFAULT_TOOTH_STATUS;
-  };
-
-  // In the order the mouth reads — upper right to upper left, then lower —
-  // because the pins are numbered in list order and a patient follows them
-  // round the arch.
-  const findings = ALL_TEETH.filter((toothNum) => statusOf(toothNum) !== 'HEALTHY').map(
-    (toothNum) => ({ toothNum, status: statusOf(toothNum) }),
-  );
+  /**
+   * One entry per *tooth*, not per finding.
+   *
+   * A tooth can now carry several — a crown over a root filling is two, and
+   * three is ordinary. Pinning each of them separately would put three numbered
+   * dots on one tooth and turn the picture into the spreadsheet this screen
+   * exists to replace. So the tooth gets one pin in its headline colour and the
+   * line beside it names everything on it.
+   *
+   * In the order the mouth reads, upper right to upper left and then lower,
+   * because the pins are numbered in list order and a patient follows them
+   * round the arch.
+   */
+  const findings = ALL_TEETH.map((toothNum) => ({
+    toothNum,
+    list: records[toothNum]?.findings ?? NO_FINDINGS,
+  }))
+    .filter((tooth) => tooth.list.length > 0)
+    .map((tooth) => ({ ...tooth, status: headlineStatus(tooth.list) }));
 
   const permanent = findings.filter((f) => dentitionOf(f.toothNum) === 'PERMANENT');
   const primary = findings.filter((f) => dentitionOf(f.toothNum) === 'PRIMARY');
@@ -139,7 +147,7 @@ export async function PatientView({
                     </span>
                     <span className="min-w-0">
                       <span className="block text-[1.05rem] font-bold">
-                        {tt(`status_${finding.status}`)}
+                        {finding.list.map((one: ToothCondition) => tt(`status_${one.status}`)).join(' · ')}
                       </span>
                       <span className="block text-[0.95rem] text-navy-ink-soft">
                         {nameOf(finding.toothNum)}
@@ -171,7 +179,7 @@ export async function PatientView({
                       />
                       <span className="min-w-0">
                         <span className="block text-[1.05rem] font-bold">
-                          {tt(`status_${finding.status}`)}
+                          {finding.list.map((one: ToothCondition) => tt(`status_${one.status}`)).join(' · ')}
                         </span>
                         <span className="block text-[0.95rem] text-navy-ink-soft">
                           {nameOf(finding.toothNum)}

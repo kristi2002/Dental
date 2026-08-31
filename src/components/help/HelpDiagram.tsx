@@ -39,6 +39,7 @@ const FLOWS: Partial<Record<DiagramKey, number>> = {
   import: 4,
   scan: 4,
   followUp: 4,
+  order: 4,
 };
 
 /**

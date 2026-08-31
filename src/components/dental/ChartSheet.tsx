@@ -21,14 +21,18 @@ import {
   PRIMARY_LOWER_RIGHT,
   PRIMARY_UPPER_LEFT,
   PRIMARY_UPPER_RIGHT,
+  headlineStatus,
+  NO_FINDINGS,
   quadrantOf,
   surfaceFill,
   toothKind,
   toothLabel as toothLabelFor,
   TOOTH_STATUSES,
   TOOTH_STATUS_STYLE,
+  TOOTH_SURFACES,
+  type ToothFindings,
   type ToothNumbering,
-  type ToothStatus,
+  type ToothSurface,
 } from '@/lib/teeth';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +64,23 @@ import { cn } from '@/lib/utils';
  * lists you switch between, and a tooth with a sound crown in a failing socket
  * appears on exactly one of them.
  */
+/**
+ * Every face named by any finding on the tooth, in anatomical order.
+ *
+ * The printed record has one surfaces column per tooth and a tooth can now
+ * carry several findings, so the column is their union — "MOD" on a tooth whose
+ * mesial is filled and whose distal has decay. Which finding owns which face is
+ * on the drawing directly above, in colour; repeating it here as three rows
+ * would make the commonest tooth in the mouth the longest row on the sheet.
+ */
+function surfaceSummary(findings: ToothFindings): ToothSurface[] {
+  const seen = new Set<ToothSurface>();
+  for (const finding of findings) {
+    for (const surface of parseSurfaces(finding.surfaces)) seen.add(surface);
+  }
+  return TOOTH_SURFACES.filter((surface) => seen.has(surface));
+}
+
 export function ChartSheet({
   records,
   numbering = 'FDI',
@@ -75,26 +96,24 @@ export function ChartSheet({
 
   const label = (toothNum: number) => toothLabelFor(toothNum, numbering);
 
-  const statusOf = (toothNum: number): ToothStatus => {
-    const raw = records[toothNum]?.status;
-    return raw && isToothStatus(raw) ? raw : DEFAULT_TOOTH_STATUS;
-  };
+  const findingsOf = (toothNum: number): ToothFindings => records[toothNum]?.findings ?? NO_FINDINGS;
 
   const perioOf = (toothNum: number) => perioSummaryOf(records[toothNum] ?? {});
 
   const findings = ALL_TEETH.map((toothNum) => ({
     toothNum,
-    status: statusOf(toothNum),
-    surfaces: parseSurfaces(records[toothNum]?.surfaces),
+    list: findingsOf(toothNum),
+    // The one that speaks for the tooth in the places paper has room for one:
+    // the letter beside the number, and the colour of a row.
+    status: headlineStatus(findingsOf(toothNum)),
     notes: records[toothNum]?.notes ?? '',
     chartedOn: records[toothNum]?.chartedOn ?? '',
     perio: perioOf(toothNum),
   })).filter(
-    (finding) =>
-      finding.status !== DEFAULT_TOOTH_STATUS || finding.notes !== '' || finding.perio.recorded,
+    (finding) => finding.list.length > 0 || finding.notes !== '' || finding.perio.recorded,
   );
 
-  const flagged = findings.filter((finding) => finding.status !== DEFAULT_TOOTH_STATUS);
+  const flagged = findings.filter((finding) => finding.list.length > 0);
   const overview = perioOverview(ALL_TEETH.map((toothNum) => perioOf(toothNum)));
 
   /**
@@ -115,7 +134,7 @@ export function ChartSheet({
     .map((status) => ({ status, count: flagged.filter((f) => f.status === status).length }))
     .filter((row) => row.count > 0);
 
-  const arch = { statusOf, perioOf, probed, surfacesOf: records, numberLabel: label };
+  const arch = { findingsOf, perioOf, probed, numberLabel: label };
 
   return (
     <div className="odontogram odontogram-sheet space-y-4">
@@ -172,10 +191,20 @@ export function ChartSheet({
           {TOOTH_STATUSES.map((status) => (
             <li key={status} className="flex flex-col items-center gap-0.5 text-center">
               <span aria-hidden className="h-12 w-7">
+                {/* One status at a time: this is a key to what each finding
+                    looks like, not a tooth. */}
                 <ToothGlyph
                   toothNum={LEGEND_TOOTH}
-                  status={status}
-                  surfaces={status === 'CARIES' || status === 'FILLED' ? ['O'] : []}
+                  findings={
+                    status === DEFAULT_TOOTH_STATUS
+                      ? []
+                      : [
+                          {
+                            status,
+                            surfaces: status === 'CARIES' || status === 'FILLED' ? 'O' : '',
+                          },
+                        ]
+                  }
                 />
               </span>
               <span className="text-micro leading-tight font-semibold text-ink">
@@ -266,13 +295,13 @@ export function ChartSheet({
                       anyone outside the surgery, and this sheet is read by
                       people who do not work here. */}
                   <Td>
-                    {finding.surfaces.length > 0 ? (
+                    {surfaceSummary(finding.list).length > 0 ? (
                       <>
                         <span className="font-bold tracking-wide text-ink">
-                          {finding.surfaces.join('')}
+                          {surfaceSummary(finding.list).join('')}
                         </span>
                         <span className="block text-micro leading-tight text-ink-faint">
-                          {finding.surfaces
+                          {surfaceSummary(finding.list)
                             .map((surface) =>
                               surface === 'O'
                                 ? t(isAnterior(finding.toothNum) ? 'surface_I' : 'surface_O')
@@ -409,9 +438,8 @@ function SheetArch({
 
 type SheetCellProps = {
   toothNum: number;
-  statusOf: (toothNum: number) => ToothStatus;
+  findingsOf: (toothNum: number) => ToothFindings;
   perioOf: (toothNum: number) => PerioSummary;
-  surfacesOf: ToothRecordMap;
   /** Whether the periodontal row is drawn on this chart at all. */
   probed: boolean;
   numberLabel: (toothNum: number) => string;
@@ -421,17 +449,16 @@ type SheetCellProps = {
 
 function SheetCell({
   toothNum,
-  statusOf,
+  findingsOf,
   perioOf,
-  surfacesOf,
   probed,
   numberLabel,
   upper = false,
   primary = false,
 }: SheetCellProps) {
-  const status = statusOf(toothNum);
+  const findings = findingsOf(toothNum);
+  const status = headlineStatus(findings);
   const style = TOOTH_STATUS_STYLE[status];
-  const surfaces = surfacesOf[toothNum]?.surfaces ?? '';
 
   const glyph = (
     <span
@@ -440,7 +467,7 @@ function SheetCell({
         primary ? 'h-[calc(var(--tooth-glyph-h)*0.7)]' : 'h-(--tooth-glyph-h)',
       )}
     >
-      <ToothGlyph toothNum={toothNum} status={status} surfaces={parseSurfaces(surfaces)} />
+      <ToothGlyph toothNum={toothNum} findings={findings} />
     </span>
   );
 
@@ -449,7 +476,7 @@ function SheetCell({
       <SurfaceTarget
         toothNum={toothNum}
         readOnly
-        fillOf={(surface) => surfaceFill(status, surfaces, surface)}
+        fillOf={(surface) => surfaceFill(findings, surface)}
       />
     </span>
   );

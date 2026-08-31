@@ -1297,7 +1297,8 @@
     "expiredClear": "{count, plural, one {Hiq # lot të skaduar} other {Hiq të gjithë # lotet e skaduar}}",
     "expiredClearConfirm": "Të hiqen {count, plural, one {# lot i skaduar} other {të gjithë # lotet e skaduar}} nga magazina? Secili regjistrohet si heqje, që shifrat e përdorimit të mbeten të sakta.",
     "location": "Ku mbahet",
-    "locationHint": "Dollapi, dhoma ose sirtari — ashtu si do t’ia thoshe një kolegu."
+    "locationHint": "Dollapi, dhoma ose sirtari — ashtu si do t’ia thoshe një kolegu.",
+    "filterAll": "Çdo nivel"
   },
   "analytics": {
     "title": "Statistikat",
@@ -1565,7 +1566,8 @@
       "preferred": "Do të parapëlqente",
       "attachments": "Skedarë të bashkangjitur",
       "openIt": "Hape"
-    }
+    },
+    "filterAll": "Të gjitha"
   },
   "outbox": {
     "title": "Kujtesa për t'u dërguar",
@@ -2893,7 +2895,8 @@
       "gallery": "Një skicë e kësaj faqeje: një kuti kërkimi mbi një rrjetë kartash, secila me një fotografi dhe një emër poshtë.",
       "charts": "Një skicë e kësaj faqeje: një zgjedhës periudhe, një rresht shifrash, një grafik me shtylla dhe një tabelë poshtë.",
       "week": "Një skicë e kësaj faqeje: një rresht për çdo ditë të javës, me orën e hapjes, të mbylljes dhe pushimin, dhe një buton ruajtjeje poshtë.",
-      "form": "Një skicë e kësaj faqeje: fusha me një udhëzim poshtë secilës, një parapamje e rezultatit anash, dhe një buton për të ruajtur."
+      "form": "Një skicë e kësaj faqeje: fusha me një udhëzim poshtë secilës, një parapamje e rezultatit anash, dhe një buton për të ruajtur.",
+      "stack": "Një skicë e kësaj faqeje: një titull me një ose dy butona, pastaj karta të stivosura, secila me titullin e vet, një gjendje dhe rreshta poshtë saj."
     },
     "diagrams": {
       "recall": {
@@ -3023,6 +3026,15 @@
           "E mbyllur — jashtë orarit, ose pushimi i drekës",
           "E lirë dhe e rezervueshme",
           "Ngjyra gri vjen nga Orari i punës. Ndryshojeni javën atje dhe çdo faqe që vizaton një ditë e ndjek."
+        ]
+      },
+      "order": {
+        "title": "Si ecën një porosi",
+        "labels": [
+          "Një material bie në minimum ose nën të dhe hyn te porosia e sugjeruar",
+          "Porosia i bëhet furnitorit dhe regjistrohet këtu",
+          "Kutitë mbërrijnë — me një dërgesë ose me disa — dhe porosia zbret",
+          "Nuk mbetet asgjë borxh, dhe porosia mbyllet vetë"
         ]
       }
     },
@@ -3913,12 +3925,84 @@
           "Vetëm pronari mund ta lexojë, dhe askush nuk mund ta ndryshojë.",
           "Ndarja e një PIN-i e bën të pavlerë çdo rresht që shkruan ky regjistër. Kjo është arsyeja e vërtetë pse secili ka të vetin."
         ]
+      },
+      "stockItem": {
+        "title": "Një material",
+        "tagline": "Një gjë në raft, dhe gjithçka që i ka ndodhur",
+        "what": "Çfarë është ky material, sa kuti ka, nga cilat dërgesa vijnë, dhe çdo lëvizje hyrëse e dalëse me një emër pranë. Këtu i jepet përgjigje pyetjes “ku shkuan gjashtë kuti”.",
+        "steps": [
+          {
+            "title": "Lëvize, ose korrigjoje",
+            "body": "Hiqni diçka ose ngarkoni një dërgesë pa dalë nga kartela. Ndryshimi prek atë që materiali është — emrin, raftin, minimumin."
+          },
+          {
+            "title": "Çfarë është",
+            "body": "Numri i artikullit që stafi e lexon mbi kuti, rafti ku rri, nga kush blihet, dhe një fotografi e paketimit."
+          },
+          {
+            "title": "Skadenca",
+            "body": "E kuqe mbi një lot që ka skaduar, ambër mbi një që po skadon. Loti më i vjetër ende i përdorshëm është ai që merret."
+          },
+          {
+            "title": "Lotet",
+            "body": "Çdo dërgesë e mbajtur veç, me numrin e vet të lotit dhe ditën e mbërritjes — numrin që kërkon një njoftim tërheqjeje, dhe e vetmja gjë që mund t’i përgjigjet."
+          },
+          {
+            "title": "Regjistri",
+            "body": "Çdo lëvizje, me kush e bëri dhe pse. Këtu nuk modifikohet asgjë: një gabim korrigjohet me një lëvizje tjetër, dhe mbeten të dyja."
+          }
+        ],
+        "example": "Sasia thotë nëntë kuti doreza dhe në raft ka katër. Regjistri tregon një korrigjim inventari prej −5 të martën e kaluar me një emër pranë — kështu pyetja mbyllet për një minutë në vend që të bëhet akuzë.",
+        "tips": [
+          "Një lot i regjistruar pa datë skadence nuk mund të paralajmërojë askënd. Skanimi i dërgesës është mënyra më e shpejtë për ta kapur.",
+          "Korrigjimi i një sasie këtu shkruan një lëvizje si çdo tjetër. Asgjë në këtë aplikacion nuk e ndryshon një numër pa thënë kush dhe pse."
+        ]
+      },
+      "stockOrders": {
+        "title": "Porositë",
+        "tagline": "Çfarë u porosit, dhe çfarë mbërriti vërtet",
+        "what": "Porositë e bëra te furnitorët, dhe kutitë që mbeten borxh te secila. Lista e magazinës mund të thotë vetëm se një material është rrugës; kjo është ajo që mban mend se kërkuat dhjetë dhe erdhën gjashtë.",
+        "steps": [
+          {
+            "title": "Të hapura, ose të mbyllura",
+            "body": "Porositë e hapura janë ajo që mbetet borxh. Butoni në cep kalon te ato të përfunduara ose të braktisura."
+          },
+          {
+            "title": "Një porosi",
+            "body": "Kujt iu bë, ditën kur doli, dhe ditën kur thanë se do të vinte."
+          },
+          {
+            "title": "Me vonesë, dhe sa mbetet",
+            "body": "Një shenjë e kuqe numëron ditët përtej datës së premtuar. Ajo e gjelbër numëron kutitë që askush nuk i ka marrë ende."
+          },
+          {
+            "title": "Rreshtat",
+            "body": "Një rresht për material: sa u kërkuan dhe sa kanë mbërritur. Një rresht i plotësuar e thotë vetë dhe pushon së numëruari."
+          },
+          {
+            "title": "Heqja dorë",
+            "body": "Mbyll porosinë dhe pushon së prituri pjesën tjetër. Çfarëdo që mbërriti mbetet në raft."
+          }
+        ],
+        "example": "Dhjetë kuti doreza porositen më 3 dhe premtohen për më 10. Më 9 mbërrijnë gjashtë. Porosia mbetet e hapur me katër ende borxh, dhe më 11 nis të numërojë ditët e vonesës — kështu furnitori merr një telefonatë për katër kuti, në vend që të mos marrë asnjë sepse të gjithë menduan se kishte mbërritur.",
+        "tips": [
+          "Porositë bëhen nga lista e porosive të sugjeruara në faqen e magazinës. Kjo faqe i regjistron; nga këtu nuk niset asgjë.",
+          "Pa çmime, me qëllim. Sa kushtoi një porosi është e dhënë ekonomike dhe rri me statistikat, të cilat i hapin vetëm rolet që lejohen të shohin paratë."
+        ]
       }
     },
     "pointerTitle": "Çdo faqe di ta shpjegojë veten",
     "pointerBody": "Ky buton tregon për çfarë shërben faqja ku ndodheni — me një vizatim të saj dhe një shembull konkret. Ai pranë tij i heq nga sytë pjesët e aplikacionit që klinika juaj nuk i përdor.",
     "pointerOpen": "Ma trego",
-    "pointerDismiss": "E kuptova"
+    "pointerDismiss": "E kuptova",
+    "back": "Kthehu",
+    "indexTitle": "Të gjitha faqet",
+    "indexSubtitle": "Për çfarë shërben secila pjesë e këtij aplikacioni.",
+    "indexSearch": "Kërko ndër faqet…",
+    "indexEmpty": "Asnjë faqe nuk përputhet me “{query}”.",
+    "indexOpen": "Të gjitha faqet",
+    "explain": "Për çfarë shërben kjo faqe?",
+    "paletteHelp": "Për çfarë shërben një faqe"
   },
   "tailor": {
     "button": "Zgjidhni çfarë ka menuja juaj",

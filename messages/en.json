@@ -1297,7 +1297,8 @@
     "expiredClear": "{count, plural, one {Write off # expired lot} other {Write off all # expired lots}}",
     "expiredClearConfirm": "Take {count, plural, one {# expired lot} other {all # expired lots}} off the shelf? Each one is recorded as a write-off, so usage figures stay honest.",
     "location": "Where it is kept",
-    "locationHint": "Cupboard, room or drawer — whatever you would tell a colleague."
+    "locationHint": "Cupboard, room or drawer — whatever you would tell a colleague.",
+    "filterAll": "Any level"
   },
   "analytics": {
     "title": "Statistics",
@@ -1565,7 +1566,8 @@
       "preferred": "Would prefer",
       "attachments": "Files attached",
       "openIt": "Open it"
-    }
+    },
+    "filterAll": "All"
   },
   "outbox": {
     "title": "Reminders to send",
@@ -2893,7 +2895,8 @@
       "gallery": "A sketch of this screen: a search box above a grid of cards, each card a picture with a name under it.",
       "charts": "A sketch of this screen: a period switcher, a row of figures, a bar chart, and a table under it.",
       "week": "A sketch of this screen: one row per weekday, each with an opening time, a closing time and a break, and a save button at the foot.",
-      "form": "A sketch of this screen: fields with a hint under each, a preview of the result beside them, and a save button."
+      "form": "A sketch of this screen: fields with a hint under each, a preview of the result beside them, and a save button.",
+      "stack": "A sketch of this screen: a heading with a button or two, then stacked cards, each with its own title, a status, and rows underneath it."
     },
     "diagrams": {
       "recall": {
@@ -3023,6 +3026,15 @@
           "Closed — outside opening hours, or the lunch break",
           "Free and bookable",
           "The grey comes from Opening hours. Change the week there and every screen that draws a day follows."
+        ]
+      },
+      "order": {
+        "title": "How an order runs its course",
+        "labels": [
+          "A material drops to or below its minimum and joins the suggested order",
+          "The order is placed with the supplier and recorded here",
+          "Boxes arrive — in one delivery or several — and the order counts down",
+          "Nothing is still owed, and the order closes itself"
         ]
       }
     },
@@ -3913,12 +3925,84 @@
           "Only the owner can read this, and nobody at all can change it.",
           "Sharing a PIN makes every line this log writes worthless. That is the real reason each person has their own."
         ]
+      },
+      "stockItem": {
+        "title": "A material",
+        "tagline": "One thing on the shelf, and everything that happened to it",
+        "what": "What this material is, how many boxes are there, which deliveries they came from, and every movement in and out with a name against it. This is where “where did six boxes go” is answered.",
+        "steps": [
+          {
+            "title": "Move it, or correct it",
+            "body": "Take some out or put a delivery in without leaving the record. Editing changes what the material is — its name, its shelf, its minimum."
+          },
+          {
+            "title": "What it is",
+            "body": "The article number staff read off the box, the shelf it lives on, who it is bought from, and a photograph of the packaging."
+          },
+          {
+            "title": "Expiry",
+            "body": "Red on a lot that has turned, amber on one turning soon. The oldest still-usable lot is the one to reach for."
+          },
+          {
+            "title": "The lots",
+            "body": "Each delivery kept apart, with its lot number and the day it arrived — the number a recall notice asks for, and the only thing that can answer one."
+          },
+          {
+            "title": "The ledger",
+            "body": "Every movement, with who made it and why. Nothing here is edited: a mistake is corrected by another movement, and both stay."
+          }
+        ],
+        "example": "The count says nine boxes of gloves and the shelf holds four. The ledger shows a stocktake correction of −5 last Tuesday with a name against it — so the question is answered in a minute instead of becoming an accusation.",
+        "tips": [
+          "A lot recorded without an expiry date cannot warn anybody. Scanning a delivery in is the quickest way to capture one.",
+          "Correcting a count here writes a movement like any other. Nothing in this app changes a number without saying who and why."
+        ]
+      },
+      "stockOrders": {
+        "title": "Orders",
+        "tagline": "What was ordered, and what actually arrived",
+        "what": "The orders placed with suppliers, and the boxes still owed on each. The storage list can only say a material is on its way; this is what remembers that you asked for ten and six came.",
+        "steps": [
+          {
+            "title": "Open, or finished",
+            "body": "Open orders are what is still owed. The button in the corner switches to the ones that are complete or were given up on."
+          },
+          {
+            "title": "An order",
+            "body": "Who it was placed with, the day it went out, and the day they said it would come."
+          },
+          {
+            "title": "Late, and how much is left",
+            "body": "A red badge counts the days past the promised date. The teal one counts the boxes nobody has received yet."
+          },
+          {
+            "title": "The lines",
+            "body": "One row per material: how many were asked for and how many have arrived. A line that is complete says so and stops being counted."
+          },
+          {
+            "title": "Giving up on it",
+            "body": "Closes the order and stops waiting for the rest. Whatever did arrive stays on the shelf."
+          }
+        ],
+        "example": "Ten boxes of gloves are ordered on the 3rd and promised for the 10th. Six arrive on the 9th. The order stays open showing four still owed, and on the 11th it starts counting days late — so the supplier gets a call about four boxes, rather than no call at all because everybody thought it had landed.",
+        "tips": [
+          "Orders are placed from the suggested-order list on the storage page. This screen records them; nothing is sent from here.",
+          "No prices, deliberately. What an order cost is a business figure and lives with the statistics, which only the roles allowed to see money can open."
+        ]
       }
     },
     "pointerTitle": "Every screen can explain itself",
     "pointerBody": "This button says what the screen you are on is for — with a drawing of it and a worked example. The one beside it puts away the parts of the app your practice does not use.",
     "pointerOpen": "Show me",
-    "pointerDismiss": "Got it"
+    "pointerDismiss": "Got it",
+    "back": "Back",
+    "indexTitle": "All screens",
+    "indexSubtitle": "What every part of this application is for.",
+    "indexSearch": "Search the screens…",
+    "indexEmpty": "No screen matches “{query}”.",
+    "indexOpen": "All screens",
+    "explain": "What is this screen for?",
+    "paletteHelp": "What a screen is for"
   },
   "tailor": {
     "button": "Choose what is in your menu",

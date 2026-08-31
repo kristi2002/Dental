@@ -364,18 +364,39 @@ export function statusTakesSurfaces(status: ToothStatus): boolean {
  * printed record sheet is not: both draw the same wheel, and two copies of this
  * rule is how the paper and the screen come to disagree about a tooth.
  */
-export function surfaceFill(
-  status: ToothStatus,
-  surfaces: string | null | undefined,
-  surface: ToothSurface,
-): string {
-  if (status === 'HEALTHY') return SURFACE_UNMARKED;
-
-  const marked = parseSurfaces(surfaces);
-  if (WHOLE_TOOTH_STATUSES.includes(status) || marked.length === 0) {
-    return TOOTH_STATUS_STYLE[status].hue;
+export function surfaceFill(findings: ToothFindings, surface: ToothSurface): string {
+  // Newest first, and the first finding that claims this face wins it. A face
+  // carrying both a filling and fresh decay at its margin is the commonest
+  // reason a tooth is being looked at again, and the newer of the two is the
+  // one the dentist is deciding about.
+  for (const finding of findings) {
+    const marked = parseSurfaces(finding.surfaces);
+    const claimsAll = WHOLE_TOOTH_STATUSES.includes(finding.status) || marked.length === 0;
+    if (claimsAll || marked.includes(surface)) return TOOTH_STATUS_STYLE[finding.status].hue;
   }
-  return marked.includes(surface) ? TOOTH_STATUS_STYLE[status].hue : SURFACE_UNMARKED;
+  return SURFACE_UNMARKED;
+}
+
+/**
+ * The three findings a tooth can only have one of.
+ *
+ * Everything else on the chart can coexist and most of it routinely does — a
+ * crowned, root-filled molar with a filling on the distal is three findings on
+ * one tooth and an ordinary Tuesday. These three are different: a tooth cannot
+ * be both missing and extracted, and a socket cannot hold both an implant and
+ * the tooth that used to be there. Recording one of them clears the other two,
+ * and clears everything else with them — a tooth that is gone has no faces left
+ * to have caries on.
+ *
+ * The rule lives here rather than in a database constraint because it is about
+ * clinical meaning rather than about data shape, and because both places that
+ * enforce it — the action that writes and the chart that predicts the write —
+ * have to agree, which they can only do by reading one list.
+ */
+export const EXCLUSIVE_STATUSES: readonly ToothStatus[] = ['MISSING', 'EXTRACTED', 'IMPLANT'];
+
+export function isExclusive(status: ToothStatus): boolean {
+  return EXCLUSIVE_STATUSES.includes(status);
 }
 
 /** What is recorded on one tooth, as the chart paints it — surfaces in the
@@ -388,54 +409,127 @@ export interface ToothCondition {
 export const HEALTHY_TOOTH: ToothCondition = { status: DEFAULT_TOOTH_STATUS, surfaces: '' };
 
 /**
- * What a tooth becomes when a condition is painted onto it — optionally onto
- * one named face of it.
+ * Everything true of one tooth, newest first.
  *
- * This is the whole of the quick-marking rule, in one pure function, because it
- * is needed in two places at once: the browser applies it to show the change
- * immediately, and the server applies it again to decide what to store. Written
- * twice it would drift, and the drift would show up as a tooth that looks
- * marked until the page reloads.
- *
- * Four cases, in the order they come up:
- *
- *  - **A whole-tooth condition** clears the surfaces, because it has none.
- *  - **A condition painted on the tooth itself** rather than on a face keeps
- *    whatever faces were already written down, so re-marking an MOD caries as a
- *    filling stays MOD instead of forgetting where it was.
- *  - **A face, under a different condition** replaces it: painting caries onto
- *    a filled tooth means the caries is on that face, not that the old filling
- *    grew one.
- *  - **A face, under the same condition** toggles — that is what a marking tool
- *    is expected to do, and it is what makes an accidental click cost one click
- *    to undo rather than a trip through the dialog. Toggling off the last face
- *    leaves the tooth healthy, since a caries on no surface is not a finding.
+ * A tooth used to be one status. It is now a list, because a mouth is: see
+ * `ToothFinding` in the schema on the crowned, root-filled molar the chart
+ * could only half record. `HEALTHY` never appears here — a healthy tooth is one
+ * with no findings, which is the same statement made without a special value to
+ * remember to filter out.
  */
-export function applyCondition(
-  current: ToothCondition,
+export type ToothFindings = readonly ToothCondition[];
+
+export const NO_FINDINGS: ToothFindings = [];
+
+/** The finding of this kind, if the tooth has one. */
+export function findingOf(findings: ToothFindings, status: ToothStatus): ToothCondition | null {
+  return findings.find((finding) => finding.status === status) ?? null;
+}
+
+/**
+ * The one finding that decides how the tooth reads at a glance.
+ *
+ * The chart still has places that can show exactly one thing — the letter beside
+ * the tooth number, the colour of a findings row, the pin on the patient's
+ * view — and they need an answer rather than a list. Gone beats built beats
+ * broken: a missing tooth is missing whatever else was ever recorded on it, and
+ * a tooth with both a crown and caries is a tooth with caries as far as the eye
+ * skimming an arch is concerned.
+ */
+const HEADLINE_ORDER: readonly ToothStatus[] = [
+  'MISSING',
+  'EXTRACTED',
+  'IMPLANT',
+  'CARIES',
+  'FRACTURE',
+  'ROOT_CANAL',
+  'BRIDGE',
+  'CROWN',
+  'VENEER',
+  'FILLED',
+  'SEALANT',
+];
+
+export function headlineStatus(findings: ToothFindings): ToothStatus {
+  for (const status of HEADLINE_ORDER) {
+    if (findings.some((finding) => finding.status === status)) return status;
+  }
+  return DEFAULT_TOOTH_STATUS;
+}
+
+/**
+ * A tooth with one finding added, removed, or amended — the whole of the
+ * quick-marking rule, in one pure function.
+ *
+ * Needed in two places at once and therefore in neither: the browser applies it
+ * to show the change before the server has agreed, and the action applies it to
+ * decide what to write. Two copies is how the optimistic chart and the stored
+ * one come to disagree about a tooth.
+ *
+ * Clicking a status the tooth already carries **removes** it, which is what
+ * makes the palette a toggle rather than a one-way ratchet; clicking a face of
+ * a finding it already carries toggles that face, and the finding goes when its
+ * last face does.
+ */
+export function applyFinding(
+  findings: ToothFindings,
   status: ToothStatus,
   surface: ToothSurface | null,
-): ToothCondition {
-  if (!statusTakesSurfaces(status)) return { status, surfaces: '' };
+): ToothFindings {
+  // Healthy is the absence of findings, so marking it is clearing them.
+  if (status === DEFAULT_TOOTH_STATUS) return NO_FINDINGS;
 
-  if (surface === null) {
-    return {
-      status,
-      surfaces: statusTakesSurfaces(current.status) ? formatSurfaces(current.surfaces) : '',
-    };
+  // Gone is gone: an exclusive finding is the only thing left on the tooth.
+  if (isExclusive(status)) {
+    return findingOf(findings, status) ? NO_FINDINGS : [{ status, surfaces: '' }];
   }
 
-  if (current.status !== status) return { status, surfaces: surface };
+  const rest = findings.filter(
+    (finding) => finding.status !== status && !isExclusive(finding.status),
+  );
+  const current = findingOf(findings, status);
 
-  const marked = parseSurfaces(current.surfaces);
+  if (!statusTakesSurfaces(status)) {
+    return current ? rest : [{ status, surfaces: '' }, ...rest];
+  }
+
+  if (surface === null) {
+    // The whole tooth, from the palette or the picker: on if it was off, and
+    // keeping whatever faces were already named for it.
+    return current ? rest : [{ status, surfaces: '' }, ...rest];
+  }
+
+  const marked = parseSurfaces(current?.surfaces);
   const next = marked.includes(surface)
     ? marked.filter((face) => face !== surface)
     : [...marked, surface];
 
-  return next.length === 0
-    ? HEALTHY_TOOTH
-    : { status, surfaces: TOOTH_SURFACES.filter((face) => next.includes(face)).join('') };
+  if (next.length === 0) return rest;
+
+  // **One face, one surface finding.** A face cannot carry both decay and the
+  // filling that replaced it: the decay was cut out to place the restoration,
+  // and a chart showing both on the same surface is showing a tooth that has
+  // never existed. So claiming a face takes it off whatever else claimed it,
+  // and a finding that loses its last face goes with it.
+  //
+  // This is what replaces the old rule, back when a tooth held one status, that
+  // painting a filling over caries *became* the filling. That was right then and
+  // is wrong now: findings are a list, so a tooth with an old filling on the
+  // mesial and fresh decay on the distal is two findings and the commonest
+  // reason a tooth is looked at twice. Only the faces actually claimed move.
+  const freed = rest.flatMap((finding) => {
+    if (!statusTakesSurfaces(finding.status)) return [finding];
+    const kept = parseSurfaces(finding.surfaces).filter((face) => !next.includes(face));
+    if (kept.length === parseSurfaces(finding.surfaces).length) return [finding];
+    return kept.length === 0 ? [] : [{ status: finding.status, surfaces: kept.join('') }];
+  });
+
+  return [
+    { status, surfaces: TOOTH_SURFACES.filter((f) => next.includes(f)).join('') },
+    ...freed,
+  ];
 }
+
 
 /* ------------------------------------------------------------------ *
  * Anatomy, for the drawn chart

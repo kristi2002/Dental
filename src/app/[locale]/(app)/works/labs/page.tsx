@@ -91,6 +91,7 @@ export default async function LabsPage({ params }: { params: Promise<{ locale: s
             icon={<Building2 size={40} aria-hidden />}
             title={t('empty')}
             action={newLink}
+            explain
           />
         </div>
       ) : (

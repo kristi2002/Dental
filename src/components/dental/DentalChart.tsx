@@ -19,7 +19,7 @@ import { ToothDefs } from '@/components/dental/ToothDefsProvider';
 import { ToothGlyph } from '@/components/dental/ToothGlyph';
 import { TOOTH_PHOTOS, ToothPhoto } from '@/components/dental/ToothPhoto';
 import { SubmitButton } from '@/components/ui/SubmitButton';
-import { saveToothPerio, saveToothRecord, setToothCondition } from '@/lib/actions/patients';
+import { saveToothPerio, saveToothRecord, setToothFindings } from '@/lib/actions/patients';
 import { planStepForTooth } from '@/lib/actions/plans';
 import { IDLE_STATE } from '@/lib/actions/types';
 import {
@@ -31,7 +31,7 @@ import {
 } from '@/lib/perio';
 import {
   ALL_TEETH,
-  applyCondition,
+  applyFinding,
   DEFAULT_TOOTH_STATUS,
   HEALTHY_TOOTH,
   PERMANENT_LOWER_LEFT,
@@ -42,6 +42,10 @@ import {
   PRIMARY_LOWER_RIGHT,
   PRIMARY_UPPER_LEFT,
   PRIMARY_UPPER_RIGHT,
+  findingOf,
+  headlineStatus,
+  isExclusive,
+  NO_FINDINGS,
   statusTakesSurfaces,
   surfaceFill,
   TOOTH_STATUSES,
@@ -56,6 +60,7 @@ import {
   toothKind,
   toothLabel as toothLabelFor,
   type ToothCondition,
+  type ToothFindings,
   type ToothNumbering,
   type ToothStatus,
   type ToothSurface,
@@ -169,9 +174,17 @@ export type PlannedMap = Record<number, PlannedStep[]>;
 export type ToothRecordMap = Record<
   number,
   {
-    status: string;
+    /**
+     * Everything true of the tooth, newest first.
+     *
+     * A list rather than the single `status` this used to hold: a crowned,
+     * root-filled molar with a filling on the distal is three findings and the
+     * chart could record one of them. See `ToothFinding` in the schema. An
+     * empty list is a healthy tooth, which is why `HEALTHY` never appears in
+     * one.
+     */
+    findings: ToothFindings;
     notes: string;
-    surfaces: string;
     /**
      * The day the tooth was last charted, formatted on the server.
      *
@@ -265,17 +278,32 @@ const UNDO_DEPTH = 50;
 /** One step back: which tooth, and what it was before. Carries its own id
  *  because a write that fails has to find the step it pushed among however many
  *  have been pushed on that tooth since. */
-type UndoEntry = { id: number; toothNum: number; before: ToothCondition };
+type UndoEntry = { id: number; toothNum: number; before: ToothFindings };
 
-function statusOf(records: ToothRecordMap, toothNum: number): ToothStatus {
-  const raw = records[toothNum]?.status;
-  return raw && (TOOTH_STATUSES as readonly string[]).includes(raw)
-    ? (raw as ToothStatus)
-    : DEFAULT_TOOTH_STATUS;
+function storedFindings(records: ToothRecordMap, toothNum: number): ToothFindings {
+  return records[toothNum]?.findings ?? NO_FINDINGS;
 }
 
-function storedCondition(records: ToothRecordMap, toothNum: number): ToothCondition {
-  return { status: statusOf(records, toothNum), surfaces: records[toothNum]?.surfaces ?? '' };
+/** Every face named by any finding on the tooth, in anatomical order — the
+ *  findings row has one surfaces line per tooth, and a tooth can now carry
+ *  several findings between them. */
+function allFaces(findings: ToothFindings): ToothSurface[] {
+  const seen = new Set<ToothSurface>();
+  for (const finding of findings) {
+    for (const surface of parseSurfaces(finding.surfaces)) seen.add(surface);
+  }
+  return TOOTH_SURFACES.filter((surface) => seen.has(surface));
+}
+
+/** Two findings lists as one string, for comparing what is on screen against
+ *  what the server has just sent back. Order is not significant — the same
+ *  three findings in a different order are the same tooth — so it is normalised
+ *  before the comparison rather than after somebody notices the flicker. */
+function findingsKey(findings: ToothFindings): string {
+  return [...findings]
+    .map((finding) => `${finding.status}:${finding.surfaces}`)
+    .sort()
+    .join('|');
 }
 
 /**
@@ -441,7 +469,7 @@ export function DentalChart({
    * click rather than the round trip. Marking is done at the speed of speech
    * and a chart that lags a save behind is one that gets clicked twice.
    */
-  const [pending, setPending] = useState<Record<number, ToothCondition>>({});
+  const [pending, setPending] = useState<Record<number, ToothFindings>>({});
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
   const [markError, setMarkError] = useState<string | null>(null);
   const [, startMarking] = useTransition();
@@ -460,21 +488,23 @@ export function DentalChart({
    */
   useEffect(() => {
     setPending((current) => {
-      const waiting = Object.entries(current).filter(([key, condition]) => {
-        const stored = storedCondition(records, Number(key));
-        return stored.status !== condition.status || stored.surfaces !== condition.surfaces;
-      });
+      const waiting = Object.entries(current).filter(
+        ([key, findings]) => findingsKey(storedFindings(records, Number(key))) !== findingsKey(findings),
+      );
       return waiting.length === Object.keys(current).length ? current : Object.fromEntries(waiting);
     });
   }, [records]);
 
   /** What the tooth is right now, as far as this screen knows. */
-  function conditionOf(toothNum: number): ToothCondition {
-    return pending[toothNum] ?? storedCondition(records, toothNum);
+  function findingsOf(toothNum: number): ToothFindings {
+    return pending[toothNum] ?? storedFindings(records, toothNum);
   }
 
-  /** Write a resolved condition, keeping the drawing ahead of the round trip. */
-  function write(toothNum: number, after: ToothCondition, undoTo: ToothCondition | null) {
+  /** Write a resolved list of findings, keeping the drawing ahead of the round
+   *  trip. The whole list goes over rather than a delta: the server then has
+   *  one job — make the tooth look like this — and cannot end up in a state the
+   *  screen never predicted. */
+  function write(toothNum: number, after: ToothFindings, undoTo: ToothFindings | null) {
     setMarkError(null);
     setPending((current) => ({ ...current, [toothNum]: after }));
 
@@ -485,11 +515,10 @@ export function DentalChart({
     }
 
     startMarking(async () => {
-      const result = await setToothCondition({
+      const result = await setToothFindings({
         patientId,
         toothNum,
-        status: after.status,
-        surfaces: after.surfaces,
+        findings: after.map((finding) => ({ status: finding.status, surfaces: finding.surfaces })),
       });
 
       if (result.status === 'error') {
@@ -513,11 +542,11 @@ export function DentalChart({
   function mark(toothNum: number, surface: ToothSurface | null) {
     if (readOnly || tool === null) return;
 
-    const before = conditionOf(toothNum);
-    const after = applyCondition(before, tool, surface);
+    const before = findingsOf(toothNum);
+    const after = applyFinding(before, tool, surface);
     // Clicking a face that is already marked with the held tool turns it off,
     // and clicking one that changes nothing should not cost a write.
-    if (after.status === before.status && after.surfaces === before.surfaces) return;
+    if (findingsKey(after) === findingsKey(before)) return;
 
     write(toothNum, after, before);
   }
@@ -618,7 +647,7 @@ export function DentalChart({
   function openTooth(toothNum: number, surface: ToothSurface | null = null) {
     if (readOnly && surface !== null) return;
 
-    const recorded = conditionOf(toothNum).status;
+    const recorded = headlineStatus(findingsOf(toothNum));
     // Naming a surface on a tooth whose status has none is a contradiction, and
     // the surface list is hidden for those statuses — so the click would vanish.
     // Clicking a segment says the finding is on that face, and caries is far and
@@ -656,7 +685,7 @@ export function DentalChart({
         ...PRIMARY_UPPER_LEFT,
         ...PRIMARY_LOWER_RIGHT,
         ...PRIMARY_LOWER_LEFT,
-      ].some((n) => records[n] && records[n].status !== DEFAULT_TOOTH_STATUS),
+      ].some((n) => (records[n]?.findings.length ?? 0) > 0),
   );
 
   const surfacesApply = statusTakesSurfaces(status);
@@ -676,8 +705,10 @@ export function DentalChart({
    * showed caries with no face ticked — and saving that wrote the answer back,
    * quietly taking the surface off a finding that had just been recorded.
    */
-  const openCondition: ToothCondition = selected === null ? HEALTHY_TOOTH : conditionOf(selected);
-  const openSurfaces = parseSurfaces(openCondition.surfaces);
+  const openFindings: ToothFindings = selected === null ? NO_FINDINGS : findingsOf(selected);
+  /** The faces already named for whichever status the picker is sitting on, so
+   *  reopening a tooth shows the finding that is there rather than a blank. */
+  const openSurfaces = parseSurfaces(findingOf(openFindings, status)?.surfaces);
 
   // What the caries and filling thumbnails should show. The surface being
   // recorded if there is one, so the picture the dentist is choosing between is
@@ -698,10 +729,28 @@ export function DentalChart({
    * "this is how the tooth will look" was ignoring them. The rest are
    * whole-tooth states with no face to draw.
    */
-  const previewFor = (option: ToothStatus): ToothSurface[] => {
-    if (option === 'CARIES' || option === 'FILLED') return previewSurfaces;
-    if (!statusTakesSurfaces(option)) return [];
-    return focusSurface ? [focusSurface] : openSurfaces;
+  const previewFor = (option: ToothStatus): ToothFindings => {
+    if (option === DEFAULT_TOOTH_STATUS) return NO_FINDINGS;
+
+    const faces =
+      option === 'CARIES' || option === 'FILLED'
+        ? previewSurfaces
+        : statusTakesSurfaces(option)
+          ? focusSurface
+            ? [focusSurface]
+            : openSurfaces
+          : [];
+    const self: ToothCondition = { status: option, surfaces: faces.join('') };
+
+    // The tooth as it would *become*, which now includes whatever else is
+    // already on it: choosing "Crown" on a root-filled tooth shows the crown
+    // over the canals, because that is what the tooth will look like. It is
+    // also the answer to a question the old single-status picker could not even
+    // ask, and the reason the thumbnails stopped being eleven pictures of an
+    // empty tooth with one thing on it.
+    return isExclusive(option)
+      ? [self]
+      : [self, ...openFindings.filter((f) => f.status !== option && !isExclusive(f.status))];
   };
 
   /**
@@ -738,7 +787,7 @@ export function DentalChart({
 
   const rowProps = {
     view,
-    conditionOf,
+    findingsOf,
     perioOf,
     readOnly,
     hasNote: (n: number) => Boolean(records[n]?.notes),
@@ -887,8 +936,17 @@ export function DentalChart({
                     <span aria-hidden className="h-16 w-9">
                       <ToothGlyph
                         toothNum={LEGEND_TOOTH}
-                        status={option}
-                        surfaces={option === 'CARIES' || option === 'FILLED' ? ['O'] : []}
+                        findings={
+                          option === DEFAULT_TOOTH_STATUS
+                            ? []
+                            : [
+                                {
+                                  status: option,
+                                  surfaces:
+                                    option === 'CARIES' || option === 'FILLED' ? 'O' : '',
+                                },
+                              ]
+                        }
                       />
                     </span>
                     <span className="text-caption leading-tight font-semibold text-ink">
@@ -911,7 +969,7 @@ export function DentalChart({
         <ChartFindings
           view={view}
           records={records}
-          conditionOf={conditionOf}
+          findingsOf={findingsOf}
           numberLabel={label}
           onSelect={(toothNum) => openTooth(toothNum)}
           onPoint={setHighlight}
@@ -1192,7 +1250,11 @@ export function DentalChart({
                       <div>
                         <p className="field-label">{t('condition')}</p>
                         <p className="text-body font-semibold text-ink">
-                          {t(`status_${openCondition.status}`)}
+                          {openFindings.length === 0
+                            ? t(`status_${DEFAULT_TOOTH_STATUS}`)
+                            : openFindings
+                                .map((finding) => t(`status_${finding.status}`))
+                                .join(' · ')}
                         </p>
                       </div>
                       <div>
@@ -1254,8 +1316,7 @@ export function DentalChart({
                               <span aria-hidden className="h-16 w-9">
                                 <ToothGlyph
                                   toothNum={selected}
-                                  status={option}
-                                  surfaces={previewFor(option)}
+                                  findings={previewFor(option)}
                                 />
                               </span>
                               {t(`status_${option}`)}
@@ -1537,7 +1598,7 @@ function PerioReadout({ summary, toothNum }: { summary: PerioSummary; toothNum: 
 function ChartFindings({
   view,
   records,
-  conditionOf,
+  findingsOf,
   numberLabel,
   onSelect,
   onPoint,
@@ -1546,7 +1607,7 @@ function ChartFindings({
   records: ToothRecordMap;
   /** The tooth as the screen knows it — one mark ahead of `records` while a
    *  click is in flight. */
-  conditionOf: (toothNum: number) => ToothCondition;
+  findingsOf: (toothNum: number) => ToothFindings;
   numberLabel: (toothNum: number) => string;
   onSelect: (toothNum: number) => void;
   /** Ring this tooth on the arch, or clear the ring with null. */
@@ -1561,11 +1622,12 @@ function ChartFindings({
     // appears in the list beside it on the same click. Read off `records` this
     // list stayed a round trip behind the drawing, and under a fast hand it was
     // permanently behind — the panel and the arch disagreeing about the mouth.
-    const condition = conditionOf(toothNum);
+    const findings = findingsOf(toothNum);
     return {
       toothNum,
-      status: condition.status,
-      surfaces: parseSurfaces(condition.surfaces),
+      list: findings,
+      status: headlineStatus(findings),
+      surfaces: allFaces(findings),
       notes: records[toothNum]?.notes ?? '',
       chartedOn: records[toothNum]?.chartedOn ?? '',
       perio: perioSummaryOf(records[toothNum] ?? {}),
@@ -1686,11 +1748,7 @@ function ChartFindings({
                   )}
                 >
                   <span aria-hidden className="h-14 w-8 shrink-0">
-                    <ToothGlyph
-                      toothNum={finding.toothNum}
-                      status={finding.status}
-                      surfaces={finding.surfaces}
-                    />
+                    <ToothGlyph toothNum={finding.toothNum} findings={finding.list} />
                   </span>
 
                   <span className="min-w-0 flex-1">
@@ -1852,7 +1910,7 @@ type ToothCellProps = {
   view: ChartView;
   /** The tooth as the screen currently knows it — which is one mark ahead of
    *  the server while a click is in flight. */
-  conditionOf: (toothNum: number) => ToothCondition;
+  findingsOf: (toothNum: number) => ToothFindings;
   perioOf: (toothNum: number) => PerioSummary;
   hasNote: (toothNum: number) => boolean;
   /** How much outstanding treatment is planned on this tooth. */
@@ -1876,7 +1934,7 @@ type ToothCellProps = {
 function ToothCell({
   toothNum,
   view,
-  conditionOf,
+  findingsOf,
   perioOf,
   hasNote,
   plannedCount,
@@ -1890,10 +1948,9 @@ function ToothCell({
   toothLabel,
   surfaceLabel,
 }: ToothCellProps) {
-  const condition = conditionOf(toothNum);
-  const status = condition.status;
+  const findings = findingsOf(toothNum);
+  const status = headlineStatus(findings);
   const style = TOOTH_STATUS_STYLE[status];
-  const marked = parseSurfaces(condition.surfaces);
   const perio = perioOf(toothNum);
 
   const glyph = (
@@ -1915,7 +1972,7 @@ function ToothCell({
         primary ? 'h-[calc(var(--tooth-glyph-h)*0.7)]' : 'h-(--tooth-glyph-h)',
       )}
     >
-      <ToothGlyph toothNum={toothNum} status={status} surfaces={marked} />
+      <ToothGlyph toothNum={toothNum} findings={findings} />
       {hasNote(toothNum) ? (
         <span aria-hidden className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-ink-faint" />
       ) : null}
@@ -1962,7 +2019,7 @@ function ToothCell({
         <SurfaceTarget
           toothNum={toothNum}
           readOnly={readOnly}
-          fillOf={(surface) => surfaceFill(status, condition.surfaces, surface)}
+          fillOf={(surface) => surfaceFill(findings, surface)}
           labelOf={(surface) => surfaceLabel(toothNum, surface)}
           onSurfaceClick={(surface) => onSelect(toothNum, surface)}
         />

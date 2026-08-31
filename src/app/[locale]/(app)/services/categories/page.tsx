@@ -94,7 +94,12 @@ export default async function ServiceCategoriesPage({
 
       {departments.length === 0 ? (
         <div className="card">
-          <EmptyState icon={<Tags size={40} aria-hidden />} title={t('empty')} action={newLink} />
+          <EmptyState
+            icon={<Tags size={40} aria-hidden />}
+            title={t('empty')}
+            action={newLink}
+            explain
+          />
         </div>
       ) : (
         <ul className="card divide-y divide-line">

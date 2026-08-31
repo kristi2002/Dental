@@ -89,6 +89,7 @@ export default async function WorkProceduresPage({
             icon={<FlaskConical size={40} aria-hidden />}
             title={t('empty')}
             action={newLink}
+            explain
           />
         </div>
       ) : (

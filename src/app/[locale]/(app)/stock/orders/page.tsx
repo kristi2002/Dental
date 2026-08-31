@@ -82,6 +82,7 @@ export default async function StockOrdersPage({
           <EmptyState
             icon={<Truck size={40} aria-hidden />}
             title={closed ? t('emptyClosed') : t('empty')}
+            explain
           />
         </Card>
       ) : (

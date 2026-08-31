@@ -9,7 +9,7 @@
    whole point of the rewrite below. */
 /* eslint-disable jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */
 
-import { ArrowRight, ListFilter, Loader2, Search, User } from 'lucide-react';
+import { ArrowRight, CircleQuestionMark, ListFilter, Loader2, Search, User } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
@@ -17,6 +17,7 @@ import { useRouter } from '@/i18n/navigation';
 import { searchPatients } from '@/lib/actions/patients';
 import type { PatientOption } from '@/components/appointments/AppointmentFormDialog';
 import { rankMatches } from '@/lib/search-match';
+import { openHelp } from '@/components/help/open-help';
 
 /** Long enough that typing a name does not fire a query per keystroke. */
 const DEBOUNCE_MS = 180;
@@ -28,7 +29,11 @@ export type PaletteDestination = { href: string; label: string };
 
 type Row =
   | { key: string; href: string; kind: 'screen' | 'list'; label: string }
-  | { key: string; href: string; kind: 'patient'; person: PatientOption };
+  | { key: string; href: string; kind: 'patient'; person: PatientOption }
+  // The one row here that goes nowhere. Choosing it opens the help panel on
+  // that topic where the reader already is — see `open-help.ts` for why that
+  // is not a navigation.
+  | { key: string; kind: 'help'; topic: string; label: string };
 
 /**
  * One box that finds anything.
@@ -67,6 +72,8 @@ export function CommandPalette({
   placeholder,
   screensLabel,
   patientsLabel,
+  helpLabel,
+  topics,
   emptyLabel,
 }: {
   /** Screens this person may open, already permission-filtered on the server. */
@@ -81,6 +88,18 @@ export function CommandPalette({
   placeholder: string;
   screensLabel: string;
   patientsLabel: string;
+  /** Heading over the explanations. */
+  helpLabel: string;
+  /**
+   * The screens that have an explanation this person may read, by topic id —
+   * permission-filtered on the server with everything else.
+   *
+   * Here because this box is where people ask questions. "Recall" typed into it
+   * used to offer the recall list and nothing else, when half the time the
+   * question behind the word is what a recall *is* — and the answer already
+   * existed, one screen away, behind a button nobody had reason to press yet.
+   */
+  topics: PaletteDestination[];
   emptyLabel: string;
 }) {
   const t = useTranslations('patients');
@@ -162,6 +181,7 @@ export function CommandPalette({
   }, [query]);
 
   const screens = rankMatches(destinations, query, (destination) => destination.label);
+  const explanations = rankMatches(topics, query, (entry) => entry.label);
   const people = found.people;
   // The people on screen are the answer to what is in the box — not to two
   // keystrokes ago. Until they are, nothing here says "nothing found".
@@ -195,6 +215,25 @@ export function CommandPalette({
     });
   }
 
+  /* Under the screens and the people, never over them.
+   *
+   * Somebody typing a name wants the person, and somebody typing "stock" nearly
+   * always wants the screen. The explanation is what they want when neither of
+   * those was it — so it sits where a second thought belongs, and it is only
+   * offered once enough has been typed to mean something. */
+  if (text.length >= MIN_QUERY && explanations.length > 0) {
+    sections.push({
+      id: 'help',
+      heading: helpLabel,
+      rows: explanations.map((entry) => ({
+        kind: 'help',
+        key: `help:${entry.href}`,
+        topic: entry.href,
+        label: entry.label,
+      })),
+    });
+  }
+
   // Only once there is something worth carrying across, and only into lists this
   // person is allowed to open.
   if (text.length >= MIN_QUERY && searches.length > 0) {
@@ -214,7 +253,11 @@ export function CommandPalette({
   // loud, because a list that quietly offers four other places to look does not
   // answer the question that was typed.
   const nothingFound =
-    text.length >= MIN_QUERY && settled && screens.length === 0 && people.length === 0;
+    text.length >= MIN_QUERY &&
+    settled &&
+    screens.length === 0 &&
+    people.length === 0 &&
+    explanations.length === 0;
 
   const rows = sections.flatMap((section) => section.rows);
   // Clamped rather than trusted: the list shrinks under a highlight that may be
@@ -242,6 +285,22 @@ export function CommandPalette({
     router.push(href);
   };
 
+  /**
+   * What pressing a row does, whichever kind it is.
+   *
+   * Three of the four kinds navigate; the explanation does not, it hands the
+   * question to the panel in the corner and leaves the reader where they were.
+   */
+  const choose = (row: Row) => {
+    if (row.kind === 'help') {
+      dialogRef.current?.close();
+      reset();
+      openHelp(row.topic);
+      return;
+    }
+    go(row.href);
+  };
+
   const move = (delta: number) => {
     if (rows.length === 0) return;
     // Read from the setter rather than from the render this handler was made
@@ -264,7 +323,7 @@ export function CommandPalette({
     } else if (event.key === 'Enter') {
       event.preventDefault();
       const row = rows[cursor];
-      if (row) go(row.href);
+      if (row) choose(row);
     }
     // Home and End are deliberately left alone. They belong to the caret in a
     // text field, and a long name typed with a typo in it is edited with them.
@@ -378,7 +437,7 @@ export function CommandPalette({
                     // Moved over, not entered: a list scrolling past a parked
                     // pointer must not take the highlight off the keyboard.
                     onMouseMove={() => setActive(at)}
-                    onClick={() => go(row.href)}
+                    onClick={() => choose(row)}
                     className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-left ${
                       at === cursor ? 'bg-brand-soft' : ''
                     }`}
@@ -401,6 +460,12 @@ export function CommandPalette({
                       <>
                         {row.kind === 'list' ? (
                           <ListFilter size={17} aria-hidden className="shrink-0 text-ink-faint" />
+                        ) : row.kind === 'help' ? (
+                          <CircleQuestionMark
+                            size={17}
+                            aria-hidden
+                            className="shrink-0 text-ink-faint"
+                          />
                         ) : (
                           <ArrowRight size={17} aria-hidden className="shrink-0 text-ink-faint" />
                         )}

@@ -76,6 +76,7 @@ export default async function PrescriptionsPage({
             icon={<Pill size={40} aria-hidden />}
             title={t('templatesEmpty')}
             action={newLink}
+            explain
           />
         </div>
       ) : (

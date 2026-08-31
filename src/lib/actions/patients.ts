@@ -36,9 +36,11 @@ import {
 import {
   DEFAULT_TOOTH_STATUS,
   formatSurfaces,
+  isExclusive,
   isToothStatus,
   isValidTooth,
   statusTakesSurfaces,
+  type ToothStatus,
 } from '@/lib/teeth';
 import { optionalString, parseServiceList, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -762,23 +764,52 @@ export async function saveToothRecord(
     formatSurfaces(formData.getAll('surfaces').filter((v) => typeof v === 'string').join('')) ||
     null;
 
+  /**
+   * The dialog records *one* finding and leaves the rest of the tooth alone.
+   *
+   * It used to set the tooth's only status, so saving was replacing. Now that a
+   * tooth holds a list, saving a crown on a root-filled tooth has to mean "and
+   * a crown" rather than "instead of the root filling" — the dentist who opens
+   * the dialog is recording the thing they just did, not restating everything
+   * ever done to the tooth.
+   *
+   * `HEALTHY` is still the eraser, because that is what picking it has always
+   * meant here and there is nowhere else in the dialog to say "none of this is
+   * true any more".
+   */
+  const existing = await prisma.toothFinding.findMany({
+    where: { patientId, toothNum },
+    orderBy: { recordedAt: 'desc' },
+  });
+  const merged =
+    status === DEFAULT_TOOTH_STATUS
+      ? []
+      : normaliseFindings([
+          { status, surfaces: surfaces ?? '' },
+          ...existing
+            .filter((finding) => finding.status !== status)
+            .map((finding) => ({ status: finding.status, surfaces: finding.surfaces ?? '' })),
+        ]);
+  if (merged === null) return actionError(t('generic'));
+
   const [visitId, { perio }] = await Promise.all([
     sameDayVisitId(patientId),
     toothRowContext(patientId, toothNum),
   ]);
 
   try {
-    // "Healthy with no note" is the implicit default — drop the row instead of
-    // storing noise, so the chart summary stays meaningful. Unless the row is
-    // carrying a periodontal examination this form never showed, in which case
-    // clearing the condition would throw the readings away with it.
-    if (status === DEFAULT_TOOTH_STATUS && !notes && !surfaces && !perio) {
+    await writeFindings(patientId, toothNum, merged);
+
+    // The note lives on `ToothRecord`, which is now the periodontal row. A
+    // tooth left with no findings, no note and no readings keeps no row at all,
+    // so a mistyped tooth, corrected, leaves nothing behind.
+    if (merged.length === 0 && !notes && !perio) {
       await prisma.toothRecord.deleteMany({ where: { patientId, toothNum } });
     } else {
       await prisma.toothRecord.upsert({
         where: { patientId_toothNum: { patientId, toothNum } },
-        create: { patientId, toothNum, status, notes, surfaces, visitRecordId: visitId },
-        update: { status, notes, surfaces, visitRecordId: visitId },
+        create: { patientId, toothNum, notes, visitRecordId: visitId },
+        update: { notes, visitRecordId: visitId },
       });
     }
   } catch {
@@ -797,29 +828,31 @@ export async function saveToothRecord(
 }
 
 /**
- * One tooth's condition, written straight down without a form.
+ * Everything true of one tooth, written straight down without a form.
  *
  * This is what the chart's marking tools call. Charting a mouth is thirty-two
  * findings entered one after another, and routing each of them through the
- * dialog — open, read eight options, pick, press save, wait for it to close —
+ * dialog — open, read the options, pick, press save, wait for it to close —
  * turned a two-minute examination into a filing exercise. With a tool selected
  * the click *is* the record.
  *
- * The client has already worked out the resulting state with `applyCondition`,
- * so what arrives here is the answer rather than the gesture — that is what
- * lets the drawing update on the click instead of after the round trip. It is
- * still checked rather than trusted: the status has to be one of the eight, and
- * a status that names no surface has its surfaces dropped however they arrived.
+ * **The whole list arrives, not a delta.** The client has already worked out the
+ * resulting state with `applyFinding`, which is what lets the drawing update on
+ * the click rather than after the round trip; sending the answer means the
+ * server has one job — make the tooth look like this — and cannot land in a
+ * state the screen never predicted. It is still checked rather than trusted:
+ * every status has to be a real one, a status that names no surface has its
+ * surfaces dropped however they arrived, and the exclusivity rule is applied
+ * here as well as there, because a form is not a permission.
  *
  * The note and the periodontal readings are deliberately not in the payload.
  * Marking a tooth is not a statement about either, and a quick tool that
  * silently wiped a typed note would be the worst kind of fast.
  */
-export async function setToothCondition(input: {
+export async function setToothFindings(input: {
   patientId: string;
   toothNum: number;
-  status: string;
-  surfaces: string;
+  findings: { status: string; surfaces: string }[];
 }): Promise<ActionState> {
   const t = await getTranslations('errors');
 
@@ -827,32 +860,15 @@ export async function setToothCondition(input: {
   if (!user) return actionError(t('forbidden'));
 
   const { patientId, toothNum } = input;
-  if (
-    !patientId ||
-    !Number.isInteger(toothNum) ||
-    !isValidTooth(toothNum) ||
-    !isToothStatus(input.status)
-  ) {
+  if (!patientId || !Number.isInteger(toothNum) || !isValidTooth(toothNum)) {
     return actionError(t('generic'));
   }
-  const status = input.status;
-  const surfaces = statusTakesSurfaces(status) ? formatSurfaces(input.surfaces) || null : null;
 
-  const [visitId, { row, perio }] = await Promise.all([
-    sameDayVisitId(patientId),
-    toothRowContext(patientId, toothNum),
-  ]);
+  const cleaned = normaliseFindings(input.findings);
+  if (cleaned === null) return actionError(t('generic'));
 
   try {
-    if (status === DEFAULT_TOOTH_STATUS && !surfaces && !row?.notes && !perio) {
-      await prisma.toothRecord.deleteMany({ where: { patientId, toothNum } });
-    } else {
-      await prisma.toothRecord.upsert({
-        where: { patientId_toothNum: { patientId, toothNum } },
-        create: { patientId, toothNum, status, surfaces, visitRecordId: visitId },
-        update: { status, surfaces, visitRecordId: visitId },
-      });
-    }
+    await writeFindings(patientId, toothNum, cleaned);
   } catch {
     return actionError(t('generic'));
   }
@@ -861,11 +877,97 @@ export async function setToothCondition(input: {
     action: 'update',
     entity: 'tooth',
     entityId: patientId,
-    summary: `#${toothNum}${surfaces ? ` (${surfaces})` : ''} · ${status}`,
+    summary: `#${toothNum} · ${
+      cleaned.length === 0
+        ? DEFAULT_TOOTH_STATUS
+        : cleaned
+            .map((f) => `${f.status}${f.surfaces ? ` (${f.surfaces})` : ''}`)
+            .join(', ')
+    }`,
   });
 
   revalidateAll();
   return actionOk();
+}
+
+/**
+ * The findings as they will be stored, or null if any of them is not a finding.
+ *
+ * Rejects rather than filters. A payload naming a status this app does not have
+ * is a client that has gone wrong or one that is not ours, and quietly writing
+ * the half of it that parsed is how a tooth ends up in a state nobody chose.
+ */
+function normaliseFindings(
+  findings: readonly { status: string; surfaces: string }[],
+): { status: ToothStatus; surfaces: string | null }[] | null {
+  const seen = new Set<string>();
+  const out: { status: ToothStatus; surfaces: string | null }[] = [];
+
+  for (const finding of findings) {
+    // `HEALTHY` is the absence of findings, so it is never one — a list that
+    // names it is a client still thinking in single statuses.
+    if (!isToothStatus(finding.status) || finding.status === DEFAULT_TOOTH_STATUS) return null;
+    if (seen.has(finding.status)) return null;
+    seen.add(finding.status);
+    out.push({
+      status: finding.status,
+      surfaces: statusTakesSurfaces(finding.status)
+        ? formatSurfaces(finding.surfaces) || null
+        : null,
+    });
+  }
+
+  // Gone is gone. `EXCLUSIVE_STATUSES` is the same list the chart predicts with,
+  // and applying it here too is what stops a stale tab writing an implant onto a
+  // tooth another tab has just recorded as missing.
+  const exclusive = out.find((finding) => isExclusive(finding.status));
+  return exclusive ? [exclusive] : out;
+}
+
+/**
+ * Make the tooth's findings look exactly like this.
+ *
+ * Delete-then-insert inside one transaction rather than a diff: the list is
+ * short, the write is rare, and a diff would need the exclusivity rule applied
+ * twice — once to decide what to remove and once to decide what to add — which
+ * is two places for it to be applied differently.
+ *
+ * The `ToothRecord` row is left alone. It holds the note and the periodontal
+ * examination now, and neither is a statement about the findings; the one thing
+ * done to it is the reverse of what the old code did — a row that has nothing
+ * left on it at all is removed, so a mistyped tooth, corrected, does not leave a
+ * permanent empty record behind.
+ */
+async function writeFindings(
+  patientId: string,
+  toothNum: number,
+  findings: readonly { status: ToothStatus; surfaces: string | null }[],
+): Promise<void> {
+  const visitId = await sameDayVisitId(patientId);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.toothFinding.deleteMany({ where: { patientId, toothNum } });
+    if (findings.length > 0) {
+      await tx.toothFinding.createMany({
+        data: findings.map((finding) => ({
+          patientId,
+          toothNum,
+          status: finding.status,
+          surfaces: finding.surfaces,
+          visitRecordId: visitId,
+        })),
+      });
+    }
+  });
+
+  if (findings.length === 0) {
+    const row = await prisma.toothRecord.findUnique({
+      where: { patientId_toothNum: { patientId, toothNum } },
+    });
+    if (row && !row.notes && !hasPerio(row)) {
+      await prisma.toothRecord.deleteMany({ where: { patientId, toothNum } });
+    }
+  }
 }
 
 /**

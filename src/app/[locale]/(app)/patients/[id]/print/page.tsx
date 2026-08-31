@@ -13,6 +13,7 @@ import { recordView, requirePermission } from '@/lib/auth/guard';
 import { age } from '@/lib/dates';
 import { planProgress } from '@/lib/plan-progress';
 import { prisma } from '@/lib/prisma';
+import { toothRecordMap } from '@/lib/tooth-chart';
 import { getClinicProfile } from '@/lib/queries';
 import { dentitionOf } from '@/lib/teeth';
 
@@ -72,6 +73,7 @@ export default async function PatientRecordPage({
       where: { id },
       include: {
         teethRecords: true,
+        toothFindings: true,
         plans: {
           orderBy: { createdAt: 'desc' },
           include: { steps: { orderBy: { position: 'asc' } } },
@@ -100,25 +102,8 @@ export default async function PatientRecordPage({
   // The same mapping the patient's own chart tab builds, including the charted
   // date — a finding from two years ago and one from this morning are the same
   // colour on the drawing and two very different conversations.
-  const teeth: ToothRecordMap = Object.fromEntries(
-    patient.teethRecords.map((record) => [
-      record.toothNum,
-      {
-        status: record.status,
-        notes: record.notes ?? '',
-        surfaces: record.surfaces ?? '',
-        mobility: record.mobility,
-        pockets: record.pockets,
-        bleeding: record.bleeding,
-        recession: record.recession,
-        furcation: record.furcation,
-        chartedOn: format.dateTime(record.updatedAt, {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-        }),
-      },
-    ]),
+  const teeth: ToothRecordMap = toothRecordMap(patient.teethRecords, patient.toothFindings, (value) =>
+    format.dateTime(value, { day: 'numeric', month: 'short', year: 'numeric' }),
   );
 
   /**

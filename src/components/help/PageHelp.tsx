@@ -2,6 +2,7 @@
 
 import {
   AlarmClock,
+  ArrowLeft,
   ArrowRight,
   BellRing,
   Boxes,
@@ -19,6 +20,7 @@ import {
   Inbox,
   Layers,
   LayoutDashboard,
+  LibraryBig,
   Lightbulb,
   ListChecks,
   NotebookPen,
@@ -27,6 +29,7 @@ import {
   QrCode,
   ScanLine,
   ScrollText,
+  Search,
   Send,
   Stethoscope,
   Tags,
@@ -42,8 +45,9 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, useState, useTransition, type ReactNode } from 'react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { markHelpSeen } from '@/lib/actions/preferences';
-import { topicFor } from '@/lib/help/topics';
-import { cn } from '@/lib/utils';
+import { HELP_TOPICS, topicFor } from '@/lib/help/topics';
+import { cn, matches } from '@/lib/utils';
+import { OPEN_HELP } from './open-help';
 import { HelpDiagram } from './HelpDiagram';
 import { HelpWireframe } from './HelpWireframe';
 
@@ -98,6 +102,8 @@ const ICONS: Record<string, LucideIcon> = {
   imports: Upload,
   stock: Package,
   stockCatalog: Images,
+  stockItem: Package,
+  stockOrders: Truck,
   stockLabels: QrCode,
   stockScan: ScanLine,
   stocktake: Boxes,
@@ -135,6 +141,7 @@ function list<T>(value: unknown): T[] {
 export function PageHelp({
   destinations,
   permissions,
+  topics,
   pointer = false,
   tone = 'surface',
 }: {
@@ -156,6 +163,12 @@ export function PageHelp({
    */
   permissions: readonly string[];
   /**
+   * The topics worth listing when somebody browses, in the registry's own
+   * order — resolved on the server so the list is permission-filtered there
+   * along with everything else.
+   */
+  topics: readonly string[];
+  /**
    * Whether this person has never been shown where the help is.
    *
    * Read from their account, not from a cookie: being told once should be once
@@ -167,11 +180,27 @@ export function PageHelp({
 }) {
   const t = useTranslations('help');
   const pathname = usePathname();
-  const topic = topicFor(pathname);
+  const here = topicFor(pathname);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const pointerId = useId();
   const [open, setOpen] = useState(false);
+
+  /*
+   * What the panel is showing.
+   *
+   * `null` is the screen the reader is standing on, which is the answer nine
+   * times out of ten and the one the button in the corner asks for. A topic id
+   * is somebody having gone looking — from the index below, or from the search
+   * box at the top of the page — and it is shown *in place*, without leaving
+   * the screen they are working. See `open-help.ts` for why that is not a
+   * navigation.
+   */
+  const [viewing, setViewing] = useState<string | null>(null);
+  const [browsing, setBrowsing] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const topic = viewing ? HELP_TOPICS.find((entry) => entry.id === viewing) : here;
 
   // Dismissed here and then written to the account. Local state as well as the
   // server's answer, because the pointer has to disappear the instant it is
@@ -182,6 +211,22 @@ export function PageHelp({
 
   /* Up only while the account says so and nobody has pressed it yet. */
   const showPointer = pointer && !pointerGone;
+
+  /**
+   * Open the panel, on a named topic or on this screen's.
+   *
+   * The single entrance, because there are now four ways in — the button, the
+   * `?` key, the index, and the search box — and each one has to leave the same
+   * three pieces of state agreeing with each other. Pressing any of them also
+   * retires the first-run pointer: having found the help is what it was for.
+   */
+  function show(topicId?: string) {
+    setViewing(topicId ?? null);
+    setBrowsing(false);
+    setQuery('');
+    setOpen(true);
+    if (pointer && !pointerGone) dismissPointer();
+  }
 
   function dismissPointer() {
     setPointerGone(true);
@@ -204,12 +249,25 @@ export function PageHelp({
         return;
       }
       event.preventDefault();
-      setOpen(true);
+      show();
     }
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  });
+
+  /*
+   * Anything else on the page asking to be explained — the search box, a link
+   * on an empty screen. See `open-help.ts`.
+   */
+  useEffect(() => {
+    function onAsk(event: Event) {
+      show((event as CustomEvent<string | null>).detail ?? undefined);
+    }
+
+    window.addEventListener(OPEN_HELP, onAsk);
+    return () => window.removeEventListener(OPEN_HELP, onAsk);
+  });
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -237,13 +295,44 @@ export function PageHelp({
   // the screen you just left.
   useEffect(() => {
     setOpen(false);
+    setViewing(null);
+    setBrowsing(false);
   }, [pathname]);
 
-  // No topic, no button. See the note on `topicFor`.
-  if (!topic) return null;
+  /*
+   * No topic and nothing to browse, no button.
+   *
+   * The first half is the old rule and the important one: a question mark that
+   * opens somebody else's screen is worse than no question mark. The second
+   * keeps it honest now that there is an index — a screen with no explanation
+   * of its own can still be the place somebody asks about another, so the
+   * button survives wherever there is a library to open.
+   */
+  if (!topic && topics.length === 0) return null;
 
-  const Icon = ICONS[topic.id] ?? CircleQuestionMark;
-  const key = `topics.${topic.id}`;
+  const Icon = topic ? (ICONS[topic.id] ?? CircleQuestionMark) : LibraryBig;
+  const key = topic ? `topics.${topic.id}` : '';
+
+  /* The index, filtered by whatever has been typed into it. */
+  const index = topics
+    .map((id) => ({ id, label: t(`topics.${id}.title`), tagline: t(`topics.${id}.tagline`) }))
+    .filter(
+      (entry) =>
+        query.trim() === '' || matches(entry.label, query) || matches(entry.tagline, query),
+    );
+
+  /*
+   * The screen a foreign topic is about, when the reader is not standing on it.
+   *
+   * Reading about the recall list from the works register is useful; being left
+   * there afterwards with no way through is not. Offered only when the topic's
+   * own screen is somewhere this person may actually go — the same
+   * `destinations` filter the related links use.
+   */
+  const away =
+    topic && topic !== here
+      ? destinations.find((destination) => destination.href === topic.routes[0])
+      : undefined;
 
   /*
    * The steps this particular person can actually follow, each carrying the
@@ -257,14 +346,19 @@ export function PageHelp({
    * An untagged step is open to everybody, which is the common case: most of
    * what a screen is for is looking at it.
    */
-  const steps = list<Step>(t.raw(`${key}.steps`))
-    .map((step, index) => ({ step, at: index + 1, needs: topic.steps?.[index] ?? null }))
-    .filter(({ needs }) => needs === null || permissions.includes(needs));
+  const steps = topic
+    ? list<Step>(t.raw(`${key}.steps`))
+        .map((step, at) => ({ step, at: at + 1, needs: topic.steps?.[at] ?? null }))
+        .filter(({ needs }) => needs === null || permissions.includes(needs))
+    : [];
 
-  const tips = list<string>(t.raw(`${key}.tips`));
-  const related = (topic.related ?? [])
-    .map((href) => destinations.find((destination) => destination.href === href))
-    .filter((destination): destination is { href: string; label: string } => Boolean(destination));
+  const tips = topic ? list<string>(t.raw(`${key}.tips`)) : [];
+  const related = [
+    ...(away ? [away] : []),
+    ...(topic?.related ?? [])
+      .map((href) => destinations.find((destination) => destination.href === href))
+      .filter((destination): destination is { href: string; label: string } => Boolean(destination)),
+  ].filter((destination, at, all) => all.findIndex((d) => d.href === destination.href) === at);
 
   return (
     <>
@@ -377,17 +471,34 @@ export function PageHelp({
         <div className="flex max-h-[min(90vh,56rem)] flex-col">
           <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4 sm:px-6">
             <div className="flex min-w-0 items-start gap-3">
+              {/* A way back, wherever the reader is not where they started.
+                  From the index it returns to whatever was being read; from a
+                  topic reached through the index it returns to the index. One
+                  arrow, because there is only ever one step to go back. */}
+              {browsing || viewing ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm mt-0.5 shrink-0"
+                  aria-label={t('back')}
+                  onClick={() => (browsing ? setBrowsing(false) : setBrowsing(true))}
+                >
+                  <ArrowLeft size={20} aria-hidden />
+                </button>
+              ) : null}
+
               <span
                 aria-hidden
                 className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand-deep"
               >
-                <Icon size={22} />
+                {browsing ? <LibraryBig size={22} /> : <Icon size={22} />}
               </span>
               <div className="min-w-0">
                 <h2 id={titleId} className="text-title leading-tight font-bold text-ink">
-                  {t(`${key}.title`)}
+                  {browsing ? t('indexTitle') : t(`${key}.title`)}
                 </h2>
-                <p className="mt-0.5 text-meta text-ink-soft">{t(`${key}.tagline`)}</p>
+                <p className="mt-0.5 text-meta text-ink-soft">
+                  {browsing ? t('indexSubtitle') : t(`${key}.tagline`)}
+                </p>
               </div>
             </div>
 
@@ -401,6 +512,72 @@ export function PageHelp({
             </button>
           </header>
 
+          {browsing || !topic ? (
+            /*
+             * The library.
+             *
+             * Every screen this person may open, each with the one line that
+             * says what it is for — which is most of what somebody browsing
+             * actually wants, and often the whole answer. Choosing one reads it
+             * here rather than going there: "what is the difference between
+             * recalls and reminders" is a question asked *while* working
+             * something else, and answering it should not cost the reader their
+             * place.
+             */
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="border-b border-line px-5 py-3 sm:px-6">
+                <label className="flex items-center gap-2 rounded-lg border border-line-strong bg-surface px-3">
+                  <Search size={18} aria-hidden className="shrink-0 text-ink-faint" />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder={t('indexSearch')}
+                    aria-label={t('indexSearch')}
+                    className="min-h-11 min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-ink-faint"
+                  />
+                </label>
+              </div>
+
+              <ul className="min-h-0 flex-1 overflow-y-auto">
+                {index.map((entry) => {
+                  const EntryIcon = ICONS[entry.id] ?? CircleQuestionMark;
+                  return (
+                    <li key={entry.id} className="border-b border-line last:border-b-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setViewing(entry.id);
+                          setBrowsing(false);
+                        }}
+                        className="flex w-full items-start gap-3 px-5 py-3 text-left transition-colors hover:bg-brand-soft sm:px-6"
+                      >
+                        <span
+                          aria-hidden
+                          className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand-deep"
+                        >
+                          <EntryIcon size={18} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-body font-bold text-ink">{entry.label}</span>
+                          <span className="block text-meta leading-snug text-ink-soft">
+                            {entry.tagline}
+                          </span>
+                        </span>
+                        <ArrowRight size={17} aria-hidden className="mt-1 shrink-0 text-ink-faint" />
+                      </button>
+                    </li>
+                  );
+                })}
+
+                {index.length === 0 ? (
+                  <li className="px-5 py-10 text-center text-body text-ink-soft sm:px-6">
+                    {t('indexEmpty', { query })}
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          ) : (
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
             {/* What it is, said once, in the largest text in the panel. Somebody
                 who reads only this line should already be able to answer "why
@@ -494,9 +671,30 @@ export function PageHelp({
               </section>
             ) : null}
           </div>
+          )}
 
-          <footer className="border-t border-line px-5 py-3 text-meta text-ink-soft sm:px-6">
-            {t.rich('footer', RICH)}
+          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 sm:px-6">
+            <p className="min-w-0 text-meta text-ink-soft">{t.rich('footer', RICH)}</p>
+
+            {/* The way into the library, from wherever the reader is.
+                
+                On every panel rather than only on the first, because "what is
+                the screen next door for" is asked from inside a screen, not
+                from a menu — and because a person who has read one of these has
+                just learnt that the others exist. */}
+            {browsing || topics.length === 0 ? null : (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm shrink-0"
+                onClick={() => {
+                  setBrowsing(true);
+                  setQuery('');
+                }}
+              >
+                <LibraryBig size={17} aria-hidden />
+                {t('indexOpen')}
+              </button>
+            )}
           </footer>
         </div>
       </dialog>

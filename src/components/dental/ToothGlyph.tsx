@@ -3,7 +3,10 @@ import {
   dentitionOf,
   isRightSide,
   isUpperArch,
+  NO_FINDINGS,
+  parseSurfaces,
   toothKind,
+  type ToothFindings,
   type ToothKind,
   type ToothStatus,
   type ToothSurface,
@@ -1049,36 +1052,46 @@ function markAt(
 
 export function ToothGlyph({
   toothNum,
-  status = 'HEALTHY',
-  surfaces = [],
+  findings = NO_FINDINGS,
   className,
 }: {
   toothNum: number;
-  /** What is recorded on this tooth. Decides how the whole glyph is drawn. */
-  status?: ToothStatus;
-  /** Surfaces to mark, for the statuses where a surface makes sense. */
-  surfaces?: ToothSurface[];
+  /**
+   * Everything recorded on this tooth. An empty list is a healthy tooth.
+   *
+   * A list rather than the single status this used to take, because the drawing
+   * was already built for one: the canals are laid down *under* the crown work
+   * so that a root-treated tooth which then took a crown reads as both, and
+   * until `ToothFinding` existed only one of the two could ever be stored. The
+   * layering below has not changed — it has simply stopped being unreachable.
+   */
+  findings?: ToothFindings;
   className?: string;
 }) {
   const key = variantKeyOf(toothNum);
   const g = geometryOf(toothNum);
 
-  // A restoration and a cavity are drawn as opposite materials, and a
-  // root-treated tooth whose surfaces were also restored is both at once.
-  const restorative = status === 'FILLED' || status === 'ROOT_CANAL';
+  const has = (status: ToothStatus) => findings.some((finding) => finding.status === status);
+  const facesOf = (status: ToothStatus) =>
+    parseSurfaces(findings.find((finding) => finding.status === status)?.surfaces);
 
-  const patches: readonly ToothSurface[] =
-    status === 'CARIES' || status === 'FILLED'
-      ? // A finding with no surface recorded still has to be visible — it covers
-        // the crown rather than leaving a flagged tooth looking untouched.
-        surfaces.length > 0
-        ? surfaces
-        : DEFAULT_FACES
-      : status === 'ROOT_CANAL'
-        ? // Only what was actually written down: the filled canals already say
-          // the tooth was treated, so nothing has to be invented on top.
-          surfaces
-        : [];
+  /**
+   * The faces a surface finding is drawn on.
+   *
+   * A finding with no face recorded still has to be visible, so it covers the
+   * crown rather than leaving a flagged tooth looking untouched — except for a
+   * root canal, where the filled canals already say the tooth was treated and
+   * nothing has to be invented on top.
+   */
+  const facesFor = (status: ToothStatus, fallback: readonly ToothSurface[] = DEFAULT_FACES) => {
+    const faces = facesOf(status);
+    return faces.length > 0 ? faces : fallback;
+  };
+
+  // Gone is gone: a missing or extracted tooth is drawn as itself and nothing
+  // else reaches it, which is what makes these three exclusive in `teeth.ts`.
+  const missing = has('MISSING');
+  const extracted = has('EXTRACTED');
 
   // Upside down for the lower arch, mirrored for the patient's left. Both stay
   // *inside* the lamp, so a flipped or mirrored tooth is still lit from the same
@@ -1093,12 +1106,12 @@ export function ToothGlyph({
   // same lamp as the enamel around them rather than sitting on top as decals.
   const body = (
     <g transform={frame}>
-      <use href={status === 'IMPLANT' ? `#lt-implant-${key}` : `#lt-form-${key}`} />
+      <use href={has('IMPLANT') ? `#lt-implant-${key}` : `#lt-form-${key}`} />
 
       {/* Endodontics: the canals obturated down each root, and the access
           cavity sealed on top. Drawn under the crown work, so a root-treated
           tooth that then took a crown reads as both. */}
-      {status === 'ROOT_CANAL' ? (
+      {has('ROOT_CANAL') ? (
         <g clipPath={`url(#lt-clip-${key})`}>
           {g.roots.map((root) => (
             <g key={root.canal}>
@@ -1131,7 +1144,7 @@ export function ToothGlyph({
 
       {/* A cap, not a colour: gold over the crown only, stopping at the neck
           where a real one does, with the darker line of the margin at its edge. */}
-      {status === 'CROWN' ? (
+      {has('CROWN') ? (
         <g clipPath={`url(#lt-crown-clip-${key})`}>
           <path d={g.crown} fill="url(#lt-gold)" />
           {g.ridges.map((d) => (
@@ -1165,7 +1178,7 @@ export function ToothGlyph({
           material and translucent enough to read as resin. A tooth whose
           grooves are sealed looks like a tooth whose grooves have gone, which
           is exactly what it looks like in a mouth. */}
-      {status === 'SEALANT' ? (
+      {has('SEALANT') ? (
         <g clipPath={`url(#lt-crown-clip-${key})`}>
           {g.grooves.map((d) => (
             <path
@@ -1203,7 +1216,7 @@ export function ToothGlyph({
           Deterministic, from the tooth's own measurements. A crack placed at
           random would move every time the chart re-rendered, and a finding that
           will not hold still is not a finding. */}
-      {status === 'FRACTURE' ? (
+      {has('FRACTURE') ? (
         <g clipPath={`url(#lt-crown-clip-${key})`}>
           <path
             d={fractureLine(g)}
@@ -1231,7 +1244,7 @@ export function ToothGlyph({
           finishes at the gum. So this is the crown shape inset on every side,
           in porcelain rather than gold, with the margin line the eye reads as
           the edge of a facing. */}
-      {status === 'VENEER' ? (
+      {has('VENEER') ? (
         <g clipPath={`url(#lt-crown-clip-${key})`}>
           <path
             d={g.crown}
@@ -1256,7 +1269,7 @@ export function ToothGlyph({
           arch and a lone one shows the stubs of a span that carries on into a
           tooth the chart is not drawing. That is the honest picture either way,
           and it needs no span stored on the tooth to draw it. */}
-      {status === 'BRIDGE' ? (
+      {has('BRIDGE') ? (
         <>
           <g clipPath={`url(#lt-crown-clip-${key})`}>
             <path d={g.crown} fill="url(#lt-porcelain)" opacity="0.94" />
@@ -1284,11 +1297,31 @@ export function ToothGlyph({
         </>
       ) : null}
 
-      {patches.map((surface) => {
+      {/* The surface findings, each on its own faces.
+          `FILLED` and `ROOT_CANAL` are the same material — a restoration set
+          into the tooth — and `CARIES` is its opposite, a hole. A tooth carrying
+          a filling on the mesial and fresh decay at its margin is two of these
+          at once, and drawing them together is the whole point of findings
+          being a list: it is the commonest reason a tooth is looked at twice. */}
+      {(
+        [
+          ['FILLED', true],
+          ['ROOT_CANAL', true],
+          ['CARIES', false],
+        ] as const
+      ).flatMap(([status, restorative]) =>
+        has(status)
+          ? facesFor(status, status === 'ROOT_CANAL' ? [] : DEFAULT_FACES).map((surface) => ({
+              status,
+              restorative,
+              surface,
+            }))
+          : [],
+      ).map(({ status, restorative, surface }) => {
         const { cx, cy, r } = markAt(surface, g);
         if (restorative) {
           return (
-            <g key={surface} clipPath={`url(#lt-clip-${key})`}>
+            <g key={`${status}-${surface}`} clipPath={`url(#lt-clip-${key})`}>
               {/* A restoration is a solid body set *into* the tooth: a dark
                   seam where it meets enamel, and a lit face inside it. */}
               <circle cx={cx} cy={cy} r={r} fill="url(#lt-amalgam)" />
@@ -1308,7 +1341,7 @@ export function ToothGlyph({
         // Caries: a hole, so it is darkest in the middle and fades into the
         // enamel around it rather than stopping at a rim.
         return (
-          <g key={surface} clipPath={`url(#lt-clip-${key})`}>
+          <g key={`${status}-${surface}`} clipPath={`url(#lt-clip-${key})`}>
             <circle cx={cx} cy={cy} r={r * 1.2} fill="url(#lt-caries-halo)" />
             <circle cx={cx} cy={cy} r={r * 0.74} fill="url(#lt-caries)" />
           </g>
@@ -1323,7 +1356,7 @@ export function ToothGlyph({
       className={cn('h-full w-full overflow-visible', className)}
       aria-hidden
     >
-      {status === 'MISSING' ? (
+      {missing ? (
         // Never erupted, or long gone: the shape of the gap, not a tooth. No
         // light on it either — there is no surface there to catch any.
         <g transform={frame}>
@@ -1349,7 +1382,7 @@ export function ToothGlyph({
           ))}
         </g>
       ) : (
-        <g filter="url(#lt-relief)" opacity={status === 'EXTRACTED' ? 0.32 : undefined}>
+        <g filter="url(#lt-relief)" opacity={extracted ? 0.32 : undefined}>
           {body}
         </g>
       )}
@@ -1357,7 +1390,7 @@ export function ToothGlyph({
       {/* Struck through, over everything, because the point of the mark is that
           there is nothing left to read underneath it — and flat, because it is
           notation rather than a thing in the mouth. */}
-      {status === 'EXTRACTED' ? (
+      {extracted ? (
         <g
           transform={frame}
           stroke="#475569"

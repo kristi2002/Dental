@@ -206,6 +206,7 @@ model Patient {
   visitRecords  VisitRecord[]
   teethRecords  ToothRecord[]
   perioExams    PerioExam[]
+  toothFindings ToothFinding[]
   waitlist      WaitlistEntry[]
   plans         TreatmentPlan[]
   documents     PatientDocument[]
@@ -617,6 +618,7 @@ model VisitRecord {
   services       VisitService[]
   toothRecords   ToothRecord[]
   perioExams     PerioExam[]
+  toothFindings  ToothFinding[]
   stockMovements StockMovement[]
 
   /// Who recorded it — shown on the timeline, kept when the account is disabled.
@@ -686,6 +688,63 @@ model PerioExam {
   @@index([visitRecordId])
 }
 
+/// One thing that is true of one tooth.
+///
+/// The chart used to hold a tooth's state in a single `status` column on
+/// `ToothRecord`, one row per tooth. That is one fact per tooth, and a mouth
+/// does not work that way: a crowned, root-filled molar with a filling on the
+/// distal is one of the commonest teeth in an adult and the chart could record
+/// one of those three things. The dentist picked the most important and put the
+/// rest in the notes — which the findings list can print and nothing can count,
+/// search, or plan a treatment from.
+///
+/// The drawing knew this before the schema did. `ToothGlyph` layers the canals
+/// *under* the crown work so "a root-treated tooth that then took a crown reads
+/// as both", and it never could, because only one of the two was storable.
+///
+/// So findings are rows. A tooth with none is healthy — `HEALTHY` is the
+/// absence of findings rather than a finding of its own, which is why it is not
+/// a value this column ever holds.
+///
+/// **Three of them are exclusive and the rest are not.** A tooth cannot be both
+/// missing and extracted, or extracted and carrying an implant; everything else
+/// can coexist, and most of it routinely does. That rule lives in
+/// `EXCLUSIVE_STATUSES` in `src/lib/teeth.ts` rather than in a constraint here,
+/// because it is about clinical meaning and the two places that enforce it —
+/// the action and the chart — both read it from there.
+///
+/// Notes stay on `ToothRecord`. They are a sentence about the tooth rather than
+/// about one finding on it, they predate this table, and moving them would have
+/// lost the note on every tooth that carries one without a finding.
+model ToothFinding {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  toothNum  Int
+
+  /// One of `TOOTH_STATUSES` from `src/lib/teeth.ts`, never `HEALTHY`.
+  status String
+  /// Which faces, as letters from `TOOTH_SURFACES` — e.g. `"MOD"`. Null where
+  /// the finding is about the whole tooth, which `statusTakesSurfaces` decides.
+  surfaces String?
+
+  /// When it was recorded. The chart shows the newest first, because that is
+  /// the order a tooth's story is told in.
+  recordedAt DateTime @default(now())
+
+  /// The visit that recorded it, when it was recorded during one.
+  visitRecordId String?
+  visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
+
+  /// One of each kind per tooth. Two caries entries on the same tooth are one
+  /// finding with two faces, not two findings — which is what `surfaces` is
+  /// for, and what stops a tooth accumulating four identical rows because
+  /// somebody clicked the palette four times.
+  @@unique([patientId, toothNum, status])
+  @@index([patientId])
+  @@index([visitRecordId])
+}
+
 model ToothRecord {
   id        String   @id @default(uuid())
   patientId String
@@ -693,10 +752,10 @@ model ToothRecord {
   /// FDI notation — 11–48 permanent, 51–85 primary. See `src/lib/teeth.ts`.
   /// Was Universal 1–32; `prisma/migrate-teeth-fdi.ts` converts existing rows.
   toothNum  Int
-  status    String // Healthy, Caries, Extracted, Crown, Root Canal, etc.
-  /// Which surfaces, as letters from `TOOTH_SURFACES` — e.g. `"MOD"`. Null when
-  /// the status is about the whole tooth (extracted, missing, implant).
-  surfaces  String?
+  /// The tooth's *findings* moved out to `ToothFinding` — see that model on why
+  /// one column could never hold a crowned, root-filled tooth. What is left
+  /// here is the periodontal examination and the note, both of which are one
+  /// per tooth and always were.
   notes     String?
   updatedAt DateTime @updatedAt
 

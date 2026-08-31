@@ -550,6 +550,55 @@ function Shape({ shape, visible }: { shape: HelpShape; visible: number[] }) {
         </div>
       );
 
+    case 'stack':
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Bar w="w-20" tone="strong" />
+            <span className="flex items-center gap-1.5">
+              <Btn w="w-12" />
+              <Btn w="w-10" />
+              {m(1)}
+            </span>
+          </div>
+          {[0, 1].map((card) => (
+            <Box key={card} className="space-y-0 p-0">
+              <span className="flex items-center gap-2 border-b border-line px-2 py-2">
+                {card === 0 ? m(2) : <span aria-hidden className="size-5 shrink-0" />}
+                <span aria-hidden className="size-5 shrink-0 rounded bg-brand-soft" />
+                <span className="min-w-0 flex-1 space-y-1">
+                  <Bar w="w-20" tone="strong" />
+                  <Bar w="w-24" />
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Chip tone={card === 0 ? 'danger' : 'ok'} />
+                  {card === 0 ? m(3) : null}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Btn w="w-10" />
+                  {card === 1 ? m(5) : null}
+                </span>
+              </span>
+              {[0, 1].map((row) => (
+                <span
+                  key={row}
+                  className={cn(
+                    'flex items-center gap-2 px-2 py-1.5',
+                    row > 0 && 'border-t border-line',
+                  )}
+                >
+                  {card === 0 && row === 0 ? m(4) : null}
+                  <span className="min-w-0 flex-1">
+                    <Bar w={row === 0 ? 'w-28' : 'w-20'} />
+                  </span>
+                  <Bar w="w-8" tone="strong" />
+                </span>
+              ))}
+            </Box>
+          ))}
+        </div>
+      );
+
     case 'form':
       return (
         <div className="grid grid-cols-5 gap-2">

@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { ToothDefs } from '@/components/dental/ToothDefsProvider';
 import { ToothGlyph } from '@/components/dental/ToothGlyph';
 import {
+  DEFAULT_TOOTH_STATUS,
   PERMANENT_LOWER,
   PERMANENT_UPPER,
   PRIMARY_LOWER,
@@ -28,6 +29,14 @@ import { cn } from '@/lib/utils';
  * Here the answer is a button, and the button is a picture of the tooth. Where
  * the patient's chart is known it is drawn in too, so "the one with the caries"
  * is a thing you can point at rather than a number to remember.
+ */
+/**
+ * Which teeth already carry something, for the pickers that tint a button by it.
+ *
+ * Deliberately *not* the chart's own `ToothRecordMap`. A picker is choosing a
+ * tooth, not reading a record: it wants one colour per tooth and has no room
+ * for the list of findings a tooth now holds. `headlineStatus` is what collapses
+ * the list to the one that decides how the tooth reads at a glance.
  */
 export type ChartedTeeth = Record<number, { status: string; surfaces: string }>;
 
@@ -98,10 +107,16 @@ export function ToothPicker({
                       </span>
                     )}
                     <span aria-hidden className="h-10 w-7">
+                      {/* One status, because `ChartedTeeth` is one status:
+                          a picker tints a tooth to say "something is recorded
+                          here", not to reproduce the record. */}
                       <ToothGlyph
                         toothNum={toothNum}
-                        status={status}
-                        surfaces={parseSurfaces(record?.surfaces)}
+                        findings={
+                          status === DEFAULT_TOOTH_STATUS
+                            ? []
+                            : [{ status, surfaces: record?.surfaces ?? '' }]
+                        }
                       />
                     </span>
                     {row.upper ? (

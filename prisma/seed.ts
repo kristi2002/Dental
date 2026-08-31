@@ -224,6 +224,7 @@ async function main() {
   // Retired, and no longer seeded — cleared so a re-seed leaves no rows behind
   // from a database that predates the change. See `drop-service-materials.ts`.
   await prisma.serviceMaterial.deleteMany();
+  await prisma.toothFinding.deleteMany();
   await prisma.toothRecord.deleteMany();
   await prisma.visitRecord.deleteMany();
   await prisma.waitlistEntry.deleteMany();
@@ -535,16 +536,28 @@ async function main() {
       if (used.has(toothNum)) continue;
       used.add(toothNum);
       const toothStatus = pick(TOOTH_STATUSES);
-      await prisma.toothRecord.create({
+      // The finding and the note are two rows now: findings left `ToothRecord`
+      // when a tooth stopped being able to hold only one of them, and what
+      // stayed behind is the note and the periodontal examination.
+      await prisma.toothFinding.create({
         data: {
           patientId: patient.id,
           toothNum,
           status: toothStatus,
           surfaces: SURFACE_STATUSES.has(toothStatus) ? pick(['M', 'MO', 'MOD', 'O', 'OD']) : null,
-          notes: random() > 0.7 ? 'Për kontroll në vizitën e ardhshme.' : null,
           visitRecordId: lastVisit?.id ?? null,
         },
       });
+      if (random() > 0.7) {
+        await prisma.toothRecord.create({
+          data: {
+            patientId: patient.id,
+            toothNum,
+            notes: 'Për kontroll në vizitën e ardhshme.',
+            visitRecordId: lastVisit?.id ?? null,
+          },
+        });
+      }
     }
 
     // And what the visit consumed, so the timeline's materials line has

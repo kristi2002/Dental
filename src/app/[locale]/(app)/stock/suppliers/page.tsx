@@ -68,7 +68,12 @@ export default async function SuppliersPage({
 
       {suppliers.length === 0 ? (
         <div className="card">
-          <EmptyState icon={<Truck size={40} aria-hidden />} title={t('empty')} action={newLink} />
+          <EmptyState
+            icon={<Truck size={40} aria-hidden />}
+            title={t('empty')}
+            action={newLink}
+            explain
+          />
         </div>
       ) : (
         <ul className="card divide-y divide-line">

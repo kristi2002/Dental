@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { deleteVisit } from '@/lib/actions/patients';
 import {
+  DEFAULT_TOOTH_STATUS,
   isToothStatus,
   parseSurfaces,
   toothLabel as toothLabelFor,
@@ -204,10 +205,17 @@ export function VisitTimeline({
                             title={tooth.notes || undefined}
                           >
                             <span aria-hidden className="h-14 w-9">
+                              {/* What this visit charted on the tooth, which
+                                  is one finding per row here — the timeline
+                                  lists them individually rather than showing
+                                  the tooth's whole state at a moment. */}
                               <ToothGlyph
                                 toothNum={tooth.toothNum}
-                                status={status}
-                                surfaces={parseSurfaces(tooth.surfaces)}
+                                findings={
+                                  status === DEFAULT_TOOTH_STATUS
+                                    ? []
+                                    : [{ status, surfaces: tooth.surfaces ?? '' }]
+                                }
                               />
                             </span>
                             <span className="text-center text-caption leading-tight font-bold text-ink tabular-nums">

@@ -1297,7 +1297,8 @@
     "expiredClear": "{count, plural, one {Scarica # lotto scaduto} other {Scarica tutti i # lotti scaduti}}",
     "expiredClearConfirm": "Togliere {count, plural, one {# lotto scaduto} other {tutti i # lotti scaduti}} dal magazzino? Ognuno viene registrato come scarico, così i consumi restano corretti.",
     "location": "Dove è conservato",
-    "locationHint": "Armadio, stanza o cassetto — quello che diresti a un collega."
+    "locationHint": "Armadio, stanza o cassetto — quello che diresti a un collega.",
+    "filterAll": "Qualsiasi livello"
   },
   "analytics": {
     "title": "Statistiche",
@@ -1565,7 +1566,8 @@
       "preferred": "Preferirebbe",
       "attachments": "File allegati",
       "openIt": "Aprila"
-    }
+    },
+    "filterAll": "Tutte"
   },
   "outbox": {
     "title": "Promemoria da inviare",
@@ -2893,7 +2895,8 @@
       "gallery": "Uno schizzo di questa schermata: una casella di ricerca sopra una griglia di schede, ciascuna con una fotografia e un nome sotto.",
       "charts": "Uno schizzo di questa schermata: un selettore di periodo, una riga di cifre, un grafico a barre e una tabella sotto.",
       "week": "Uno schizzo di questa schermata: una riga per ogni giorno della settimana, con apertura, chiusura e pausa, e un pulsante di salvataggio in fondo.",
-      "form": "Uno schizzo di questa schermata: campi con un suggerimento sotto ciascuno, un’anteprima del risultato accanto, e un pulsante per salvare."
+      "form": "Uno schizzo di questa schermata: campi con un suggerimento sotto ciascuno, un’anteprima del risultato accanto, e un pulsante per salvare.",
+      "stack": "Uno schizzo di questa schermata: un titolo con uno o due pulsanti, poi schede impilate, ciascuna con il proprio titolo, uno stato e delle righe sotto."
     },
     "diagrams": {
       "recall": {
@@ -3023,6 +3026,15 @@
           "Chiuso — fuori orario, o la pausa pranzo",
           "Libero e prenotabile",
           "Il grigio viene da Orari di apertura. Cambia la settimana lì e ogni schermata che disegna un giorno si adegua."
+        ]
+      },
+      "order": {
+        "title": "Come si svolge un ordine",
+        "labels": [
+          "Un materiale scende al minimo o sotto ed entra nell’ordine suggerito",
+          "L’ordine viene fatto al fornitore e registrato qui",
+          "Le scatole arrivano — in una consegna o in più — e l’ordine scala",
+          "Non è dovuto più nulla, e l’ordine si chiude da sé"
         ]
       }
     },
@@ -3913,12 +3925,84 @@
           "Solo il titolare può leggerlo, e nessuno può cambiarlo.",
           "Condividere un PIN rende senza valore ogni riga che questo registro scrive. È la vera ragione per cui ognuno ha il suo."
         ]
+      },
+      "stockItem": {
+        "title": "Un materiale",
+        "tagline": "Una cosa sullo scaffale, e tutto ciò che le è successo",
+        "what": "Che cosa è questo materiale, quante scatole ci sono, da quali consegne provengono, e ogni movimento in entrata e in uscita con un nome accanto. È qui che si risponde a “dove sono finite sei scatole”.",
+        "steps": [
+          {
+            "title": "Movimenta, o correggi",
+            "body": "Scarica qualcosa o carica una consegna senza uscire dalla scheda. Modificare cambia ciò che il materiale è — il nome, lo scaffale, il minimo."
+          },
+          {
+            "title": "Che cosa è",
+            "body": "Il codice articolo che il personale legge sulla scatola, lo scaffale su cui vive, da chi si compra, e una fotografia della confezione."
+          },
+          {
+            "title": "Scadenza",
+            "body": "Rosso su un lotto scaduto, ambra su uno in scadenza. Il lotto più vecchio ancora utilizzabile è quello da prendere."
+          },
+          {
+            "title": "I lotti",
+            "body": "Ogni consegna tenuta separata, con il suo numero di lotto e il giorno di arrivo — il numero che chiede un avviso di ritiro, e l’unica cosa che può rispondergli."
+          },
+          {
+            "title": "Il registro",
+            "body": "Ogni movimento, con chi lo ha fatto e perché. Qui nulla si modifica: un errore si corregge con un altro movimento, e restano entrambi."
+          }
+        ],
+        "example": "La quantità dice nove scatole di guanti e sullo scaffale ce ne sono quattro. Il registro mostra una correzione da inventario di −5 martedì scorso con un nome accanto — così la domanda si chiude in un minuto invece di diventare un’accusa.",
+        "tips": [
+          "Un lotto registrato senza data di scadenza non può avvisare nessuno. Scansionare la consegna è il modo più rapido per catturarla.",
+          "Correggere qui una quantità scrive un movimento come ogni altro. Nulla in questa app cambia un numero senza dire chi e perché."
+        ]
+      },
+      "stockOrders": {
+        "title": "Ordini",
+        "tagline": "Che cosa è stato ordinato, e che cosa è davvero arrivato",
+        "what": "Gli ordini fatti ai fornitori, e le scatole ancora dovute su ciascuno. L’elenco del magazzino può solo dire che un materiale è in arrivo; questo è ciò che ricorda che ne hai chieste dieci e ne sono arrivate sei.",
+        "steps": [
+          {
+            "title": "Aperti, o conclusi",
+            "body": "Gli ordini aperti sono ciò che è ancora dovuto. Il pulsante nell’angolo passa a quelli completati o abbandonati."
+          },
+          {
+            "title": "Un ordine",
+            "body": "A chi è stato fatto, il giorno in cui è partito, e il giorno in cui hanno detto che sarebbe arrivato."
+          },
+          {
+            "title": "In ritardo, e quanto manca",
+            "body": "Un contrassegno rosso conta i giorni oltre la data promessa. Quello verde acqua conta le scatole che nessuno ha ancora ricevuto."
+          },
+          {
+            "title": "Le righe",
+            "body": "Una riga per materiale: quante ne sono state chieste e quante sono arrivate. Una riga completa lo dichiara e smette di essere contata."
+          },
+          {
+            "title": "Rinunciarci",
+            "body": "Chiude l’ordine e smette di aspettare il resto. Ciò che è arrivato resta sullo scaffale."
+          }
+        ],
+        "example": "Dieci scatole di guanti vengono ordinate il 3 e promesse per il 10. Il 9 ne arrivano sei. L’ordine resta aperto con quattro ancora dovute, e l’11 comincia a contare i giorni di ritardo — così il fornitore riceve una telefonata per quattro scatole, invece di nessuna perché tutti pensavano fosse arrivato.",
+        "tips": [
+          "Gli ordini si fanno dalla lista degli ordini suggeriti nella pagina del magazzino. Questa schermata li registra; da qui non parte nulla.",
+          "Nessun prezzo, di proposito. Quanto è costato un ordine è un dato economico e vive con le statistiche, che possono aprire solo i ruoli autorizzati a vedere il denaro."
+        ]
       }
     },
     "pointerTitle": "Ogni schermata sa spiegarsi",
     "pointerBody": "Questo pulsante dice a cosa serve la schermata in cui sei — con un disegno e un esempio concreto. Quello accanto mette via le parti dell’app che il tuo studio non usa.",
     "pointerOpen": "Mostrami",
-    "pointerDismiss": "Ho capito"
+    "pointerDismiss": "Ho capito",
+    "back": "Indietro",
+    "indexTitle": "Tutte le schermate",
+    "indexSubtitle": "A cosa serve ogni parte di questa applicazione.",
+    "indexSearch": "Cerca fra le schermate…",
+    "indexEmpty": "Nessuna schermata corrisponde a “{query}”.",
+    "indexOpen": "Tutte le schermate",
+    "explain": "A cosa serve questa schermata?",
+    "paletteHelp": "A cosa serve una schermata"
   },
   "tailor": {
     "button": "Scegli cosa c’è nel tuo menu",

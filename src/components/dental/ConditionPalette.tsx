@@ -3,7 +3,8 @@
 import { MousePointerClick, Undo2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ToothGlyph } from '@/components/dental/ToothGlyph';
-import { TOOTH_STATUSES, type ToothStatus } from '@/lib/teeth';
+import {
+  DEFAULT_TOOTH_STATUS, TOOTH_STATUSES, type ToothStatus } from '@/lib/teeth';
 import { cn } from '@/lib/utils';
 
 /**
@@ -90,11 +91,22 @@ export function ConditionPalette({
               onClick={() => onPick(status)}
             >
               <span aria-hidden className="h-16 w-9">
+                {/* One status at a time — the palette shows what each tool
+                    would paint, not what a tooth looks like. */}
                 <ToothGlyph
                   toothNum={PALETTE_TOOTH}
-                  status={status}
-                  surfaces={
-                    status === 'CARIES' || status === 'FILLED' ? [...PREVIEW_SURFACES] : []
+                  findings={
+                    status === DEFAULT_TOOTH_STATUS
+                      ? []
+                      : [
+                          {
+                            status,
+                            surfaces:
+                              status === 'CARIES' || status === 'FILLED'
+                                ? PREVIEW_SURFACES.join('')
+                                : '',
+                          },
+                        ]
                   }
                 />
               </span>

@@ -35,6 +35,7 @@ import {
   type ToothFileMap,
   type ToothRecordMap,
 } from '@/components/dental/DentalChart';
+import type { ChartedTeeth } from '@/components/dental/ToothPicker';
 import { ToothDefsProvider } from '@/components/dental/ToothDefsProvider';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PatientView } from '@/components/patients/PatientView';
@@ -77,8 +78,9 @@ import { allergyLines } from '@/lib/medical';
 import { mailerStatus } from '@/lib/messages/mailer';
 import { composeTemplates } from '@/lib/messages/templates';
 import { perioSummaryOf } from '@/lib/perio';
+import { toothRecordMap } from '@/lib/tooth-chart';
 import { prisma } from '@/lib/prisma';
-import { DEFAULT_TOOTH_STATUS } from '@/lib/teeth';
+import { DEFAULT_TOOTH_STATUS, findingOf, headlineStatus } from '@/lib/teeth';
 import {
   getOperatoryOptions,
   getPatientAppointments,
@@ -191,6 +193,7 @@ export default async function PatientDetailPage({
         },
       },
       teethRecords: true,
+      toothFindings: true,
       visitRecords: {
         orderBy: { visitDate: 'desc' },
         include: {
@@ -437,32 +440,22 @@ export default async function PatientDetailPage({
     }
   }
 
-  const teeth: ToothRecordMap = Object.fromEntries(
-    patient.teethRecords.map((record) => [
-      record.toothNum,
-      {
-        status: record.status,
-        notes: record.notes ?? '',
-        surfaces: record.surfaces ?? '',
-        // The periodontal half of the same row — pocket depths, which sites
-        // bled, and how far the tooth moves. Passed raw and parsed in the
-        // chart: `src/lib/perio.ts` owns the encoding, and a second reading of
-        // it here is a second place for it to be read wrong.
-        mobility: record.mobility,
-        pockets: record.pockets,
-        bleeding: record.bleeding,
-        recession: record.recession,
-        furcation: record.furcation,
-        // When the tooth was last charted. A caries found two years ago and one
-        // found this morning are the same red on the drawing and two very
-        // different conversations.
-        chartedOn: format.dateTime(record.updatedAt, {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-        }),
-      },
-    ]),
+  const teeth: ToothRecordMap = toothRecordMap(patient.teethRecords, patient.toothFindings, (value) =>
+    format.dateTime(value, { day: 'numeric', month: 'short', year: 'numeric' }),
+  );
+
+  /**
+   * The same teeth, collapsed to one status each, for the pickers.
+   *
+   * A picker tints a button; it has no room for the list of findings a tooth
+   * now carries and no need for it. `headlineStatus` decides which one speaks
+   * for the tooth — gone beats built beats broken.
+   */
+  const chartedTeeth: ChartedTeeth = Object.fromEntries(
+    Object.entries(teeth).map(([toothNum, tooth]) => {
+      const status = headlineStatus(tooth.findings);
+      return [toothNum, { status, surfaces: findingOf(tooth.findings, status)?.surfaces ?? '' }];
+    }),
   );
 
   const referralSources = referralRows
@@ -1202,7 +1195,7 @@ export default async function PatientDetailPage({
             services={services}
             staff={staff}
             operatories={operatories}
-            charted={teeth}
+            charted={chartedTeeth}
             numbering={clinicProfile.toothNumbering}
             titles={planTitles}
             // Booking a step is a diary action, so it needs the diary's own
@@ -1263,7 +1256,7 @@ export default async function PatientDetailPage({
               can('document.edit') ? (
                 <DocumentUploadDialog
                   patientId={patient.id}
-                  charted={teeth}
+                  charted={chartedTeeth}
                   numbering={clinicProfile.toothNumbering}
                 />
               ) : null

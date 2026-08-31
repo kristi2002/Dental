@@ -30,7 +30,13 @@ export type HelpShape =
   | 'gallery'
   | 'charts'
   | 'week'
-  | 'form';
+  | 'form'
+  // A header with a button or two over a stack of titled cards, each holding
+  // its own rows. Neither a list (no search box, no row per record) nor a
+  // record (no tabs) — it is what a screen looks like when the unit is a small
+  // document rather than a line: an order and the boxes owed on it, a material
+  // and its lots.
+  | 'stack';
 
 /**
  * What a step assumes you are allowed to do, index by index with the `steps`
@@ -66,7 +72,8 @@ export type HelpDiagram =
   | 'roles'
   | 'expiry'
   | 'day'
-  | 'followUp';
+  | 'followUp'
+  | 'order';
 
 export type HelpTopic = {
   /** Also the key under `help.topics` in the message files. */
@@ -260,11 +267,27 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
 
   {
     id: 'stock',
-    routes: ['/stock', '/stock/:id'],
+    routes: ['/stock'],
     shape: 'list',
     diagram: 'stock',
     steps: [null, 'stock.edit', null, null, 'stock.edit'],
-    related: ['/stock/scan', '/stock/stocktake', '/stock/suppliers'],
+    related: ['/stock/scan', '/stock/orders', '/stock/stocktake'],
+  },
+  {
+    id: 'stockItem',
+    routes: ['/stock/:id'],
+    shape: 'stack',
+    diagram: 'scan',
+    steps: ['stock.edit', null, null, null, null],
+    related: ['/stock', '/stock/scan', '/stock/expiry'],
+  },
+  {
+    id: 'stockOrders',
+    routes: ['/stock/orders'],
+    shape: 'stack',
+    diagram: 'order',
+    steps: [null, null, null, null, 'stock.edit'],
+    related: ['/stock', '/stock/suppliers', '/stock/scan'],
   },
   {
     id: 'stockCatalog',

@@ -84,7 +84,17 @@ describe('help topics', () => {
     ['/stock/import', 'imports'],
     ['/stock/suppliers', 'suppliers'],
     ['/stock/suppliers/new', 'suppliers'],
-    ['/stock/cm7700xyz/edit', 'stock'],
+
+    // One material's own record, and the form that edits it, are the same
+    // subject — and neither is the list they were reached from. `orders` is a
+    // literal sibling, so it never reads as an id however long the path gets.
+    ['/stock/cm7700xyz', 'stockItem'],
+    ['/stock/cm7700xyz/edit', 'stockItem'],
+    // The open/finished switch is `?show=closed`, which never reaches here:
+    // `usePathname` hands over the path alone, so a topic cannot be selected
+    // by a query string and does not have to defend against one.
+    ['/stock/orders', 'stockOrders'],
+    ['/stock/q/item/cm4400ab', 'stockScan'],
 
     ['/plans', 'plans'],
     ['/plans/new', 'plans'],
@@ -146,6 +156,32 @@ describe('help topics', () => {
       for (const href of topic.related ?? []) {
         assert.ok(known.has(href), `${topic.id} points at ${href}, which no topic claims`);
       }
+    }
+  });
+
+  /**
+   * The index in the panel, and the rows the search box offers, are both built
+   * by asking whether a topic's *section* is somewhere this person can go — the
+   * first segment of its first route, looked up in the permission-filtered
+   * destinations. See `helpTopics` in `AppShell`.
+   *
+   * A topic filed under a section that is not itself a screen would therefore
+   * vanish from both, silently and for everybody. It would still answer for its
+   * own path, so nothing would look broken — it would just be unfindable.
+   */
+  it('files every topic under a section that is itself a screen', () => {
+    const sections = new Set(
+      HELP_TOPICS.flatMap((topic) => topic.routes)
+        .filter((route) => route.split('/').filter(Boolean).length === 1)
+        .map((route) => route),
+    );
+
+    for (const topic of HELP_TOPICS) {
+      const section = `/${topic.routes[0].split('/')[1]}`;
+      assert.ok(
+        sections.has(section),
+        `${topic.id} sits under ${section}, which no topic claims — it would never be listed`,
+      );
     }
   });
 
