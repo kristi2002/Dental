@@ -9,6 +9,7 @@ import { PerioStrip } from '@/components/dental/PerioStrip';
 import { SurfaceTarget } from '@/components/dental/SurfaceTarget';
 import { ToothDefs } from '@/components/dental/ToothDefsProvider';
 import { ToothGlyph } from '@/components/dental/ToothGlyph';
+import { TOOTH_PHOTOS, ToothPhoto } from '@/components/dental/ToothPhoto';
 import { SubmitButton } from '@/components/ui/SubmitButton';
 import { saveToothPerio, saveToothRecord, setToothCondition } from '@/lib/actions/patients';
 import { planStepForTooth } from '@/lib/actions/plans';
@@ -40,6 +41,8 @@ import {
   TOOTH_SURFACES,
   dentitionOf,
   isAnterior,
+  isRightSide,
+  isUpperArch,
   parseSurfaces,
   quadrantOf,
   toothKind,
@@ -161,6 +164,89 @@ function statusOf(records: ToothRecordMap, toothNum: number): ToothStatus {
 
 function storedCondition(records: ToothRecordMap, toothNum: number): ToothCondition {
   return { status: statusOf(records, toothNum), surfaces: records[toothNum]?.surfaces ?? '' };
+}
+
+/**
+ * The widest file in the photographed set, which is a first molar.
+ *
+ * Every plate is sized as a fraction of this rather than fitted to its own box,
+ * because the sixteen files came off one poster at one scale — so a molar really
+ * is twice the width of a lower incisor, and laying them out by width is what
+ * keeps that true. Fit each tooth to a fixed box instead and an incisor comes
+ * out molar-sized, which is the single loudest tell that a picture of a tooth
+ * was drawn rather than observed. Computed rather than written down, for the
+ * reason `DentalArch` gives: replace the artwork and this follows it.
+ */
+const WIDEST_PHOTO = Math.max(
+  ...[...Object.values(TOOTH_PHOTOS.upper), ...Object.values(TOOTH_PHOTOS.lower)].map(
+    (photo) => photo.width,
+  ),
+);
+
+/**
+ * A photograph of the open tooth, on the plate at the top of its dialog.
+ *
+ * This is the one place in the chart where a photograph is the right instrument
+ * and the drawing is not, and the two are doing different jobs three inches
+ * apart. `ToothGlyph` is what the chart is made of because it renders a tooth
+ * *in the state a finding leaves it in* — the eight thumbnails in the condition
+ * picker below are that same drawing, once per status. None of them is a picture
+ * of the tooth itself, and at one column wide none of them could be: the
+ * odontogram gives a tooth about 68px and the printed sheet about 38px, which is
+ * why the drawing is modelled for that size and the stock artwork is not.
+ *
+ * The dialog is the first place in this app with room for the other thing. At
+ * about 135px the photograph is doing what it is good at — reading as an
+ * object rather than a diagram — and none of the reasons it cannot be the chart
+ * apply here, because nothing is recorded on it: no surfaces, no status, no hit
+ * target, nothing to mark. It says "this is the tooth you have open", and that
+ * is the one job it does better than the drawing.
+ *
+ * **Permanent teeth only, and deliberately no fallback.** The poster never drew
+ * the twenty primary teeth (`ToothPhoto` has the detail), and `toothKind` will
+ * happily call 55 a first molar — so without the dentition guard a child's chart
+ * would show an adult molar standing in for a milk one. Falling back to the
+ * drawn glyph was the other option and is worse: one slot holding a photograph
+ * for this patient and a drawing for the next reads as a rendering fault, and
+ * the drawing is already on screen eight times immediately below. A baby tooth
+ * gets a plate with no picture on it, which is honest about what is on disk.
+ *
+ * Hidden from assistive technology by `ToothPhoto`'s own default: the heading
+ * beside it already says which tooth this is, so a second announcement is noise.
+ */
+function PlateTooth({ toothNum }: { toothNum: number }) {
+  const kind = toothKind(toothNum);
+  if (!kind || dentitionOf(toothNum) !== 'PERMANENT') return null;
+
+  const arch = isUpperArch(toothNum) ? 'upper' : 'lower';
+  const photo = TOOTH_PHOTOS[arch][kind];
+
+  return (
+    /* 4.5rem, chosen against the alternatives rather than picked. At 6rem the
+       molar is 177px and crowds both edges of the plate — the tooth stops being
+       an illustration in a header and becomes a poster with a heading beside
+       it. At 3.5rem the photograph is small enough that the drawn glyph would
+       have done the job, which defeats the point of being here at all. This
+       lands the molar at about 133px and the incisor at 144: comfortably twice
+       what the odontogram gives a tooth, three times what the printed sheet
+       does, and still a header. */
+    <span className="flex w-[4.5rem] shrink-0 justify-center self-center">
+      {/* Sized by width, never by height. The poster draws every tooth to
+          nearly one length — 1.09x longest over shortest, where a real set is
+          1.63x — so heights here come out within about a tenth of each other
+          whatever the tooth, and the plate keeps a steady weight across the
+          arch. Size by height instead and that same flaw makes a third molar
+          and a lower incisor the same object. */}
+      <span className="block" style={{ width: `${(photo.width / WIDEST_PHOTO) * 100}%` }}>
+        <ToothPhoto
+          kind={kind}
+          arch={arch}
+          side={isRightSide(toothNum) ? 'right' : 'left'}
+          className="w-full"
+        />
+      </span>
+    </span>
+  );
 }
 
 export function DentalChart({
@@ -422,6 +508,7 @@ export function DentalChart({
 
   const surfacesApply = statusTakesSurfaces(status);
   const current = selected === null ? null : records[selected];
+  const openKind = selected === null ? null : toothKind(selected);
   const label = (n: number) => toothLabelFor(n, numbering);
   const perioOf = (toothNum: number): PerioSummary => perioSummaryOf(records[toothNum] ?? {});
 
@@ -682,13 +769,46 @@ export function DentalChart({
       >
         {selected === null ? null : (
           <>
-            <header className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
-              <h2 id={`${uid}-title`} className="text-xl font-bold">
-                {t('tooth', { num: label(selected) })}
-              </h2>
+            {/* A plate rather than a title bar, and navy because this artwork
+                has no other ground. The teeth are ivory — about #eee7e2 through
+                the crowns — and this dialog is white: composited there they very
+                nearly vanish, and the shading that survives reads as a smudge.
+                `DentalArch` measured that before choosing the same navy for the
+                front page, so this is the storefront's answer applied to the one
+                block in the app that has the same problem. It is the app's first
+                dark panel and the departure is the point: it marks the part of
+                this dialog that is a picture of the tooth rather than a control
+                on it.
+
+                Rounded here rather than clipped on the dialog — `<dialog>`
+                scrolls its own overflow, so `overflow-hidden` up there would
+                trap the bottom of a long form. */}
+            <header className="flex items-center gap-4 rounded-t-[var(--radius-card)] bg-navy px-5 py-4 text-navy-ink">
+              <PlateTooth toothNum={selected} />
+
+              <div className="min-w-0 flex-1">
+                <h2 id={`${uid}-title`} className="text-xl font-bold">
+                  {t('tooth', { num: label(selected) })}
+                </h2>
+
+                {/* The number is what gets stored; the name is what gets said.
+                    The findings list already carries this line for the same
+                    reason — "16" is a location only to someone who reads FDI,
+                    and this dialog is often turned round to face the patient. */}
+                <p className="mt-0.5 text-[0.88rem] text-navy-ink-soft">
+                  {t(`quadrant_${quadrantOf(selected)}`)}
+                  {openKind ? ` · ${t(`name_${openKind}`)}` : ''}
+                  {dentitionOf(selected) === 'PRIMARY' ? ` · ${t('primaryTooth')}` : ''}
+                </p>
+              </div>
+
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                // The ghost button is drawn for a white ground: on navy its ink
+                // is unreadable and its hover border invisible. Same button,
+                // navy palette. The focus ring is left alone — brand-dark
+                // clears 3:1 against this navy, which is what it has to.
+                className="btn btn-ghost btn-sm self-start text-navy-ink-soft hover:border-navy-line hover:text-navy-ink"
                 aria-label={tc('close')}
                 onClick={() => dialogRef.current?.close()}
               >
