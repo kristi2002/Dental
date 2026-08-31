@@ -102,6 +102,7 @@ describe('readStockItems — a storage-room list', () => {
     assert.deepEqual(row.draft, {
       name: 'Dorashka',
       code: 'GL-100',
+      gtin: null,
       category: 'Higjienë',
       supplier: 'Dentalux',
       unit: 'box',
@@ -109,6 +110,44 @@ describe('readStockItems — a storage-room list', () => {
       packSize: 100,
       unitPrice: 1250,
     });
+    assert.deepEqual(row.problems, []);
+  });
+
+  /**
+   * The column that decides whether the scanner is ever used.
+   *
+   * `Barcode` used to be an alias of `code` — the practice's own article number,
+   * which nothing scans — so a supplier's price list full of real EANs imported
+   * into a storeroom that stayed completely unscannable. Every product then had
+   * to be taught to the app one carton at a time, from a failed scan, which is
+   * the adoption cliff in front of every scanning feature in the app.
+   */
+  it('reads a real barcode into the field the scanner looks in', () => {
+    const [row] = stock('Emri;Barkodi\nDorashka;5901234123457\n').rows;
+    // Padded to fourteen, which is the one key a scan is looked up under.
+    assert.equal(row.draft.gtin, '05901234123457');
+    assert.equal(row.draft.code, null, 'a barcode is not the practice’s article number');
+    assert.deepEqual(row.problems, []);
+  });
+
+  it('keeps the article number and the barcode apart when a file has both', () => {
+    const [row] = stock('Emri;Kodi;EAN\nDorashka;GL-100;5901234123457\n').rows;
+    assert.equal(row.draft.code, 'GL-100');
+    assert.equal(row.draft.gtin, '05901234123457');
+  });
+
+  it('refuses a barcode that fails its check digit, and still imports the material', () => {
+    // A wrong check digit is a misread or a typo. Linking it would teach the
+    // scanner a code no carton carries, discovered one failed beep at a time.
+    const [row] = stock('Emri;Barkodi\nDorashka;5901234123450\n').rows;
+    assert.equal(row.draft.gtin, null);
+    assert.deepEqual(row.problems, ['badBarcode']);
+    assert.ok(isCatalogueImportable(row), 'the material still imports — it just will not scan');
+  });
+
+  it('says nothing about a barcode column left empty', () => {
+    const [row] = stock('Emri;Barkodi\nDorashka;\n').rows;
+    assert.equal(row.draft.gtin, null);
     assert.deepEqual(row.problems, []);
   });
 

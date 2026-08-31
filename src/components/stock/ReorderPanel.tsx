@@ -7,8 +7,24 @@ import { CopyButton } from '@/components/ui/CopyButton';
 import { markSupplierOrdered } from '@/lib/actions/stock';
 import { mailtoLink, whatsappLink } from '@/lib/reminders';
 import type { ReorderLine } from '@/lib/reorder';
-import { bySupplier, orderAmount, reorderAsText } from '@/lib/reorder';
+import { bySupplier, orderAmount, reorderAsText, type SupplierOrder } from '@/lib/reorder';
 import { cn } from '@/lib/utils';
+
+/**
+ * The order form's payload: what to buy and how much of each.
+ *
+ * `pendingIds` is what the group already computed as "actually being asked for"
+ * — suggested above zero and not already on its way — so the amounts are looked
+ * up against it rather than re-derived, and the button cannot ask for a line the
+ * header said it would not.
+ */
+function orderLines(group: SupplierOrder): string {
+  const pending = new Set(group.pendingIds);
+  return group.lines
+    .filter((line) => pending.has(line.id))
+    .map((line) => `${line.id}:${line.suggested}`)
+    .join(',');
+}
 
 /**
  * The shopping list, cut the way it is actually placed: one order per supplier.
@@ -111,7 +127,12 @@ export async function ReorderPanel({
                     <ActionForm
                       action={markSupplierOrdered}
                       values={{
-                        ids: group.pendingIds.join(','),
+                        // `itemId:boxes`, not bare ids. The amount is what makes
+                        // a part-delivery detectable later, and this list is the
+                        // only place in the app that knows it — it computed the
+                        // suggestion, printed it in the message, and used to
+                        // throw it away on the way to the flag.
+                        lines: orderLines(group),
                         supplierName: group.supplierName,
                       }}
                     >

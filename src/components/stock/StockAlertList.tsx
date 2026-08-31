@@ -59,7 +59,15 @@ export async function StockAlertList({
         const late = alert.orderLateDays > 0;
 
         return (
-          <li key={alert.id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
+          /* See `FollowUpList` for what the board does with this. `late` is
+             carried beside the severity rather than folded into it, because a
+             material that is merely low and whose order never came still wants
+             somebody this morning. */
+          <li
+            key={alert.id}
+            data-kind={`stock ${alert.severity}${late ? ' late' : ''}`}
+            className="flex items-start gap-3 px-4 py-3 sm:px-5"
+          >
             {/* The tile says which of the kinds of bad this is before a word is
                 read — empty today, emptying this week, or bought and never
                 delivered. */}

@@ -183,6 +183,8 @@ export async function commitStockImport(
   const usable = rows.filter((row) => row?.draft?.name && isCatalogueImportable(row));
 
   let created = 0;
+  /** Symbols taught to the scanner by this file — see the linking pass below. */
+  let linked = 0;
   try {
     await prisma.$transaction(async (tx) => {
       const existing = await tx.stockItem.findMany({ select: { name: true, code: true } });
@@ -213,6 +215,9 @@ export async function commitStockImport(
       );
 
       const data = [];
+      /** Name → the symbol on its carton, for the linking pass below. */
+      const gtins = new Map<string, string>();
+
       for (const row of usable) {
         const { draft } = row;
         // Claimed by code where there is one, by name where there is not — the
@@ -221,6 +226,7 @@ export async function commitStockImport(
         if (taken.has(key) || taken.has(fold(draft.name))) continue;
         taken.add(key);
         taken.add(fold(draft.name));
+        if (draft.gtin) gtins.set(draft.name, draft.gtin);
 
         data.push({
           name: draft.name,
@@ -241,6 +247,38 @@ export async function commitStockImport(
 
       if (data.length === 0) return;
       created = (await tx.stockItem.createMany({ data, skipDuplicates: true })).count;
+
+      /**
+       * Teach the scanner, in the same pass that records the materials.
+       *
+       * This is the step that decides whether any of the scanning in this app is
+       * ever used. A symbol can otherwise only be linked from a *failed scan* —
+       * one carton at a time, by whoever is holding it — so a practice adopting
+       * the scanner faces seventy of those before the first beep saves anybody a
+       * second, and the realistic outcome is that it never gets past ten.
+       *
+       * `createMany` does not return ids, so the rows just written are read back
+       * by name. Bounded by what was imported rather than by the whole shelf.
+       *
+       * `skipDuplicates` on the link: a code the practice has already taught the
+       * app points at whatever it points at now, and a file is not grounds to
+       * silently repoint it at something else. `ProductBarcode.code` is unique,
+       * so the existing link simply stands.
+       */
+      if (gtins.size > 0) {
+        const written = await tx.stockItem.findMany({
+          where: { name: { in: [...gtins.keys()] } },
+          select: { id: true, name: true },
+        });
+
+        const links = written
+          .map((item) => ({ itemId: item.id, code: gtins.get(item.name) }))
+          .filter((link): link is { itemId: string; code: string } => Boolean(link.code));
+
+        if (links.length > 0) {
+          linked = (await tx.productBarcode.createMany({ data: links, skipDuplicates: true })).count;
+        }
+      }
     });
   } catch {
     return actionError(t('generic'));
@@ -249,7 +287,7 @@ export async function commitStockImport(
   await recordAudit(user, {
     action: 'create',
     entity: 'stock',
-    summary: `Imported ${created} materials from a file (${rows.length} rows offered)`,
+    summary: `Imported ${created} materials from a file (${rows.length} rows offered), ${linked} barcode(s) linked`,
   });
 
   revalidatePath('/', 'layout');

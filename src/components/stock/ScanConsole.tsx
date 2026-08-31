@@ -4,6 +4,7 @@ import {
   Camera,
   CameraOff,
   CircleAlert,
+  CloudOff,
   PackageMinus,
   PackagePlus,
   ScanBarcode,
@@ -22,6 +23,8 @@ import { SubmitButton } from '@/components/ui/SubmitButton';
 import { commitScan, lookupScan, type ScanDirection, type ScanResolution } from '@/lib/actions/scan';
 import type { ScanFormat } from '@/lib/barcode';
 import { useRecoveredForm } from '@/lib/form-recovery';
+import type { ScanIndex } from '@/lib/scan-index';
+import { resolveLocally } from '@/lib/scan-resolve';
 import { useCameraScanner, useWedgeScanner } from '@/lib/use-scanner';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +41,16 @@ type BasketLine = {
   scan: ScanResolution;
   quantity: number;
 };
+
+/**
+ * Where an uncommitted basket waits out a reload.
+ *
+ * Per-browser, not per-user: the console needs `stock.edit` to open at all, and
+ * a shared storage-room tablet signing one person out and another in is a
+ * handover of the same half-scanned delivery, not a leak. Cleared the moment the
+ * basket commits.
+ */
+const BASKET_KEY = 'scan-basket';
 
 /**
  * Two lots of one material are told apart by the lot number and the expiry and
@@ -93,11 +106,20 @@ function beep(ok: boolean) {
 export function ScanConsole({
   items,
   categories,
+  /**
+   * Every symbol the practice has linked, sent with the page so a beep needs no
+   * round trip and survives the wifi dropping. See `getScanIndex`.
+   *
+   * Optional, and empty is a working default: without it every scan simply waits
+   * for the server exactly as it used to.
+   */
+  scanIndex = { codes: {}, items: {} },
   /** Set when the console was opened from a patient, so the ledger can say who. */
   visitRecordId,
 }: {
   items: LinkableItem[];
   categories: LinkableCategory[];
+  scanIndex?: ScanIndex;
   visitRecordId?: string;
 }) {
   const t = useTranslations('scan');
@@ -112,7 +134,21 @@ export function ScanConsole({
   const [unknown, setUnknown] = useState<ScanResolution[]>([]);
   const [busy, setBusy] = useState(false);
 
+  /**
+   * Teaching the scanner rather than moving stock. See the switch below.
+   *
+   * Not persisted with the basket: a linking session is a deliberate act
+   * somebody starts, and a mode that survived a reload would be a mode people
+   * forget they are in — which on this screen means beeping a delivery that
+   * silently receives nothing.
+   */
+  const [linking, setLinking] = useState(false);
+  /** Codes this pass has confirmed the app already knows. */
+  const [surveyed, setSurveyed] = useState<Array<{ key: string; name: string }>>([]);
+
   const manualRef = useRef<HTMLInputElement>(null);
+  const byNameRef = useRef<HTMLInputElement>(null);
+  const [byNameError, setByNameError] = useState('');
   const { state, formAction, formRef } = useRecoveredForm(commitScan);
   const handledTs = useRef<number | undefined>(undefined);
 
@@ -124,6 +160,69 @@ export function ScanConsole({
     setBasket([]);
     setUnknown([]);
   }, [state]);
+
+  /**
+   * The basket, kept where a closed tab cannot take it.
+   *
+   * `useRecoveredForm` puts typed values back after the *server* refuses, which
+   * is the wrong failure for this screen. The one that actually happens here is
+   * a storage room with no signal: fifteen cartons are scanned, the commit
+   * cannot reach anything, and the basket lives only in React state — so a
+   * reload, a locked phone, or a tab closed by accident loses ninety seconds of
+   * work with the boxes already on the shelf.
+   *
+   * Restored once, on mount, before anything is scanned. Wrapped because a
+   * browser with site data blocked throws on the accessor itself, and a console
+   * that will not open is worse than one that forgets.
+   */
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(BASKET_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as { direction?: ScanDirection; lines?: BasketLine[] };
+      if (Array.isArray(parsed.lines) && parsed.lines.length > 0) setBasket(parsed.lines);
+      if (parsed.direction === 'in' || parsed.direction === 'out') setDirection(parsed.direction);
+    } catch {
+      // A basket that will not parse is one delivery to rescan, not a screen
+      // that refuses to load.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (basket.length === 0) window.localStorage.removeItem(BASKET_KEY);
+      else window.localStorage.setItem(BASKET_KEY, JSON.stringify({ direction, lines: basket }));
+    } catch {
+      // Nothing to do and nothing worth saying: the basket still works, it just
+      // will not outlive the tab.
+    }
+  }, [basket, direction]);
+
+  /**
+   * Whether the commit has anywhere to go.
+   *
+   * Scanning keeps working offline — that is the whole point of the index this
+   * page came down with — but committing does not, and a person who does not
+   * know that will press **Save**, see nothing happen, and reasonably conclude
+   * the delivery is recorded. Saying so is the difference between a pause and a
+   * lost stocktake.
+   *
+   * `navigator.onLine` is a weak signal — it means "there is a network", not
+   * "the server answers" — so it is used only to *warn*, never to block. The
+   * button stays live: a false negative must not stop somebody recording a
+   * delivery that would have gone through perfectly well.
+   */
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    const sync = () => setOffline(!navigator.onLine);
+    sync();
+    window.addEventListener('online', sync);
+    window.addEventListener('offline', sync);
+    return () => {
+      window.removeEventListener('online', sync);
+      window.removeEventListener('offline', sync);
+    };
+  }, []);
 
   /** Another box of something already in the basket adds to its line, not a second one. */
   const addToBasket = useCallback((scan: ScanResolution) => {
@@ -137,34 +236,135 @@ export function ScanConsole({
     });
   }, []);
 
+  /**
+   * Replace an optimistically-added line with the server's fuller answer.
+   *
+   * The local resolution knows the symbol and the material and cannot know
+   * whether the lot it names is already on record — so enriching can change the
+   * line's identity, because `lineKey` is built from the lot number and the
+   * expiry. Matched on the old key and re-keyed on the new one, merging into an
+   * existing line if the fuller answer turns out to be one already in the
+   * basket.
+   */
+  const enrich = useCallback((previousKey: string, scan: ScanResolution) => {
+    setBasket((current) => {
+      const stale = current.find((line) => line.key === previousKey);
+      if (!stale) return current;
+
+      const key = lineKey(scan);
+      if (key === previousKey) {
+        return current.map((line) => (line.key === key ? { ...line, scan } : line));
+      }
+
+      const rest = current.filter((line) => line.key !== previousKey);
+      const existing = rest.find((line) => line.key === key);
+      if (existing) {
+        return rest.map((line) =>
+          line.key === key ? { ...line, quantity: line.quantity + stale.quantity } : line,
+        );
+      }
+      return [...rest, { ...stale, key, scan }];
+    });
+  }, []);
+
+  /**
+   * A beep, answered from the page rather than from the network.
+   *
+   * The index came down with this page (see `getScanIndex`), so a recognised
+   * symbol makes its sound and lands in the basket immediately — no round trip
+   * in the middle of a gesture that has no pause in it, and no stall at all when
+   * the storage room's wifi drops, which is where deliveries are actually
+   * received.
+   *
+   * The server is still asked, for the one thing the index cannot hold: whether
+   * the scanned lot is already on record. That answer arrives a moment later and
+   * replaces the line. If it never arrives, the line stays exactly as it is and
+   * commits correctly — a consumption with no lot attached falls back to
+   * oldest-first, which is what every material without lots already does.
+   *
+   * A local hit the server then contradicts means the index is stale — the
+   * material was archived or its link removed since the page loaded. Rare, and
+   * handled rather than assumed away: the optimistic line is withdrawn and the
+   * code goes to the unknown queue where it belongs.
+   */
   const onScan = useCallback(
     async (raw: string) => {
       const code = raw.trim();
       if (!code) return;
 
+      // A survey pass, not a delivery. A code the app already knows is recorded
+      // as covered and moves no stock; one it does not falls through to the
+      // unknown queue below, which is where the naming happens.
+      if (linking) {
+        const known = resolveLocally(code, scanIndex);
+        if (known?.item) {
+          beep(true);
+          setSurveyed((current) =>
+            current.some((entry) => entry.key === known.key)
+              ? current
+              : [...current, { key: known.key, name: known.item?.name ?? '' }],
+          );
+          return;
+        }
+        // Unknown, or known only to the server. Ask, then queue it to be named.
+      }
+
+      const local = linking ? null : resolveLocally(code, scanIndex);
+      const localKey = local ? lineKey(local) : null;
+      if (local) {
+        beep(true);
+        addToBasket(local);
+      }
+
       setBusy(true);
       try {
         const scan = await lookupScan(code);
-        if (!scan) {
+
+        if (!scan || !scan.item) {
+          if (localKey) {
+            // The index disagreed with the database. The database wins.
+            setBasket((current) => current.filter((line) => line.key !== localKey));
+          }
           beep(false);
+          if (scan && !scan.item) {
+            setUnknown((current) =>
+              current.some((entry) => entry.key === scan.key) ? current : [...current, scan],
+            );
+          }
           return;
         }
 
-        if (!scan.item) {
-          beep(false);
-          setUnknown((current) =>
-            current.some((entry) => entry.key === scan.key) ? current : [...current, scan],
+        if (localKey) {
+          enrich(localKey, scan);
+          return;
+        }
+
+        // In a survey pass the server has just confirmed the code *is* known —
+        // the local index was merely stale. Recorded as covered, and still no
+        // stock moved: the whole point of the mode is that beeping a shelf
+        // cannot receive it.
+        if (linking) {
+          beep(true);
+          setSurveyed((current) =>
+            current.some((entry) => entry.key === scan.key)
+              ? current
+              : [...current, { key: scan.key, name: scan.item?.name ?? '' }],
           );
           return;
         }
 
         beep(true);
         addToBasket(scan);
+      } catch {
+        // No network. The optimistic line stands and the delivery carries on;
+        // the commit is what needs a server, and that is one press at the end
+        // rather than one per box.
+        if (!localKey) beep(false);
       } finally {
         setBusy(false);
       }
     },
-    [addToBasket],
+    [addToBasket, enrich, linking, scanIndex],
   );
 
   /**
@@ -186,6 +386,74 @@ export function ScanConsole({
       addToBasket(fresh);
     },
     [addToBasket],
+  );
+
+  /**
+   * Put a material in the basket by name, for a box that carries no symbol.
+   *
+   * Matched exactly first, then as a unique prefix — which is what a datalist
+   * hands back once somebody picks a suggestion, and what half-typing "filtek"
+   * should do when only one material starts that way. An ambiguous half-name
+   * refuses rather than guessing: two shades of one composite differ by two
+   * characters, and quietly picking the first would book a delivery onto the
+   * wrong shelf with nothing on screen to say so.
+   *
+   * The line it builds carries no lot and no expiry, exactly like a plain
+   * barcode with no GS1 data — which is a shape the basket and the commit both
+   * already handle. Receiving one creates no lot row, as `commitScan`
+   * documents: a delivery that named neither a lot number nor a date should not
+   * invent one.
+   */
+  const addByName = useCallback(
+    (raw: string) => {
+      const query = raw.trim().toLowerCase();
+      setByNameError('');
+      if (!query) return;
+
+      const exact = items.filter((item) => item.name.toLowerCase() === query);
+      const matches = exact.length > 0
+        ? exact
+        : items.filter((item) => item.name.toLowerCase().startsWith(query));
+
+      if (matches.length === 0) {
+        beep(false);
+        setByNameError(t('byNameNoMatch'));
+        return;
+      }
+      if (matches.length > 1) {
+        beep(false);
+        setByNameError(t('byNameAmbiguous', { count: matches.length }));
+        return;
+      }
+
+      const item = matches[0];
+      const known = scanIndex.items[item.id];
+
+      beep(true);
+      addToBasket({
+        // Keyed on the material rather than on a symbol, so beeping the same
+        // material twice by name adds to one line — and so it can never collide
+        // with a real code, which is never a uuid.
+        raw: item.id,
+        format: 'plain',
+        key: `item:${item.id}`,
+        lotNumber: null,
+        serial: null,
+        expiryDate: null,
+        manufacturedAt: null,
+        packQty: 1,
+        item: {
+          id: item.id,
+          name: item.name,
+          quantity: known?.quantity ?? 0,
+          minLimit: known?.minLimit ?? 0,
+          code: known?.code ?? null,
+        },
+        batch: null,
+        expired: false,
+      });
+    },
+    [addToBasket, items, scanIndex, t],
   );
 
   // The desk scanner. Always listening, because staff arrive holding a carton
@@ -247,6 +515,42 @@ export function ScanConsole({
           <p className="mt-2 text-meta text-ink-soft">
             {direction === 'in' ? t('directionInHint') : t('directionOutHint')}
           </p>
+
+          {/* Teaching the scanner, as a mode rather than as a side effect.
+
+              Linking could only ever happen from a scan that *failed*, one
+              carton at a time, by whoever was holding it. That is the right
+              moment and a hopeless way to start: a practice adopting the
+              scanner has seventy products to teach it, and the only way to walk
+              the room beeping them was to beep them into a delivery — because a
+              recognised code goes straight into the basket. So there was no way
+              to survey the storeroom at all, and the realistic outcome is that
+              nobody gets past ten and the scanner stays a curiosity.
+
+              This makes the survey possible: nothing moves, known codes are
+              counted so coverage is visible, and unknown ones queue up to be
+              named. Its own switch and not a third direction, because it is not
+              a direction — no stock moves either way. */}
+          <div
+            className={cn(
+              'mt-3 rounded-lg border px-3 py-2.5',
+              linking ? 'border-brand bg-brand-soft' : 'border-line',
+            )}
+          >
+            <label className="flex items-center gap-2 font-bold text-ink">
+              <input
+                type="checkbox"
+                checked={linking}
+                onChange={(event) => {
+                  setLinking(event.target.checked);
+                  setSurveyed([]);
+                }}
+                className="h-4 w-4"
+              />
+              {t('linkModeLabel')}
+            </label>
+            <p className="mt-1 text-meta text-ink-soft">{t('linkModeHint')}</p>
+          </div>
         </div>
 
         {/* The camera, for the phone at the chair. */}
@@ -331,9 +635,93 @@ export function ScanConsole({
           />
           <p className="text-meta text-ink-soft">{t('wedgeHint')}</p>
         </form>
+
+        {/* A box with no symbol on it at all.
+
+            The console could already teach itself an unrecognised code, and even
+            create the material from the name somebody types into the link
+            dialog — but every one of those doors opens from a *scan*. A person
+            holding a carton that never carried a barcode, or whose label has
+            worn off, had to leave this screen, find the material in the storage
+            list or fill in the new-material form, and come back. That is the
+            path a delivery actually stalls on, and it is the one that had no
+            fast version.
+
+            By name, against the list already on this page, so it costs a
+            round trip of nothing and works with the network down like the rest
+            of the console. */}
+        <form
+          className="card space-y-2 p-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            addByName(byNameRef.current?.value ?? '');
+            if (byNameRef.current) byNameRef.current.value = '';
+          }}
+        >
+          <label className="field-label" htmlFor="scan-by-name">
+            {t('byNameLabel')}
+          </label>
+          <input
+            id="scan-by-name"
+            ref={byNameRef}
+            list="scan-item-names"
+            className="field-input"
+            placeholder={t('byNamePlaceholder')}
+            autoComplete="off"
+          />
+          <datalist id="scan-item-names">
+            {items.map((item) => (
+              <option key={item.id} value={item.name} />
+            ))}
+          </datalist>
+          <p className="text-meta text-ink-soft">
+            {byNameError ? (
+              <span role="alert" className="font-semibold text-danger">
+                {byNameError}
+              </span>
+            ) : (
+              t('byNameHint')
+            )}
+          </p>
+        </form>
       </div>
 
       <div className="space-y-4">
+        {/* What a survey pass has covered so far.
+
+            The tally is the point. Teaching the scanner is a job with no visible
+            end — every carton looks the same whether the app knows it or not —
+            and a job with no visible end is one people abandon halfway and never
+            trust afterwards. Two counts turn it into something that can be
+            finished: how many are already known, and how many are waiting to be
+            named in the panel below. */}
+        {linking ? (
+          <section className="card border-brand/40 p-4">
+            <h2 className="flex flex-wrap items-center gap-2 text-body font-bold text-brand-deep">
+              <ScanBarcode size={19} aria-hidden />
+              {t('linkModeTitle')}
+              <Badge tone="brand">{t('linkModeKnown', { count: surveyed.length })}</Badge>
+              {unknown.length > 0 ? (
+                <Badge tone="warn">{t('linkModeToName', { count: unknown.length })}</Badge>
+              ) : null}
+            </h2>
+            <p className="mt-1 text-body text-ink-soft">{t('linkModeBody')}</p>
+
+            {surveyed.length > 0 ? (
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                {surveyed.map((entry) => (
+                  <li
+                    key={entry.key}
+                    className="rounded-md bg-paper px-2 py-0.5 text-meta font-semibold text-ink-soft"
+                  >
+                    {entry.name}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        ) : null}
+
         {/* Codes the app has never been told about, above the basket because
             they are the only thing here that needs a decision. */}
         {unknown.length > 0 ? (
@@ -493,6 +881,23 @@ export function ScanConsole({
               <p className="flex items-start gap-2 rounded-lg border border-warn/40 bg-warn-soft px-3 py-2.5 text-body text-warn">
                 <TriangleAlert size={18} aria-hidden className="mt-0.5 shrink-0" />
                 {t('overdrawnHint')}
+              </p>
+            ) : null}
+
+            {/* Scanning survives the wifi dropping; committing does not. Said
+                out loud, because the alternative is somebody pressing Save,
+                seeing nothing happen, and walking away believing the delivery
+                is recorded. The button below stays live on purpose —
+                `navigator.onLine` means "there is a network", not "the server
+                answers", and a false negative must not stop a delivery that
+                would have gone through. */}
+            {offline && basket.length > 0 ? (
+              <p
+                role="status"
+                className="flex items-start gap-2 rounded-lg border border-warn/40 bg-warn-soft px-3 py-2.5 text-body text-warn"
+              >
+                <CloudOff size={18} aria-hidden className="mt-0.5 shrink-0" />
+                {t('offlineHint')}
               </p>
             ) : null}
 

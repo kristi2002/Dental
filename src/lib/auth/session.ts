@@ -17,6 +17,18 @@ export type SessionUser = {
   fullName: string;
   role: Role;
   permissions: readonly Permission[];
+  /**
+   * Which parts of the menu this person has switched off, as keys — see
+   * `lib/nav-visibility.ts`.
+   *
+   * Carried on the session rather than fetched where it is used, because it is
+   * read on every single page (the rail is drawn on all of them) and this query
+   * is already happening and already `cache`d. A second round trip per request
+   * for one short string would be the only cost of keeping it separate.
+   */
+  hiddenNav: readonly string[];
+  /** Whether this person still needs telling where the help is. */
+  needsHelpPointer: boolean;
 };
 
 /**
@@ -34,7 +46,15 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 
   const user = await prisma.staffUser.findUnique({
     where: { id: payload.sub },
-    select: { id: true, firstName: true, lastName: true, role: true, active: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      active: true,
+      hiddenNav: true,
+      helpSeenAt: true,
+    },
   });
 
   // Deactivated mid-shift: the cookie is still valid, the person is not.
@@ -47,6 +67,8 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     fullName: `${user.firstName} ${user.lastName}`,
     role: user.role,
     permissions: ROLE_PERMISSIONS[user.role],
+    hiddenNav: user.hiddenNav.split('.').filter(Boolean),
+    needsHelpPointer: user.helpSeenAt === null,
   };
 });
 

@@ -85,6 +85,8 @@ export async function POST(request: Request) {
     suppliers,
     batches,
     productBarcodes,
+    purchaseOrders,
+    purchaseOrderLines,
     stockCategories,
     serviceCategories,
     operatories,
@@ -99,6 +101,7 @@ export async function POST(request: Request) {
     followUps,
     followUpFiles,
     scheduledMessages,
+    practiceDigests,
     emailThreads,
     emailMessages,
     emailAttachments,
@@ -154,6 +157,12 @@ export async function POST(request: Request) {
     // restore without these hands the practice a working cupboard and a scanner
     // that has forgotten every product in it.
     prisma.productBarcode.findMany(),
+    // What was ordered and how much of it turned up. Not derivable from
+    // anything else that survives a restore: the shelf count says what is here
+    // now and says nothing about the four boxes a supplier still owes, which is
+    // the whole reason these rows exist.
+    prisma.purchaseOrder.findMany(),
+    prisma.purchaseOrderLine.findMany(),
     // Without these the materials restore holding an id that names nothing, and
     // the storage room comes back as one undivided list.
     prisma.stockCategory.findMany(),
@@ -200,6 +209,15 @@ export async function POST(request: Request) {
     // patients get them a second time. The backup would not have lost data so
     // much as re-armed it.
     prisma.scheduledMessage.findMany(),
+    // What the board was holding, one row a morning.
+    //
+    // Exported, unlike `JobRun` beside it, and the difference is what the rows
+    // are *about*: a run log describes the machine that wrote it and means
+    // nothing on a new server, while this describes the practice — "on the 12th
+    // of March nine things were waiting" is a fact about the clinic, and it is
+    // the one kind of fact in this file that cannot be re-derived from anything,
+    // because the morning it describes has been worked since.
+    prisma.practiceDigest.findMany(),
     // The correspondence, which is the one thing in this file that cannot be
     // reconstructed from anything else.
     //
@@ -283,6 +301,8 @@ export async function POST(request: Request) {
         suppliers,
         batches,
         productBarcodes,
+        purchaseOrders,
+        purchaseOrderLines,
         stockCategories,
         serviceCategories,
         operatories,
@@ -297,6 +317,7 @@ export async function POST(request: Request) {
         followUps,
         followUpFiles,
         scheduledMessages,
+        practiceDigests,
         emailThreads,
         emailMessages,
         emailAttachments,

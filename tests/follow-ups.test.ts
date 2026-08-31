@@ -11,6 +11,7 @@ import {
   followUpLink,
   followUpStatus,
   linkHref,
+  nextDueAt,
   snoozeUntil,
   sortFollowUps,
   type FollowUpLike,
@@ -31,6 +32,7 @@ function item(over: Partial<Row> = {}): Row {
     doneAt: null,
     priority: 'NORMAL',
     createdAt: day('2026-08-01'),
+    assignedToId: null,
     ...over,
   };
 }
@@ -143,11 +145,101 @@ describe('bellCounts — what the badge says', () => {
       TODAY,
     );
 
-    assert.deepEqual(counts, { open: 3, overdue: 1, urgent: 1 });
+    assert.deepEqual(counts, {
+      open: 3,
+      overdue: 1,
+      today: 1,
+      later: 1,
+      urgent: 1,
+      mine: 0,
+    });
+  });
+
+  it('splits the open pile by day, and never loses one out of the middle', () => {
+    // The bug this guards: the board printed "today" as `open − overdue`, which
+    // is today's errand *and* the one due in a fortnight. Three separate
+    // numbers that add back up to `open` is the only shape that cannot do that.
+    const counts = bellCounts(
+      [
+        item({ dueAt: day('2026-08-10') }),
+        item({ dueAt: day('2026-08-14') }),
+        item({ dueAt: TODAY }),
+        item({ dueAt: day('2026-08-30') }),
+        item({ dueAt: day('2026-09-30') }),
+      ],
+      TODAY,
+    );
+
+    assert.deepEqual(
+      [counts.overdue, counts.today, counts.later],
+      [2, 1, 2],
+      'two late, one today, two still coming',
+    );
+    assert.equal(counts.overdue + counts.today + counts.later, counts.open);
+  });
+
+  it("counts one person's own plate, and only when somebody is asking", () => {
+    const rows = [
+      item({ assignedToId: 'ilir' }),
+      item({ assignedToId: 'ilir', dueAt: day('2026-08-10') }),
+      item({ assignedToId: 'teuta' }),
+      // Left with the practice rather than with a person: nobody's "mine".
+      item({ assignedToId: null }),
+      // Done, so on nobody's plate at all.
+      item({ assignedToId: 'ilir', doneAt: TODAY }),
+    ];
+
+    assert.equal(bellCounts(rows, TODAY, 'ilir').mine, 2);
+    assert.equal(bellCounts(rows, TODAY, 'teuta').mine, 1);
+    assert.equal(bellCounts(rows, TODAY).mine, 0, 'nobody asking, nobody owed');
   });
 
   it('says nothing at all about an empty board', () => {
-    assert.deepEqual(bellCounts([], TODAY), { open: 0, overdue: 0, urgent: 0 });
+    assert.deepEqual(bellCounts([], TODAY), {
+      open: 0,
+      overdue: 0,
+      today: 0,
+      later: 0,
+      urgent: 0,
+      mine: 0,
+    });
+  });
+});
+
+describe('nextDueAt — when a repeating errand comes back', () => {
+  it('counts from the day it was due, not the day it was ticked', () => {
+    // Ticked three days late. A monthly job is still monthly: measuring from
+    // the tick would walk the date forward by however late the practice ran,
+    // and a year of small delays moves the 1st to the 20th.
+    const due = day('2026-08-01');
+    assert.deepEqual(nextDueAt(due, 'MONTHLY', day('2026-08-04')), day('2026-09-01'));
+  });
+
+  it('lands in the future even when the line was forgotten for months', () => {
+    // Anchoring alone would give 2026-03-01 here — already past — so the board
+    // would spawn something overdue at the moment somebody cleared it.
+    const next = nextDueAt(day('2026-02-01'), 'MONTHLY', day('2026-08-15'));
+    assert.deepEqual(next, day('2026-09-01'));
+  });
+
+  it('keeps the end of the month at the end of the month', () => {
+    // 31 January plus a month is 28 February, not 3 March. `addMonths` clamps;
+    // this is here so that stays true through this door too.
+    assert.deepEqual(nextDueAt(day('2026-01-31'), 'MONTHLY', day('2026-01-31')), day('2026-02-28'));
+  });
+
+  it('walks the shorter intervals by days and the longer ones by months', () => {
+    const from = day('2026-08-15');
+    assert.deepEqual(nextDueAt(from, 'WEEKLY', from), day('2026-08-22'));
+    assert.deepEqual(nextDueAt(from, 'FORTNIGHTLY', from), day('2026-08-29'));
+    assert.deepEqual(nextDueAt(from, 'QUARTERLY', from), day('2026-11-15'));
+    assert.deepEqual(nextDueAt(from, 'YEARLY', from), day('2027-08-15'));
+  });
+
+  it('never returns the day it is asked about', () => {
+    // Ticked on the day it was due: the next one is next week, not today.
+    const from = day('2026-08-15');
+    assert.ok(nextDueAt(from, 'WEEKLY', from).getTime() > from.getTime());
   });
 });
 

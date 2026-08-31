@@ -1153,7 +1153,6 @@
     "inStock": "{qty, plural, one {# box} other {# boxes}} in stock",
     "minShort": "min {min}",
     "lastUpdated": "Updated {date}",
-    "filterAll": "All",
     "filterLow": "Low stock only",
     "filterOut": "Out of stock",
     "filterLevelLabel": "Filter by stock level",
@@ -1286,7 +1285,19 @@
     "moveScanAnother": "Scan another",
     "labelPrintThis": "Print this label",
     "labelPrintThisFor": "Print the label for {name}",
-    "labelPrintOneHint": "Only this one will be printed."
+    "labelPrintOneHint": "Only this one will be printed.",
+    "stocktakeScopeLabel": "Which shelf",
+    "stocktakeWholeRoom": "Whole room",
+    "stocktakeScanMode": "Count by scanner",
+    "stocktakeScanConfirm": "Counting by scanner starts every material on this shelf at zero, and each beep adds one. Anything you do not scan will be recorded as none left. Continue?",
+    "stocktakeScanHint": "Beep each box on the shelf.",
+    "stocktakeScanOffHint": "Type the counts, or switch on the scanner to beep each box.",
+    "stocktakeScanned": "{name} → {count}",
+    "stocktakeScanUnknown": "{count, plural, one {# scan matched nothing on this shelf} other {# scans matched nothing on this shelf}}",
+    "expiredClear": "{count, plural, one {Write off # expired lot} other {Write off all # expired lots}}",
+    "expiredClearConfirm": "Take {count, plural, one {# expired lot} other {all # expired lots}} off the shelf? Each one is recorded as a write-off, so usage figures stay honest.",
+    "location": "Where it is kept",
+    "locationHint": "Cupboard, room or drawer — whatever you would tell a colleague."
   },
   "analytics": {
     "title": "Statistics",
@@ -1316,7 +1327,22 @@
     "utilisationHint": "Booked minutes against the hours the practice was open.",
     "noShowByProvider": "Missed appointments by dentist",
     "noShowHint": "Slots the patient did not attend. Clinic cancellations are excluded.",
-    "pastAppointments": "Past"
+    "pastAppointments": "Past",
+    "noSupplier": "No supplier recorded",
+    "stockSpend": "Material spend per month",
+    "spend": "Spend",
+    "noPricedDeliveries": "No delivery in this period recorded a price.",
+    "spendUnpriced": "{boxes, plural, one {# box} other {# boxes}} received in this period carried no price, and are not counted above.",
+    "spendBySupplier": "Spend per supplier",
+    "treatmentMaterialCost": "Material cost per treatment",
+    "noTreatmentCosts": "Nothing to show yet. This is drawn from visits that recorded exactly one treatment and had materials booked out against them.",
+    "treatment": "Treatment",
+    "costPerVisit": "Per visit",
+    "costTotal": "Total",
+    "costSkipped": "{count, plural, one {# visit recorded more than one treatment and is left out.} other {# visits recorded more than one treatment and are left out.}}",
+    "costEstimated": "{percent}% of this is priced from the material’s last known price rather than from the delivery it came out of.",
+    "priceMoves": "Prices that moved",
+    "materialsRecorded": "Materials were recorded on {percent}% of {visits, plural, one {# visit} other {# visits}} in this period. Not a target — a check-up uses nothing — but a falling share means these bars are being fed less of what the practice actually spends."
   },
   "teeth": {
     "title": "Dental chart",
@@ -1449,9 +1475,15 @@
     "close": "Close",
     "none": "Nothing needs you right now.",
     "noneHint": "Low stock and follow-ups both land here. An empty board means an empty board.",
+    "statAll": "All",
+    "statMine": "Mine",
+    "statUrgent": "Urgent",
     "statOverdue": "Late",
     "statToday": "Today",
+    "statLater": "Later",
     "statStock": "Low stock",
+    "statOut": "Nothing left",
+    "statOrderLate": "Delivery late",
     "sectionStock": "Storage room",
     "sectionStockHint": "Below the minimum, or ordered and never delivered.",
     "sectionFollowUps": "Follow-ups",
@@ -1477,13 +1509,34 @@
     "seeAll": "Open the storage room",
     "countStock": "{count, plural, one {# material} other {# materials}}",
     "countFollowUps": "{count, plural, one {# follow-up} other {# follow-ups}}",
-    "badgeLabel": "{count, plural, =0 {nothing waiting} one {# waiting} other {# waiting}}"
+    "badgeLabel": "{count, plural, =0 {nothing waiting} one {# waiting} other {# waiting}}",
+    "filterLabel": "Which reminders to show",
+    "filterEmpty": "Nothing left in this one.",
+    "filterEmptyHint": "{count, plural, one {# reminder is still on the board} other {# reminders are still on the board}}, under the other filters.",
+    "filterShowAll": "Show everything",
+    "sectionElsewhere": "Elsewhere in the app",
+    "sectionElsewhereHint": "Waiting on a screen of its own. The board only says it is there.",
+    "countElsewhere": "{count, plural, one {# waiting} other {# waiting}}",
+    "elsewhere": {
+      "works": "{count, plural, one {# case is still out at the laboratory} other {# cases are still out at the laboratory}}",
+      "requests": "{count, plural, one {# booking request from the website} other {# booking requests from the website}}",
+      "mail": "{count, plural, one {# message from a patient, unanswered} other {# messages from patients, unanswered}}",
+      "unreminded": "{count, plural, one {# patient due tomorrow has heard nothing} other {# patients due tomorrow have heard nothing}}",
+      "unwritten": "{count, plural, one {# appointment was never closed off} other {# appointments were never closed off}}"
+    },
+    "elsewhereHint": {
+      "works": "Due back within days, or already past.",
+      "requests": "A stranger left their number and is waiting.",
+      "mail": "Somebody wrote and nobody has replied.",
+      "unreminded": "Tomorrow, and nothing sent by anyone.",
+      "unwritten": "Say what happened, so the record stays honest."
+    },
+    "newSince": "{count, plural, one {# new since you last looked} other {# new since you last looked}}"
   },
   "requests": {
     "title": "Requests from the website",
     "subtitle": "People who left their number on the public page. Oldest first.",
     "filterOpen": "Open",
-    "filterAll": "All",
     "empty": "No requests at the moment.",
     "allPickedUp": "Everything here has been picked up.",
     "status": {
@@ -2147,7 +2200,19 @@
     "attachments": "Files",
     "attachmentsEmpty": "Nothing attached. A photograph of the casting beats a sentence describing it.",
     "attach": "Attach a file",
-    "attachmentCount": "{count, plural, one {# file} other {# files}}"
+    "attachmentCount": "{count, plural, one {# file} other {# files}}",
+    "fieldRepeat": "Comes back",
+    "fieldRepeatHint": "Ticking it off writes the next one, counted from the day it was due.",
+    "repeatNever": "Just once",
+    "repeatsEvery": "Repeats {every}",
+    "repeat": {
+      "WEEKLY": "Every week",
+      "FORTNIGHTLY": "Every fortnight",
+      "MONTHLY": "Every month",
+      "QUARTERLY": "Every three months",
+      "YEARLY": "Every year"
+    },
+    "fresh": "New"
   },
   "workProcedures": {
     "title": "Kinds of work",
@@ -2401,12 +2466,14 @@
     "name": {
       "queue-appointment-reminders": "Tomorrow's reminders",
       "sweep-orphan-files": "Tidy up unused files",
-      "queue-recalls": "Overdue check-ups"
+      "queue-recalls": "Overdue check-ups",
+      "compose-morning-digest": "Record what was waiting this morning"
     },
     "hint": {
       "queue-appointment-reminders": "Works out who to remind about tomorrow and fills the outbox. It sends nothing.",
       "sweep-orphan-files": "Removes uploaded files no record points at any more.",
-      "queue-recalls": "Puts the patients nobody has seen for months into the outbox. It sends nothing."
+      "queue-recalls": "Puts the patients nobody has seen for months into the outbox. It sends nothing.",
+      "compose-morning-digest": "Writes down what the reminder board was holding, so there is a history. It sends nothing."
     },
     "reason": {
       "ok": "Working",
@@ -2661,7 +2728,19 @@
     "lineQuantity": "How many {name}",
     "formatElement": "GS1",
     "formatDigitalLink": "GS1 QR",
-    "formatPlain": "Plain code"
+    "formatPlain": "Plain code",
+    "byNameLabel": "No barcode on the box?",
+    "byNamePlaceholder": "Start typing the material’s name",
+    "byNameHint": "Adds it to the basket without a barcode. No lot or expiry is recorded.",
+    "byNameNoMatch": "No material by that name. Add it from the storage page first.",
+    "byNameAmbiguous": "{count, plural, other {# materials start with that. Type a little more.}}",
+    "offlineHint": "No connection. Keep scanning — the basket is saved on this device and will still be here. Press Save once the connection is back.",
+    "linkModeLabel": "Teach the scanner",
+    "linkModeHint": "Nothing moves. Beep every box on a shelf to see which ones the app already knows.",
+    "linkModeTitle": "Teaching the scanner",
+    "linkModeKnown": "{count, plural, =0 {none known yet} one {# already known} other {# already known}}",
+    "linkModeToName": "{count, plural, one {# to name} other {# to name}}",
+    "linkModeBody": "Walk a shelf and beep every box. Anything the app already recognises is ticked off here; anything it does not appears below to be named once, and is recognised for good afterwards."
   },
   "editor": {
     "bold": "Bold",
@@ -2697,7 +2776,8 @@
     "noName": "No name",
     "badNumber": "A number could not be read — the default was used",
     "duplicateInFile": "Appears earlier in this file",
-    "alreadyHere": "Already on file here"
+    "alreadyHere": "Already on file here",
+    "badBarcode": "The barcode column did not hold a valid symbol, so this material imports but will not scan."
   },
   "messageTemplates": {
     "title": "Write to {name}",
@@ -2795,5 +2875,1112 @@
     "mailRejected": "The mail provider refused the message.",
     "mailLimit": "Today's sending limit is used up.",
     "mailUnreachable": "The mail provider could not be reached."
+  },
+  "help": {
+    "button": "What is this screen for?",
+    "close": "Close",
+    "example": "For example",
+    "tips": "Worth knowing",
+    "related": "Where next",
+    "footer": "Press <key>?</key> on any screen to open this.",
+    "shapes": {
+      "dashboard": "A sketch of this screen: a row of counts across the top, a panel of today’s work beside a panel of what needs attention, and two buttons underneath.",
+      "calendar": "A sketch of this screen: a day-week-month switcher above a grid of days, with bookings drawn as filled blocks and free time as a dashed one.",
+      "list": "A sketch of this screen: a search box and a button across the top, and rows underneath, each with a status and a menu of its own.",
+      "record": "A sketch of this screen: a name and its warnings across the top, a strip of tabs under it, and a wide panel beside a narrower one.",
+      "steps": "A sketch of this screen: a title with a progress bar, then the steps in order, each with a tick box and a button, and an empty row at the bottom to add another.",
+      "board": "A sketch of this screen: three counts across the top, then the work in sections, each row carrying a date and the buttons that clear it.",
+      "gallery": "A sketch of this screen: a search box above a grid of cards, each card a picture with a name under it.",
+      "charts": "A sketch of this screen: a period switcher, a row of figures, a bar chart, and a table under it.",
+      "week": "A sketch of this screen: one row per weekday, each with an opening time, a closing time and a break, and a save button at the foot.",
+      "form": "A sketch of this screen: fields with a hint under each, a preview of the result beside them, and a save button."
+    },
+    "diagrams": {
+      "recall": {
+        "title": "How somebody ends up on the recall list",
+        "labels": [
+          "A visit is recorded",
+          "Their recall interval starts counting — six months, a year, whatever their record says",
+          "The interval passes with no new booking",
+          "They appear on Recalls",
+          "A reminder is queued, sent, and they book again"
+        ]
+      },
+      "plan": {
+        "title": "How a treatment plan comes about",
+        "labels": [
+          "A finding is charted on a tooth",
+          "It becomes a step on a plan, with the tooth attached",
+          "The step is booked into the calendar",
+          "The visit happens and the step is ticked off"
+        ]
+      },
+      "work": {
+        "title": "A case at the laboratory",
+        "labels": [
+          "The case is written into the register and sent",
+          "The laboratory promises it back on a date",
+          "The date passes — it shows as late and can be chased",
+          "It comes back and is marked as returned"
+        ]
+      },
+      "message": {
+        "title": "How a conversation reaches you",
+        "labels": [
+          "A reminder or a message is sent to the patient",
+          "They reply to it, from their own phone or email",
+          "The reply lands in the Inbox as a conversation",
+          "You link it to their record, and it appears on their file"
+        ]
+      },
+      "request": {
+        "title": "From the public page to the diary",
+        "labels": [
+          "Somebody fills in the form on the practice website",
+          "It arrives under Requests, oldest first",
+          "You ring them back and agree a time",
+          "They become a patient with an appointment"
+        ]
+      },
+      "prescription": {
+        "title": "Writing a prescription",
+        "labels": [
+          "Standard wording is written once as a template",
+          "A patient is treated and the wording is offered",
+          "It is edited for this patient and issued",
+          "It prints, and stays on their record for good"
+        ]
+      },
+      "import": {
+        "title": "Bringing a spreadsheet in",
+        "labels": [
+          "Your existing list, as a CSV file",
+          "The columns are matched to the app’s fields",
+          "You see exactly what will be added and changed",
+          "Nothing is saved until you confirm it"
+        ]
+      },
+      "scan": {
+        "title": "Moving stock by scanning",
+        "labels": [
+          "Every material has a QR label on its box",
+          "You scan it — with the camera or a handheld reader",
+          "You say whether it is coming in or going out",
+          "The shelf count and the ledger both move"
+        ]
+      },
+      "followUp": {
+        "title": "How a follow-up works",
+        "labels": [
+          "You write down what needs doing, and when to be reminded",
+          "It sits quiet until its day",
+          "On the day it surfaces in the bell and on the board",
+          "You do it and tick it off — or push it a few days"
+        ]
+      },
+      "stock": {
+        "title": "What “low stock” means",
+        "labels": [
+          "Comfortably above the minimum — nothing is said",
+          "At or under the minimum — it joins the order list",
+          "Nothing left — it is flagged in red on every screen",
+          "The minimum you set for each material. It is the only line that matters."
+        ]
+      },
+      "teeth": {
+        "title": "How teeth are numbered (FDI)",
+        "labels": [
+          "Upper right",
+          "Upper left",
+          "Lower right",
+          "Lower left",
+          "The first digit is the quadrant, the second is how far back the tooth sits. So 26 is the upper-left sixth tooth — the first molar. Charts are always stored this way, even when the labels are set to the American 1–32."
+        ]
+      },
+      "roles": {
+        "title": "What each role may do",
+        "labels": [
+          "Book appointments",
+          "Open the dental chart",
+          "See statistics",
+          "Staff and log",
+          "The answers do not simply narrow down the list. A locum reads the chart and the figures and changes nothing; the front desk books all day and never opens a chart. Deleting anything is the owner’s alone."
+        ]
+      },
+      "expiry": {
+        "title": "Lots against today",
+        "labels": [
+          "Today",
+          "Already expired",
+          "Turning soon",
+          "Fine for now"
+        ]
+      },
+      "day": {
+        "title": "What a working day is made of",
+        "labels": [
+          "Booked",
+          "Closed — outside opening hours, or the lunch break",
+          "Free and bookable",
+          "The grey comes from Opening hours. Change the week there and every screen that draws a day follows."
+        ]
+      }
+    },
+    "topics": {
+      "dashboard": {
+        "title": "Dashboard",
+        "tagline": "The five minutes at the start of the day",
+        "what": "The screen to open first thing and again last thing. It gathers what today actually needs — who is coming, what has not been written up, what the storage room is short of — so none of it has to be remembered or hunted for.",
+        "steps": [
+          {
+            "title": "The counts across the top",
+            "body": "Patients on file, today’s and this week’s bookings, recalls due and materials below their minimum. Each one opens the list behind it."
+          },
+          {
+            "title": "Quick actions",
+            "body": "Add a patient or book an appointment without leaving this screen — the same forms the calendar uses."
+          },
+          {
+            "title": "What needs attention",
+            "body": "Stock alerts, recalls and requests from the website. On a good day these panels are empty, and that is exactly what they are for."
+          },
+          {
+            "title": "Today’s schedule",
+            "body": "Every appointment today in order, with its status. Press a row to open the patient."
+          },
+          {
+            "title": "Free time",
+            "body": "The gaps left in today. Press one to book straight into it when somebody rings asking for “anything this afternoon”."
+          }
+        ],
+        "example": "It is 08:40. The dashboard says three appointments today, two recalls due and one material low. You press the low material, see it is the anaesthetic, and ring the supplier before the first patient arrives at nine.",
+        "tips": [
+          "An empty panel is not a broken panel — it means nothing is waiting.",
+          "Come back at the end of the day. “Treated, not written up” catches the visit notes nobody had time for at the chair."
+        ]
+      },
+      "appointments": {
+        "title": "Calendar",
+        "tagline": "The practice’s day, week and month",
+        "what": "Everything the practice has agreed to do, and when. The day is built and rebuilt here — bookings are made, moved, marked as arrived and closed off on this screen.",
+        "steps": [
+          {
+            "title": "Day, week, month or list",
+            "body": "Four ways of looking at the same bookings. The week is for planning, the day is for working, the list is for finding."
+          },
+          {
+            "title": "Moving through time",
+            "body": "The arrows step back and forward and “Today” comes home. Filter by dentist or by chair alongside."
+          },
+          {
+            "title": "The grid",
+            "body": "Hours the practice is shut are greyed out, taken from Opening hours. Drag a booking to move it to another slot."
+          },
+          {
+            "title": "A booking",
+            "body": "Press it for the patient, the treatment and the notes — then mark them arrived, completed, or a no-show."
+          },
+          {
+            "title": "Free time",
+            "body": "Double-click empty space to book it. The form says if the slot clashes with another booking or overruns the gap."
+          }
+        ],
+        "example": "A patient rings on Tuesday to move Thursday’s filling. Open the week, drag the block from Thursday to Friday morning, and say why it is moving — the record keeps the new time and the reason together.",
+        "tips": [
+          "An appointment that was never closed off makes the no-show figure wrong. The dashboard lists them so they can be settled honestly.",
+          "Breaks, closures and holidays all come from Opening hours. Change them there and this grid follows."
+        ]
+      },
+      "daySheet": {
+        "title": "Day sheet",
+        "tagline": "Today, on one sheet of paper",
+        "what": "The day printed: every appointment in order with the patient, the treatment and a box to tick. For the surgery wall, the trolley, or anybody who would rather work off paper than a screen.",
+        "steps": [
+          {
+            "title": "The day it shows",
+            "body": "Today by default. It follows whichever day you came from on the calendar."
+          },
+          {
+            "title": "The rows",
+            "body": "Time, patient, treatment — in the order they will happen, so the sheet reads like the day does."
+          },
+          {
+            "title": "What is still free",
+            "body": "The gaps are listed under the bookings, so the sheet answers “can we fit somebody in” without a screen."
+          },
+          {
+            "title": "Print",
+            "body": "Prints clean: no menus, no search box, no colour to waste."
+          }
+        ],
+        "example": "Friday morning the printer runs one copy for the surgery and one for the front desk. The nurse ticks each patient off as they leave, and nothing gets lost between the chair and the computer.",
+        "tips": [
+          "The sheet is a snapshot. A booking made after it was printed will not be on it — print again after a busy morning."
+        ]
+      },
+      "patients": {
+        "title": "Patients",
+        "tagline": "Everybody the practice has on file",
+        "what": "The list of people, searched by name, telephone or email. It is the way in to a record: the chart, the plans, the visits, the files and the prescriptions all hang off one person here.",
+        "steps": [
+          {
+            "title": "Search",
+            "body": "Type any part of a name, a number or an address. Accents do not matter — “cesh” finds “Çeshtje”."
+          },
+          {
+            "title": "New patient",
+            "body": "A name and a telephone number are enough. Everything else can be filled in later, or never."
+          },
+          {
+            "title": "A row",
+            "body": "Press it to open the whole record. The row itself shows age, telephone and when they were last seen."
+          },
+          {
+            "title": "The badges",
+            "body": "A red badge means a recorded allergy or medical alert. It is drawn on the list so it is seen before the chair, not after."
+          },
+          {
+            "title": "The row menu",
+            "body": "Book, message or edit without opening the record — for when the person is on the telephone and waiting."
+          }
+        ],
+        "example": "A woman rings and says only “it’s Marku, about my daughter”. Type mark into the search box: both Markus appear with their ages, and the eight-year-old is obviously the one.",
+        "tips": [
+          "Two records for the same person happen. There is a merge on the record itself that joins them without losing either history.",
+          "Setting a recall interval on the record is what puts somebody on the recall list later. Left as “Never”, they are never chased."
+        ]
+      },
+      "patientRecord": {
+        "title": "A patient’s record",
+        "tagline": "One person, everything about them",
+        "what": "Everything the practice knows about one person, in tabs: who they are, their dental chart, what has been done, what is planned, their appointments, their files and their prescriptions.",
+        "steps": [
+          {
+            "title": "The header",
+            "body": "Name, age, telephone — and any allergy or medical alert in red, on every tab, so it cannot be missed."
+          },
+          {
+            "title": "The tabs",
+            "body": "Details, chart, visits, plans, appointments, files, prescriptions and contact. Each is a different question about the same person."
+          },
+          {
+            "title": "The dental chart",
+            "body": "Press a tooth to record its condition, its surfaces, pocket depths and a note. A finding here can be turned straight into a treatment plan."
+          },
+          {
+            "title": "Visit history",
+            "body": "What was actually done, on which day, by whom. Written after treatment — this is the clinical record and it is what the audit log signs."
+          },
+          {
+            "title": "Record a visit",
+            "body": "The button that closes the loop: it writes the note, spends the materials used, and can offer the prescription that usually follows."
+          },
+          {
+            "title": "Contact, appointments and files",
+            "body": "The tabs the front desk lives in: how to reach them and whether they agreed to be messaged, everything they have booked, and their documents."
+          }
+        ],
+        "example": "Decay is charted on tooth 26. The chart offers to put a filling on the treatment plan; you accept, the step arrives carrying the tooth number, and when it is booked the appointment is already named.",
+        "tips": [
+          "Medical notes and the chart are hidden from roles that may not see them. A receptionist gets the same record without the clinical half.",
+          "Files accept photographs, x-rays and PDFs — including both sides of an identity card, which the front desk can check without opening the file list."
+        ]
+      },
+      "plans": {
+        "title": "Treatment plans",
+        "tagline": "Every course of treatment the practice has going",
+        "what": "A plan is an agreed course of treatment broken into steps. This screen is all of them at once, worst-neglected first, so nothing that was agreed quietly stops happening.",
+        "steps": [
+          {
+            "title": "Search and filter",
+            "body": "By patient, plan or step; and by state — in progress, stalled, finished, cancelled."
+          },
+          {
+            "title": "New plan",
+            "body": "Built rather than typed: steps come from the patient’s chart and from the treatment catalogue."
+          },
+          {
+            "title": "A plan",
+            "body": "Shows whose it is, how many steps are done and what the next one is. Press to open it."
+          },
+          {
+            "title": "Stalled",
+            "body": "Nothing done and nothing booked for weeks. This is the whole reason the screen is sorted the way it is."
+          },
+          {
+            "title": "Record a call",
+            "body": "Rang them and agreed to speak again in a month? Say so, and the plan stops being flagged until that day."
+          }
+        ],
+        "example": "A four-step plan for a root canal has had one visit in nine weeks. It shows at the top of the list marked Stalled. You ring, they ask for the new year, you record the call with a date — and it goes quiet until January.",
+        "tips": [
+          "Stopping a plan does not erase it. Everything on it stays on the patient’s record and it can be reopened at any time.",
+          "A plan you write often can be started from one you wrote before, steps and all."
+        ]
+      },
+      "planDetail": {
+        "title": "A treatment plan",
+        "tagline": "The steps, in the order they will be done",
+        "what": "One agreed course of treatment. Steps are ticked off as they happen, booked into the calendar, reordered when the mouth disagrees with the plan, and printed for the patient to take home.",
+        "steps": [
+          {
+            "title": "The plan and its progress",
+            "body": "Whose it is, what it is called, and how far along it has got."
+          },
+          {
+            "title": "The steps",
+            "body": "In order. Each carries the tooth it belongs to when it came from the chart, and shows whether it is booked."
+          },
+          {
+            "title": "Ticking one off",
+            "body": "Done, or skipped, with the day it happened. A step can always be put back."
+          },
+          {
+            "title": "Adding a step",
+            "body": "From the chart, from the treatment catalogue, or typed. Steps can be dragged into a different order."
+          }
+        ],
+        "example": "A three-visit plan is agreed on Monday. You press “Book the run”, ask for every two weeks at the same time of day, and the app finds three slots — skipping the day the practice is closed — in one go.",
+        "tips": [
+          "Print it. A patient who leaves with the plan on paper is a patient who knows how many visits they agreed to.",
+          "A step booked into the calendar carries the plan with it, so the appointment already knows what it is for."
+        ]
+      },
+      "works": {
+        "title": "Works register",
+        "tagline": "Everything sent out to a laboratory",
+        "what": "Crowns, bridges, dentures — anything made outside the practice. The register says what went where, when it was promised back, and whether it has come.",
+        "steps": [
+          {
+            "title": "Search and filter",
+            "body": "By name, telephone, the laboratory’s serial number, the span or the kind of work; and by month, laboratory or state."
+          },
+          {
+            "title": "New case",
+            "body": "Copy the laboratory’s docket into the register. One row per piece of work, with how many elements it carries."
+          },
+          {
+            "title": "A case",
+            "body": "Who it is for, what is being made, by whom, when it went and when it is due back."
+          },
+          {
+            "title": "Still out or back",
+            "body": "A case past its promised date shows as late. Mark it back the day it arrives and it leaves the chasing list."
+          },
+          {
+            "title": "The docket",
+            "body": "Print a docket to go in the box with the impression — shade, type of work, stages and dates."
+          }
+        ],
+        "example": "A zirconia crown for tooth 46 goes out on the 3rd, promised back on the 17th. On the 18th the register shows it one day late; the laboratory’s number is one press away on the follow-up board.",
+        "tips": [
+          "Name your laboratories and your kinds of work once, under this section — then every case picks from a list rather than being spelt three different ways.",
+          "The front desk can read this register but not write it, which is what lets them answer “is my crown back yet” without opening a chart."
+        ]
+      },
+      "workProcedures": {
+        "title": "Kinds of work",
+        "tagline": "Named once, then picked from",
+        "what": "The work this practice sends out — a crown, a bridge, a denture, a repair. Naming them here is what stops one kind of work becoming three spellings of itself in the register.",
+        "steps": [
+          {
+            "title": "The list",
+            "body": "Every kind of work the register can offer. Short by design."
+          },
+          {
+            "title": "Add",
+            "body": "A name and nothing else. Add them all in one sitting."
+          },
+          {
+            "title": "Suggestions",
+            "body": "Names typed onto cases before this list existed. Keep the one you mean; the rest are usually the same work written differently."
+          }
+        ],
+        "example": "The register has “Zirconia crown”, “zirkon crown” and “Zr crown” typed on old cases. You add “Zirconia crown” once, and from then on every case picks it from the list.",
+        "tips": [
+          "This list is only about naming. It changes nothing on cases already written."
+        ]
+      },
+      "labs": {
+        "title": "Laboratories",
+        "tagline": "Who the work goes to, and how to reach them",
+        "what": "The outside firms the practice sends cases to. The name goes on every case; the telephone number is what the follow-up board dials when something is late.",
+        "steps": [
+          {
+            "title": "The list",
+            "body": "Every laboratory named, with its number and how many cases are with it."
+          },
+          {
+            "title": "Add one",
+            "body": "The name as the practice refers to them, and the number somebody actually rings."
+          },
+          {
+            "title": "Notes",
+            "body": "Whose name to ask for, which days they collect — whatever gets it right the first time."
+          }
+        ],
+        "example": "A bridge is four days late. You open the follow-up, press the laboratory’s number, and speak to the person whose name is written in the notes — instead of hunting for a card in a drawer.",
+        "tips": [
+          "A laboratory with no number on file is a laboratory somebody has to look up every time a case runs late."
+        ]
+      },
+      "prescriptions": {
+        "title": "Standard wording",
+        "tagline": "Written once, read out for years",
+        "what": "The templates prescriptions are written from. This screen is the wording, not the prescriptions themselves — what has actually been issued is a screen of its own.",
+        "steps": [
+          {
+            "title": "The templates",
+            "body": "Everything the practice writes often, grouped so the list stays short."
+          },
+          {
+            "title": "Add one",
+            "body": "A name to pick it by, and the wording itself: dose, how often, and what to do if it gets worse."
+          },
+          {
+            "title": "After a treatment",
+            "body": "Attach a template to the treatments it usually follows, and it is offered first when one of them has just been recorded."
+          }
+        ],
+        "example": "You attach the post-extraction wording to “Extraction”. From then on, the moment an extraction is recorded, that wording is the first thing offered — with the patient’s name and the date already filled in.",
+        "tips": [
+          "The wording is a starting point, never a straitjacket. It is edited freely for each patient before it is issued.",
+          "Prescribing is the dentist’s own act. Assistants can read prescriptions; only the dentist writes them."
+        ]
+      },
+      "prescriptionsIssued": {
+        "title": "Issued prescriptions",
+        "tagline": "What the practice has actually written",
+        "what": "Every prescription that has left the building, newest first, searched by patient. This is the record — the templates screen is only the wording it was written from.",
+        "steps": [
+          {
+            "title": "Search",
+            "body": "By patient name, which is the only name anybody looking for a prescription has."
+          },
+          {
+            "title": "A prescription",
+            "body": "Who it was for, what was on it, who wrote it and when."
+          },
+          {
+            "title": "Print again",
+            "body": "A patient who has lost theirs can be given the same sheet again without it being rewritten."
+          }
+        ],
+        "example": "A patient rings on Sunday to say they have lost the antibiotics slip. You search their surname, open Friday’s prescription, and print the same one — no rewriting, no guessing at the dose.",
+        "tips": [
+          "Every prescription is checked against the patient’s recorded allergies as it is written. That check is only as good as the alerts on their record."
+        ]
+      },
+      "inbox": {
+        "title": "Inbox",
+        "tagline": "What patients said back",
+        "what": "Replies from patients, gathered into conversations. It is the one queue here whose size nobody controls — a patient answers when they answer, and a reply nobody sees for three days is worse than a recall nobody makes for three days.",
+        "steps": [
+          {
+            "title": "Conversations",
+            "body": "Unread first. Each is a thread with one person, not a pile of loose messages."
+          },
+          {
+            "title": "Linking to a patient",
+            "body": "A reply from an address nobody recognises is not attached to anybody. Link it once, and the conversation appears on their record for good."
+          },
+          {
+            "title": "Reading a thread",
+            "body": "The whole exchange in order, including what the practice sent in the first place."
+          },
+          {
+            "title": "Reply, or file it away",
+            "body": "Answer from here, or file the conversation when it is finished. Filed is not deleted."
+          }
+        ],
+        "example": "A reminder goes out on Tuesday. On Wednesday “can we make it Thursday instead?” arrives. You link it to the patient, move the appointment, and reply — and the whole exchange is on their file.",
+        "tips": [
+          "Nothing can arrive here until an email provider is set up. Until then the screen says so rather than looking broken.",
+          "The front desk can read and answer the inbox. It is mostly “can we move it”, which is their job, not the dentist’s."
+        ]
+      },
+      "requests": {
+        "title": "Requests from the website",
+        "tagline": "People who are not patients yet",
+        "what": "Somebody left their name and number on the practice’s public page. This is the only queue here where nobody has any relationship with the practice yet — a day of silence does not read as a delay, it reads as being ignored.",
+        "steps": [
+          {
+            "title": "The queue",
+            "body": "Oldest first, deliberately. The one who has waited longest is the one to ring."
+          },
+          {
+            "title": "What they said",
+            "body": "Their name, their number, and whatever they wrote about what they need."
+          },
+          {
+            "title": "Ring them back",
+            "body": "The number is a press away. There is no messaging here — this is a telephone call."
+          },
+          {
+            "title": "Turn it into a booking",
+            "body": "Once a time is agreed, the request becomes a patient and an appointment in one step."
+          }
+        ],
+        "example": "A request comes in on Saturday: “broken tooth, any time next week”. Monday at nine the desk rings, books Tuesday afternoon, and the request closes itself as the appointment is made.",
+        "tips": [
+          "The count in the navigation is a person waiting for a call, which is why it is one of only two numbers in the whole menu."
+        ]
+      },
+      "followUps": {
+        "title": "Follow-ups",
+        "tagline": "What the practice owes itself",
+        "what": "The practice’s own to-do board: ring the laboratory, chase an invoice, order the thing nobody wrote down. Anything that has to happen on a day that is not today, and that would otherwise live on a sticky note.",
+        "steps": [
+          {
+            "title": "The counts",
+            "body": "How much is open and how much is late. The same numbers ride on the bell in the corner of every screen."
+          },
+          {
+            "title": "The sections",
+            "body": "Late, today, this week, later, ticked off. Nothing has to be sorted by hand."
+          },
+          {
+            "title": "A line",
+            "body": "What needs doing, when it should surface, and whose job it is — or anybody’s, which is the honest answer most of the time."
+          },
+          {
+            "title": "Done, or later",
+            "body": "Tick it off, or push it a few days. Pushing is not failing; it is what stops the board filling with things nobody will do today."
+          }
+        ],
+        "example": "Wednesday you write “ring Dentaland about the Berisha bridge”, due Friday. It stays out of the way until Friday morning, when it appears in the bell with a red mark against it.",
+        "tips": [
+          "Marking one urgent puts it at the top and keeps it there. Use it sparingly, or the top stops meaning anything.",
+          "A late case in the works register can be turned into a follow-up with the laboratory’s number already attached."
+        ]
+      },
+      "recalls": {
+        "title": "Recalls",
+        "tagline": "Patients worth ringing today",
+        "what": "People the practice has not seen for as long as their own record says it should have. Two lists: those due a check-up, and those worth following up after recent treatment.",
+        "steps": [
+          {
+            "title": "The counts",
+            "body": "How many are overdue and how many are worth a call after treatment."
+          },
+          {
+            "title": "Due for a check-up",
+            "body": "Their recall interval has passed and nothing is booked. Somebody with an appointment already is never on this list."
+          },
+          {
+            "title": "A patient",
+            "body": "When they were last seen, how long that is, and how to reach them."
+          },
+          {
+            "title": "Contact, or remind me later",
+            "body": "Prepare a reminder, or push them a few days if now is a bad time to ring."
+          }
+        ],
+        "example": "A patient with a six-month recall was last in eleven months ago and has nothing booked. They appear here; you queue a reminder, it goes out with tomorrow’s batch, and they ring back on Thursday.",
+        "tips": [
+          "The interval lives on each patient’s record. A patient set to “Never” is never chased, which is sometimes exactly right.",
+          "Reminders prepared here do not send themselves. They wait under Reminders to send until somebody presses the button."
+        ]
+      },
+      "outbox": {
+        "title": "Reminders to send",
+        "tagline": "Prepared, but not gone",
+        "what": "The queue of messages waiting to go out — mostly tomorrow’s appointment reminders. Nothing leaves this practice until a person presses send, which is the whole reason the screen exists.",
+        "steps": [
+          {
+            "title": "The counts",
+            "body": "Waiting, missed, and handled today."
+          },
+          {
+            "title": "Waiting to be sent",
+            "body": "Tomorrow’s appointments with nobody told yet. This is the list to clear once a day."
+          },
+          {
+            "title": "A reminder",
+            "body": "Who it is for, which appointment, and by which route — WhatsApp, email, or a telephone call."
+          },
+          {
+            "title": "Send, or deal with it",
+            "body": "Send it, or mark it handled if it was settled another way."
+          }
+        ],
+        "example": "At half past five you open this screen, see six reminders for tomorrow, and send five. The sixth has no number on file, so you mark it handled and ring the mother instead.",
+        "tips": [
+          "“Nobody got to these” is the honest section: appointments that have already started and were never mentioned. It is short on a good week.",
+          "A patient who has asked not to be contacted never appears here, whatever is booked."
+        ]
+      },
+      "services": {
+        "title": "Services",
+        "tagline": "What the practice offers, and for how long",
+        "what": "The treatment catalogue. Every booking, every plan step and every price the practice quotes comes from this list, which is why it is worth getting right once.",
+        "steps": [
+          {
+            "title": "Search and filter",
+            "body": "By name, or by the department it is filed under."
+          },
+          {
+            "title": "Add a treatment",
+            "body": "A name and a duration are enough. The duration is what the diary blocks out whenever it is booked."
+          },
+          {
+            "title": "A treatment",
+            "body": "Its name, its department, how long it takes and what it costs."
+          },
+          {
+            "title": "Materials it uses",
+            "body": "Say what a treatment normally spends, and recording the visit takes it off the shelf automatically."
+          }
+        ],
+        "example": "“Composite filling — 45 minutes” is added once. From then on every filling booked blocks three quarters of an hour in the diary without anybody having to remember.",
+        "tips": [
+          "Getting the durations right is what makes the calendar’s free-time finder useful. A 20-minute treatment booked as an hour hides slots that exist.",
+          "An existing price list can be brought in from a spreadsheet rather than typed — see Import."
+        ]
+      },
+      "serviceCategories": {
+        "title": "Service categories",
+        "tagline": "The departments the catalogue is filed by",
+        "what": "The parts of the practice a treatment can belong to — surgery, orthodontics, hygiene. Named once here so one department cannot become three spellings of itself.",
+        "steps": [
+          {
+            "title": "The list",
+            "body": "Departments, and the subdivisions inside them. Two levels deep and no further, on purpose."
+          },
+          {
+            "title": "Add one",
+            "body": "A name, and whether it sits inside a department or is one."
+          },
+          {
+            "title": "What uses it",
+            "body": "Every treatment picks its department from this list, and the catalogue is filtered by it."
+          }
+        ],
+        "example": "You add “Surgery” with “Extractions” and “Implants” inside it. The service list can then be narrowed to implants alone when quoting one.",
+        "tips": [
+          "Do this before importing a price list. Names that already exist are matched instead of duplicated."
+        ]
+      },
+      "imports": {
+        "title": "Import from a spreadsheet",
+        "tagline": "Bring what you already have",
+        "what": "A practice adopting this app already has lists — a price list, a storage-room inventory, a patient file. This brings them in from a CSV file, and shows exactly what it will do before it does anything.",
+        "steps": [
+          {
+            "title": "The file",
+            "body": "A CSV exported from a spreadsheet. The first row should be the column names."
+          },
+          {
+            "title": "Matching the columns",
+            "body": "Say which column is the name, which is the price, and so on. The app guesses and you correct it."
+          },
+          {
+            "title": "The preview",
+            "body": "Row by row: what will be added, what will be updated, and what cannot be read. Nothing has happened yet at this point."
+          },
+          {
+            "title": "Import",
+            "body": "Only when you press this. Rows with problems are left out rather than guessed at."
+          }
+        ],
+        "example": "A price list of 180 treatments comes across in one go. The preview shows 174 new, 6 matching what is already there, and nothing broken — so you import, and the catalogue is done in a morning instead of a fortnight.",
+        "tips": [
+          "Import is a once-per-practice errand, which is why it is filed under its section rather than sitting on the header for ever.",
+          "Materials import what each thing *is*, not how much of it is on the shelf. Count that with a stocktake."
+        ]
+      },
+      "stock": {
+        "title": "Stock",
+        "tagline": "The storage room, as a list",
+        "what": "Every material and consumable the practice keeps, how many are on the shelf, and how low each is allowed to get before the app starts asking for more.",
+        "steps": [
+          {
+            "title": "Search and filter",
+            "body": "By name, code, brand or shelf — and by whether something is low, out, or fine."
+          },
+          {
+            "title": "Add a material",
+            "body": "A name and a count are enough. The shelf, the minimum and the supplier can wait."
+          },
+          {
+            "title": "A material",
+            "body": "What it is, how many boxes are there, which shelf it lives on and who it is bought from."
+          },
+          {
+            "title": "Low and out",
+            "body": "A material at or below its minimum joins the order list and is flagged in the bell on every screen."
+          },
+          {
+            "title": "Add or take out",
+            "body": "Move stock without opening the record — a delivery in, a box used out."
+          }
+        ],
+        "example": "Anaesthetic has a minimum of 3 boxes. The nurse takes the second-to-last one, the count drops to 2, and by the time the dentist looks at the bell it is already on the order list.",
+        "tips": [
+          "Every movement is written to a ledger with who did it and why, so “where did six boxes go” is an answerable question.",
+          "Lot numbers matter. A recall notice asks for the lot, and nothing else in the practice can answer it."
+        ]
+      },
+      "stockCatalog": {
+        "title": "Stock catalogue",
+        "tagline": "The storage room, in pictures",
+        "what": "The same materials as the stock list, but with a photograph of each box. For anybody who knows what a thing looks like but not what it is called — which, with a new nurse and a shelf of Italian packaging, is most people.",
+        "steps": [
+          {
+            "title": "Search",
+            "body": "The same search as the list. Type what you can remember."
+          },
+          {
+            "title": "The cards",
+            "body": "A photograph, the name, the shade or size, and how many are left."
+          },
+          {
+            "title": "The photograph",
+            "body": "Press it to take or choose one. A variant with no photograph of its own shows the product’s."
+          },
+          {
+            "title": "What is low",
+            "body": "A card carries the same low or out badge the list does."
+          }
+        ],
+        "example": "A locum needs “the composite in the blue box”. They open the catalogue, recognise the packaging in two seconds, and find that it is A2 on shelf 3.",
+        "tips": [
+          "Photographs are worth an afternoon once. They pay for themselves every time somebody new works a shift."
+        ]
+      },
+      "stockLabels": {
+        "title": "Shelf labels",
+        "tagline": "A QR code for every box",
+        "what": "A printable sheet of labels, one per material. Stick them on the boxes, and moving stock becomes a matter of pointing a camera at a shelf rather than typing.",
+        "steps": [
+          {
+            "title": "The sheet",
+            "body": "Every material, or just the ones you filter to. It prints as a page of stickers."
+          },
+          {
+            "title": "A label",
+            "body": "The name, the code, and a QR code that opens that material directly."
+          },
+          {
+            "title": "Scanning one",
+            "body": "Opens the material with “add or take out” ready — choose how many boxes and press."
+          },
+          {
+            "title": "Just one",
+            "body": "A single label can be printed on its own for a new material, without redoing the sheet."
+          }
+        ],
+        "example": "A new shelf of composites is labelled on a Friday afternoon. On Monday the nurse takes three boxes out by scanning three stickers, and never opens the stock list at all.",
+        "tips": [
+          "Labels are printed once per material and then not again for a year, which is why they live here rather than on the stock header."
+        ]
+      },
+      "stockScan": {
+        "title": "Scan",
+        "tagline": "Move stock by reading the box",
+        "what": "The fastest way to put a delivery away or take something off the shelf: read the code on the box, say how many, done. Works with the camera on a phone or with a handheld scanner.",
+        "steps": [
+          {
+            "title": "In or out",
+            "body": "A delivery adds to the shelf, with its lot number and expiry. Something used takes off the shelf, from the lot you scanned."
+          },
+          {
+            "title": "Scanning",
+            "body": "Point the camera, or pull the trigger on a handheld reader — it works anywhere on this page without clicking first."
+          },
+          {
+            "title": "Codes it does not know",
+            "body": "Say what an unknown code is once, and it is recognised from then on. A carton and a single box are different codes."
+          },
+          {
+            "title": "The basket",
+            "body": "Everything scanned so far, ready to be corrected before it is saved."
+          }
+        ],
+        "example": "A delivery of twelve cartons arrives. The nurse scans each one, types the lot number and expiry once per product, and the whole delivery is on the shelf before the boxes are unpacked.",
+        "tips": [
+          "Taking out more than the shelf says it holds is allowed — it happens, and the app tells you the count was already wrong rather than refusing."
+        ]
+      },
+      "stocktake": {
+        "title": "Count the shelf",
+        "tagline": "What is actually there",
+        "what": "The reckoning: walk the storage room, type what you can see, and the app records the difference as a correction. Only the lines you change are recorded, so a count that is already right costs nothing.",
+        "steps": [
+          {
+            "title": "The list",
+            "body": "Every material with what the app believes is there. Filter to one shelf and work through it."
+          },
+          {
+            "title": "Type what you see",
+            "body": "The real number. Leave the ones that are right alone — a blank means “no change”."
+          },
+          {
+            "title": "The differences",
+            "body": "What will be corrected, and by how much, before anything is saved."
+          },
+          {
+            "title": "Save",
+            "body": "Each correction is written to the ledger as a movement, signed, like everything else."
+          }
+        ],
+        "example": "A stocktake before the summer break finds gloves at 4 boxes when the app said 9. You type 4, save, and the correction is on the record with your name and the date — rather than five boxes quietly going missing.",
+        "tips": [
+          "Doing this once a quarter is what keeps the low-stock alerts trustworthy. Alerts built on wrong counts get ignored, and then they are worth nothing."
+        ]
+      },
+      "stockExpiry": {
+        "title": "Expiry",
+        "tagline": "What has turned, and what is about to",
+        "what": "Lots past their date, and lots turning within the next few weeks. This is the screen that stops expired anaesthetic being found by a patient rather than by the practice.",
+        "steps": [
+          {
+            "title": "The counts",
+            "body": "How many lots have expired and how many are close."
+          },
+          {
+            "title": "Expired",
+            "body": "Past their date, oldest first. These come off the shelf today."
+          },
+          {
+            "title": "Expiring soon",
+            "body": "Still usable — use them first, or plan to replace them."
+          },
+          {
+            "title": "Acting on a lot",
+            "body": "Take it off the shelf from here, and the movement is recorded like any other."
+          }
+        ],
+        "example": "Two lots of anaesthetic expire at the end of the month. They show under “expiring soon”, so the practice uses those first and the ones bought last week stay in the box.",
+        "tips": [
+          "Expiry dates only exist for lots that were scanned or typed in with one. A material added without dates cannot warn anybody."
+        ]
+      },
+      "stockCategories": {
+        "title": "Stock categories",
+        "tagline": "The shelves the storage room is filed by",
+        "what": "The shelves, drawers and cupboards materials are filed under. Named once here, so one shelf does not become three spellings of itself across two hundred materials.",
+        "steps": [
+          {
+            "title": "The list",
+            "body": "Every shelf the storage room has. Short, and it stays short."
+          },
+          {
+            "title": "Add one",
+            "body": "A name and nothing else. Add them all in one sitting."
+          },
+          {
+            "title": "What uses it",
+            "body": "Every material picks its shelf from this list, and the stock list is filtered by it."
+          }
+        ],
+        "example": "You add “Restoratives”, “Anaesthetics”, “Disposables” and “Endo”. Filtering the stock list to one shelf then matches the walk somebody actually takes around the room.",
+        "tips": [
+          "Name them after where things physically are, not after what they theoretically belong to. The list is used while standing in the room."
+        ]
+      },
+      "suppliers": {
+        "title": "Suppliers",
+        "tagline": "Who the materials are bought from",
+        "what": "The firms the practice orders from. There is no ordering inside this app by design — this is the list of who to ring, attached to what they supply.",
+        "steps": [
+          {
+            "title": "The list",
+            "body": "Every supplier, with the number that actually gets an order placed."
+          },
+          {
+            "title": "Add one",
+            "body": "A name is all that is needed, but the telephone number is the point of the record."
+          },
+          {
+            "title": "Notes",
+            "body": "Whom to ask for, deliveries on which days, minimum order — whatever gets it right first time."
+          }
+        ],
+        "example": "The order list says four materials are low, and three are bought from the same firm. You open that supplier, ring the number on the record, and place one order instead of three.",
+        "tips": [
+          "Point each material at its supplier. The suggested order list then groups itself by who to call."
+        ]
+      },
+      "analytics": {
+        "title": "Statistics",
+        "tagline": "What the practice has been doing",
+        "what": "The figures behind the work: how full the diary has been, which treatments come up most, how many people do not turn up, and what the practice has taken. Read over months, not days.",
+        "steps": [
+          {
+            "title": "The period",
+            "body": "Six months by default. Change it and everything on the screen follows."
+          },
+          {
+            "title": "The headline figures",
+            "body": "The two or three numbers worth knowing before any chart is read."
+          },
+          {
+            "title": "The charts",
+            "body": "Bookings and revenue over time, and which treatments make them up."
+          },
+          {
+            "title": "The tables",
+            "body": "The same figures in rows, for anybody who would rather read numbers than shapes."
+          }
+        ],
+        "example": "Chair utilisation reads 61% for the last six months. The chart shows Tuesdays are the hole; the practice moves a hygiene session there and watches the same number next quarter.",
+        "tips": [
+          "Utilisation is booked minutes against the hours the practice was actually open — so wrong opening hours make it wrong.",
+          "The no-show figure excludes appointments the practice cancelled. It is about patients, not about the diary."
+        ]
+      },
+      "settings": {
+        "title": "Opening hours",
+        "tagline": "When the practice is open, and when it is shut",
+        "what": "The week the whole calendar is drawn from — opening times, the lunch break, holidays, and how many chairs can run at once. Almost everything else in the app that draws a day reads it from here.",
+        "steps": [
+          {
+            "title": "The week",
+            "body": "One row per day: when the doors open, when they close, and the break in the middle. Times are the clinic’s own clock."
+          },
+          {
+            "title": "The times",
+            "body": "Leave a day empty and the practice is shut on it. The calendar greys it out immediately."
+          },
+          {
+            "title": "Breaks and closures",
+            "body": "A break repeats every week; a closure is a holiday or a shutdown and overrides the week entirely."
+          },
+          {
+            "title": "Save",
+            "body": "Nothing changes until you save — and if bookings already sit in hours you are closing, you are told before it happens."
+          }
+        ],
+        "example": "The practice starts closing on Saturdays. You empty Saturday’s two times, save, and every Saturday on the calendar greys out — and the free-slot finder stops offering them.",
+        "tips": [
+          "Chairs are only worth adding if the practice really has more than one. Two chairs means two appointments can run at once.",
+          "One person’s leave is a closure for that person alone. The rest of the practice keeps working."
+        ]
+      },
+      "staff": {
+        "title": "Staff and roles",
+        "tagline": "Who works here, and what each may do",
+        "what": "The accounts people sign in with, and the role each one carries. A role is not a job title here — it is the set of doors that open, and it is the field worth pausing on.",
+        "steps": [
+          {
+            "title": "The list",
+            "body": "Everyone with an account, their role, and whether the account is still active."
+          },
+          {
+            "title": "Add somebody",
+            "body": "A name, a role, and a PIN — told to them in person, not emailed."
+          },
+          {
+            "title": "The role",
+            "body": "Everything a role grants is listed under it as you choose, so the decision is made with its consequences in view."
+          },
+          {
+            "title": "Retiring an account",
+            "body": "Deactivate rather than delete. Their name stays on the visits they recorded, which is what a clinical record requires."
+          }
+        ],
+        "example": "A locum starts for three weeks. You give them Read-only: they can see charts, the diary and the figures, and cannot change a single thing — and every screen tells them so rather than refusing at the last moment.",
+        "tips": [
+          "Deleting anything is the owner’s alone, deliberately. Everybody else cancels, deactivates or corrects.",
+          "Each person changes their own PIN from the account menu. Nobody, including the owner, can read anybody else’s."
+        ]
+      },
+      "activity": {
+        "title": "Activity log",
+        "tagline": "Every change, and who made it",
+        "what": "An append-only record of what was changed, by whom and when. Nothing here can be edited or removed, including by the owner — that is the entire point of keeping it.",
+        "steps": [
+          {
+            "title": "The entries",
+            "body": "Newest first: who, what, and which record it touched."
+          },
+          {
+            "title": "Filter by type",
+            "body": "Narrow to one kind of change — bookings, patients, stock, staff."
+          },
+          {
+            "title": "Date range",
+            "body": "Narrow to the days in question when there is a specific question."
+          },
+          {
+            "title": "What it signs",
+            "body": "Every entry carries the account that made the change, which is why PINs are personal and never shared."
+          }
+        ],
+        "example": "A visit note says something nobody remembers writing. The log shows it was recorded at 16:20 on the 4th by a named account — and the question is answered in a minute rather than becoming an argument.",
+        "tips": [
+          "Only the owner can read this, and nobody at all can change it.",
+          "Sharing a PIN makes every line this log writes worthless. That is the real reason each person has their own."
+        ]
+      }
+    },
+    "pointerTitle": "Every screen can explain itself",
+    "pointerBody": "This button says what the screen you are on is for — with a drawing of it and a worked example. The one beside it puts away the parts of the app your practice does not use.",
+    "pointerOpen": "Show me",
+    "pointerDismiss": "Got it"
+  },
+  "tailor": {
+    "button": "Choose what is in your menu",
+    "title": "What is in your menu",
+    "subtitle": "Put away the screens this practice does not use.",
+    "close": "Close",
+    "note": "This changes your own menu and nobody else’s. No permissions change, nothing is deleted, and anything you put away can still be found with the search box at the top of every page.",
+    "group": {
+      "admin": "Running the practice",
+      "start": "Every day",
+      "care": "Care",
+      "contact": "Contact",
+      "practice": "Practice"
+    },
+    "shown": "Shown",
+    "hidden": "Hidden",
+    "count": "{shown} of {total} shown",
+    "reset": "Show everything",
+    "done": "Done"
+  },
+  "orders": {
+    "title": "Orders",
+    "subtitle": "What has been ordered and what has actually arrived.",
+    "subtitleClosed": "Orders that are finished or were given up on.",
+    "empty": "Nothing is on order. Placing one from the reorder list on the storage page records it here.",
+    "emptyClosed": "No order has been completed yet.",
+    "noSupplier": "No supplier recorded",
+    "placed": "Placed {placed}",
+    "placedExpected": "Placed {placed} · expected {expected}",
+    "late": "{days, plural, one {# day late} other {# days late}}",
+    "outstanding": "{count, plural, one {# box still owed} other {# boxes still owed}}",
+    "stillOwed": "{count, plural, one {# owed} other {# owed}}",
+    "receivedOf": "{got} of {asked}",
+    "lineFull": "Fully received",
+    "complete": "Complete",
+    "cancelled": "Cancelled",
+    "cancel": "Give up on it",
+    "cancelConfirm": "Close this order and stop waiting for what has not arrived? What did arrive stays on the shelf.",
+    "showClosed": "Finished orders",
+    "showOpen": "Open orders",
+    "openCount": "{count, plural, one {# open order} other {# open orders}}"
+  },
+  "ledger": {
+    "title": "Movement history",
+    "subtitle": "Every box that has come on or off this shelf.",
+    "empty": "Nothing has moved yet.",
+    "usable": "Usable",
+    "minimum": "Minimum",
+    "lastMoved": "Last change",
+    "lots": "Lots",
+    "onOrder": "On order",
+    "onOrderOutstanding": "{count, plural, one {On order · # box still owed} other {On order · # boxes still owed}}",
+    "reason_delivery": "Delivery",
+    "reason_deliveryReversed": "Delivery reversed",
+    "reason_scanIn": "Scanned in",
+    "reason_scanOut": "Scanned out",
+    "reason_stocktake": "Stocktake",
+    "reason_used": "Used",
+    "reason_usedInVisit": "Used in a visit",
+    "reason_restock": "Restocked",
+    "reason_visitDeleted": "Visit deleted — put back",
+    "reason_writeOff": "Written off",
+    "reason_unknown": "Adjustment"
   }
 }

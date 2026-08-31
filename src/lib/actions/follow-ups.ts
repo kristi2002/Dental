@@ -2,12 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
-import { FollowUpPriority } from '@/generated/prisma/enums';
+import { FollowUpPriority, type FollowUpRepeat } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { fromDateKey, today } from '@/lib/dates';
 import { isAllowedMimeType, MAX_FILE_BYTES } from '@/lib/file-constants';
 import { deleteStoredFile, storeFile } from '@/lib/files';
-import { clampNotes, clampTitle, snoozeUntil } from '@/lib/follow-ups';
+import { clampNotes, clampTitle, nextDueAt, REPEATS, snoozeUntil } from '@/lib/follow-ups';
 import { prisma } from '@/lib/prisma';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -54,6 +54,12 @@ async function resolveLinks(formData: FormData) {
   };
 }
 
+/** The posted interval, or null for the one-off every line is until it is not. */
+function readRepeat(value: FormDataEntryValue | null): FollowUpRepeat | null {
+  const name = typeof value === 'string' ? value : '';
+  return (REPEATS as ReadonlyArray<string>).includes(name) ? (name as FollowUpRepeat) : null;
+}
+
 /** Write or correct one line of the board. */
 export async function saveFollowUp(
   _prev: ActionState,
@@ -92,6 +98,11 @@ export async function saveFollowUp(
       formData.get('priority') === FollowUpPriority.URGENT
         ? FollowUpPriority.URGENT
         : FollowUpPriority.NORMAL,
+    // Anything not in the list — an empty select, or a value somebody posted by
+    // hand — is a one-off. The same shape the priority above uses: name the
+    // values that mean something and let everything else fall to the default,
+    // rather than refusing the save over a field most lines never touch.
+    repeatEvery: readRepeat(formData.get('repeatEvery')),
     assignedToId: assignee?.id ?? null,
     ...links,
   };
@@ -109,6 +120,7 @@ export async function saveFollowUp(
           notes: data.notes,
           dueAt: data.dueAt,
           priority: data.priority,
+          repeatEvery: data.repeatEvery,
           assignedToId: data.assignedToId,
         },
       });
@@ -156,7 +168,19 @@ export async function toggleFollowUpDone(
 
   const item = await prisma.followUp.findUnique({
     where: { id },
-    select: { title: true, doneAt: true },
+    select: {
+      title: true,
+      doneAt: true,
+      // Everything the next occurrence inherits, read in the same round trip.
+      notes: true,
+      dueAt: true,
+      priority: true,
+      repeatEvery: true,
+      assignedToId: true,
+      patientId: true,
+      workId: true,
+      stockItemId: true,
+    },
   });
   // Gone since the board was drawn — somebody else deleted it. Said out loud
   // rather than returned in silence: this board is worked by four people at
@@ -165,16 +189,57 @@ export async function toggleFollowUpDone(
 
   const done = item.doneAt === null;
 
-  await prisma.followUp.update({
-    where: { id },
-    data: { doneAt: done ? new Date() : null, doneById: done ? user.id : null },
+  /*
+   * Ticking off a repeating errand writes the next one.
+   *
+   * A new row rather than a moved date, so the history stays honest: twelve
+   * closed lines for twelve months of gloves, each with the day it was actually
+   * done and who did it. Moving `dueAt` on the same row would leave a board
+   * that can never answer "did we order them in March".
+   *
+   * Only on the way *down*. Reopening a line by mistake — which is the whole
+   * reason `doneAt` is a nullable column and not a delete — must not leave a
+   * spawned copy behind, and a board that grew a row every time somebody
+   * mis-tapped would be worse than one that forgets.
+   *
+   * The two writes go in one transaction. Half of this is a line ticked off
+   * with its successor missing, which is precisely the errand nobody will
+   * notice is gone until the month it matters.
+   */
+  const repeating = done && item.repeatEvery !== null;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.followUp.update({
+      where: { id },
+      data: { doneAt: done ? new Date() : null, doneById: done ? user.id : null },
+    });
+
+    if (!repeating || !item.repeatEvery) return;
+
+    await tx.followUp.create({
+      data: {
+        title: item.title,
+        notes: item.notes,
+        dueAt: nextDueAt(item.dueAt, item.repeatEvery),
+        priority: item.priority,
+        repeatEvery: item.repeatEvery,
+        assignedToId: item.assignedToId,
+        patientId: item.patientId,
+        workId: item.workId,
+        stockItemId: item.stockItemId,
+        // The person who closed this one, not whoever first wrote the errand
+        // years ago — `createdBy` is only ever read as "ask them what this is
+        // about", and the answer is the person who last dealt with it.
+        createdById: user.id,
+      },
+    });
   });
 
   await recordAudit(user, {
     action: 'update',
     entity: 'followup',
     entityId: id,
-    summary: `${item.title} — ${done ? 'done' : 'reopened'}`,
+    summary: `${item.title} — ${done ? 'done' : 'reopened'}${repeating ? ', repeated' : ''}`,
   });
 
   revalidateAll();

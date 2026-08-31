@@ -1,10 +1,12 @@
-import { ArrowLeft, CalendarClock, PackageCheck } from 'lucide-react';
+import { ArrowLeft, CalendarClock, PackageCheck, Trash2 } from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { WriteOffForm } from '@/components/stock/WriteOffForm';
+import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { writeOffExpired } from '@/lib/actions/stock';
 import { requirePermission } from '@/lib/auth/guard';
 import { Link } from '@/i18n/navigation';
 import { addDays, today } from '@/lib/dates';
@@ -140,10 +142,34 @@ export default async function ExpiryPage({
         subtitle={t('expirySubtitle', { days: EXPIRY_SOON_DAYS })}
         trail={[{ href: '/stock', label: t('title') }, { label: t('expiryTitle') }]}
         actions={
-          <Link href="/stock" className="btn btn-secondary">
-            <ArrowLeft size={18} aria-hidden />
-            {tc('back')}
-          </Link>
+          <>
+            {/* The verb this screen was missing. It could name every turned lot
+                and offer a button beside each one, which is right for a single
+                box and wrong for a shelf back from a quiet August with eleven
+                of them — eleven presses and eleven confirm dialogs is a job that
+                gets put off, and a lot left on record keeps being counted by the
+                storage page and subtracted by `usableQuantity` at the same time.
+
+                Only rendered when there is actually something expired: a button
+                that clears nothing is a button that teaches people it does
+                nothing. */}
+            {expired.length > 0 ? (
+              <ActionForm
+                action={writeOffExpired}
+                values={{ confirm: 'yes' }}
+                confirmMessage={t('expiredClearConfirm', { count: expired.length })}
+              >
+                <button type="submit" className="btn btn-secondary">
+                  <Trash2 size={18} aria-hidden />
+                  {t('expiredClear', { count: expired.length })}
+                </button>
+              </ActionForm>
+            ) : null}
+            <Link href="/stock" className="btn btn-secondary">
+              <ArrowLeft size={18} aria-hidden />
+              {tc('back')}
+            </Link>
+          </>
         }
       />
 

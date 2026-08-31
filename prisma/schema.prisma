@@ -30,6 +30,30 @@ model StaffUser {
   lockedUntil    DateTime?
   lastLoginAt    DateTime?
 
+  /// When this person last shut the reminder board.
+  ///
+  /// The board grew from two piles to seven, and the badge stopped ever reading
+  /// nought: on a real practice sixteen of its twenty-one items had been sitting
+  /// for days, because a booking request nobody has answered and a shelf below
+  /// its minimum do not go away by themselves. A number that says the same thing
+  /// every morning is one people stop reading, which is the exact failure the
+  /// board was built to avoid — so it has to be able to say what is *new*.
+  ///
+  /// On the person, not in a cookie. "Since you last looked" is a fact about a
+  /// reader, and this practice shares machines: a cookie would tell whoever sat
+  /// down next that they had already seen it, and would forget every time
+  /// somebody opened the app on their phone instead.
+  ///
+  /// Written when the board is **closed**, not when it is opened. Marking on
+  /// open would clear the marks in the same breath as drawing them — the modal
+  /// stays open across a server action and re-renders — so the new lines would
+  /// vanish while somebody was still working through them.
+  ///
+  /// Null until the first time, and null means *nothing is new* rather than
+  /// everything: a board that greeted a new member of staff by flagging all
+  /// twenty-one rows as fresh would be lying about all twenty-one.
+  boardSeenAt DateTime?
+
   /// What makes a calendar subscription link revocable.
   ///
   /// The feed token is an HMAC over this person's id — no stored row, nothing to
@@ -45,6 +69,26 @@ model StaffUser {
   /// it land on a table that already has rows.
   calendarFeedVersion Int @default(1)
 
+  /// Which parts of the menu this person has switched off, as dot-joined keys.
+  ///
+  /// A preference and not an authorisation — see `src/lib/nav-visibility.ts`. It
+  /// lives on the account rather than in a cookie because it is a fact about the
+  /// *person*: the same nurse signs in at the surgery screen and at the front
+  /// desk, and "I never open the works register" is true at both. That is the
+  /// line the appearance settings fall on the other side of — a bright waiting
+  /// room and a dim surgery genuinely want different themes, so those stay on
+  /// the machine (see `Appearance`), and this does not.
+  ///
+  /// Empty is the honest default and means nothing is hidden. No backfill.
+  hiddenNav String @default("")
+
+  /// When this person was first shown where the help is, or null if never.
+  ///
+  /// A date rather than a boolean, because the useful question later is not
+  /// *whether* somebody has been told but *when* — a pointer worth showing again
+  /// after a year of new screens is a decision that needs the date to make.
+  helpSeenAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -52,6 +96,7 @@ model StaffUser {
   visitRecords    VisitRecord[]        @relation("VisitRecorder")
   visitsPerformed VisitRecord[]        @relation("VisitPerformer")
   stockMovements  StockMovement[]
+  purchaseOrders  PurchaseOrder[]
   documents       PatientDocument[]
   prescriptions   Prescription[]
   appointments    Appointment[]
@@ -673,6 +718,24 @@ model ToothRecord {
   /// diagnosis, so it is recorded per site alongside the depth or not at all.
   bleeding String?
 
+  /// Gingival recession in millimetres at the same six sites, same encoding and
+  /// same "empty means not measured" rule as `pockets`.
+  ///
+  /// Without it a pocket depth cannot be turned into clinical attachment loss,
+  /// and CAL is the measure periodontal diagnosis actually runs on: a 4mm
+  /// pocket on a gum that has receded 3mm is 7mm of lost attachment and a very
+  /// different tooth from a 4mm pocket with no recession. Recorded separately
+  /// rather than folded into the depth because they are two different probe
+  /// readings taken from two different landmarks.
+  recession String?
+
+  /// Furcation involvement where the roots divide, as a grade 0–3, or null on a
+  /// tooth that has no furcation to involve — every single-rooted tooth in the
+  /// mouth. One grade per tooth rather than one per furcation: the worst of them
+  /// is what decides whether a molar is restorable, which is the question this
+  /// column exists to answer.
+  furcation Int?
+
   /// The visit that put the tooth in this state, when it was recorded during
   /// one. Turns a snapshot into something a timeline can explain.
   visitRecordId String?
@@ -821,6 +884,22 @@ model StockItem {
   /// database error.
   code String? @unique
 
+  /// Where the box physically is — "Cupboard 2, top shelf", "Surgery 1 drawer".
+  ///
+  /// Free text on purpose, unlike `category`. The two answer different
+  /// questions and only one of them is a list: a category is a *kind* of thing
+  /// and gets typed once per shelf, so a closed list is what stops three
+  /// spellings of "Higjena". A location is a sentence about one cupboard in one
+  /// building, it is read by a person walking to it, and forcing it through a
+  /// managed list would mean maintaining a taxonomy of a room nobody else will
+  /// ever see.
+  ///
+  /// Optional, and expected to stay empty in a practice small enough that every
+  /// material has one obvious home. It earns its place the moment there are two
+  /// rooms — which is exactly when "where do we keep the articaine" stops having
+  /// an answer everybody already knows.
+  location String?
+
   /// What one `unit` costs to buy — the last price actually paid.
   ///
   /// Set by hand, or overwritten by a delivery that records what it cost, so
@@ -867,11 +946,12 @@ model StockItem {
   /// every picker, and its history stays exactly where it was.
   archivedAt DateTime?
 
-  movements StockMovement[]
-  usedBy    ServiceMaterial[]
-  batches   StockBatch[]
-  barcodes  ProductBarcode[]
-  followUps FollowUp[]
+  movements  StockMovement[]
+  usedBy     ServiceMaterial[]
+  batches    StockBatch[]
+  barcodes   ProductBarcode[]
+  followUps  FollowUp[]
+  orderLines PurchaseOrderLine[]
 
   /// The one open "not now" against this material's low-stock alert, if any.
   /// See `StockAlertDismissal` — at most one per material, which is why this
@@ -1025,7 +1105,102 @@ model Supplier {
 
   createdAt DateTime @default(now())
 
-  items StockItem[]
+  items  StockItem[]
+  orders PurchaseOrder[]
+}
+
+/// An order that was actually placed, as a document rather than as a flag.
+///
+/// `StockItem.orderedAt` was the whole of purchasing: a timestamp meaning "this
+/// one is on its way", set when the message went out and cleared when anything
+/// at all arrived. It answers one question well and three not at all.
+///
+///  - **Ordered ten, received six.** The first box through the scanner cleared
+///    the flag, the line left the reorder list, and the four that never came
+///    were forgotten by every screen in the app at once. There was nowhere to
+///    record a part-delivery because there was nowhere to record an amount.
+///  - **What did we order?** The list existed for as long as it took to paste
+///    into WhatsApp. `reorderAsText` built it, the message was sent, and nothing
+///    kept a copy — so an invoice arriving three weeks later could not be
+///    checked against the order it was answering.
+///  - **What did we agree to pay?** Prices are recorded on arrival, which is
+///    where a supplier's own figure goes unquestioned: the moment to notice a
+///    rise is when it is quoted, not after it is paid.
+///
+/// Deliberately *not* automatic. A purchase is the owner's decision and stays
+/// one — this is created by the same press that used to set the flag, and
+/// nothing here orders anything by itself.
+///
+/// The flags on `StockItem` stay exactly where they are. Four screens read them
+/// on every render — the reorder list, the storage page, the alert board and the
+/// reminder centre — and re-deriving "is this on order" from a join in each of
+/// them would be a slower answer to a question already answered. This is the
+/// record; those are its index, and the actions here write both.
+model PurchaseOrder {
+  id String @id @default(uuid())
+
+  /// Who it was sent to. Null for the group of materials nobody has said where
+  /// to buy — which is a real order somebody placed by other means, not an
+  /// error, so it is recorded rather than refused.
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  /// Snapshotted, for the reason a visit snapshots its treatment names: a
+  /// supplier renamed or removed next year must not rewrite what this order says
+  /// it was sent to.
+  supplierName String @default("")
+
+  placedAt   DateTime  @default(now())
+  expectedAt DateTime?
+
+  /// Set when nothing is outstanding — every line received, or the order given
+  /// up on. A closed order is history; an open one is a question.
+  closedAt DateTime?
+
+  /// True when it was closed by hand rather than by the last box arriving. The
+  /// two are different facts and a date alone cannot tell them apart.
+  cancelled Boolean @default(false)
+
+  notes String?
+
+  staffUserId String?
+  staffUser   StaffUser? @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
+
+  lines PurchaseOrderLine[]
+
+  /// The one query the orders screen makes: what is still open, newest first.
+  @@index([closedAt, placedAt])
+  @@index([supplierId])
+}
+
+/// One material on one order, and how much of it has turned up.
+///
+/// `receivedQuantity` against `quantity` is the whole reason this table exists:
+/// it is the difference between "that order is done" and "four of the ten are
+/// still owed to us", and it is the figure nothing in the app could hold.
+model PurchaseOrderLine {
+  id      String        @id @default(uuid())
+  orderId String
+  order   PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  /// Snapshotted like the supplier's, and for the same reason.
+  itemName String @default("")
+
+  /// Boxes asked for.
+  quantity Int @default(1)
+
+  /// Boxes arrived, across however many deliveries answered this line. Only
+  /// ever increased, and never past `quantity` — a supplier sending twelve
+  /// against an order of ten has closed the line and delivered two extra, which
+  /// the shelf records and the order does not pretend to have asked for.
+  receivedQuantity Int @default(0)
+
+  /// Receiving looks for the oldest open line naming this material.
+  @@index([itemId, receivedQuantity])
+  @@index([orderId])
 }
 
 /// A delivered lot of a material.
@@ -1666,6 +1841,27 @@ enum FollowUpPriority {
   URGENT
 }
 
+/// How often an errand comes back.
+///
+/// The gap this closes is the one every recurring job in a practice falls into.
+/// "Order more gloves", "check the autoclave log", "chase the waste contract" —
+/// each is written from scratch every month, and the month nobody writes it is
+/// the month it does not happen. A board that can only be told about *this*
+/// Thursday makes the practice its own scheduler.
+///
+/// Named intervals rather than a number of days, because half of these are
+/// calendar facts and not arithmetic: an errand set for the last day of January
+/// and repeating monthly is due at the end of February, not on the 2nd of March.
+/// `nextDueAt` in `lib/follow-ups.ts` is where that lives, and it is pure and
+/// tested precisely because month-end is where date code goes wrong.
+enum FollowUpRepeat {
+  WEEKLY
+  FORTNIGHTLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
 /// Something the practice has to come back to, with a day attached.
 ///
 /// The gap this fills is narrow and real. Everything else in the app is a record
@@ -1701,6 +1897,18 @@ model FollowUp {
   dueAt DateTime
 
   priority FollowUpPriority @default(NORMAL)
+
+  /// How often this one comes back, or null for a one-off — which is most of
+  /// them, and the reason this is nullable rather than an enum with a `NEVER`.
+  ///
+  /// Kept on the line rather than in a separate schedule table: a repeating
+  /// follow-up is not a template that spawns children, it is an errand that,
+  /// when ticked, writes the next one and carries this field with it. That
+  /// makes the history honest — twelve closed lines for twelve months of
+  /// gloves, each with the day it was actually done — and it means editing the
+  /// interval, or dropping it, is editing the line in front of you rather than
+  /// hunting for a rule somewhere else.
+  repeatEvery FollowUpRepeat?
 
   /// Ticked off, and by whom. Kept rather than deleted so the board can be
   /// looked back over, and so a line closed by mistake can be reopened.
@@ -1844,6 +2052,64 @@ enum MessageStatus {
   CANCELLED
   /// Deliberately not sent: no way to reach them, or they asked not to be.
   SKIPPED
+}
+
+/// What was waiting on the practice on one particular morning.
+///
+/// The reminder board answers "what is waiting" brilliantly for anybody who
+/// opens it. This exists for the morning nobody does — the day off, the locum,
+/// the week the owner is at a conference — and it is deliberately the *only*
+/// thing in the app that is future-facing about the practice itself rather than
+/// about a patient.
+///
+/// **It stores the numbers, not the words**, which is `ScheduledMessage`'s rule
+/// and it is the same argument: a digest composed at write time and read a week
+/// later would quote a board that has since been cleared, and the wording has to
+/// be in the reader's language anyway. Ten integers and a date; the sentence is
+/// composed when somebody looks.
+///
+/// **Nothing sends it.** `sentAt` is here from the first day and will stay null
+/// until a human decides that the practice should be emailed its own board —
+/// which is a decision about a mailer that is not configured against a real
+/// domain yet, and about the line every job in this app has held so far ("it
+/// still sends nothing: it fills a queue a person works down"). The row is the
+/// queue. What sends it, if anything ever does, is somebody's choice later.
+///
+/// One row per day, and `forDay` is unique because that is what makes the clock
+/// safe to run twice — the same reasoning `ScheduledMessage.dedupeKey` sets out,
+/// and enforceable for the same reason: the deploy replays migrations now.
+model PracticeDigest {
+  id String @id @default(uuid())
+
+  /// The morning this describes, at UTC midnight.
+  forDay DateTime @unique
+
+  /// The practice's own errands, split the way the board splits them.
+  followUpsOverdue Int
+  followUpsToday   Int
+
+  /// The storage room. `ordersLate` cuts across the other two rather than
+  /// adding to them — a material is usually empty *because* the order never
+  /// came — so a reader must not sum these three.
+  stockOut   Int
+  stockLow   Int
+  ordersLate Int
+
+  /// The piles that live on other screens. Same list, same order, as
+  /// `lib/board-elsewhere.ts`, which is what fills them.
+  worksToChase         Int
+  requestsWaiting      Int
+  unreadMail           Int
+  unremindedTomorrow   Int
+  appointmentsUnclosed Int
+
+  /// Null while nothing has sent this — see the note above. Kept from the
+  /// beginning rather than added later to a table full of rows that lack it,
+  /// which is the argument `ScheduledMessage.sendAfter` already makes.
+  sentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 /// One run of one scheduled job, whether it worked, and what it did.

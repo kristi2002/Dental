@@ -1153,7 +1153,6 @@
     "inStock": "{qty, plural, one {# kuti} other {# kuti}} në gjendje",
     "minShort": "min {min}",
     "lastUpdated": "Përditësuar më {date}",
-    "filterAll": "Të gjitha",
     "filterLow": "Vetëm stoku i ulët",
     "filterOut": "Mbaruar",
     "filterLevelLabel": "Filtro sipas nivelit të stokut",
@@ -1286,7 +1285,19 @@
     "moveScanAnother": "Skano një tjetër",
     "labelPrintThis": "Printo këtë etiketë",
     "labelPrintThisFor": "Printo etiketën e {name}",
-    "labelPrintOneHint": "Do të printohet vetëm kjo."
+    "labelPrintOneHint": "Do të printohet vetëm kjo.",
+    "stocktakeScopeLabel": "Cili raft",
+    "stocktakeWholeRoom": "I gjithë magazina",
+    "stocktakeScanMode": "Numëro me skaner",
+    "stocktakeScanConfirm": "Numërimi me skaner e nis çdo material të këtij rafti nga zeroja dhe çdo lexim shton një. Çdo gjë që nuk e skanoni do të regjistrohet si e mbaruar. Të vazhdohet?",
+    "stocktakeScanHint": "Skano çdo kuti në raft.",
+    "stocktakeScanOffHint": "Shkruaj sasitë, ose ndiz skanerin për të lexuar çdo kuti.",
+    "stocktakeScanned": "{name} → {count}",
+    "stocktakeScanUnknown": "{count, plural, one {# lexim nuk përputhet me asgjë në këtë raft} other {# lexime nuk përputhen me asgjë në këtë raft}}",
+    "expiredClear": "{count, plural, one {Hiq # lot të skaduar} other {Hiq të gjithë # lotet e skaduar}}",
+    "expiredClearConfirm": "Të hiqen {count, plural, one {# lot i skaduar} other {të gjithë # lotet e skaduar}} nga magazina? Secili regjistrohet si heqje, që shifrat e përdorimit të mbeten të sakta.",
+    "location": "Ku mbahet",
+    "locationHint": "Dollapi, dhoma ose sirtari — ashtu si do t’ia thoshe një kolegu."
   },
   "analytics": {
     "title": "Statistikat",
@@ -1316,7 +1327,22 @@
     "utilisationHint": "Minutat e rezervuara kundrejt orëve që klinika ishte e hapur.",
     "noShowByProvider": "Takime të humbura sipas dentistit",
     "noShowHint": "Takime ku pacienti nuk erdhi. Anulimet e klinikës nuk numërohen.",
-    "pastAppointments": "Të kaluara"
+    "pastAppointments": "Të kaluara",
+    "noSupplier": "Pa furnitor të regjistruar",
+    "stockSpend": "Shpenzimi i materialeve sipas muajit",
+    "spend": "Shpenzimi",
+    "noPricedDeliveries": "Asnjë dorëzim i kësaj periudhe nuk ka regjistruar çmim.",
+    "spendUnpriced": "{boxes, plural, one {# kuti e marrë} other {# kuti të marra}} në këtë periudhë pa çmim, dhe nuk janë llogaritur më sipër.",
+    "spendBySupplier": "Shpenzimi sipas furnitorit",
+    "treatmentMaterialCost": "Kostoja e materialeve sipas trajtimit",
+    "noTreatmentCosts": "Ende asgjë për të shfaqur. Kjo llogaritet nga vizitat që kanë regjistruar vetëm një trajtim dhe që kanë pasur materiale të zbritura.",
+    "treatment": "Trajtimi",
+    "costPerVisit": "Për vizitë",
+    "costTotal": "Gjithsej",
+    "costSkipped": "{count, plural, one {# vizitë ka regjistruar më shumë se një trajtim dhe nuk është përfshirë.} other {# vizita kanë regjistruar më shumë se një trajtim dhe nuk janë përfshirë.}}",
+    "costEstimated": "{percent}% e kësaj shume është llogaritur me çmimin e fundit të njohur të materialit, jo me çmimin e dorëzimit prej të cilit erdhi.",
+    "priceMoves": "Çmime që kanë ndryshuar",
+    "materialsRecorded": "Materialet janë regjistruar në {percent}% të {visits, plural, one {# vizite} other {# vizitave}} të kësaj periudhe. Nuk është objektiv — një kontroll nuk harxhon asgjë — por një përqindje në rënie do të thotë se këto shtylla po ushqehen gjithnjë e më pak me atë që klinika shpenzon vërtet."
   },
   "teeth": {
     "title": "Skema dentare",
@@ -1449,9 +1475,15 @@
     "close": "Mbyll",
     "none": "Asgjë nuk kërkon vëmendjen tuaj tani.",
     "noneHint": "Stoku i ulët dhe ndjekjet vijnë këtu. Një tabelë bosh është vërtet bosh.",
+    "statAll": "Të gjitha",
+    "statMine": "Të miat",
+    "statUrgent": "Urgjente",
     "statOverdue": "Me vonesë",
     "statToday": "Sot",
+    "statLater": "Më vonë",
     "statStock": "Stok i ulët",
+    "statOut": "Pa asgjë",
+    "statOrderLate": "S'ka ardhur",
     "sectionStock": "Magazina",
     "sectionStockHint": "Nën minimum, ose e porositur dhe e pambërritur.",
     "sectionFollowUps": "Ndjekjet",
@@ -1477,13 +1509,34 @@
     "seeAll": "Hap magazinën",
     "countStock": "{count, plural, one {# material} other {# materiale}}",
     "countFollowUps": "{count, plural, one {# ndjekje} other {# ndjekje}}",
-    "badgeLabel": "{count, plural, =0 {asgjë në pritje} one {# në pritje} other {# në pritje}}"
+    "badgeLabel": "{count, plural, =0 {asgjë në pritje} one {# në pritje} other {# në pritje}}",
+    "filterLabel": "Cilat kujtesa të shfaqen",
+    "filterEmpty": "Këtu nuk ka mbetur asgjë.",
+    "filterEmptyHint": "{count, plural, one {# kujtesë është ende në tabelë} other {# kujtesa janë ende në tabelë}}, nën filtrat e tjerë.",
+    "filterShowAll": "Shfaq të gjitha",
+    "sectionElsewhere": "Diku tjetër në aplikacion",
+    "sectionElsewhereHint": "Presin në një ekran të vetin. Tabela vetëm thotë se ekzistojnë.",
+    "countElsewhere": "{count, plural, one {# në pritje} other {# në pritje}}",
+    "elsewhere": {
+      "works": "{count, plural, one {# rast është ende te laboratori} other {# raste janë ende te laboratori}}",
+      "requests": "{count, plural, one {# kërkesë rezervimi nga faqja} other {# kërkesa rezervimi nga faqja}}",
+      "mail": "{count, plural, one {# mesazh pacienti, pa përgjigje} other {# mesazhe pacientësh, pa përgjigje}}",
+      "unreminded": "{count, plural, one {# pacient nesër nuk ka marrë asnjë njoftim} other {# pacientë nesër nuk kanë marrë asnjë njoftim}}",
+      "unwritten": "{count, plural, one {# takim nuk u mbyll kurrë} other {# takime nuk u mbyllën kurrë}}"
+    },
+    "elsewhereHint": {
+      "works": "Duhen kthyer brenda pak ditësh, ose kanë kaluar.",
+      "requests": "Dikush la numrin e tij dhe po pret.",
+      "mail": "Dikush shkroi dhe askush nuk iu përgjigj.",
+      "unreminded": "Nesër, dhe askush nuk u ka dërguar gjë.",
+      "unwritten": "Thuaj çfarë ndodhi, që kartela të mbetet e saktë."
+    },
+    "newSince": "{count, plural, one {# e re që kur e patë së fundmi} other {# të reja që kur e patë së fundmi}}"
   },
   "requests": {
     "title": "Kërkesa nga faqja",
     "subtitle": "Njerëz që kanë lënë numrin te faqja publike. Më e vjetra e para.",
     "filterOpen": "Të hapura",
-    "filterAll": "Të gjitha",
     "empty": "Asnjë kërkesë për momentin.",
     "allPickedUp": "Të gjitha janë marrë përsipër.",
     "status": {
@@ -2147,7 +2200,19 @@
     "attachments": "Skedarë",
     "attachmentsEmpty": "Asgjë e bashkëngjitur. Një foto e punës vlen më shumë se një fjali që e përshkruan.",
     "attach": "Bashkëngjit skedar",
-    "attachmentCount": "{count, plural, one {# skedar} other {# skedarë}}"
+    "attachmentCount": "{count, plural, one {# skedar} other {# skedarë}}",
+    "fieldRepeat": "Kthehet",
+    "fieldRepeatHint": "Kur e shënon si të kryer, shkruhet e radhës, e llogaritur nga dita e afatit.",
+    "repeatNever": "Vetëm një herë",
+    "repeatsEvery": "Përsëritet {every}",
+    "repeat": {
+      "WEEKLY": "Çdo javë",
+      "FORTNIGHTLY": "Çdo dy javë",
+      "MONTHLY": "Çdo muaj",
+      "QUARTERLY": "Çdo tre muaj",
+      "YEARLY": "Çdo vit"
+    },
+    "fresh": "E re"
   },
   "workProcedures": {
     "title": "Llojet e punimeve",
@@ -2401,12 +2466,14 @@
     "name": {
       "queue-appointment-reminders": "Kujtesat e nesërme",
       "sweep-orphan-files": "Pastro skedarët e papërdorur",
-      "queue-recalls": "Kontrollet me vonesë"
+      "queue-recalls": "Kontrollet me vonesë",
+      "compose-morning-digest": "Regjistro çfarë priste sot në mëngjes"
     },
     "hint": {
       "queue-appointment-reminders": "Gjen kë duhet kujtuar për nesër dhe mbush radhën e dërgimit. Nuk dërgon asgjë.",
       "sweep-orphan-files": "Heq skedarët e ngarkuar që nuk i përket më asnjë regjistrim.",
-      "queue-recalls": "Vendos në radhë pacientët që s'i ka parë kush prej muajsh. Nuk dërgon asgjë."
+      "queue-recalls": "Vendos në radhë pacientët që s'i ka parë kush prej muajsh. Nuk dërgon asgjë.",
+      "compose-morning-digest": "Shkruan çfarë mbante tabela e kujtesave, që të ketë një histori. Nuk dërgon asgjë."
     },
     "reason": {
       "ok": "Në rregull",
@@ -2661,7 +2728,19 @@
     "lineQuantity": "Sa {name}",
     "formatElement": "GS1",
     "formatDigitalLink": "QR GS1",
-    "formatPlain": "Kod i thjeshtë"
+    "formatPlain": "Kod i thjeshtë",
+    "byNameLabel": "Kutia s’ka barkod?",
+    "byNamePlaceholder": "Fillo të shkruash emrin e materialit",
+    "byNameHint": "E shton në shportë pa barkod. Nuk regjistrohet as loti as skadenca.",
+    "byNameNoMatch": "Asnjë material me këtë emër. Shtoje fillimisht nga faqja e magazinës.",
+    "byNameAmbiguous": "{count, plural, other {# materiale fillojnë ashtu. Shkruaj edhe pak.}}",
+    "offlineHint": "Pa lidhje. Vazhdo skanimin — shporta është ruajtur në këtë pajisje dhe do të mbetet këtu. Shtyp Ruaj kur të kthehet lidhja.",
+    "linkModeLabel": "Mëso skanerin",
+    "linkModeHint": "Nuk lëviz asgjë. Skano çdo kuti të një rafti për të parë cilat i njeh tashmë aplikacioni.",
+    "linkModeTitle": "Mësimi i skanerit",
+    "linkModeKnown": "{count, plural, =0 {ende asnjë i njohur} one {# tashmë i njohur} other {# tashmë të njohur}}",
+    "linkModeToName": "{count, plural, one {# për t’u emërtuar} other {# për t’u emërtuar}}",
+    "linkModeBody": "Ec përgjatë një rafti dhe skano çdo kuti. Çfarë aplikacioni e njeh tashmë shënohet këtu; çfarë nuk e njeh shfaqet më poshtë për t’u emërtuar një herë, dhe njihet përgjithmonë më pas."
   },
   "editor": {
     "bold": "Të trasha",
@@ -2697,7 +2776,8 @@
     "noName": "Pa emër",
     "badNumber": "Një numër nuk u lexua — u përdor vlera e parazgjedhur",
     "duplicateInFile": "Shfaqet më parë në këtë skedar",
-    "alreadyHere": "Tashmë ekziston këtu"
+    "alreadyHere": "Tashmë ekziston këtu",
+    "badBarcode": "Kolona e barkodit nuk kishte një simbol të vlefshëm, ndaj ky material importohet por nuk do të lexohet me skaner."
   },
   "messageTemplates": {
     "title": "Shkruaji {name}",
@@ -2795,5 +2875,1112 @@
     "mailRejected": "Ofruesi i email-it nuk e pranoi mesazhin.",
     "mailLimit": "Kufiri i dërgimeve për sot ka mbaruar.",
     "mailUnreachable": "Ofruesi i email-it nuk u arrit dot."
+  },
+  "help": {
+    "button": "Për çfarë shërben kjo faqe?",
+    "close": "Mbyll",
+    "example": "Për shembull",
+    "tips": "Ia vlen ta dini",
+    "related": "Ku të shkoni pastaj",
+    "footer": "Shtypni <key>?</key> në çdo faqe që ta hapni këtë.",
+    "shapes": {
+      "dashboard": "Një skicë e kësaj faqeje: një rresht numrash lart, një panel me punën e sotme pranë një paneli me atë që kërkon vëmendje, dhe dy butona poshtë.",
+      "calendar": "Një skicë e kësaj faqeje: një zgjedhës ditë-javë-muaj mbi një rrjetë ditësh, me terminet si blloqe të mbushura dhe kohën e lirë me vijë të ndërprerë.",
+      "list": "Një skicë e kësaj faqeje: një kuti kërkimi dhe një buton lart, dhe poshtë rreshtat, secili me gjendjen dhe menunë e vet.",
+      "record": "Një skicë e kësaj faqeje: një emër me paralajmërimet e tij lart, një rresht skedash poshtë, dhe një panel i gjerë pranë një më të ngushti.",
+      "steps": "Një skicë e kësaj faqeje: një titull me shirit ecurie, pastaj hapat me radhë, secili me një kuti shënimi dhe një buton, dhe poshtë një rresht bosh për të shtuar një tjetër.",
+      "board": "Një skicë e kësaj faqeje: tre numra lart, pastaj puna e ndarë në seksione, ku çdo rresht mban një datë dhe butonat që e mbyllin.",
+      "gallery": "Një skicë e kësaj faqeje: një kuti kërkimi mbi një rrjetë kartash, secila me një fotografi dhe një emër poshtë.",
+      "charts": "Një skicë e kësaj faqeje: një zgjedhës periudhe, një rresht shifrash, një grafik me shtylla dhe një tabelë poshtë.",
+      "week": "Një skicë e kësaj faqeje: një rresht për çdo ditë të javës, me orën e hapjes, të mbylljes dhe pushimin, dhe një buton ruajtjeje poshtë.",
+      "form": "Një skicë e kësaj faqeje: fusha me një udhëzim poshtë secilës, një parapamje e rezultatit anash, dhe një buton për të ruajtur."
+    },
+    "diagrams": {
+      "recall": {
+        "title": "Si përfundon dikush në listën e rikthimeve",
+        "labels": [
+          "Regjistrohet një vizitë",
+          "Nis numërimi i intervalit të tij të rikthimit — gjashtë muaj, një vit, sa thotë kartela",
+          "Intervali kalon pa asnjë termin të ri",
+          "Personi shfaqet te Rikthimet",
+          "Përgatitet një kujtesë, dërgohet, dhe pacienti rezervon sërish"
+        ]
+      },
+      "plan": {
+        "title": "Si lind një plan trajtimi",
+        "labels": [
+          "Një gjetje shënohet mbi një dhëmb",
+          "Ajo bëhet një hap i planit, bashkë me dhëmbin",
+          "Hapi vendoset në kalendar",
+          "Vizita ndodh dhe hapi shënohet si i kryer"
+        ]
+      },
+      "work": {
+        "title": "Një punim te laboratori",
+        "labels": [
+          "Rasti shkruhet në regjistër dhe niset",
+          "Laboratori premton një datë kthimi",
+          "Data kalon — shfaqet me vonesë dhe mund të ndiqet",
+          "Kthehet dhe shënohet si i ardhur"
+        ]
+      },
+      "message": {
+        "title": "Si mbërrin një bisedë",
+        "labels": [
+          "Një kujtesë ose mesazh i niset pacientit",
+          "Ai përgjigjet, nga telefoni ose emaili i vet",
+          "Përgjigjja bie te Të ardhurat si bisedë",
+          "Ju e lidhni me kartelën e tij, dhe shfaqet në dosjen e tij"
+        ]
+      },
+      "request": {
+        "title": "Nga faqja publike te kalendari",
+        "labels": [
+          "Dikush plotëson formularin te faqja e klinikës",
+          "Mbërrin te Kërkesa, më e vjetra e para",
+          "Ju e telefononi dhe bini dakord për një orë",
+          "Bëhet pacient me një termin"
+        ]
+      },
+      "prescription": {
+        "title": "Si shkruhet një recetë",
+        "labels": [
+          "Teksti standard shkruhet njëherë si model",
+          "Një pacient trajtohet dhe teksti ofrohet vetë",
+          "Përshtatet për atë pacient dhe lëshohet",
+          "Printohet, dhe mbetet përgjithmonë në kartelën e tij"
+        ]
+      },
+      "import": {
+        "title": "Si sillet brenda një fletë llogaritëse",
+        "labels": [
+          "Lista që keni tashmë, si skedar CSV",
+          "Kolonat përputhen me fushat e aplikacionit",
+          "Shihni saktësisht çfarë do të shtohet dhe çfarë do të ndryshojë",
+          "Asgjë nuk ruhet derisa ta konfirmoni"
+        ]
+      },
+      "scan": {
+        "title": "Lëvizja e magazinës me skanim",
+        "labels": [
+          "Çdo material ka një etiketë QR mbi kuti",
+          "Ju e skanoni — me kamerën ose me një lexues dore",
+          "Thoni nëse po hyn apo po del",
+          "Sasia në raft dhe regjistri lëvizin bashkë"
+        ]
+      },
+      "followUp": {
+        "title": "Si funksionon një detyrë",
+        "labels": [
+          "Shkruani çfarë duhet bërë dhe kur t’ju kujtohet",
+          "Rri e qetë deri në ditën e vet",
+          "Atë ditë del te zilja dhe te tabela",
+          "E bëni dhe e shënoni — ose e shtyni ca ditë"
+        ]
+      },
+      "stock": {
+        "title": "Çfarë do të thotë “pak gjendje”",
+        "labels": [
+          "Rehat mbi minimumin — nuk thuhet asgjë",
+          "Në minimum ose nën të — hyn në listën e porosive",
+          "Nuk ka mbetur asgjë — shënohet me të kuqe në çdo faqe",
+          "Minimumi që vendosni për çdo material. Është e vetmja vijë që ka rëndësi."
+        ]
+      },
+      "teeth": {
+        "title": "Si numërohen dhëmbët (FDI)",
+        "labels": [
+          "Lart djathtas",
+          "Lart majtas",
+          "Poshtë djathtas",
+          "Poshtë majtas",
+          "Shifra e parë është kuadranti, e dyta tregon sa prapa ndodhet dhëmbi. Kështu 26 është dhëmbi i gjashtë lart majtas — molari i parë. Kartelat ruhen gjithmonë kështu, edhe kur etiketat janë vendosur në numërimin amerikan 1–32."
+        ]
+      },
+      "roles": {
+        "title": "Çfarë lejohet të bëjë secili rol",
+        "labels": [
+          "Cakton termine",
+          "Hap kartelën dentare",
+          "Sheh statistikat",
+          "Stafi dhe regjistri",
+          "Përgjigjet nuk ngushtohen thjesht rresht pas rreshti. Një zëvendësues lexon kartelën dhe shifrat pa ndryshuar asgjë; recepsioni shkruan në kalendar tërë ditën dhe nuk hap kurrë një kartelë. Fshirja i takon vetëm pronarit."
+        ]
+      },
+      "expiry": {
+        "title": "Lotet përballë ditës së sotme",
+        "labels": [
+          "Sot",
+          "Të skaduara",
+          "Skadojnë së shpejti",
+          "Ende në rregull"
+        ]
+      },
+      "day": {
+        "title": "Nga çfarë përbëhet një ditë pune",
+        "labels": [
+          "E zënë",
+          "E mbyllur — jashtë orarit, ose pushimi i drekës",
+          "E lirë dhe e rezervueshme",
+          "Ngjyra gri vjen nga Orari i punës. Ndryshojeni javën atje dhe çdo faqe që vizaton një ditë e ndjek."
+        ]
+      }
+    },
+    "topics": {
+      "dashboard": {
+        "title": "Paneli",
+        "tagline": "Pesë minutat që hapin ditën",
+        "what": "Faqja që hapet e para në mëngjes dhe sërish e fundit në mbrëmje. Mbledh atë që dita ka vërtet nevojë — kush po vjen, çfarë nuk është shkruar, çfarë mungon në magazinë — që të mos duhet as të mbahet mend, as të kërkohet.",
+        "steps": [
+          {
+            "title": "Numrat lart",
+            "body": "Pacientë në kartotekë, terminet e sotme dhe të javës, rikthimet e maturuara dhe materialet nën minimum. Secili hap listën që qëndron pas tij."
+          },
+          {
+            "title": "Veprime të shpejta",
+            "body": "Shtoni një pacient ose caktoni një termin pa dalë nga kjo faqe — janë të njëjtat formularë që përdor kalendari."
+          },
+          {
+            "title": "Çfarë kërkon vëmendje",
+            "body": "Sinjalizimet e magazinës, rikthimet dhe kërkesat nga faqja. Në një ditë të mirë këto panele janë bosh, dhe pikërisht për këtë janë aty."
+          },
+          {
+            "title": "Orari i sotëm",
+            "body": "Të gjitha terminet e sotme me radhë, me gjendjen e secilit. Shtypni një rresht për të hapur pacientin."
+          },
+          {
+            "title": "Koha e lirë",
+            "body": "Boshllëqet që kanë mbetur sot. Shtypni njërin për të rezervuar aty kur dikush telefonon e kërkon “diçka sot pasdite”."
+          }
+        ],
+        "example": "Është ora 08:40. Paneli thotë tre termine sot, dy rikthime të maturuara dhe një material në mbarim. Shtypni materialin, shihni se është anestetiku, dhe telefononi furnitorin para se pacienti i parë të mbërrijë në nëntë.",
+        "tips": [
+          "Një panel bosh nuk është panel i prishur — do të thotë se nuk ka asgjë në pritje.",
+          "Kthehuni këtu në fund të ditës. “Të trajtuar, pa shënim” mbledh shënimet e vizitave që në karrige askush nuk pati kohë t’i shkruante."
+        ]
+      },
+      "appointments": {
+        "title": "Kalendari",
+        "tagline": "Dita, java dhe muaji i klinikës",
+        "what": "Gjithçka që klinika ka premtuar të bëjë, dhe kur. Dita ndërtohet dhe rindërtohet këtu — terminet caktohen, zhvendosen, shënohen si të ardhur dhe mbyllen në këtë faqe.",
+        "steps": [
+          {
+            "title": "Ditë, javë, muaj ose listë",
+            "body": "Katër mënyra për të parë të njëjtat termine. Java shërben për të planifikuar, dita për të punuar, lista për të gjetur."
+          },
+          {
+            "title": "Lëvizja në kohë",
+            "body": "Shigjetat shkojnë para e prapa, “Sot” kthen në shtëpi. Pranë tyre janë filtrat sipas dentistit ose karriges."
+          },
+          {
+            "title": "Rrjeta",
+            "body": "Orët kur klinika është e mbyllur dalin gri dhe vijnë nga Orari i punës. Tërhiqni një termin për ta zhvendosur."
+          },
+          {
+            "title": "Një termin",
+            "body": "Shtypeni për pacientin, trajtimin dhe shënimet — pastaj shënojeni si i ardhur, i kryer, ose nuk erdhi."
+          },
+          {
+            "title": "Koha e lirë",
+            "body": "Klikoni dy herë mbi një hapësirë bosh për ta rezervuar. Formulari ju thotë nëse ora përplaset ose e tejkalon boshllëkun."
+          }
+        ],
+        "example": "Të martën një pacient telefonon për ta shtyrë mbushjen e së enjtes. Hapni javën, tërhiqni bllokun nga e enjtja te e premtja në mëngjes, dhe shkruani pse po zhvendoset — kartela ruan bashkë orën e re dhe arsyen.",
+        "tips": [
+          "Një termin që nuk u mbyll kurrë e prish shifrën e mosparaqitjeve. Paneli i rendit që të rregullohen ndershmërisht.",
+          "Pushimet, mbylljet dhe festat vijnë të gjitha nga Orari i punës. Ndryshojini atje dhe kjo rrjetë e ndjek."
+        ]
+      },
+      "daySheet": {
+        "title": "Fleta e ditës",
+        "tagline": "Sot, në një fletë letre",
+        "what": "Dita e printuar: çdo termin me radhë, me pacientin, trajtimin dhe një kuti për ta shënuar. Për murin e klinikës, për karrocën, ose për këdo që parapëlqen letrën para ekranit.",
+        "steps": [
+          {
+            "title": "Dita që shfaqet",
+            "body": "Sot, përveçse kur zgjidhni ndryshe. Ndjek ditën nga e cila erdhët te kalendari."
+          },
+          {
+            "title": "Rreshtat",
+            "body": "Ora, pacienti, trajtimi — sipas radhës në të cilën do të ndodhin, që fleta të lexohet ashtu si rrjedh dita."
+          },
+          {
+            "title": "Çfarë mbetet e lirë",
+            "body": "Boshllëqet renditen poshtë termineve, që fleta t’i përgjigjet pyetjes “a e futim dot dikë” pa asnjë ekran."
+          },
+          {
+            "title": "Printo",
+            "body": "Del pastër: pa menu, pa kuti kërkimi, pa ngjyrë të harxhuar kot."
+          }
+        ],
+        "example": "Të premten në mëngjes printeri nxjerr një kopje për klinikën dhe një për recepsionin. Asistentja shënon çdo pacient kur del, dhe mes karriges e kompjuterit nuk humbet asgjë.",
+        "tips": [
+          "Fleta është një fotografi e çastit. Një termin i caktuar pas printimit nuk do të jetë aty — printojeni sërish pas një mëngjesi të ngjeshur."
+        ]
+      },
+      "patients": {
+        "title": "Pacientët",
+        "tagline": "Të gjithë njerëzit në kartotekë",
+        "what": "Lista e njerëzve, e kërkueshme sipas emrit, telefonit ose emailit. Është dera e hyrjes në kartelë: kartela dentare, planet, vizitat, skedarët dhe recetat varen të gjitha nga një person që gjendet këtu.",
+        "steps": [
+          {
+            "title": "Kërko",
+            "body": "Shkruani çdo pjesë të një emri, numri ose adrese. Shenjat e theksit nuk kanë rëndësi — “cesh” gjen “Çeshtje”."
+          },
+          {
+            "title": "Pacient i ri",
+            "body": "Mjaftojnë një emër dhe një numër telefoni. Gjithçka tjetër mund të plotësohet më vonë, ose kurrë."
+          },
+          {
+            "title": "Një rresht",
+            "body": "Shtypeni për të hapur tërë kartelën. Vetë rreshti tregon moshën, telefonin dhe kur është parë për herë të fundit."
+          },
+          {
+            "title": "Shenjat",
+            "body": "Një shenjë e kuqe do të thotë alergji ose paralajmërim mjekësor i regjistruar. Vizatohet në listë që të shihet para karriges, jo pas saj."
+          },
+          {
+            "title": "Menuja e rreshtit",
+            "body": "Caktoni termin, shkruani ose ndryshoni pa hapur kartelën — për kur personi është në telefon dhe pret."
+          }
+        ],
+        "example": "Një zonjë telefonon dhe thotë vetëm “jam Marku, për vajzën time”. Shkruani mark te kërkimi: dalin të dy Markët me moshën e tyre, dhe tetëvjeçarja është qartazi ajo që kërkohet.",
+        "tips": [
+          "Dy kartela për të njëjtin person ndodhin. Në vetë kartelën ka një bashkim që i ngjit pa humbur asnjë nga të dyja historitë.",
+          "Është intervali i rikthimit në kartelë ai që e nxjerr dikë më vonë në listën e rikthimeve. I lënë në “Kurrë”, nuk ndiqet asnjëherë."
+        ]
+      },
+      "patientRecord": {
+        "title": "Kartela e një pacienti",
+        "tagline": "Një person, gjithçka për të",
+        "what": "Gjithçka që klinika di për një person, e ndarë në skeda: kush është, kartela e tij dentare, çfarë është bërë, çfarë është planifikuar, terminet, skedarët dhe recetat e tij.",
+        "steps": [
+          {
+            "title": "Kreu",
+            "body": "Emri, mosha, telefoni — dhe çdo alergji apo paralajmërim mjekësor me të kuqe, në çdo skedë, që të mos shpëtojë pa u parë."
+          },
+          {
+            "title": "Skedat",
+            "body": "Të dhënat, kartela, vizitat, planet, terminet, skedarët, recetat dhe kontakti. Secila është një pyetje tjetër për të njëjtin person."
+          },
+          {
+            "title": "Kartela dentare",
+            "body": "Shtypni një dhëmb për të regjistruar gjendjen, sipërfaqet, thellësitë e xhepave dhe një shënim. Një gjetje këtu kthehet drejtpërdrejt në plan trajtimi."
+          },
+          {
+            "title": "Historiku i vizitave",
+            "body": "Çfarë është bërë vërtet, në cilën ditë dhe nga kush. Shkruhet pas trajtimit — është kartela klinike, dhe është ajo që regjistri i aktivitetit nënshkruan."
+          },
+          {
+            "title": "Regjistro një vizitë",
+            "body": "Butoni që mbyll rrethin: shkruan shënimin, zbret materialet e përdorura, dhe mund të ofrojë recetën që zakonisht vjen pas."
+          },
+          {
+            "title": "Kontakti, terminet dhe skedarët",
+            "body": "Skedat ku jeton recepsioni: si t’i gjeni dhe a kanë pranuar të kontaktohen, gjithçka që kanë të caktuar, dhe dokumentet e tyre."
+          }
+        ],
+        "example": "Mbi dhëmbin 26 shënohet karies. Kartela ofron ta vendosë një mbushje në planin e trajtimit; ju pranoni, hapi vjen bashkë me numrin e dhëmbit, dhe kur caktohet termini ai e ka tashmë emrin e vet.",
+        "tips": [
+          "Shënimet mjekësore dhe kartela janë të fshehura për rolet që nuk lejohen t’i shohin. Një recepsionist sheh të njëjtën kartelë pa gjysmën klinike.",
+          "Skedarët pranojnë fotografi, radiografi dhe PDF — përfshirë të dyja anët e një letërnjoftimi, që recepsioni ta kontrollojë pa hapur listën e skedarëve."
+        ]
+      },
+      "plans": {
+        "title": "Planet e trajtimit",
+        "tagline": "Të gjitha trajtimet që klinika ka në vazhdim",
+        "what": "Një plan është një trajtim i rënë dakord, i ndarë në hapa. Kjo faqe i tregon të gjithë njëherësh, më të lënat pas dore të parat, që asgjë e premtuar të mos pushojë së ndodhuri në heshtje.",
+        "steps": [
+          {
+            "title": "Kërko dhe filtro",
+            "body": "Sipas pacientit, planit ose hapit; dhe sipas gjendjes — në vazhdim, i ngecur, i përfunduar, i anuluar."
+          },
+          {
+            "title": "Plan i ri",
+            "body": "Ndërtohet, nuk shkruhet: hapat vijnë nga kartela e pacientit dhe nga katalogu i trajtimeve."
+          },
+          {
+            "title": "Një plan",
+            "body": "Tregon i kujt është, sa hapa janë kryer dhe cili është i radhës. Shtypeni për ta hapur."
+          },
+          {
+            "title": "I ngecur",
+            "body": "Asgjë e bërë dhe asgjë e caktuar prej javësh. Kjo është tërë arsyeja pse kjo faqe renditet kështu."
+          },
+          {
+            "title": "Regjistro një telefonatë",
+            "body": "I telefonuat dhe ratë dakord të flisni sërish pas një muaji? Shkruajeni, dhe plani pushon së qeni i shënuar deri atë ditë."
+          }
+        ],
+        "example": "Një plan me katër hapa për një trajtim kanalar ka pasur vetëm një vizitë në nëntë javë. Del në krye i shënuar si I ngecur. Telefononi, ju kërkojnë vitin e ri, regjistroni telefonatën me një datë — dhe hesht deri në janar.",
+        "tips": [
+          "Ndalimi i një plani nuk e fshin atë. Gjithçka që përmban mbetet në kartelën e pacientit dhe mund të rihapet në çdo kohë.",
+          "Një plan që e shkruani shpesh mund të nisë nga një i shkruar më parë, bashkë me hapat."
+        ]
+      },
+      "planDetail": {
+        "title": "Një plan trajtimi",
+        "tagline": "Hapat, sipas radhës në të cilën do të kryhen",
+        "what": "Një trajtim i rënë dakord. Hapat shënohen si të kryer një nga një, caktohen në kalendar, rirenditen kur goja nuk pajtohet me planin, dhe printohen që pacienti t’i marrë me vete.",
+        "steps": [
+          {
+            "title": "Plani dhe ecuria e tij",
+            "body": "I kujt është, si quhet, dhe deri ku ka arritur."
+          },
+          {
+            "title": "Hapat",
+            "body": "Me radhë. Secili mban dhëmbin me vete kur vjen nga kartela, dhe tregon nëse është caktuar termin."
+          },
+          {
+            "title": "Shënimi i një hapi",
+            "body": "I kryer, ose i kapërcyer, me ditën kur ndodhi. Një hap mund të kthehet gjithmonë mbrapsht."
+          },
+          {
+            "title": "Shtimi i një hapi",
+            "body": "Nga kartela, nga katalogu i trajtimeve, ose i shkruar me dorë. Hapat tërhiqen për t’i rirenditur."
+          }
+        ],
+        "example": "Të hënën bihet dakord për një plan me tre vizita. Shtypni “Cakto serinë”, kërkoni çdo dy javë në të njëjtën orë, dhe aplikacioni gjen tre vende — duke kapërcyer ditën e mbyllur — me një herë të vetme.",
+        "tips": [
+          "Printojeni. Një pacient që del me planin në letër është një pacient që e di sa vizita ka pranuar.",
+          "Një hap i caktuar në kalendar e merr planin me vete, kështu që termini e di tashmë për çfarë është."
+        ]
+      },
+      "works": {
+        "title": "Regjistri i punimeve",
+        "tagline": "Gjithçka që del drejt një laboratori",
+        "what": "Kurora, ura, proteza — gjithçka që bëhet jashtë klinikës. Regjistri thotë çfarë shkoi ku, kur u premtua kthimi, dhe nëse ka ardhur.",
+        "steps": [
+          {
+            "title": "Kërko dhe filtro",
+            "body": "Sipas emrit, telefonit, numrit serial të laboratorit, hapësirës ose llojit të punimit; dhe sipas muajit, laboratorit ose gjendjes."
+          },
+          {
+            "title": "Rast i ri",
+            "body": "Kopjoni fletën e laboratorit në regjistër. Një rresht për çdo punim, me sa elemente mban."
+          },
+          {
+            "title": "Një rast",
+            "body": "Për kë është, çfarë po bëhet, nga kush, kur doli dhe kur duhet të kthehet."
+          },
+          {
+            "title": "Ende jashtë ose i kthyer",
+            "body": "Një rast që ka kaluar datën e premtuar shfaqet me vonesë. Shënojeni si të kthyer ditën që vjen dhe del nga lista e ndjekjes."
+          },
+          {
+            "title": "Fleta shoqëruese",
+            "body": "Printoni një fletë për ta futur në kuti bashkë me masën — ngjyra, lloji i punimit, fazat dhe datat."
+          }
+        ],
+        "example": "Një kurorë zirkoni për dhëmbin 46 niset më 3 dhe premtohet për më 17. Më 18 regjistri e tregon me një ditë vonesë; numri i laboratorit është një shtypje larg te tabela e detyrave.",
+        "tips": [
+          "Emërtoni laboratorët dhe llojet e punimeve njëherë të vetme, në këtë seksion — pastaj çdo rast i zgjedh nga një listë, në vend që të shkruhen në tri mënyra të ndryshme.",
+          "Recepsioni mund ta lexojë këtë regjistër por jo ta shkruajë, dhe kjo është ajo që i lejon të përgjigjet “a erdhi kurora ime” pa hapur asnjë kartelë."
+        ]
+      },
+      "workProcedures": {
+        "title": "Llojet e punimeve",
+        "tagline": "Emërtohen njëherë, pastaj zgjidhen",
+        "what": "Punimet që kjo klinikë dërgon jashtë — një kurorë, një urë, një protezë, një riparim. Emërtimi këtu është ajo që pengon një lloj punimi të bëhet tri shkrime të ndryshme në regjistër.",
+        "steps": [
+          {
+            "title": "Lista",
+            "body": "Të gjitha llojet e punimeve që regjistri mund të ofrojë. E shkurtër me qëllim."
+          },
+          {
+            "title": "Shtoni",
+            "body": "Një emër dhe asgjë tjetër. Shtojini të gjitha në një të vetme."
+          },
+          {
+            "title": "Sugjerimet",
+            "body": "Emra të shkruar mbi raste përpara se kjo listë të ekzistonte. Mbajeni atë që doni; të tjerat zakonisht janë i njëjti punim i shkruar ndryshe."
+          }
+        ],
+        "example": "Në regjistër ka “Kurorë zirkoni”, “kurore zirkon” dhe “kurorë Zr” të shkruara mbi raste të vjetra. Shtoni “Kurorë zirkoni” njëherë, dhe që andej çdo rast e zgjedh nga lista.",
+        "tips": [
+          "Kjo listë ka të bëjë vetëm me emrat. Nuk ndryshon asgjë te rastet e shkruara tashmë."
+        ]
+      },
+      "labs": {
+        "title": "Laboratorët",
+        "tagline": "Kujt i shkon puna, dhe si t’i gjeni",
+        "what": "Firmat e jashtme te të cilat klinika dërgon rastet. Emri shkon mbi çdo rast; numri i telefonit është ai që tabela e detyrave formon kur diçka vonohet.",
+        "steps": [
+          {
+            "title": "Lista",
+            "body": "Çdo laborator me numrin e vet dhe sa raste janë tek ai."
+          },
+          {
+            "title": "Shtoni një",
+            "body": "Emri ashtu siç i thotë klinika, dhe numri që dikush e formon vërtet."
+          },
+          {
+            "title": "Shënime",
+            "body": "Për kë të pyesni, cilat ditë tërheqin — çfarëdo që e bën punën të saktë herën e parë."
+          }
+        ],
+        "example": "Një urë ka katër ditë vonesë. Hapni detyrën, shtypni numrin e laboratorit, dhe flisni me personin emri i të cilit është shkruar te shënimet — në vend që të kërkoni një kartëvizitë nëpër sirtarë.",
+        "tips": [
+          "Një laborator pa numër në kartotekë është një laborator që dikush duhet ta kërkojë sa herë një rast vonohet."
+        ]
+      },
+      "prescriptions": {
+        "title": "Formulime standarde",
+        "tagline": "Shkruhen njëherë, lexohen me vite",
+        "what": "Modelet nga të cilat shkruhen recetat. Kjo faqe është teksti, jo recetat: ajo që është lëshuar vërtet ka një faqe të vetën.",
+        "steps": [
+          {
+            "title": "Modelet",
+            "body": "Gjithçka që klinika shkruan shpesh, e grupuar që lista të mbetet e shkurtër."
+          },
+          {
+            "title": "Shtoni një",
+            "body": "Një emër për ta zgjedhur, dhe vetë teksti: doza, sa herë, dhe çfarë të bëhet nëse përkeqësohet."
+          },
+          {
+            "title": "Pas një trajtimi",
+            "body": "Lidheni një model me trajtimet që zakonisht ndjek, dhe do të ofrohet i pari kur njëri prej tyre sapo është regjistruar."
+          }
+        ],
+        "example": "Lidhni tekstin pas heqjes së dhëmbit me “Heqje dhëmbi”. Që nga ai çast, sapo regjistrohet një heqje, ai tekst është gjëja e parë që ofrohet — me emrin e pacientit dhe datën tashmë të plotësuara.",
+        "tips": [
+          "Teksti është një pikënisje, kurrë një kafaz. Përshtatet lirisht për çdo pacient para se të lëshohet.",
+          "Përshkrimi i barnave është akt i dentistit. Asistentët mund t’i lexojnë recetat; vetëm dentisti i shkruan."
+        ]
+      },
+      "prescriptionsIssued": {
+        "title": "Recetat e lëshuara",
+        "tagline": "Çfarë ka shkruar vërtet klinika",
+        "what": "Çdo recetë që ka dalë nga klinika, nga më e reja, e kërkueshme sipas pacientit. Ky është dokumentimi — faqja e modeleve është vetëm teksti nga i cili u shkrua.",
+        "steps": [
+          {
+            "title": "Kërko",
+            "body": "Sipas emrit të pacientit, që është i vetmi emër që ka kush kërkon një recetë."
+          },
+          {
+            "title": "Një recetë",
+            "body": "Për kë ishte, çfarë shkruhej, kush e nënshkroi dhe kur."
+          },
+          {
+            "title": "Printo sërish",
+            "body": "Një pacienti që e ka humbur mund t’i jepet e njëjta fletë pa u rishkruar."
+          }
+        ],
+        "example": "Një pacient telefonon të dielën se ka humbur fletën e antibiotikut. Kërkoni mbiemrin, hapni recetën e së premtes dhe printoni po atë — pa rishkrim dhe pa hamendësuar dozën.",
+        "tips": [
+          "Çdo recetë kontrollohet ndaj alergjive të regjistruara të pacientit ndërsa shkruhet. Ai kontroll vlen aq sa vlejnë paralajmërimet në kartelën e tij."
+        ]
+      },
+      "inbox": {
+        "title": "Të ardhurat",
+        "tagline": "Çfarë u përgjigjën pacientët",
+        "what": "Përgjigjet e pacientëve, të mbledhura në biseda. Është e vetmja radhë këtu gjatësinë e së cilës nuk e kontrollon askush — një pacient përgjigjet kur përgjigjet, dhe një përgjigje e papërfillur për tri ditë është më keq se një rikthim i pabërë për tri ditë.",
+        "steps": [
+          {
+            "title": "Bisedat",
+            "body": "Të palexuarat të parat. Secila është një fill me një person, jo një grumbull mesazhesh të shkëputura."
+          },
+          {
+            "title": "Lidhja me një pacient",
+            "body": "Një përgjigje nga një adresë që askush nuk e njeh nuk është e lidhur me askënd. Lidheni njëherë, dhe biseda shfaqet përgjithmonë në kartelën e tij."
+          },
+          {
+            "title": "Leximi i një filli",
+            "body": "Tërë shkëmbimi me radhë, përfshirë atë që klinika dërgoi në fillim."
+          },
+          {
+            "title": "Përgjigju, ose arkivo",
+            "body": "Përgjigjuni që këtu, ose arkivojeni bisedën kur mbaron. Arkivuar nuk do të thotë fshirë."
+          }
+        ],
+        "example": "Të martën niset një kujtesë. Të mërkurën vjen “a e bëjmë dot të enjten?”. E lidhni me pacientin, zhvendosni terminin dhe përgjigjeni — dhe tërë shkëmbimi mbetet në dosjen e tij.",
+        "tips": [
+          "Këtu nuk mund të mbërrijë asgjë derisa të konfigurohet një ofrues emaili. Deri atëherë faqja e thotë këtë, në vend që të duket e prishur.",
+          "Recepsioni mund të lexojë dhe të përgjigjet. Janë kryesisht “a e zhvendosim dot”, që është puna e tij, jo e dentistit."
+        ]
+      },
+      "requests": {
+        "title": "Kërkesa nga faqja",
+        "tagline": "Njerëz që ende nuk janë pacientë",
+        "what": "Dikush ka lënë emrin dhe numrin te faqja publike e klinikës. Është e vetmja radhë këtu ku askush nuk ka ende një lidhje me klinikën — një ditë heshtje nuk lexohet si vonesë, lexohet si të qenit i shpërfillur.",
+        "steps": [
+          {
+            "title": "Radha",
+            "body": "Më e vjetra e para, me qëllim. Ai që ka pritur më gjatë është ai që duhet telefonuar."
+          },
+          {
+            "title": "Çfarë shkruan",
+            "body": "Emri, numri, dhe çfarëdo që kanë shkruar se u duhet."
+          },
+          {
+            "title": "Telefonojuni",
+            "body": "Numri është një shtypje larg. Këtu nuk shkruhet — kjo është një telefonatë."
+          },
+          {
+            "title": "Kthejeni në termin",
+            "body": "Sapo bihet dakord për një orë, kërkesa bëhet pacient dhe termin me një hap të vetëm."
+          }
+        ],
+        "example": "Të shtunën vjen një kërkesë: “dhëmb i thyer, çdo orë javën tjetër”. Të hënën në nëntë recepsioni telefonon, cakton të martën pasdite, dhe kërkesa mbyllet vetë sapo lind termini.",
+        "tips": [
+          "Numri te menuja është një person që pret një telefonatë, dhe pikërisht për këtë është një nga vetëm dy numrat në tërë menunë."
+        ]
+      },
+      "followUps": {
+        "title": "Detyrat",
+        "tagline": "Çfarë i detyrohet klinika vetes",
+        "what": "Tabela e punëve të klinikës: telefono laboratorin, ndiq një faturë, porosit atë që askush nuk e shënoi. Gjithçka që duhet të ndodhë në një ditë që nuk është sot, dhe që përndryshe do të jetonte mbi një copë letër.",
+        "steps": [
+          {
+            "title": "Numrat",
+            "body": "Sa është hapur dhe sa është vonuar. Të njëjtët numra udhëtojnë mbi ziljen në cepin e çdo faqeje."
+          },
+          {
+            "title": "Seksionet",
+            "body": "Me vonesë, sot, këtë javë, më vonë, të kryera. Nuk ka asgjë për t’u renditur me dorë."
+          },
+          {
+            "title": "Një rresht",
+            "body": "Çfarë duhet bërë, kur duhet të dalë sërish, dhe e kujt është puna — ose e cilitdo, që është përgjigjja e ndershme pothuajse gjithmonë."
+          },
+          {
+            "title": "E kryer, ose më vonë",
+            "body": "Shënojeni, ose shtyjeni ca ditë. Shtyrja nuk është dështim: është ajo që e pengon tabelën të mbushet me gjëra që sot askush nuk do t’i bëjë."
+          }
+        ],
+        "example": "Të mërkurën shkruani “telefono Dentaland për urën e Berishës”, për të premten. Rri mënjanë deri të premten në mëngjes, kur shfaqet te zilja me një shenjë të kuqe pranë.",
+        "tips": [
+          "Shënimi i njërës si urgjente e ngre në krye dhe e mban aty. Përdoreni kursimisht, ose kreu pushon së kuptuari gjë.",
+          "Një rast me vonesë te regjistri i punimeve kthehet në detyrë me numrin e laboratorit tashmë të bashkangjitur."
+        ]
+      },
+      "recalls": {
+        "title": "Rikthimet",
+        "tagline": "Pacientë që ia vlen t’i telefononi sot",
+        "what": "Njerëz që klinika nuk i ka parë prej më shumë kohe seç thotë kartela e tyre. Dy lista: ata që presin një kontroll, dhe ata që ia vlen t’i rimerrni pas një trajtimi të fundit.",
+        "steps": [
+          {
+            "title": "Numrat",
+            "body": "Sa janë me vonesë dhe sa meritojnë një telefonatë pas trajtimit."
+          },
+          {
+            "title": "Presin një kontroll",
+            "body": "Intervali i tyre ka kaluar dhe nuk kanë asgjë të caktuar. Kush ka tashmë një termin nuk del kurrë në këtë listë."
+          },
+          {
+            "title": "Një pacient",
+            "body": "Kur është parë për herë të fundit, sa kohë ka kaluar dhe si të gjendet."
+          },
+          {
+            "title": "Kontakto, ose kujtomë më vonë",
+            "body": "Përgatitni një kujtesë, ose shtyjeni ca ditë nëse tani nuk është koha për të telefonuar."
+          }
+        ],
+        "example": "Një pacient me rikthim gjashtëmujor është parë njëmbëdhjetë muaj më parë dhe nuk ka asgjë të caktuar. Del këtu; vendosni një kujtesë në radhë, niset me dërgesën e nesërme, dhe të enjten telefonon vetë.",
+        "tips": [
+          "Intervali qëndron në kartelën e çdo pacienti. Kush është vendosur në “Kurrë” nuk ndiqet asnjëherë, dhe ndonjëherë ashtu është pikërisht e drejtë.",
+          "Kujtesat e përgatitura këtu nuk nisen vetë. Presin te Kujtesa për t’u dërguar derisa dikush të shtypë butonin."
+        ]
+      },
+      "outbox": {
+        "title": "Kujtesa për t’u dërguar",
+        "tagline": "Gati, por të panisura",
+        "what": "Radha e mesazheve që presin të dalin — kryesisht kujtesat e termineve të nesërme. Nga kjo klinikë nuk niset asgjë derisa një person të shtypë dërgo, dhe kjo është tërë arsyeja pse kjo faqe ekziston.",
+        "steps": [
+          {
+            "title": "Numrat",
+            "body": "Në pritje, të humbura, dhe të trajtuara sot."
+          },
+          {
+            "title": "Në pritje për t’u dërguar",
+            "body": "Terminet e nesërme për të cilat askush nuk është njoftuar ende. Kjo është lista që zbrazet një herë në ditë."
+          },
+          {
+            "title": "Një kujtesë",
+            "body": "Për kë është, për cilin termin, dhe në cilën rrugë — WhatsApp, email ose një telefonatë."
+          },
+          {
+            "title": "Dërgo, ose zgjidhe",
+            "body": "Dërgojeni, ose shënojeni si të trajtuar nëse u zgjidh në ndonjë mënyrë tjetër."
+          }
+        ],
+        "example": "Në pesë e gjysmë hapni këtë faqe, shihni gjashtë kujtesa për nesër dhe dërgoni pesë. E gjashta nuk ka numër në kartotekë, kështu që e shënoni si të trajtuar dhe telefononi nënën.",
+        "tips": [
+          "“Askush nuk arriti te këto” është seksioni i ndershëm: termine që kanë nisur tashmë dhe për të cilat nuk u tha asgjë. Në një javë të mirë është i shkurtër.",
+          "Një pacient që ka kërkuar të mos kontaktohet nuk shfaqet kurrë këtu, çfarëdo që të ketë të caktuar."
+        ]
+      },
+      "services": {
+        "title": "Shërbimet",
+        "tagline": "Çfarë ofron klinika, dhe për sa kohë",
+        "what": "Katalogu i trajtimeve. Çdo termin, çdo hap plani dhe çdo çmim që kuotohet dalin nga kjo listë, dhe pikërisht prandaj ia vlen të bëhet mirë njëherë.",
+        "steps": [
+          {
+            "title": "Kërko dhe filtro",
+            "body": "Sipas emrit, ose sipas departamentit ku është arkivuar."
+          },
+          {
+            "title": "Shtoni një trajtim",
+            "body": "Mjaftojnë një emër dhe një kohëzgjatje. Kohëzgjatja është ajo që kalendari bllokon sa herë caktohet."
+          },
+          {
+            "title": "Një trajtim",
+            "body": "Emri, departamenti, sa zgjat dhe sa kushton."
+          },
+          {
+            "title": "Materialet që harxhon",
+            "body": "Thoni çfarë harxhon zakonisht një trajtim, dhe regjistrimi i vizitës e zbret vetë nga rafti."
+          }
+        ],
+        "example": "“Mbushje kompoziti — 45 minuta” futet njëherë. Që andej çdo mbushje e caktuar bllokon tre çerekë ore në kalendar pa qenë nevoja që dikush ta mbajë mend.",
+        "tips": [
+          "Kohëzgjatjet e sakta janë ajo që e bën të dobishëm gjetësin e kohës së lirë. Një trajtim 20-minutësh i caktuar si një orë fsheh hapësira që ekzistojnë.",
+          "Një listë çmimesh ekzistuese mund të sillet nga një fletë llogaritëse në vend që të rishkruhet — shihni Importo."
+        ]
+      },
+      "serviceCategories": {
+        "title": "Kategoritë e shërbimeve",
+        "tagline": "Departamentet në të cilat ndahet katalogu",
+        "what": "Pjesët e klinikës së cilave mund t’i përkasë një trajtim — kirurgji, ortodonci, higjienë. Emërtohen njëherë këtu, që një departament të mos bëhet tri shkrime të vetvetes.",
+        "steps": [
+          {
+            "title": "Lista",
+            "body": "Departamentet, dhe ndarjet brenda tyre. Dy nivele dhe jo më shumë, me qëllim."
+          },
+          {
+            "title": "Shtoni një",
+            "body": "Një emër, dhe nëse rri brenda një departamenti apo është vetë një i tillë."
+          },
+          {
+            "title": "Kush e përdor",
+            "body": "Çdo trajtim e zgjedh departamentin nga kjo listë, dhe katalogu filtrohet me të."
+          }
+        ],
+        "example": "Shtoni “Kirurgji” me “Heqje dhëmbësh” dhe “Implante” brenda. Lista e shërbimeve mund të ngushtohet pastaj vetëm te implantet kur kuotohet një i tillë.",
+        "tips": [
+          "Bëjeni këtë para se të importoni një listë çmimesh. Emrat që ekzistojnë tashmë njihen në vend që të dyfishohen."
+        ]
+      },
+      "imports": {
+        "title": "Importo nga një fletë llogaritëse",
+        "tagline": "Sillni atë që keni tashmë",
+        "what": "Një klinikë që fillon të përdorë këtë aplikacion ka tashmë lista — një listë çmimesh, një inventar magazine, një kartotekë pacientësh. Kjo i sjell nga një skedar CSV, dhe tregon saktësisht çfarë do të bëjë para se të bëjë çfarëdo gjëje.",
+        "steps": [
+          {
+            "title": "Skedari",
+            "body": "Një CSV i eksportuar nga një fletë llogaritëse. Rreshti i parë duhet të mbajë emrat e kolonave."
+          },
+          {
+            "title": "Përputhja e kolonave",
+            "body": "Thoni cila kolonë është emri, cila çmimi, e kështu me radhë. Aplikacioni hamendëson dhe ju e korrigjoni."
+          },
+          {
+            "title": "Parapamja",
+            "body": "Rresht pas rreshti: çfarë do të shtohet, çfarë do të përditësohet, dhe çfarë nuk lexohet dot. Deri këtu nuk ka ndodhur ende asgjë."
+          },
+          {
+            "title": "Importo",
+            "body": "Vetëm kur e shtypni këtë. Rreshtat me probleme lihen jashtë në vend që të hamendësohen."
+          }
+        ],
+        "example": "Një listë çmimesh me 180 trajtime hyn me një herë. Parapamja tregon 174 të reja, 6 që përputhen me ato ekzistuese dhe asgjë të prishur — kështu që importoni, dhe katalogu mbaron për një mëngjes në vend të dy javëve.",
+        "tips": [
+          "Importimi është një punë që bëhet njëherë për klinikë, dhe prandaj rri nën seksionin e vet e jo përgjithmonë mbi kokë të faqes.",
+          "Importimi i materialeve sjell çfarë *është* secili material, jo sa ka në raft. Atë numërojeni me një inventar."
+        ]
+      },
+      "stock": {
+        "title": "Inventari",
+        "tagline": "Magazina, si listë",
+        "what": "Çdo material dhe konsumueshme që mban klinika, sa ka në raft, dhe sa poshtë lejohet të bjerë secili para se aplikacioni të fillojë të kërkojë më shumë.",
+        "steps": [
+          {
+            "title": "Kërko dhe filtro",
+            "body": "Sipas emrit, kodit, markës ose raftit — dhe sipas gjendjes: pak, mbaruar, ose në rregull."
+          },
+          {
+            "title": "Shtoni një material",
+            "body": "Mjaftojnë një emër dhe një sasi. Rafti, minimumi dhe furnitori mund të presin."
+          },
+          {
+            "title": "Një material",
+            "body": "Çfarë është, sa kuti ka, në cilin raft rri dhe nga kush blihet."
+          },
+          {
+            "title": "Pak dhe mbaruar",
+            "body": "Një material në minimum ose nën të hyn në listën e porosive dhe shënohet te zilja në çdo faqe."
+          },
+          {
+            "title": "Shto ose hiq",
+            "body": "Lëvizni pa hapur kartelën — një dorëzim brenda, një kuti e përdorur jashtë."
+          }
+        ],
+        "example": "Anestetiku ka minimum 3 kuti. Asistentja merr të parafundit, sasia bie në 2, dhe kur dentisti sheh ziljen është tashmë në listën e porosive.",
+        "tips": [
+          "Çdo lëvizje shkruhet në një regjistër me kush e bëri dhe pse, kështu që “ku shkuan gjashtë kuti” është pyetje me përgjigje.",
+          "Numrat e loteve kanë rëndësi. Një njoftim tërheqjeje kërkon lotin, dhe asgjë tjetër në klinikë nuk mund të përgjigjet."
+        ]
+      },
+      "stockCatalog": {
+        "title": "Katalogu i magazinës",
+        "tagline": "Magazina, në fotografi",
+        "what": "Të njëjtat materiale si te lista, por me një fotografi të çdo kutie. Për këdo që e di si duket një gjë por jo si quhet — që, me një asistente të re dhe një raft me paketime italiane, janë pothuajse të gjithë.",
+        "steps": [
+          {
+            "title": "Kërko",
+            "body": "I njëjti kërkim si te lista. Shkruani atë që mbani mend."
+          },
+          {
+            "title": "Kartat",
+            "body": "Një fotografi, emri, ngjyra ose masa, dhe sa kanë mbetur."
+          },
+          {
+            "title": "Fotografia",
+            "body": "Shtypeni për të bërë ose zgjedhur një. Një variant pa foto të vetën shfaq atë të produktit."
+          },
+          {
+            "title": "Çfarë është pak",
+            "body": "Karta mban të njëjtën shenjë “pak” ose “mbaruar” si lista."
+          }
+        ],
+        "example": "Një zëvendësues kërkon “kompozitin në kutinë blu”. Hap katalogun, njeh paketimin brenda dy sekondash, dhe zbulon se është A2 në raftin 3.",
+        "tips": [
+          "Fotografitë kushtojnë një pasdite, njëherë të vetme. Shpërblehen sa herë që dikush i ri bën një turn."
+        ]
+      },
+      "stockLabels": {
+        "title": "Etiketa për raftet",
+        "tagline": "Një kod QR për çdo kuti",
+        "what": "Një fletë etiketash për t’u printuar, një për çdo material. Ngjitini mbi kutitë, dhe lëvizja e magazinës bëhet çështje drejtimi i një kamere nga rafti, në vend të shkrimit.",
+        "steps": [
+          {
+            "title": "Fleta",
+            "body": "Të gjitha materialet, ose vetëm ato që keni filtruar. Del si një faqe ngjitësesh."
+          },
+          {
+            "title": "Një etiketë",
+            "body": "Emri, kodi, dhe një kod QR që hap drejtpërdrejt atë material."
+          },
+          {
+            "title": "Skanimi i njërës",
+            "body": "Hap materialin me “shto ose hiq” gati — zgjidhni sa kuti dhe shtypni."
+          },
+          {
+            "title": "Vetëm një",
+            "body": "Për një material të ri mund të printohet një etiketë e vetme, pa e ribërë fletën."
+          }
+        ],
+        "example": "Një raft i ri kompozitesh etiketohet një pasdite të premteje. Të hënën asistentja heq tri kuti duke skanuar tri ngjitëse, dhe nuk e hap fare listën e inventarit.",
+        "tips": [
+          "Etiketat printohen njëherë për material dhe pastaj nuk preken për një vit, dhe prandaj rrinë këtu e jo mbi kokë të inventarit."
+        ]
+      },
+      "stockScan": {
+        "title": "Skano",
+        "tagline": "Lëviz duke lexuar kutinë",
+        "what": "Mënyra më e shpejtë për të sistemuar një dorëzim ose për të hequr diçka nga rafti: lexoni kodin mbi kuti, thoni sa, gati. Punon me kamerën e telefonit ose me një lexues dore.",
+        "steps": [
+          {
+            "title": "Hyrje ose dalje",
+            "body": "Një dorëzim shton në raft, me lotin dhe skadencën. Diçka e përdorur heq nga rafti, nga loti që skanuat."
+          },
+          {
+            "title": "Skanimi",
+            "body": "Drejtoni kamerën, ose shtypni këmbëzën e lexuesit — punon kudo në këtë faqe, pa pasur nevojë të klikoni më parë."
+          },
+          {
+            "title": "Kode që nuk i njeh",
+            "body": "Thoni njëherë çfarë është një kod i panjohur, dhe që andej njihet vetë. Një karton dhe një kuti e vetme kanë kode të ndryshme."
+          },
+          {
+            "title": "Shporta",
+            "body": "Gjithçka e skanuar deri tani, gati për t’u korrigjuar para se të ruhet."
+          }
+        ],
+        "example": "Vjen një dorëzim me dymbëdhjetë kartona. Asistentja i skanon një nga një, shkruan lotin dhe skadencën njëherë për produkt, dhe tërë dorëzimi është në raft para se kutitë të hapen.",
+        "tips": [
+          "Heqja e më shumë seç thotë rafti lejohet — ndodh, dhe aplikacioni ju thotë se sasia ishte tashmë e gabuar, në vend që ta refuzojë."
+        ]
+      },
+      "stocktake": {
+        "title": "Numëro raftin",
+        "tagline": "Çfarë ka vërtet",
+        "what": "Llogaria: bëni xhiron e magazinës, shkruani çfarë shihni, dhe aplikacioni e regjistron ndryshimin si korrigjim. Regjistrohen vetëm rreshtat që ndryshoni, kështu që një sasi tashmë e saktë nuk kushton asgjë.",
+        "steps": [
+          {
+            "title": "Lista",
+            "body": "Çdo material me atë që aplikacioni beson se ka. Filtroni në një raft dhe kalojeni."
+          },
+          {
+            "title": "Shkruani çfarë shihni",
+            "body": "Numrin e vërtetë. Lërini rreshtat e saktë të qetë — bosh do të thotë “pa ndryshim”."
+          },
+          {
+            "title": "Ndryshimet",
+            "body": "Çfarë do të korrigjohet, dhe me sa, para se të ruhet gjë."
+          },
+          {
+            "title": "Ruaj",
+            "body": "Çdo korrigjim shkruhet në regjistër si lëvizje, i nënshkruar si gjithçka tjetër."
+          }
+        ],
+        "example": "Një inventar para pushimeve të verës gjen dorezat në 4 kuti ndërsa aplikacioni thoshte 9. Shkruani 4, ruani, dhe korrigjimi mbetet në dokumente me emrin tuaj dhe datën — në vend që pesë kuti të zhduken në heshtje.",
+        "tips": [
+          "Bërja e kësaj një herë në tremujor është ajo që i mban të besueshme sinjalizimet e mungesave. Sinjalizime të ngritura mbi sasi të gabuara shpërfillen, dhe atëherë nuk vlejnë asgjë."
+        ]
+      },
+      "stockExpiry": {
+        "title": "Skadencat",
+        "tagline": "Çfarë ka skaduar, dhe çfarë po skadon",
+        "what": "Lote që kanë kaluar datën, dhe lote që skadojnë brenda javëve në vijim. Është faqja që pengon anestetikun e skaduar ta gjejë një pacient në vend të klinikës.",
+        "steps": [
+          {
+            "title": "Numrat",
+            "body": "Sa lote kanë skaduar dhe sa janë afër."
+          },
+          {
+            "title": "Të skaduara",
+            "body": "Përtej datës, më të vjetrat të parat. Këto dalin nga rafti sot."
+          },
+          {
+            "title": "Skadojnë së shpejti",
+            "body": "Ende të përdorshme — përdorini këto të parat, ose planifikoni t’i zëvendësoni."
+          },
+          {
+            "title": "Veprimi mbi një lot",
+            "body": "Hiqeni nga rafti që këtu, dhe lëvizja regjistrohet si çdo tjetër."
+          }
+        ],
+        "example": "Dy lote anestetiku skadojnë në fund të muajit. Dalin te “skadojnë së shpejti”, kështu që klinika i përdor ato të parat dhe ato të bleret javën e kaluar mbeten në kuti.",
+        "tips": [
+          "Datat e skadencës ekzistojnë vetëm për lotet që janë skanuar ose futur me një datë. Një material i shtuar pa data nuk mund të paralajmërojë askënd."
+        ]
+      },
+      "stockCategories": {
+        "title": "Kategoritë e magazinës",
+        "tagline": "Raftet sipas të cilave renditet magazina",
+        "what": "Raftet, sirtarët dhe dollapët nën të cilët renditen materialet. Emërtohen njëherë këtu, që një raft të mos bëhet tri shkrime të vetvetes mbi dyqind materiale.",
+        "steps": [
+          {
+            "title": "Lista",
+            "body": "Të gjitha raftet që ka magazina. E shkurtër, dhe e shkurtër mbetet."
+          },
+          {
+            "title": "Shtoni një",
+            "body": "Një emër dhe asgjë tjetër. Shtojini të gjitha në një të vetme."
+          },
+          {
+            "title": "Kush e përdor",
+            "body": "Çdo material e zgjedh raftin nga kjo listë, dhe lista e inventarit filtrohet me të."
+          }
+        ],
+        "example": "Shtoni “Restaurime”, “Anestetikë”, “Njëpërdorimshme” dhe “Endodonci”. Filtrimi i inventarit në një raft i përgjigjet atëherë xhiros që dikush bën vërtet nëpër dhomë.",
+        "tips": [
+          "Emërtojini sipas vendit ku gjërat ndodhen fizikisht, jo sipas asaj ku teorikisht bëjnë pjesë. Lista përdoret në këmbë brenda dhomës."
+        ]
+      },
+      "suppliers": {
+        "title": "Furnitorët",
+        "tagline": "Nga kush blihen materialet",
+        "what": "Firmat nga të cilat porosit klinika. Brenda këtij aplikacioni nuk porositet, me qëllim — kjo është lista e kujt duhet telefonuar, e lidhur me atë që furnizon.",
+        "steps": [
+          {
+            "title": "Lista",
+            "body": "Çdo furnitor, me numrin që e vë vërtet një porosi në lëvizje."
+          },
+          {
+            "title": "Shtoni një",
+            "body": "Mjafton një emër, por kuptimi i kartelës është numri i telefonit."
+          },
+          {
+            "title": "Shënime",
+            "body": "Për kë të pyesni, cilat ditë dorëzojnë, porosia minimale — çfarëdo që e bën punën të saktë herën e parë."
+          }
+        ],
+        "example": "Lista e porosive thotë se katër materiale janë duke mbaruar, dhe tri blihen nga e njëjta firmë. Hapni atë furnitor, telefononi numrin te kartela, dhe bëni një porosi në vend të trish.",
+        "tips": [
+          "Lidheni çdo material me furnitorin e vet. Lista e porosive grupohet atëherë vetë sipas kujt duhet telefonuar."
+        ]
+      },
+      "analytics": {
+        "title": "Statistikat",
+        "tagline": "Çfarë ka bërë klinika",
+        "what": "Numrat pas punës: sa e mbushur ka qenë agjenda, cilat trajtime kthehen më shpesh, sa njerëz nuk paraqiten, dhe sa ka arkëtuar klinika. Lexohen mbi muaj, jo mbi ditë.",
+        "steps": [
+          {
+            "title": "Periudha",
+            "body": "Gjashtë muaj, përveçse kur zgjidhni ndryshe. Ndryshojeni dhe tërë faqja e ndjek."
+          },
+          {
+            "title": "Shifrat kryesore",
+            "body": "Dy a tre numrat që ia vlen t’i dini para se të lexoni ndonjë grafik."
+          },
+          {
+            "title": "Grafikët",
+            "body": "Terminet dhe arkëtimet me kalimin e kohës, dhe cilat trajtime i përbëjnë."
+          },
+          {
+            "title": "Tabelat",
+            "body": "Të njëjtat shifra në rreshta, për këdo që parapëlqen të lexojë numra në vend të formave."
+          }
+        ],
+        "example": "Shfrytëzimi i karriges shënon 61% për gjashtë muajt e fundit. Grafiku tregon se boshllëku është e marta; klinika zhvendos aty një seancë higjiene dhe shikon të njëjtin numër tremujorin tjetër.",
+        "tips": [
+          "Shfrytëzimi janë minutat e rezervuara ndaj orëve kur klinika ka qenë vërtet e hapur — pra një orar i gabuar e bën atë të gabuar.",
+          "Shifra e mosparaqitjeve përjashton terminet e anuluara nga klinika. Ka të bëjë me pacientët, jo me agjendën."
+        ]
+      },
+      "settings": {
+        "title": "Orari i punës",
+        "tagline": "Kur klinika është e hapur, dhe kur është e mbyllur",
+        "what": "Java nga e cila vizatohet tërë kalendari — oraret, pushimi i drekës, mbylljet, dhe sa karrige mund të punojnë njëherësh. Gati gjithçka tjetër në aplikacion që vizaton një ditë e lexon nga këtu.",
+        "steps": [
+          {
+            "title": "Java",
+            "body": "Një rresht për ditë: kur hapet, kur mbyllet, dhe pushimi në mes. Oraret janë ora e vetë klinikës."
+          },
+          {
+            "title": "Oraret",
+            "body": "Lëreni një ditë bosh dhe klinika është e mbyllur atë ditë. Kalendari e gri-son menjëherë."
+          },
+          {
+            "title": "Pushimet dhe mbylljet",
+            "body": "Një pushim përsëritet çdo javë; një mbyllje është festë ose ndërprerje dhe e mbizotëron javën tërësisht."
+          },
+          {
+            "title": "Ruaj",
+            "body": "Asgjë nuk ndryshon derisa të ruani — dhe nëse në orët që po mbyllni ka tashmë termine, ju thuhet para se të ndodhë."
+          }
+        ],
+        "example": "Klinika pushon së hapuri të shtunave. Zbrazni dy oraret e së shtunës, ruani, dhe çdo e shtunë në kalendar bëhet gri — dhe gjetësi i kohës së lirë pushon së ofruari ato.",
+        "tips": [
+          "Karriget ia vlen t’i shtoni vetëm nëse klinika ka vërtet më shumë se një. Dy karrige do të thotë dy termine njëkohësisht.",
+          "Pushimi i një personi është mbyllje vetëm për të. Pjesa tjetër e klinikës vazhdon punën."
+        ]
+      },
+      "staff": {
+        "title": "Stafi dhe rolet",
+        "tagline": "Kush punon këtu, dhe çfarë lejohet secili",
+        "what": "Llogaritë me të cilat hyhet, dhe roli që mban secila. Këtu një rol nuk është titull pune — është grupi i dyerve që hapen, dhe është fusha mbi të cilën ia vlen të ndaleni.",
+        "steps": [
+          {
+            "title": "Lista",
+            "body": "Të gjithë ata që kanë llogari, roli i tyre, dhe nëse llogaria është ende aktive."
+          },
+          {
+            "title": "Shtoni dikë",
+            "body": "Një emër, një rol dhe një PIN — thënë personalisht, jo dërguar me email."
+          },
+          {
+            "title": "Roli",
+            "body": "Gjithçka që jep një rol renditet poshtë tij ndërsa e zgjidhni, që vendimi të merret me pasojat përpara syve."
+          },
+          {
+            "title": "Mbyllja e një llogarie",
+            "body": "Çaktivizoni, mos fshini. Emri mbetet mbi vizitat që ka regjistruar, siç e kërkon një kartelë klinike."
+          }
+        ],
+        "example": "Vjen një zëvendësues për tri javë. I jepni Vetëm lexim: sheh kartelat, agjendën dhe shifrat, dhe nuk ndryshon dot asgjë — dhe çdo faqe ia thotë këtë, në vend që ta refuzojë në çastin e fundit.",
+        "tips": [
+          "Fshirja e çdo gjëje i takon vetëm pronarit, me qëllim. Të gjithë të tjerët anulojnë, çaktivizojnë ose korrigjojnë.",
+          "Secili e ndryshon PIN-in e vet nga menuja e llogarisë. Askush, as pronari, nuk e lexon dot atë të tjetrit."
+        ]
+      },
+      "activity": {
+        "title": "Regjistri i aktivitetit",
+        "tagline": "Çdo ndryshim, dhe kush e bëri",
+        "what": "Një regjistër vetëm-shtues i asaj çka është ndryshuar, nga kush dhe kur. Asgjë këtu nuk mund të modifikohet apo hiqet, as nga pronari — dhe kjo është tërë arsyeja pse mbahet.",
+        "steps": [
+          {
+            "title": "Zërat",
+            "body": "Nga më i riu: kush, çfarë, dhe cilën kartelë preku."
+          },
+          {
+            "title": "Filtro sipas llojit",
+            "body": "Ngushtojeni në një lloj të vetëm ndryshimi — termine, pacientë, magazinë, staf."
+          },
+          {
+            "title": "Intervali i datave",
+            "body": "Ngushtojeni te ditët në fjalë kur ka një pyetje të caktuar."
+          },
+          {
+            "title": "Çfarë nënshkruan",
+            "body": "Çdo zë mban llogarinë që bëri ndryshimin, dhe prandaj PIN-et janë personale dhe nuk ndahen me askënd."
+          }
+        ],
+        "example": "Një shënim vizite thotë diçka që askush nuk mban mend ta ketë shkruar. Regjistri tregon se u regjistrua në 16:20 të datës 4 nga një llogari me emër — dhe pyetja mbyllet për një minutë në vend që të bëhet debat.",
+        "tips": [
+          "Vetëm pronari mund ta lexojë, dhe askush nuk mund ta ndryshojë.",
+          "Ndarja e një PIN-i e bën të pavlerë çdo rresht që shkruan ky regjistër. Kjo është arsyeja e vërtetë pse secili ka të vetin."
+        ]
+      }
+    },
+    "pointerTitle": "Çdo faqe di ta shpjegojë veten",
+    "pointerBody": "Ky buton tregon për çfarë shërben faqja ku ndodheni — me një vizatim të saj dhe një shembull konkret. Ai pranë tij i heq nga sytë pjesët e aplikacionit që klinika juaj nuk i përdor.",
+    "pointerOpen": "Ma trego",
+    "pointerDismiss": "E kuptova"
+  },
+  "tailor": {
+    "button": "Zgjidhni çfarë ka menuja juaj",
+    "title": "Çfarë ka menuja juaj",
+    "subtitle": "Hiqni nga sytë faqet që kjo klinikë nuk i përdor.",
+    "close": "Mbyll",
+    "note": "Kjo ndryshon vetëm menunë tuaj dhe të askujt tjetër. Askujt nuk i ndryshohen të drejtat, asgjë nuk fshihet, dhe gjithçka që hiqni nga sytë gjendet prapë me kërkimin në krye të çdo faqeje.",
+    "group": {
+      "admin": "Drejtimi i klinikës",
+      "start": "Çdo ditë",
+      "care": "Kujdesi",
+      "contact": "Kontakti",
+      "practice": "Klinika"
+    },
+    "shown": "Duket",
+    "hidden": "Fshehur",
+    "count": "{shown} nga {total} duken",
+    "reset": "Shfaq të gjitha",
+    "done": "Gati"
+  },
+  "orders": {
+    "title": "Porositë",
+    "subtitle": "Çfarë është porositur dhe çfarë ka ardhur vërtet.",
+    "subtitleClosed": "Porosi të përfunduara ose të hequra dorë.",
+    "empty": "Asgjë nuk është porositur. Nisja e një porosie nga lista e riporositjes në faqen e magazinës e regjistron këtu.",
+    "emptyClosed": "Ende nuk është përfunduar asnjë porosi.",
+    "noSupplier": "Pa furnitor të regjistruar",
+    "placed": "Dërguar më {placed}",
+    "placedExpected": "Dërguar më {placed} · pritet më {expected}",
+    "late": "{days, plural, one {# ditë vonesë} other {# ditë vonesë}}",
+    "outstanding": "{count, plural, one {# kuti ende e papritur} other {# kuti ende të papritura}}",
+    "stillOwed": "{count, plural, one {# e mbetur} other {# të mbetura}}",
+    "receivedOf": "{got} nga {asked}",
+    "lineFull": "Marrë e plotë",
+    "complete": "E plotë",
+    "cancelled": "E anuluar",
+    "cancel": "Hiq dorë",
+    "cancelConfirm": "Ta mbyllim këtë porosi dhe të mos presim më atë që nuk ka ardhur? Ajo që erdhi mbetet në magazinë.",
+    "showClosed": "Porosi të përfunduara",
+    "showOpen": "Porosi të hapura",
+    "openCount": "{count, plural, one {# porosi e hapur} other {# porosi të hapura}}"
+  },
+  "ledger": {
+    "title": "Historiku i lëvizjeve",
+    "subtitle": "Çdo kuti që ka hyrë ose dalë nga ky raft.",
+    "empty": "Ende asnjë lëvizje.",
+    "usable": "Të përdorshme",
+    "minimum": "Minimumi",
+    "lastMoved": "Ndryshimi i fundit",
+    "lots": "Loti",
+    "onOrder": "Porositur",
+    "onOrderOutstanding": "{count, plural, one {Porositur · # kuti ende e papritur} other {Porositur · # kuti ende të papritura}}",
+    "reason_delivery": "Dorëzim",
+    "reason_deliveryReversed": "Dorëzim i anuluar",
+    "reason_scanIn": "Hyrje me skaner",
+    "reason_scanOut": "Dalje me skaner",
+    "reason_stocktake": "Inventarizim",
+    "reason_used": "Përdorur",
+    "reason_usedInVisit": "Përdorur në një vizitë",
+    "reason_restock": "Rimbushje",
+    "reason_visitDeleted": "Vizita u fshi — u kthye",
+    "reason_writeOff": "Hequr nga magazina",
+    "reason_unknown": "Korrigjim"
   }
 }

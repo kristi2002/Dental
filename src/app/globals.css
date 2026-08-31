@@ -4894,6 +4894,65 @@
   }
 }
 
+/* --- Narrowing the reminder board ---------------------------------------
+ *
+ * The bell's board carries two unrelated piles — the storage room's alarms and
+ * the practice's own errands — and on a bad morning that is twenty rows deep.
+ * The three cards in its glance strip are how somebody asks it one question at
+ * a time: only what is late, only what is not, only the shelves.
+ *
+ * Which *pile* a card shows is decided in React, because the board knows the
+ * counts and can simply not render a section. *Which rows within a pile*
+ * cannot be: `ReminderCenter` is a client component wrapped around lists that
+ * were rendered on the server, complete with their server actions, and it has
+ * no way to re-render them narrower. So each row states what it is in
+ * `data-kind` — space-separated tokens, because a row is a follow-up *and* it
+ * is late — the board flips `data-filter` on the scroller, and these hide
+ * whatever the card did not ask for. One attribute, no second render, and the
+ * forms inside the rows are never torn down and rebuilt.
+ *
+ * One rule per card that cuts *into* a pile. `All` and `Low stock` need none —
+ * they take every row of the sections they leave standing.
+ *
+ * The tokens are not the filter names: a follow-up past its day is `overdue`
+ * and a delivery past its promise is `late`, which is why `[data-filter='late']`
+ * would have been a trap and the card is called `orderLate`.
+ *
+ * Deliberately outside `@layer components`: these have to overrule the layout
+ * utilities the rows carry (`flex`, which would otherwise win on the cascade),
+ * and a layered rule cannot overrule a utility.
+ */
+[data-filter='mine'] [data-kind]:not([data-kind~='mine']) {
+  display: none;
+}
+
+[data-filter='urgent'] [data-kind]:not([data-kind~='urgent']) {
+  display: none;
+}
+
+[data-filter='overdue'] [data-kind]:not([data-kind~='overdue']) {
+  display: none;
+}
+
+[data-filter='today'] [data-kind]:not([data-kind~='today']) {
+  display: none;
+}
+
+/* `later` on the card, `upcoming` on the row: the row's word is the one
+ * `followUpStatus` has always returned, and renaming a status the whole module
+ * is written in to match a label on a card would be the tail wagging the dog. */
+[data-filter='later'] [data-kind]:not([data-kind~='upcoming']) {
+  display: none;
+}
+
+[data-filter='out'] [data-kind]:not([data-kind~='out']) {
+  display: none;
+}
+
+[data-filter='orderLate'] [data-kind]:not([data-kind~='late']) {
+  display: none;
+}
+
 /* --- Affordances a thumb can see ----------------------------------------
  *
  * The mark a card draws to say it can be pressed — the arrow on a treatment,

@@ -285,4 +285,5 @@ const PROBLEM_LABEL: Record<CatalogueProblem, string> = {
   badNumber: 'badNumber',
   duplicateInFile: 'duplicateInFile',
   alreadyHere: 'alreadyHere',
+  badBarcode: 'badBarcode',
 };

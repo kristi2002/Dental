@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { ClinicMark } from '@/components/brand/ClinicLogo';
 import { FollowUpFormDialog } from '@/components/follow-ups/FollowUpFormDialog';
 import { FollowUpList } from '@/components/follow-ups/FollowUpList';
+import { PageHelp } from '@/components/help/PageHelp';
 import { QuietenedAlerts } from '@/components/stock/QuietenedAlerts';
 import { StockAlertList } from '@/components/stock/StockAlertList';
 import { AppointmentRequestStatus } from '@/generated/prisma/enums';
@@ -11,6 +12,8 @@ import type { SessionUser } from '@/lib/auth/session';
 import { getBackupStatus } from '@/lib/backup-status';
 import { toDateKey, today } from '@/lib/dates';
 import { bellCounts } from '@/lib/follow-ups';
+import { countNewElsewhere, getWaitingElsewhere } from '@/lib/board-elsewhere';
+import { countNew } from '@/lib/board-new';
 import { getUnreadCount } from '@/lib/messages/threads';
 import { prisma } from '@/lib/prisma';
 import {
@@ -20,12 +23,14 @@ import {
   getOpenFollowUps,
   getStockAlerts,
 } from '@/lib/queries';
+import { HIDEABLE } from '@/lib/nav-visibility';
 import { stockAlertCounts } from '@/lib/stock-alerts';
 import { BackupBanner } from './BackupBanner';
 import { ReminderCenter } from './ReminderCenter';
 import { CommandPalette } from './CommandPalette';
 import { NAV_DESTINATIONS, SEARCHABLE_LISTS } from './nav-destinations';
 import { Sidebar } from './Sidebar';
+import { TailorMenu } from './TailorMenu';
 
 /**
  * The frame every signed-in screen hangs in: a navigation rail down the left,
@@ -71,7 +76,7 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   // changes, which is what makes the headings survive this filter for free: a
   // block whose every row a role may not open loses its heading with them,
   // because no surviving row ever names that group.
-  const items = NAV_DESTINATIONS.filter(({ permission }) => allowed(permission)).map(
+  const reachable = NAV_DESTINATIONS.filter(({ permission }) => allowed(permission)).map(
     ({ href, key, group, children }) => ({
       href,
       key,
@@ -82,12 +87,23 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     }),
   );
 
+  // And then what this particular person has asked not to look at — see
+  // `lib/nav-visibility.ts`. It arrives on the session, which is one query that
+  // was already happening, so this costs nothing and cannot flicker.
+  //
+  // Two lists rather than one, deliberately: the rail is drawn from the short
+  // list and the search box below is built from the long one, so a screen
+  // somebody has put away is out of the menu and still one Ctrl-K away. A
+  // tidy-up that hid things from search would be a trap.
+  const hidden = new Set(user.hiddenNav);
+  const items = reachable.filter(({ key }) => !hidden.has(key));
+
   // Everywhere the palette can send somebody: the rail's own destinations and
   // the lists filed under them, flattened, plus the three screens that live in
   // the user menu rather than the rail. Permission-filtered here, on the server,
   // so the browser is never handed the name of a screen it may not open.
   const destinations = [
-    ...items.flatMap(({ href, key, children }) => [
+    ...reachable.flatMap(({ href, key, children }) => [
       { href, label: tn(key) },
       // The screen a section opens on is listed once, under the section's own
       // name — it is the first row of the list in the rail, but here that same
@@ -132,6 +148,15 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   const searches = SEARCHABLE_LISTS.filter(({ permission }) => allowed(permission)).map(
     ({ href, key }) => ({ href, label: tn(key) }),
   );
+
+  // What the tailor menu offers to switch off: everything this person can reach,
+  // named the way the menu they are editing names it. Permission-filtered here
+  // like everything else, so nobody is offered a switch for a screen they could
+  // not open in the first place.
+  const tailorItems = HIDEABLE.filter(({ permission }) => allowed(permission)).map((item) => ({
+    ...item,
+    label: item.labels === 'auth' ? ta(item.labelKey) : tn(item.labelKey),
+  }));
 
   // Which sections are folded shut, by key — same reasoning, same first paint.
   //
@@ -191,6 +216,32 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
     ? await getStockAlerts()
     : { active: [], quietened: [] };
 
+  // The piles that live on other screens — a case still at the laboratory, a
+  // stranger who left their number, tomorrow's patient nobody has told. Counts
+  // only, already gated on the permission that opens each screen, and already
+  // stripped of the empty ones. See `lib/board-elsewhere.ts` for why they are
+  // counts rather than rows.
+  const elsewhere = await getWaitingElsewhere(user.permissions);
+
+  /*
+   * When this person last shut the board, and how much has landed since.
+   *
+   * Read with its own lookup rather than added to `SessionUser`, which would be
+   * the cheaper place — `getCurrentUser` already selects from this row and is
+   * `cache`d. That file is being refactored by somebody else as this is
+   * written, and one indexed primary-key lookup is a small price for not
+   * editing a type mid-change. Worth folding into the session read later.
+   */
+  const seen = await prisma.staffUser.findUnique({
+    where: { id: user.id },
+    select: { boardSeenAt: true },
+  });
+  const boardSeenAt = seen?.boardSeenAt ?? null;
+
+  const newOnBoard =
+    countNew(openFollowUps, boardSeenAt) +
+    (await countNewElsewhere(user.permissions, boardSeenAt));
+
   // Read here rather than on the Staff page alone, because a failure nobody
   // visits that page to discover is a failure nobody discovers. Two small file
   // reads, and only for the person who can act on the answer.
@@ -211,10 +262,16 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
    * room's half stands on its own, and not at all when both halves are shut.
    */
   const renderBoard = (tone: 'surface' | 'brand') =>
-    canSeeFollowUps || canSeeStock ? (
+    // Drawn for anybody with any of the three, not just the first two: a
+    // receptionist who may not open the cupboard and keeps no follow-ups still
+    // has a queue of people waiting to be answered, and the bell is where the
+    // app promises to say so.
+    canSeeFollowUps || canSeeStock || elsewhere.length > 0 ? (
       <ReminderCenter
         tone={tone}
-        counts={bellCounts(openFollowUps)}
+        counts={bellCounts(openFollowUps, today(), user.id)}
+        elsewhere={elsewhere}
+        newOnBoard={newOnBoard}
         stock={stockAlertCounts(alerts)}
         followUpList={
           canSeeFollowUps ? (
@@ -223,6 +280,8 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
               canEdit={canEditFollowUps}
               staff={followUpStaff}
               variant="popover"
+              viewerId={user.id}
+              seenAt={boardSeenAt}
             />
           ) : null
         }
@@ -243,6 +302,9 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
               staff={followUpStaff}
               today={toDateKey(today())}
               triggerClassName="btn btn-primary btn-sm shrink-0"
+              // Words on a desktop, the alarm clock alone on a phone — the
+              // board's own heading needs the width back. See `compact`.
+              compact="phone"
             />
           ) : null
         }
@@ -263,9 +325,16 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
-          canManageStaff: user.permissions.includes('staff.manage'),
-          canViewAudit: user.permissions.includes('audit.view'),
-          canViewSettings: user.permissions.includes('settings.view'),
+          // Permission first, then whether this person has put the row away.
+          // The three screens the account menu carries are the three people ask
+          // to be rid of most often — a front desk has no use for an activity
+          // log, and one owner's practice has no use for four copies of the
+          // opening-hours link. Hidden here is hidden in the menu only: the
+          // search box still finds all three, and the pages still guard
+          // themselves.
+          canManageStaff: user.permissions.includes('staff.manage') && !hidden.has('staff'),
+          canViewAudit: user.permissions.includes('audit.view') && !hidden.has('activity'),
+          canViewSettings: user.permissions.includes('settings.view') && !hidden.has('settings'),
         }}
       />
 
@@ -304,6 +373,24 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
                 emptyLabel={t('paletteHint')}
               />
             </div>
+
+            {/* And beside it, the two buttons that are about the application
+                rather than about the practice: what this screen is for, and
+                which screens you want to keep.
+
+                They are in the same corner on every page — that is the whole of
+                what makes them findable. Help attached to a page is help nobody
+                finds twice, because the second time they are somewhere else and
+                it has moved. Unlike the bell there is no phone copy: the bell is
+                duplicated into the sticky teal bar because a notification that
+                scrolls off the top is a notification nobody sees, and neither of
+                these is ever urgent. */}
+            <PageHelp
+              destinations={destinations}
+              permissions={user.permissions}
+              pointer={user.needsHelpPointer}
+            />
+            <TailorMenu items={tailorItems} hidden={user.hiddenNav} />
 
             {/* The desktop copy. On a phone the same board rides in the
                 sticky bar instead — see `Sidebar`. */}

@@ -53,11 +53,22 @@ export async function recordPatientAudit(
 }
 
 /**
+ * Whose name goes on a line of the trail.
+ *
+ * The three fields the log actually writes, rather than the whole session. Sign
+ * in is the reason: the audit line for a wrong PIN is written *before* there is
+ * a session to describe, so those call sites had to hand-build a `SessionUser`
+ * and pad it out with a permission list of `[]` that was neither true nor read.
+ * Every real caller still satisfies this, because a `SessionUser` has all three.
+ */
+export type AuditActor = Pick<SessionUser, 'id' | 'fullName' | 'role'>;
+
+/**
  * Write one line to the trail. Never allowed to break the operation it
  * describes — a clinic losing a patient record because the log was busy would
  * be a far worse failure than a gap in the log.
  */
-export async function recordAudit(user: SessionUser, entry: AuditEntry): Promise<void> {
+export async function recordAudit(user: AuditActor, entry: AuditEntry): Promise<void> {
   try {
     await prisma.auditLog.create({
       data: {

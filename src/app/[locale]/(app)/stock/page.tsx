@@ -38,6 +38,7 @@ import { Link } from '@/i18n/navigation';
 import { toDateKey, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { ACTIVE_STOCK, getStockCategories } from '@/lib/queries';
+import { countOpenOrders } from '@/lib/purchase-orders';
 import { getReorderSuggestions } from '@/lib/reorder';
 import { photoUrl } from '@/lib/stock-photos';
 import { summariseBatches, usableQuantity } from '@/lib/expiry';
@@ -66,6 +67,7 @@ export default async function StockPage({
   const t = await getTranslations('stock');
   const tc = await getTranslations('common');
   const tscan = await getTranslations('scan');
+  const torders = await getTranslations('orders');
   const format = await getFormatter();
 
   // On its own, and first: the load that ships this feature is also the one that
@@ -74,7 +76,7 @@ export default async function StockPage({
   // first render of the storage room files every last box under "Uncategorized".
   const categories = await getStockCategories();
 
-  const [allItems, archived, usedRows, reorderLines] = await Promise.all([
+  const [allItems, archived, usedRows, reorderLines, openOrders] = await Promise.all([
     prisma.stockItem.findMany({
       where: ACTIVE_STOCK,
       orderBy: [{ name: 'asc' }],
@@ -111,6 +113,9 @@ export default async function StockPage({
       _sum: { delta: true },
     }),
     getReorderSuggestions(),
+    // Just the count. The orders themselves are a screen of their own; what
+    // this page needs is whether it is worth opening.
+    countOpenOrders(),
   ]);
   // What is actually *usable*, which is the figure the dashboard's low-stock
   // list has always read. This page counted raw boxes instead, so the two
@@ -204,6 +209,13 @@ export default async function StockPage({
               <Link href="/stock/stocktake" className="btn btn-secondary">
                 <ClipboardCheck size={18} aria-hidden />
                 {t('stocktake')}
+              </Link>
+              {/* What is still owed. Carries its count, because an orders screen
+                  with nothing outstanding is a screen nobody needs to open —
+                  and one with four late lines is the first thing to read. */}
+              <Link href="/stock/orders" className="btn btn-secondary">
+                <Truck size={18} aria-hidden />
+                {openOrders > 0 ? torders('openCount', { count: openOrders }) : torders('title')}
               </Link>
               {/* A screen of its own rather than a modal — see `NewStockForm`. */}
               <Link href="/stock/new" className="btn btn-primary">
@@ -389,8 +401,17 @@ export default async function StockPage({
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                    {/* The name is the way into the material's own record — its
+                        lots, its codes, and the movement ledger, which eight
+                        code paths have been writing to and no screen has ever
+                        shown. `stock.view`, so a reader gets it too: the row
+                        used to lead only to an edit form, which is a page a
+                        viewer may not open and the wrong arrival for anybody
+                        who just wants to know where the boxes went. */}
                     <p className="text-title font-bold text-ink">
-                      {item.name}
+                      <Link href={`/stock/${item.id}`} className="hover:underline">
+                        {item.name}
+                      </Link>
                     </p>
                     {/* Which one of the eight it is — the shade, the size, the
                         gauge. Chipped rather than run into the name, so a list

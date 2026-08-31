@@ -50,6 +50,7 @@ export function NewStockForm({
     name: '',
     code: '',
     categoryId: '',
+    location: '',
     variantName: '',
     quantity: '0',
     minLimit: '5',

@@ -7,6 +7,7 @@ import { authorize, recordAudit } from '@/lib/auth/guard';
 import { parseDateKey, today } from '@/lib/dates';
 import { parseMoney } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
+import { receiveAgainstOrders } from '@/lib/purchase-orders';
 import { parseStockLabel, stockLabelPath } from '@/lib/stock-labels';
 import { takeFromShelf } from '@/lib/stock-consumption';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
@@ -329,15 +330,20 @@ export async function commitScan(_prev: ActionState, formData: FormData): Promis
           });
         }
 
+        // Booked against what is still owed before the flag is touched. This
+        // cleared `orderedAt` outright, so the first carton of a part-delivery
+        // closed the order and the boxes that never came stopped being anybody's
+        // problem. See `receiveAgainstOrders`.
+        const { stillOutstanding } = await receiveAgainstOrders(tx, line.itemId, line.quantity);
+
         await tx.stockItem.update({
           where: { id: line.itemId },
           data: {
             // Relative, so two people receiving deliveries at once cannot lose
             // one — the same reason `saveBatch` increments rather than sets.
             quantity: { increment: line.quantity },
-            // What arrived is no longer on its way.
-            orderedAt: null,
-            expectedAt: null,
+            // What arrived is no longer on its way — unless part of it still is.
+            ...(stillOutstanding ? {} : { orderedAt: null, expectedAt: null }),
             ...(unitPrice === null ? {} : { unitPrice }),
           },
         });

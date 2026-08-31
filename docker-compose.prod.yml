@@ -160,6 +160,12 @@ services:
       # writes carries a unique dedupe key, so the second run collides and skips
       # rather than sending anybody two of anything.
       REMINDERS_MORNING_SCHEDULE: ${REMINDERS_MORNING_SCHEDULE:-0 7 * * *}
+      # Ten past seven, before the desk opens. The digest records what the board
+      # was holding *this* morning, so it has to be written before anybody starts
+      # clearing it — a run at lunchtime would describe a day half worked. Free
+      # to repeat: `PracticeDigest.forDay` is unique, so a second run refreshes
+      # the row rather than adding one.
+      DIGEST_SCHEDULE: ${DIGEST_SCHEDULE:-10 7 * * *}
       # Monday morning, once a week. A recall is urgent over a season rather than
       # on any particular day, and a queue refilled nightly is read as noise.
       RECALLS_SCHEDULE: ${RECALLS_SCHEDULE:-30 7 * * 1}

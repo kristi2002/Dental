@@ -5,12 +5,14 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { followUpFileKeys, forgetFiles } from '@/lib/cascade-files';
-import { parseDateKey } from '@/lib/dates';
+import { parseDateKey, today } from '@/lib/dates';
 import { MAX_FILE_BYTES } from '@/lib/file-constants';
 import { deleteStoredFile, storeFile } from '@/lib/files';
 import { suggestMaterials, type MaterialSuggestion } from '@/lib/material-history';
 import { usableQuantity } from '@/lib/expiry';
 import { prisma } from '@/lib/prisma';
+import { ACTIVE_STOCK } from '@/lib/queries';
+import { closeSettledOrders, hasOutstanding, receiveAgainstOrders } from '@/lib/purchase-orders';
 import { decrementShelf, recordConsumption, takeFromShelf } from '@/lib/stock-consumption';
 import { isPhotoMimeType, isPhotoOwner } from '@/lib/stock-photos';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
@@ -102,6 +104,86 @@ export async function writeOffBatch(formData: FormData): Promise<void> {
 }
 
 /**
+ * Clear every expired lot off the shelf in one press.
+ *
+ * The expiry screen diagnosed and never acted. It could name each turned lot and
+ * offer a button beside it, which is right for the one box that went off early
+ * and wrong for the ordinary case: a shelf comes back from a quiet August with
+ * eleven lots past their date, and eleven presses with a confirm dialog on each
+ * is a job that gets postponed. Postponed is the failure — an expired lot left
+ * on record goes on being counted by the storage page and subtracted by
+ * `usableQuantity`, so the cupboard reads full and urgent at the same time.
+ *
+ * Every lot goes through `takeFromShelf`, exactly as the single button does.
+ * Nothing here writes a counter or a `usedQuantity` directly: short stock is
+ * taken as far as it goes and the ledger records what actually moved, which is
+ * the guarantee the whole consumption path is built on.
+ *
+ * Re-read inside the action rather than trusted from the form. This is submitted
+ * from a page that may have been open since this morning, and a list of lot ids
+ * from then could name one a colleague has already dealt with — which would take
+ * the boxes off twice.
+ */
+export async function writeOffExpired(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  // Present only to make the press explicit about what it is answering; the
+  // rows themselves are found here.
+  if (!requiredString(formData.get('confirm'))) return;
+
+  const day = today();
+
+  const batches = await prisma.stockBatch.findMany({
+    where: { item: ACTIVE_STOCK, expiryDate: { not: null, lt: day } },
+    select: {
+      id: true,
+      itemId: true,
+      quantity: true,
+      usedQuantity: true,
+      item: { select: { name: true } },
+    },
+  });
+
+  let cleared = 0;
+  let boxes = 0;
+
+  for (const batch of batches) {
+    const remaining = Math.max(0, batch.quantity - batch.usedQuantity);
+    if (remaining <= 0) continue;
+
+    // One transaction per lot rather than one for all of them. A cupboard's
+    // worth of write-offs is a long transaction holding row locks on the
+    // busiest table in the database, and a single failure two-thirds of the way
+    // through would roll back eight lots somebody has already binned. Each lot
+    // is its own decision and settles on its own.
+    const taken = await prisma.$transaction((tx) =>
+      takeFromShelf(tx, {
+        itemId: batch.itemId,
+        quantity: remaining,
+        reason: 'write-off',
+        staffUserId: user.id,
+        preferBatchId: batch.id,
+      }),
+    );
+
+    if (taken > 0) {
+      cleared += 1;
+      boxes += taken;
+    }
+  }
+
+  if (cleared === 0) return;
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'stock',
+    summary: `Expired lots written off — ${cleared} lot(s), ${boxes} box(es)`,
+  });
+  revalidateAll();
+}
+
+/**
  * Turn a typed product name into the row it names, making it if it is new.
  *
  * Grouping the eight shades of one composite has to cost nothing, or it will not
@@ -173,6 +255,7 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
     // No `unit` and no `packSize`: the shelf is counted in boxes and nothing
     // else, so neither is asked for any more. See their comments in
     // `schema.prisma` — the columns survive the deploy, the questions do not.
+    location: optionalString(formData.get('location')),
     productId: await resolveProduct(optionalString(formData.get('productName'))),
     variantName: optionalString(formData.get('variantName')),
     orderQty,
@@ -480,9 +563,42 @@ export async function saveStocktake(_prev: ActionState, formData: FormData): Pro
         if (delta === 0) continue;
 
         await tx.stockItem.update({ where: { id: item.id }, data: { quantity: value } });
-        await tx.stockMovement.create({
-          data: { itemId: item.id, delta, reason: 'stocktake', staffUserId: user.id },
-        });
+
+        if (delta < 0) {
+          // A count that comes up short is a consumption like any other, and has
+          // to draw the lots down like one. This was the only path that did not:
+          // `adjustStock`, `takeStock`, `writeOffBatch` and both directions of
+          // the scanner all go through `recordConsumption`, and the stocktake
+          // wrote the counter and one bare movement.
+          //
+          // What that cost is worth spelling out, because it was silent. The
+          // lots kept remainders for boxes that were no longer on the shelf, so
+          // the expiry screen counted stock that was not there; `usableQuantity`
+          // then subtracted those phantom remainders from the real count once
+          // they turned, and a healthy fast-moving material could read as empty
+          // and permanently urgent. Worse, the next real consumption was
+          // allocated oldest-first into a lot that had physically gone — which
+          // writes a lot number onto a patient's record that never went near
+          // them, and that trace is the stated reason `StockBatch` exists.
+          //
+          // `recordConsumption` writes its own movements, one per lot, so there
+          // is no separate row to create here.
+          await recordConsumption(tx, {
+            itemId: item.id,
+            quantity: -delta,
+            reason: 'stocktake',
+            staffUserId: user.id,
+          });
+        } else {
+          // A count that comes up long is not a delivery. Nobody can say which
+          // lot the extra boxes came out of, and inventing one would put a made
+          // up expiry date on real stock — so this stays one unbatched movement,
+          // exactly as a restock off the ±1 buttons does.
+          await tx.stockMovement.create({
+            data: { itemId: item.id, delta, reason: 'stocktake', staffUserId: user.id },
+          });
+        }
+
         applied += 1;
       }
       return applied;
@@ -772,8 +888,8 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
   const purchasedAt = parseDateKey(optionalString(formData.get('purchasedAt'))) ?? new Date();
 
   try {
-    await prisma.$transaction([
-      prisma.stockBatch.create({
+    await prisma.$transaction(async (tx) => {
+      await tx.stockBatch.create({
         data: {
           itemId,
           lotNumber: optionalString(formData.get('lotNumber')),
@@ -783,21 +899,28 @@ export async function saveBatch(_prev: ActionState, formData: FormData): Promise
           quantity,
           notes: optionalString(formData.get('notes')),
         },
-      }),
+      });
+
+      // Booked against whatever is still owed before the flag is touched. This
+      // used to clear `orderedAt` outright, so six boxes against an order of ten
+      // closed the order and the four that never came were forgotten by every
+      // screen at once. Now the flag comes off only when nothing is outstanding.
+      const { stillOutstanding } = await receiveAgainstOrders(tx, itemId, quantity);
+
       // Relative, so two people recording deliveries at once cannot lose one —
       // see IMPROVEMENTS §1.2 for what an absolute write costs here.
-      prisma.stockItem.update({
+      await tx.stockItem.update({
         where: { id: itemId },
         data: {
           quantity: { increment: quantity },
-          orderedAt: null,
-          expectedAt: null,
+          ...(stillOutstanding ? {} : { orderedAt: null, expectedAt: null }),
         },
-      }),
-      prisma.stockMovement.create({
+      });
+
+      await tx.stockMovement.create({
         data: { itemId, delta: quantity, reason: 'delivery', staffUserId: user.id },
-      }),
-    ]);
+      });
+    });
   } catch {
     return actionError(t('generic'));
   }
@@ -880,9 +1003,114 @@ export async function deleteBatch(formData: FormData): Promise<void> {
 }
 
 /**
+ * Read `itemId:boxes` pairs off an order form.
+ *
+ * The amount is what turns a flag into an order. Missing or unreadable falls
+ * back to one box rather than dropping the line: somebody pressed "ordered"
+ * against this material, and recording the fact with a wrong quantity is
+ * recoverable, whereas silently not recording it is the failure this whole
+ * table was added to stop.
+ */
+function parseOrderLines(raw: string): Array<{ itemId: string; quantity: number }> {
+  const out: Array<{ itemId: string; quantity: number }> = [];
+
+  for (const entry of raw.split(',')) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+
+    const separator = trimmed.lastIndexOf(':');
+    const itemId = separator > 0 ? trimmed.slice(0, separator) : trimmed;
+    const quantity = separator > 0 ? toInt(trimmed.slice(separator + 1), 1) : 1;
+    if (!itemId) continue;
+
+    out.push({ itemId, quantity: Math.min(100_000, Math.max(1, quantity)) });
+  }
+
+  return out;
+}
+
+/**
+ * Write the order down, and flag the materials it names.
+ *
+ * Both halves, always, in one transaction — which is the point. `PurchaseOrder`
+ * is the record and `StockItem.orderedAt` is the index four screens read on
+ * every render, and the moment those two can be written apart is the moment they
+ * start disagreeing about what is on its way.
+ *
+ * Materials already on order are left out. Re-stamping one would push its
+ * expected date forward for no reason, and would put a second open line against
+ * a supplier who has not been asked twice.
+ */
+async function placeOrder({
+  itemIds,
+  expectedAt,
+  supplierName,
+  staffUserId,
+}: {
+  itemIds: Array<{ itemId: string; quantity: number }>;
+  expectedAt: Date | null;
+  supplierName: string;
+  staffUserId: string;
+}): Promise<{ count: number; supplierId: string | null } | null> {
+  return prisma.$transaction(async (tx) => {
+    const items = await tx.stockItem.findMany({
+      where: { id: { in: itemIds.map((line) => line.itemId) }, orderedAt: null },
+      select: { id: true, name: true, variantName: true, supplierId: true },
+    });
+    if (items.length === 0) return null;
+
+    const known = new Map(items.map((item) => [item.id, item]));
+    const lines = itemIds.filter((line) => known.has(line.itemId));
+    if (lines.length === 0) return null;
+
+    // Every line in one press comes from one supplier group, so the first is the
+    // order's. Null is a real answer: an order for materials nobody has said
+    // where to buy was still placed somehow, and refusing to record it would
+    // lose the only trace of it.
+    const supplierId = known.get(lines[0].itemId)?.supplierId ?? null;
+    const placedAt = new Date();
+
+    await tx.purchaseOrder.create({
+      data: {
+        supplierId,
+        supplierName,
+        placedAt,
+        expectedAt,
+        staffUserId,
+        lines: {
+          create: lines.map((line) => {
+            const item = known.get(line.itemId);
+            return {
+              itemId: line.itemId,
+              itemName: item?.variantName
+                ? `${item.name} · ${item.variantName}`
+                : (item?.name ?? ''),
+              quantity: line.quantity,
+            };
+          }),
+        },
+      },
+    });
+
+    await tx.stockItem.updateMany({
+      where: { id: { in: lines.map((line) => line.itemId) } },
+      data: { orderedAt: placedAt, expectedAt },
+    });
+
+    return { count: lines.length, supplierId };
+  });
+}
+
+/**
  * "It has been ordered." Stops the reorder list asking for the same thing every
  * morning until the box physically arrives — which is what trains everyone to
  * stop reading the list.
+ *
+ * Writes a one-line `PurchaseOrder` as well as the flag, exactly as the
+ * per-supplier press does. One material ordered by itself is still an order, and
+ * a purchasing record with a hole in it wherever somebody used the single button
+ * would be worse than none: the outstanding figure could not be trusted, so it
+ * would not be read.
  */
 export async function markOrdered(formData: FormData): Promise<void> {
   const user = await authorize('stock.edit');
@@ -891,59 +1119,129 @@ export async function markOrdered(formData: FormData): Promise<void> {
   const id = requiredString(formData.get('id'));
   if (!id) return;
 
-  const raw = optionalString(formData.get('expectedAt'));
-  const expectedAt = parseDateKey(raw);
+  const expectedAt = parseDateKey(optionalString(formData.get('expectedAt')));
+  // The reorder list knows what it suggested; the storage page's own button does
+  // not, and one box is the honest default for a press that stated no amount.
+  const quantity = Math.max(1, toInt(formData.get('quantity'), 1));
 
-  const item = await prisma.stockItem.update({
+  const item = await prisma.stockItem.findUnique({
     where: { id },
-    data: { orderedAt: new Date(), expectedAt },
-    select: { name: true },
+    select: { name: true, supplier: { select: { name: true } } },
+  });
+  if (!item) return;
+
+  const placed = await placeOrder({
+    itemIds: [{ itemId: id, quantity }],
+    expectedAt,
+    supplierName: item.supplier?.name ?? '',
+    staffUserId: user.id,
+  });
+  if (!placed) return;
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'stock',
+    entityId: id,
+    summary: `${item.name} → ordered ×${quantity}`,
+  });
+  revalidateAll();
+}
+
+/**
+ * Place one supplier's whole order in one press.
+ *
+ * An order is placed per supplier and answered per supplier, and the flag was
+ * only ever settable per material — so sending one message about eight items
+ * meant pressing "ordered" eight times, and the realistic outcome is that
+ * nobody presses it at all and the list nags every morning until the box turns
+ * up.
+ *
+ * The field is `lines` rather than `ids` now, carrying `itemId:boxes`. It is the
+ * amount that makes a part-delivery detectable, and the amount was the one thing
+ * the old form knew — the reorder list computed it, printed it in the message,
+ * and then threw it away on the way to the flag.
+ */
+export async function markSupplierOrdered(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  const lines = parseOrderLines(requiredString(formData.get('lines')));
+  if (lines.length === 0) return;
+
+  const expectedAt = parseDateKey(optionalString(formData.get('expectedAt')));
+  const supplierName = optionalString(formData.get('supplierName')) ?? '';
+
+  const placed = await placeOrder({
+    itemIds: lines,
+    expectedAt,
+    supplierName,
+    staffUserId: user.id,
+  });
+  if (!placed) return;
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'stock',
+    summary: `Order placed — ${placed.count} ${supplierName ? `· ${supplierName}` : 'line(s)'}`,
+  });
+  revalidateAll();
+}
+
+/**
+ * Give up on what is still owed against an order.
+ *
+ * The one thing arithmetic cannot close. An order settles itself when its last
+ * box arrives — see `closeSettledOrders` — but an order the supplier is never
+ * going to fill has to be ended by somebody saying so, and until it is it sits
+ * at the top of the open list for ever telling a true story nobody can act on.
+ *
+ * The lines are left exactly as they are. Six of ten arrived, and rewriting the
+ * ten to six to make the sums come out would erase the only record that four
+ * were never delivered — which is the fact worth keeping about a cancelled
+ * order.
+ */
+export async function cancelPurchaseOrder(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const order = await prisma.purchaseOrder.findUnique({
+    where: { id },
+    select: {
+      closedAt: true,
+      supplierName: true,
+      lines: { select: { itemId: true, quantity: true, receivedQuantity: true } },
+    },
+  });
+  if (!order || order.closedAt) return;
+
+  const outstanding = order.lines.filter((line) => line.receivedQuantity < line.quantity);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.purchaseOrder.update({
+      where: { id },
+      data: { closedAt: new Date(), cancelled: true },
+    });
+
+    // Only the materials this order was the last thing waiting on. One that is
+    // also on a second open order is still on its way, and clearing its flag
+    // would put it back on the reorder list to be bought twice.
+    for (const line of outstanding) {
+      if (await hasOutstanding(tx, line.itemId)) continue;
+      await tx.stockItem.updateMany({
+        where: { id: line.itemId },
+        data: { orderedAt: null, expectedAt: null },
+      });
+    }
   });
 
   await recordAudit(user, {
     action: 'update',
     entity: 'stock',
     entityId: id,
-    summary: `${item.name} → ordered`,
-  });
-  revalidateAll();
-}
-
-/**
- * Mark everything on one supplier's order as ordered, in one press.
- *
- * An order is placed per supplier and answered per supplier, and the flag was
- * only ever settable per material — so sending one message about eight items
- * meant pressing "ordered" eight times, and the realistic outcome is that
- * nobody presses it at all and the list nags every morning until the box turns
- * up. Same write as `markOrdered`, applied to the group that was actually sent.
- */
-export async function markSupplierOrdered(formData: FormData): Promise<void> {
-  const user = await authorize('stock.edit');
-  if (!user) return;
-
-  const ids = requiredString(formData.get('ids'))
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (ids.length === 0) return;
-
-  const raw = optionalString(formData.get('expectedAt'));
-  const expectedAt = parseDateKey(raw);
-
-  // Only the ones still waiting for a decision: re-stamping something already on
-  // order would push its expected date forward for no reason.
-  const marked = await prisma.stockItem.updateMany({
-    where: { id: { in: ids }, orderedAt: null },
-    data: { orderedAt: new Date(), expectedAt },
-  });
-  if (marked.count === 0) return;
-
-  const supplierName = optionalString(formData.get('supplierName')) ?? '';
-  await recordAudit(user, {
-    action: 'update',
-    entity: 'stock',
-    summary: `${marked.count} ${supplierName ? `· ${supplierName} ` : ''}→ ordered`,
+    summary: `Order cancelled${order.supplierName ? ` · ${order.supplierName}` : ''} — ${outstanding.length} line(s) outstanding`,
   });
   revalidateAll();
 }
@@ -1101,10 +1399,36 @@ export async function clearOrdered(formData: FormData): Promise<void> {
   const id = requiredString(formData.get('id'));
   if (!id) return;
 
-  const item = await prisma.stockItem.update({
-    where: { id },
-    data: { orderedAt: null, expectedAt: null },
-    select: { name: true },
+  const item = await prisma.$transaction(async (tx) => {
+    const found = await tx.stockItem.update({
+      where: { id },
+      data: { orderedAt: null, expectedAt: null },
+      select: { name: true },
+    });
+
+    // The flag and the order have to come off together. Clearing one and leaving
+    // the other is how the storage page comes to say "not on order" while the
+    // orders screen goes on waiting for boxes nobody expects any more.
+    //
+    // Only the lines for *this* material, and only what is still owed on them:
+    // an order for eight things is not cancelled because one of them was struck
+    // off, so the line is filled to its asked amount and the order closes itself
+    // when the rest of it lands.
+    const open = await tx.purchaseOrderLine.findMany({
+      where: { itemId: id, order: { closedAt: null } },
+      select: { id: true, orderId: true, quantity: true, receivedQuantity: true },
+    });
+
+    for (const line of open) {
+      if (line.receivedQuantity >= line.quantity) continue;
+      await tx.purchaseOrderLine.update({
+        where: { id: line.id },
+        data: { receivedQuantity: line.quantity },
+      });
+    }
+
+    await closeSettledOrders(tx, [...new Set(open.map((line) => line.orderId))]);
+    return found;
   });
 
   await recordAudit(user, {

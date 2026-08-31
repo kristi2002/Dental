@@ -2,10 +2,13 @@ import {
   CalendarCheck,
   ChartColumn,
   Clock,
+  Coins,
   Package,
   Share2,
   Stethoscope,
+  Tags,
   TrendingUp,
+  Truck,
   UserX,
   Users,
 } from 'lucide-react';
@@ -32,10 +35,14 @@ import {
   toMonthKey,
   today,
 } from '@/lib/dates';
+import { moneyFormat } from '@/lib/money';
 import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
-import { getProviderOptions } from '@/lib/queries';
+import { getClinicProfile, getProviderOptions } from '@/lib/queries';
+import { getPriceMoves, getStockSpend, getTreatmentMaterialCosts } from '@/lib/stock-costs';
+import { getConsumptionAdherence } from '@/lib/stock-ledger';
 import { getProviderNoShows, getUtilisation, overallUtilisation } from '@/lib/utilisation';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -180,13 +187,35 @@ export default async function AnalyticsPage({
   // hours, closures, a duration on every booking, a dentist on every slot — and
   // nothing put them together.
   const providerName = new Map(providers.map((person) => [person.id, person.name]));
-  // What the storage room is worth used to be a tile here. It is gone with every
-  // other price on every stock screen — the owner's decision, and the reason
-  // nothing in this app values the cupboard any more.
-  const [utilisation, providerNoShows] = await Promise.all([
-    getUtilisation({ from: windowStart, to: windowEnd }),
-    getProviderNoShows({ from: windowStart, to: windowEnd, names: providerName }),
-  ]);
+  // What the storage room is *worth* is still not asked, and still deliberately:
+  // money is off every storage-room screen by the owner's decision, and a
+  // valuation is a storage-room question wearing a different hat.
+  //
+  // What follows is a different question, and one this page is the right side of
+  // the fence for — what the practice *spends*, and what a treatment costs it in
+  // materials. `analytics.view` is held by the owner and the accountant and by
+  // nobody who works the cupboard: the assistant and the front desk both carry
+  // `stock.view` and neither carries this, and their role comments say "no
+  // business figures" in as many words. So the prices staff have been typing on
+  // every delivery are read back here and on no other screen. See
+  // `src/lib/stock-costs.ts`.
+  const [utilisation, providerNoShows, clinic, spend, treatmentCosts, priceMoves, adherence] =
+    await Promise.all([
+      getUtilisation({ from: windowStart, to: windowEnd }),
+      getProviderNoShows({ from: windowStart, to: windowEnd, names: providerName }),
+      getClinicProfile(),
+      getStockSpend({ from: windowStart, to: windowEnd }),
+      getTreatmentMaterialCosts({ from: windowStart, to: windowEnd }),
+      getPriceMoves(),
+      // Whether the usage chart below is still being fed. See
+      // `getConsumptionAdherence` — every stock figure on this page and on the
+      // reorder list rests on somebody recording what a visit used, and nothing
+      // measured whether they still do.
+      getConsumptionAdherence({ from: windowStart, to: windowEnd }),
+    ]);
+
+  /** Every price on this page, in the currency the practice keeps its books in. */
+  const money = (value: number) => format.number(value, moneyFormat(clinic.currency, value));
 
   // Percentages against the same month labels the other charts use, so the
   // reader can lay one over another without checking the axis twice.
@@ -213,6 +242,25 @@ export default async function AnalyticsPage({
   const usagePoints = bucket(
     movements.map((m) => ({ date: m.createdAt, amount: Math.abs(m.delta) })),
   );
+
+  // Boxes out and money in, on the same month labels and directly under one
+  // another — the pair reads as one story, which neither half tells alone.
+  const spendPoints = bucket(spend.deliveries);
+
+  const supplierPoints: Point[] = spend.bySupplier
+    .slice(0, 8)
+    .map((row) => ({ label: row.supplierName || t('noSupplier'), value: row.total }))
+    .reverse(); // Recharts stacks a vertical layout bottom-up.
+
+  /**
+   * How much of the window's receiving carried no price at all.
+   *
+   * Shown as a caption on the spend card rather than left out, because a
+   * delivery scanned off a symbol that named no lot creates no lot and so
+   * records no price — the gap is systematic, not random, and a spend figure
+   * that hides it looks like an answer when it is a floor.
+   */
+  const unpricedBoxes = spend.coverage.unpricedBoxes;
 
   // The catalogue's own current name, so a service renamed last month shows its
   // whole history under one label instead of splitting into before and after.
@@ -395,8 +443,166 @@ export default async function AnalyticsPage({
           <CardHeader title={t('stockUsage')} icon={<Package size={22} aria-hidden />} />
           <CardBody>
             <MonthlyBars data={usagePoints} name={t('used')} />
+
+            {/* Whether these bars are still being fed.
+
+                Deliberately a sentence under the chart rather than a tile of its
+                own, and deliberately not a target. A check-up consumes nothing,
+                so a healthy practice is nowhere near 100% and chasing the number
+                would mean inventing consumption. What it is for is the level and
+                the drift: steady is a working system, falling is the system
+                being abandoned — and that was invisible on every screen,
+                including this one, which went on drawing confident bars over a
+                ledger nobody was writing to. */}
+            {adherence.visits > 0 ? (
+              <p
+                className={cn(
+                  'mt-3 text-meta',
+                  adherence.share < 0.2 ? 'font-semibold text-warn' : 'text-ink-soft',
+                )}
+              >
+                {t('materialsRecorded', {
+                  percent: Math.round(adherence.share * 100),
+                  visits: adherence.visits,
+                })}
+              </p>
+            ) : null}
           </CardBody>
         </Card>
+
+        {/* What the boxes above cost. Sits directly after the usage chart and on
+            the same month labels, so the two can be laid over one another: a
+            month where usage held steady and spend climbed is the whole point. */}
+        <Card>
+          <CardHeader
+            title={t('stockSpend')}
+            icon={<Coins size={22} aria-hidden />}
+            action={<Badge>{money(spend.total)}</Badge>}
+          />
+          {spend.coverage.pricedBoxes === 0 ? (
+            <EmptyState icon={<Coins size={40} aria-hidden />} title={t('noPricedDeliveries')} />
+          ) : (
+            <CardBody>
+              <MonthlyBars data={spendPoints} name={t('spend')} />
+              {unpricedBoxes > 0 ? (
+                <p className="mt-3 text-meta text-ink-soft">
+                  {t('spendUnpriced', { boxes: unpricedBoxes })}
+                </p>
+              ) : null}
+            </CardBody>
+          )}
+        </Card>
+
+        {/* Only worth a panel once the spend is actually split between people to
+            compare — one supplier is a bar chart of one bar. */}
+        {supplierPoints.length > 1 ? (
+          <Card>
+            <CardHeader title={t('spendBySupplier')} icon={<Truck size={22} aria-hidden />} />
+            <CardBody>
+              <HorizontalBars data={supplierPoints} name={t('spend')} />
+            </CardBody>
+          </Card>
+        ) : null}
+
+        {/* The one figure on this page that can say a treatment is priced below
+            what it costs to perform. A table rather than a chart: three numbers
+            per row all matter, and the count is what says whether to believe
+            the average. */}
+        <Card className="xl:col-span-2">
+          <CardHeader
+            title={t('treatmentMaterialCost')}
+            icon={<Stethoscope size={22} aria-hidden />}
+          />
+          {treatmentCosts.lines.length === 0 ? (
+            <EmptyState icon={<Stethoscope size={40} aria-hidden />} title={t('noTreatmentCosts')} />
+          ) : (
+            <CardBody>
+              <div className="overflow-x-auto">
+                <table className="w-full text-body">
+                  <thead>
+                    <tr className="border-b border-line text-left text-meta text-ink-faint uppercase">
+                      <th scope="col" className="py-2 pr-4 font-bold">
+                        {t('treatment')}
+                      </th>
+                      <th scope="col" className="py-2 pr-4 text-right font-bold">
+                        {t('costPerVisit')}
+                      </th>
+                      <th scope="col" className="py-2 pr-4 text-right font-bold">
+                        {t('costTotal')}
+                      </th>
+                      <th scope="col" className="py-2 text-right font-bold">
+                        {t('visits')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {treatmentCosts.lines.map((line) => (
+                      <tr key={line.serviceId ?? line.name}>
+                        <th scope="row" className="py-2 pr-4 text-left font-bold text-ink">
+                          {line.name}
+                        </th>
+                        <td className="py-2 pr-4 text-right font-bold tabular-nums text-ink">
+                          {money(line.perVisit)}
+                        </td>
+                        <td className="py-2 pr-4 text-right tabular-nums text-ink-soft">
+                          {money(line.total)}
+                        </td>
+                        <td className="py-2 text-right tabular-nums text-ink-soft">
+                          {line.visits}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Both caveats stated on the card rather than in a tooltip. An
+                  average built mostly from a material's latest price, or drawn
+                  from a handful of the period's visits, is still worth reading —
+                  but only by somebody who has been told which it is. */}
+              <p className="mt-3 text-meta text-ink-soft">
+                {treatmentCosts.skippedVisits > 0
+                  ? `${t('costSkipped', { count: treatmentCosts.skippedVisits })} `
+                  : ''}
+                {treatmentCosts.exactShare < 0.999
+                  ? t('costEstimated', {
+                      percent: Math.round((1 - treatmentCosts.exactShare) * 100),
+                    })
+                  : ''}
+              </p>
+            </CardBody>
+          )}
+        </Card>
+
+        {/* Prices that moved between the last two deliveries. The quiet way a
+            supply bill grows: no single delivery looks wrong, and the only place
+            the two figures ever sat side by side was in somebody's memory. */}
+        {priceMoves.length > 0 ? (
+          <Card className="xl:col-span-2">
+            <CardHeader title={t('priceMoves')} icon={<Tags size={22} aria-hidden />} />
+            <CardBody>
+              <ul className="divide-y divide-line">
+                {priceMoves.map((move) => (
+                  <li
+                    key={move.itemId}
+                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2"
+                  >
+                    <span className="font-bold text-ink">{move.name}</span>
+                    <span className="flex items-center gap-3 tabular-nums">
+                      <span className="text-ink-soft line-through">{money(move.previous)}</span>
+                      <span className="font-bold text-ink">{money(move.latest)}</span>
+                      <Badge tone={move.changePercent > 0 ? 'warn' : 'ok'}>
+                        {`${move.changePercent > 0 ? '+' : '−'}${Math.abs(
+                          Math.round(move.changePercent),
+                        )}%`}
+                      </Badge>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardBody>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader title={t('referralSources')} icon={<Share2 size={22} aria-hidden />} />

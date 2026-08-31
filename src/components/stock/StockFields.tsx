@@ -10,6 +10,8 @@ export type StockDefaults = {
   code: string;
   /** The shelf's id, or empty for a material nobody has filed. */
   categoryId: string;
+  /** Where the box physically lives. Empty in a practice with one obvious home. */
+  location: string;
   /** How many **boxes** are on the shelf. Nothing here is counted in pieces. */
   quantity: number;
   minLimit: number;
@@ -75,6 +77,20 @@ export function IdentityFields({
           optional={tc('optional')}
           inputMode="numeric"
           defaultValue={item?.code}
+        />
+
+        {/* Where to walk to. A text box rather than a select, unlike the shelf
+            below it — see `StockItem.location`: a category is a kind of thing
+            and belongs on a list, a location is a sentence about one cupboard
+            and belongs to whoever has to find it. */}
+        <TextField
+          id={`${uid}-location`}
+          name="location"
+          label={t('location')}
+          hint={t('locationHint')}
+          optional={tc('optional')}
+          autoComplete="off"
+          defaultValue={item?.location}
         />
 
         {/* A closed list, not a text box. Typing the shelf name per material is

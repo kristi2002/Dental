@@ -9,7 +9,7 @@ import { NoteEditor } from '@/components/ui/NoteEditor';
 import { UrgentToggle } from '@/components/ui/UrgentToggle';
 import { useRecoveredForm } from '@/lib/form-recovery';
 import { saveFollowUp } from '@/lib/actions/follow-ups';
-import { MAX_NOTES_LENGTH, MAX_TITLE_LENGTH } from '@/lib/follow-ups';
+import { MAX_NOTES_LENGTH, MAX_TITLE_LENGTH, REPEATS } from '@/lib/follow-ups';
 import type { StaffOption } from './FollowUpFormDialog';
 
 /**
@@ -36,6 +36,8 @@ export function FollowUpDetailForm({
     dueAt: string;
     urgent: boolean;
     assignedToId: string;
+    /** `''` for a one-off, otherwise a `FollowUpRepeat` value. */
+    repeatEvery: string;
   };
   staff: ReadonlyArray<StaffOption>;
   canEdit: boolean;
@@ -91,6 +93,24 @@ export function FollowUpDetailForm({
             {staff.map((person) => (
               <option key={person.id} value={person.id}>
                 {person.name}
+              </option>
+            ))}
+          </SelectField>
+
+          {/* The same field the dialog offers, and it has to be here too: this
+              page is where a line that turned out to be monthly gets told so. */}
+          <SelectField
+            id={`${uid}-repeatEvery`}
+            name="repeatEvery"
+            label={t('fieldRepeat')}
+            optional={tc('optional')}
+            disabled={!canEdit}
+            defaultValue={followUp.repeatEvery}
+          >
+            <option value="">{t('repeatNever')}</option>
+            {REPEATS.map((every) => (
+              <option key={every} value={every}>
+                {t(`repeat.${every}`)}
               </option>
             ))}
           </SelectField>

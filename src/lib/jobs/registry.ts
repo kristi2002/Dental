@@ -1,6 +1,7 @@
 import { readdir, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '@/lib/prisma';
+import { composeMorningDigest } from '@/lib/jobs/digest';
 import { queueAppointmentReminders, queueRecalls } from '@/lib/messages/queue';
 import { referencedStorageKeys } from '@/lib/storage-keys';
 
@@ -156,6 +157,30 @@ export const JOBS: Record<string, Job> = {
     description: 'Queue the patients who are overdue for a check-up.',
     everyHours: WEEKLY,
     run: queueRecalls,
+  },
+
+  /**
+   * Write down what was waiting on the practice this morning.
+   *
+   * The first job here that is about the practice rather than about a patient
+   * or about the machine, and the only thing in the app that looks forward on
+   * the practice's own behalf. It reads the same three piles the reminder board
+   * reads and stores the numbers against the day.
+   *
+   * It sends nothing — see `lib/jobs/digest.ts`, which sets out why that is the
+   * design and not a stage of it. The row it writes carries a `sentAt` that
+   * stays null until somebody decides the practice should be emailed its own
+   * board, with a mailer that is actually configured. Until then this is a
+   * queue filling quietly, which is the point: the day that decision is made,
+   * there is a history to send from rather than a feature to start writing.
+   *
+   * Daily, and idempotent on the day — a restart re-runs it and the unique
+   * index on `forDay` turns the second write into a refresh.
+   */
+  'compose-morning-digest': {
+    description: "Record what was waiting on the practice this morning. It sends nothing.",
+    everyHours: DAILY,
+    run: composeMorningDigest,
   },
 
   'sweep-orphan-files': {

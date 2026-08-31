@@ -175,11 +175,8 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
   await recordAudit(
     {
       id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
       fullName: `${user.firstName} ${user.lastName}`,
       role: user.role,
-      permissions: [],
     },
     { action: 'login', entity: 'session', entityId: user.id, summary: 'Signed in' },
   );
@@ -318,11 +315,8 @@ export async function unlockSession(
   await recordAudit(
     {
       id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
       fullName: `${user.firstName} ${user.lastName}`,
       role: user.role,
-      permissions: [],
     },
     {
       action: 'login',

@@ -28,6 +28,7 @@
  */
 
 import { matchColumns } from './csv-parse';
+import { normaliseGtin } from '@/lib/barcode';
 
 /** What can be wrong with a row. Shown against the row on the screen. */
 export type CatalogueProblem =
@@ -38,7 +39,17 @@ export type CatalogueProblem =
   /** An earlier row of this same file already used the name. */
   | 'duplicateInFile'
   /** The practice already has one under this name. */
-  | 'alreadyHere';
+  | 'alreadyHere'
+  /**
+   * A barcode column that did not hold a real GTIN.
+   *
+   * Not fatal — the material still imports, it just does not become scannable.
+   * Refused rather than stored, because `normaliseGtin` checks the check digit
+   * and a symbol that fails it is a misread or a typo: linking it would teach
+   * the scanner a code no carton in the world carries, and the practice would
+   * discover that one beep at a time.
+   */
+  | 'badBarcode';
 
 const FATAL: ReadonlySet<CatalogueProblem> = new Set<CatalogueProblem>([
   'noName',
@@ -167,7 +178,21 @@ export function readServices(grid: readonly string[][]): CatalogueReading<Servic
 
 const STOCK_ALIASES = {
   name: ['Emri', 'Nome', 'Name', 'Materiali', 'Material', 'Article', 'Article name', 'Produkti'],
-  code: ['Kodi', 'Codice', 'Code', 'Article number', 'Product ID', 'SKU', 'Barcode', 'Barkodi'],
+  code: ['Kodi', 'Codice', 'Code', 'Article number', 'Product ID', 'SKU'],
+  /**
+   * The symbol actually printed on the carton, as distinct from the practice's
+   * own article number beside it.
+   *
+   * `Barcode` and `Barkodi` used to be aliases of `code`, which quietly wasted
+   * the one column that could bootstrap the scanner: a spreadsheet headed
+   * "Barcode" full of real EANs landed in `StockItem.code` — a free-text article
+   * number nothing scans — and the storage room stayed unscannable until
+   * somebody linked all seventy products one carton at a time.
+   *
+   * That is the whole adoption cliff in front of every scanning feature in this
+   * app, and a supplier's own price list already has this column.
+   */
+  gtin: ['Barcode', 'Barkodi', 'GTIN', 'EAN', 'EAN13', 'UPC', 'Kodi i barit'],
   category: ['Kategoria', 'Categoria', 'Category', 'Rafti', 'Shelf'],
   supplier: ['Furnitori', 'Fornitore', 'Supplier', 'Vendor'],
   unit: ['Njësia', 'Unità', 'Unit', 'Njesia'],
@@ -179,6 +204,8 @@ const STOCK_ALIASES = {
 export type StockDraft = {
   name: string;
   code: string | null;
+  /** A validated, 14-digit GTIN to teach the scanner, or null. */
+  gtin: string | null;
   category: string | null;
   supplier: string | null;
   unit: string;
@@ -223,6 +250,13 @@ export function readStockItems(grid: readonly string[][]): CatalogueReading<Stoc
       return parsed ?? fallback;
     };
 
+    // Validated here rather than trusted. `normaliseGtin` pads every short form
+    // up to fourteen and refuses a wrong check digit, so what reaches the
+    // database is the one key a scan can be looked up under.
+    const writtenGtin = cell(at(raw, 'gtin'));
+    const gtin = writtenGtin ? normaliseGtin(writtenGtin) : null;
+    if (writtenGtin && gtin === null) problems.push('badBarcode');
+
     const minLimit = number('minLimit', DEFAULT_MIN_LIMIT)!;
     const packSize = number('packSize', DEFAULT_PACK_SIZE)!;
     const unitPrice = number('unitPrice', null);
@@ -233,6 +267,7 @@ export function readStockItems(grid: readonly string[][]): CatalogueReading<Stoc
       draft: {
         name,
         code,
+        gtin,
         category: optional(at(raw, 'category')),
         supplier: optional(at(raw, 'supplier')),
         unit: optional(at(raw, 'unit')) ?? DEFAULT_UNIT,

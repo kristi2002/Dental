@@ -7,7 +7,8 @@ import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { UrgentToggle } from '@/components/ui/UrgentToggle';
 import { saveFollowUp } from '@/lib/actions/follow-ups';
-import { MAX_TITLE_LENGTH } from '@/lib/follow-ups';
+import { MAX_TITLE_LENGTH, REPEATS } from '@/lib/follow-ups';
+import { cn } from '@/lib/utils';
 
 export type StaffOption = { id: string; name: string };
 
@@ -19,6 +20,8 @@ export type FollowUpDefaults = {
   dueAt: string;
   urgent: boolean;
   assignedToId: string;
+  /** `''` for a one-off, otherwise a `FollowUpRepeat` value. */
+  repeatEvery: string;
 };
 
 /**
@@ -59,8 +62,16 @@ export function FollowUpFormDialog({
   today: string;
   link?: FollowUpLinkFields;
   triggerClassName?: string;
-  /** Icon-only trigger, for a row that is already busy. */
-  compact?: boolean;
+  /**
+   * Icon-only trigger, for a row that is already busy.
+   *
+   * `'phone'` narrows that to small screens, which is a different argument: the
+   * reminder board's header carries this button beside a heading, and at 390px
+   * the words "New follow-up" take 159 of the 305 pixels there are — enough to
+   * push the panel's own title out from under it. On a desktop the same header
+   * has room to spell it out, and does.
+   */
+  compact?: boolean | 'phone';
 }) {
   const t = useTranslations('followUps');
   const tc = useTranslations('common');
@@ -92,7 +103,9 @@ export function FollowUpFormDialog({
       trigger={
         <>
           {editing ? <Pencil size={17} aria-hidden /> : <AlarmClock size={20} aria-hidden />}
-          <span className={compact ? 'sr-only' : undefined}>{label}</span>
+          <span className={cn(compact === true && 'sr-only', compact === 'phone' && 'max-sm:sr-only')}>
+            {label}
+          </span>
         </>
       }
     >
@@ -144,6 +157,33 @@ export function FollowUpFormDialog({
           {staff.map((person) => (
             <option key={person.id} value={person.id}>
               {person.name}
+            </option>
+          ))}
+        </SelectField>
+
+        {/* Recurrence, beside the assignee rather than under the date.
+        
+            It looks like a date field and it is not: the date says when this
+            errand happens, and this says whether there is ever another one.
+            Filed with "whose job" because both answer the same kind of question
+            — what *kind* of errand is this — and because putting it next to the
+            date box invited people to read the pair as "from" and "every",
+            which is not what either of them means. */}
+        <SelectField
+          id={`${uid}-repeatEvery`}
+          name="repeatEvery"
+          label={t('fieldRepeat')}
+          hint={t('fieldRepeatHint')}
+          optional={tc('optional')}
+          defaultValue={followUp?.repeatEvery ?? ''}
+        >
+          {/* One-off first and default. Most errands happen once, and a form
+              that opened on "every month" would quietly turn a note about
+              Thursday into a standing order. */}
+          <option value="">{t('repeatNever')}</option>
+          {REPEATS.map((every) => (
+            <option key={every} value={every}>
+              {t(`repeat.${every}`)}
             </option>
           ))}
         </SelectField>

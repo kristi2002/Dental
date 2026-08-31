@@ -12,7 +12,7 @@
  * where a line points when it is pressed.
  */
 
-import { addDays, toDay, today } from './dates';
+import { addDays, addMonths, toDay, today } from './dates';
 
 /** Long enough for a real errand, short enough to read in the bell's width. */
 export const MAX_TITLE_LENGTH = 160;
@@ -44,6 +44,62 @@ export const SNOOZE_DAYS = [1, 3, 7] as const;
  */
 export type Priority = 'NORMAL' | 'URGENT';
 
+/**
+ * Mirrors `FollowUpRepeat` in the schema, written out for the reason `Priority`
+ * is: this module is run directly by the tests and stays free of the generated
+ * client.
+ */
+export type Repeat = 'WEEKLY' | 'FORTNIGHTLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+
+/** Offered in this order, shortest first. The form's whole vocabulary. */
+export const REPEATS = ['WEEKLY', 'FORTNIGHTLY', 'MONTHLY', 'QUARTERLY', 'YEARLY'] as const;
+
+/**
+ * When a repeating errand comes back.
+ *
+ * Counted **from the day it was due, not from the day it was ticked**, and that
+ * is the whole design. A monthly stock order done three days late is still a
+ * monthly stock order; measuring from the tick would walk the date forward by
+ * however late the practice ran that month, and a year of small delays turns a
+ * job due on the 1st into one due on the 20th. Anchoring to `dueAt` means the
+ * schedule is a property of the errand rather than a record of how busy
+ * everybody was.
+ *
+ * Which leaves the errand ticked off *weeks* late — where anchoring alone would
+ * produce a next date already in the past, and a board that spawns something
+ * overdue at the moment you clear it. So the interval is applied again until it
+ * lands in the future: a stock order forgotten for two months comes back next
+ * month, not twice this morning.
+ */
+export function nextDueAt(dueAt: Date, repeat: Repeat, on: Date = today()): Date {
+  const step = (from: Date): Date => {
+    switch (repeat) {
+      case 'WEEKLY':
+        return addDays(from, 7);
+      case 'FORTNIGHTLY':
+        return addDays(from, 14);
+      case 'MONTHLY':
+        return addMonths(from, 1);
+      case 'QUARTERLY':
+        return addMonths(from, 3);
+      case 'YEARLY':
+        return addMonths(from, 12);
+    }
+  };
+
+  const floor = toDay(on).getTime();
+  let next = step(toDay(dueAt));
+
+  // Bounded: even a line a decade stale converges in a few hundred steps, and
+  // the cap is here so a value that somehow cannot advance cannot hang a server
+  // action either.
+  for (let i = 0; next.getTime() <= floor && i < 500; i += 1) {
+    next = step(next);
+  }
+
+  return next;
+}
+
 export type FollowUpStatus = 'done' | 'overdue' | 'today' | 'upcoming';
 
 export type FollowUpLike = {
@@ -51,6 +107,8 @@ export type FollowUpLike = {
   doneAt: Date | null;
   priority: Priority;
   createdAt: Date;
+  /** Null for a line left with the practice rather than with a person. */
+  assignedToId: string | null;
 };
 
 export function followUpStatus(
@@ -116,17 +174,47 @@ export type BellCounts = {
   /** Everything still open, whatever its date — the number on the badge. */
   open: number;
   overdue: number;
+  /**
+   * Due *on* the day being asked about, and no later.
+   *
+   * Split out because the board's middle card had been printing `open −
+   * overdue`, which is today's errands *and* next Friday's under a heading that
+   * says "Today". That was a rounding error while it was only a number to
+   * glance at. It became a lie the moment the card turned into a control:
+   * pressing something labelled Today and being shown next week is the board
+   * teaching people not to believe its own headings.
+   */
+  today: number;
+  /** Open and due after today. `overdue + today + later === open`, always. */
+  later: number;
   /** Open *and* flagged urgent. Drives the badge's colour, not its number. */
   urgent: number;
+  /**
+   * Open and on the viewer's own plate.
+   *
+   * A follow-up may be left with anyone, and most are — the board is a shared
+   * list and that is the point of it. But a shared list of twenty is one nobody
+   * reads as *theirs*, and the one thing a person can always act on without
+   * asking anybody is the line with their own name against it.
+   *
+   * Nought when nobody is asking, which is what the server-side callers that
+   * have no viewer in hand get.
+   */
+  mine: number;
 };
 
 export function bellCounts(
-  items: ReadonlyArray<Pick<FollowUpLike, 'dueAt' | 'doneAt' | 'priority'>>,
+  items: ReadonlyArray<Pick<FollowUpLike, 'dueAt' | 'doneAt' | 'priority' | 'assignedToId'>>,
   on: Date = today(),
+  /** Whose "mine" this is. Omitted where nobody is asking — see `mine`. */
+  viewerId?: string,
 ): BellCounts {
   let open = 0;
   let overdue = 0;
+  let dueToday = 0;
+  let later = 0;
   let urgent = 0;
+  let mine = 0;
 
   for (const item of items) {
     const status = followUpStatus(item, on);
@@ -134,10 +222,13 @@ export function bellCounts(
 
     open += 1;
     if (status === 'overdue') overdue += 1;
+    if (status === 'today') dueToday += 1;
+    if (status === 'upcoming') later += 1;
     if (item.priority === 'URGENT') urgent += 1;
+    if (viewerId && item.assignedToId === viewerId) mine += 1;
   }
 
-  return { open, overdue, urgent };
+  return { open, overdue, today: dueToday, later, urgent, mine };
 }
 
 /**

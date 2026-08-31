@@ -149,6 +149,7 @@ export default async function FollowUpDetailPage({
             notes: followUp.notes ?? '',
             dueAt: toDateKey(followUp.dueAt),
             urgent: followUp.priority === 'URGENT',
+            repeatEvery: followUp.repeatEvery ?? '',
             assignedToId: followUp.assignedToId ?? '',
           }}
           staff={staff}

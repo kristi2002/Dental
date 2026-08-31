@@ -1,10 +1,11 @@
-import { Check, CircleCheck, ExternalLink, Paperclip, Trash2 } from 'lucide-react';
+import { Check, CircleCheck, ExternalLink, Paperclip, Repeat2, Trash2 } from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { Badge } from '@/components/ui/Badge';
 import { ActionForm, ReportingActionForm } from '@/components/ui/ActionForm';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Link } from '@/i18n/navigation';
 import { deleteFollowUp, snoozeFollowUp, toggleFollowUpDone } from '@/lib/actions/follow-ups';
+import { isNew } from '@/lib/board-new';
 import { toDateKey, today } from '@/lib/dates';
 import {
   daysOverdue,
@@ -38,6 +39,8 @@ export async function FollowUpList({
   staff,
   variant,
   dueOnly = false,
+  viewerId,
+  seenAt = null,
 }: {
   items: ReadonlyArray<OpenFollowUp>;
   canEdit: boolean;
@@ -46,6 +49,22 @@ export async function FollowUpList({
   variant: 'popover' | 'card';
   /** Drop anything not already late or due today. */
   dueOnly?: boolean;
+  /**
+   * Who is reading, so a row can say whether it is theirs.
+   *
+   * Only ever written into `data-kind` for the board's "mine" card to act on —
+   * the row prints the assignee's name either way, and a list that said "yours"
+   * on half its lines would be shouting something the name already says.
+   */
+  viewerId?: string;
+  /**
+   * When the reader last shut the board, so a line written since can say so.
+   *
+   * Absent on the dashboard's copy: that card is a glance at what is due, not
+   * the surface somebody works and closes, and "new since you last looked" is
+   * meaningless about a list nobody looks *at*.
+   */
+  seenAt?: Date | null;
 }) {
   const t = await getTranslations('followUps');
   const tc = await getTranslations('common');
@@ -75,7 +94,25 @@ export async function FollowUpList({
         const link = followUpLink(item);
 
         return (
-          <li key={item.id} className="flex items-start gap-3 px-4 py-3">
+          /* `data-kind` is what the reminder board's filters act on. The board is
+             a client component wrapped around a server-rendered list, so it
+             cannot re-render these rows to narrow them — it flips one attribute
+             on the container and the stylesheet hides whatever does not match.
+             Space-separated tokens rather than one value, because a row belongs
+             to more than one pile: it is a follow-up *and* it is late. */
+          <li
+            key={item.id}
+            data-kind={[
+              'followup',
+              status,
+              item.priority === 'URGENT' ? 'urgent' : '',
+              viewerId && item.assignedToId === viewerId ? 'mine' : '',
+              isNew(item, seenAt) ? 'fresh' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            className="flex items-start gap-3 px-4 py-3"
+          >
             {/* The tick, first and biggest. Everything else on the row is
                 secondary to the one act that makes the board shrink. */}
             {canEdit ? (
@@ -106,6 +143,28 @@ export async function FollowUpList({
                 </Link>
                 {item.priority === 'URGENT' ? (
                   <Badge tone="danger">{t('urgent')}</Badge>
+                ) : null}
+                {/* Written since this person last shut the board.
+                
+                    First on the row and in the practice's own colour, because
+                    the whole point of it is to be found in a list of twenty
+                    without reading twenty. It says nothing about urgency — a
+                    new line may be due next month — only that it was not there
+                    last time. */}
+                {isNew(item, seenAt) ? <Badge tone="brand">{t('fresh')}</Badge> : null}
+
+                {/* Said on the row, because a repeating line behaves
+                    differently when ticked — it comes back — and somebody about
+                    to press the circle should know that before they press it,
+                    not discover it when the board does not shrink. */}
+                {item.repeatEvery ? (
+                  <span
+                    className="inline-flex items-center gap-1 text-meta font-semibold text-ink-faint"
+                    title={t('repeatsEvery', { every: t(`repeat.${item.repeatEvery}`) })}
+                  >
+                    <Repeat2 size={13} aria-hidden />
+                    {t(`repeat.${item.repeatEvery}`)}
+                  </span>
                 ) : null}
                 {item._count.attachments > 0 ? (
                   <span
@@ -199,6 +258,7 @@ export async function FollowUpList({
                       notes: item.notes ?? '',
                       dueAt: toDateKey(item.dueAt),
                       urgent: item.priority === 'URGENT',
+                      repeatEvery: item.repeatEvery ?? '',
                       assignedToId: item.assignedToId ?? '',
                     }}
                   />

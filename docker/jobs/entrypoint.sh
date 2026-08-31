@@ -72,6 +72,20 @@ REMINDERS_SCHEDULE="${REMINDERS_SCHEDULE:-0 18 * * *}"
 # is already working it.
 REMINDERS_MORNING_SCHEDULE="${REMINDERS_MORNING_SCHEDULE:-0 7 * * *}"
 
+# Just before the desk opens, every day. The digest is a record of *this*
+# morning, so it has to be written before anybody starts clearing the board —
+# a run at lunchtime would describe a day half worked and would be quietly
+# useless as a history.
+#
+# Ten past seven, in the gap between the reminder queue at seven and the recall
+# sweep at half past: three jobs a minute apart would be fine, but this one
+# reads the same tables the reminder queue has just written to, and letting it
+# settle costs nothing.
+#
+# Repeating is free: `PracticeDigest.forDay` is unique, so a second run the same
+# morning refreshes the row rather than adding one.
+DIGEST_SCHEDULE="${DIGEST_SCHEDULE:-10 7 * * *}"
+
 # Monday morning, once. A recall is not urgent on any particular day — it is
 # urgent over a season — and a queue that refilled itself every night would be
 # read as noise by Wednesday. Early enough that it is waiting when the week
@@ -84,12 +98,13 @@ RECALLS_SCHEDULE="${RECALLS_SCHEDULE:-30 7 * * 1}"
 cat > /etc/crontabs/root <<CRONTAB
 $REMINDERS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-appointment-reminders > /proc/1/fd/1 2>&1
 $REMINDERS_MORNING_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-appointment-reminders > /proc/1/fd/1 2>&1
+$DIGEST_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh compose-morning-digest > /proc/1/fd/1 2>&1
 $RECALLS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-recalls > /proc/1/fd/1 2>&1
 $SWEEP_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh sweep-orphan-files > /proc/1/fd/1 2>&1
 CRONTAB
 
 log "app: $APP_URL"
-log "schedule: reminders '$REMINDERS_SCHEDULE' and '$REMINDERS_MORNING_SCHEDULE', recalls '$RECALLS_SCHEDULE', sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
+log "schedule: reminders '$REMINDERS_SCHEDULE' and '$REMINDERS_MORNING_SCHEDULE', digest '$DIGEST_SCHEDULE', recalls '$RECALLS_SCHEDULE', sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
 
 # --- Reachability -----------------------------------------------------------
 # Not a first run of the job itself: unlike a backup, nothing here is urgent

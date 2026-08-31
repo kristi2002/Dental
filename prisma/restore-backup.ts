@@ -91,6 +91,10 @@ const ORDER = [
   'serviceMaterials',
   'productBarcodes',
   'batches',
+  // After `suppliers`, `stock` and `staff`, all of which an order names. The
+  // lines come after their order for the same reason everything here does.
+  'purchaseOrders',
+  'purchaseOrderLines',
   // After the material it is about, and far after the staff member who waved it
   // away. Both are foreign keys; `stock` is directly above and `staff` is first.
   'stockAlertDismissals',
@@ -130,6 +134,10 @@ const ORDER = [
   // it is about and the staff member who resolved it — all three are foreign
   // keys, and all three are far above.
   'scheduledMessages',
+  // One row a morning, and no foreign keys at all — it holds ten integers and a
+  // date. Placed here rather than first only because it reads as part of the
+  // same story as the outbox above it.
+  'practiceDigests',
   // The correspondence, parents first: a thread points at a patient (optional,
   // and far above), a message points at its thread and at the staff member who
   // sent it, and an attachment points at its message.
@@ -163,6 +171,8 @@ const MODEL: Record<Key, string> = {
   serviceMaterials: 'serviceMaterial',
   productBarcodes: 'productBarcode',
   batches: 'stockBatch',
+  purchaseOrders: 'purchaseOrder',
+  purchaseOrderLines: 'purchaseOrderLine',
   stockAlertDismissals: 'stockAlertDismissal',
   appointmentRequests: 'appointmentRequest',
   requestFiles: 'appointmentRequestAttachment',
@@ -188,6 +198,7 @@ const MODEL: Record<Key, string> = {
   followUps: 'followUp',
   followUpFiles: 'followUpAttachment',
   scheduledMessages: 'scheduledMessage',
+  practiceDigests: 'practiceDigest',
   emailThreads: 'emailThread',
   emailMessages: 'emailMessage',
   emailAttachments: 'emailAttachment',

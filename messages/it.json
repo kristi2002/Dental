@@ -1153,7 +1153,6 @@
     "inStock": "{qty, plural, one {# scatola disponibile} other {# scatole disponibili}}",
     "minShort": "min {min}",
     "lastUpdated": "Aggiornato il {date}",
-    "filterAll": "Tutti",
     "filterLow": "Solo scorte basse",
     "filterOut": "Esauriti",
     "filterLevelLabel": "Filtra per livello di scorta",
@@ -1286,7 +1285,19 @@
     "moveScanAnother": "Scansiona un altro",
     "labelPrintThis": "Stampa questa etichetta",
     "labelPrintThisFor": "Stampa l’etichetta di {name}",
-    "labelPrintOneHint": "Verrà stampata solo questa."
+    "labelPrintOneHint": "Verrà stampata solo questa.",
+    "stocktakeScopeLabel": "Quale scaffale",
+    "stocktakeWholeRoom": "Tutto il magazzino",
+    "stocktakeScanMode": "Conta con lo scanner",
+    "stocktakeScanConfirm": "Contando con lo scanner ogni materiale di questo scaffale parte da zero e ogni lettura aggiunge uno. Tutto ciò che non leggi verrà registrato come esaurito. Continuare?",
+    "stocktakeScanHint": "Leggi ogni scatola sullo scaffale.",
+    "stocktakeScanOffHint": "Digita le quantità, oppure attiva lo scanner per leggere ogni scatola.",
+    "stocktakeScanned": "{name} → {count}",
+    "stocktakeScanUnknown": "{count, plural, one {# lettura non corrisponde a nulla su questo scaffale} other {# letture non corrispondono a nulla su questo scaffale}}",
+    "expiredClear": "{count, plural, one {Scarica # lotto scaduto} other {Scarica tutti i # lotti scaduti}}",
+    "expiredClearConfirm": "Togliere {count, plural, one {# lotto scaduto} other {tutti i # lotti scaduti}} dal magazzino? Ognuno viene registrato come scarico, così i consumi restano corretti.",
+    "location": "Dove è conservato",
+    "locationHint": "Armadio, stanza o cassetto — quello che diresti a un collega."
   },
   "analytics": {
     "title": "Statistiche",
@@ -1316,7 +1327,22 @@
     "utilisationHint": "Minuti prenotati rispetto alle ore di apertura.",
     "noShowByProvider": "Appuntamenti mancati per dentista",
     "noShowHint": "Appuntamenti a cui il paziente non si è presentato. Esclusi quelli disdetti dallo studio.",
-    "pastAppointments": "Passati"
+    "pastAppointments": "Passati",
+    "noSupplier": "Nessun fornitore registrato",
+    "stockSpend": "Spesa materiali per mese",
+    "spend": "Spesa",
+    "noPricedDeliveries": "Nessuna consegna di questo periodo ha registrato un prezzo.",
+    "spendUnpriced": "{boxes, plural, one {# scatola ricevuta} other {# scatole ricevute}} in questo periodo senza prezzo, non conteggiate sopra.",
+    "spendBySupplier": "Spesa per fornitore",
+    "treatmentMaterialCost": "Costo materiali per trattamento",
+    "noTreatmentCosts": "Ancora nulla da mostrare. Il calcolo usa le visite che hanno registrato un solo trattamento e a cui sono stati scaricati dei materiali.",
+    "treatment": "Trattamento",
+    "costPerVisit": "Per visita",
+    "costTotal": "Totale",
+    "costSkipped": "{count, plural, one {# visita ha registrato più di un trattamento ed è esclusa.} other {# visite hanno registrato più di un trattamento e sono escluse.}}",
+    "costEstimated": "Il {percent}% di questo importo usa l’ultimo prezzo noto del materiale invece del prezzo della consegna da cui proviene.",
+    "priceMoves": "Prezzi cambiati",
+    "materialsRecorded": "I materiali sono stati registrati nel {percent}% di {visits, plural, one {# visita} other {# visite}} del periodo. Non è un obiettivo — un controllo non consuma nulla — ma una quota in calo significa che queste barre ricevono sempre meno di ciò che lo studio consuma davvero."
   },
   "teeth": {
     "title": "Scheda dentale",
@@ -1449,9 +1475,15 @@
     "close": "Chiudi",
     "none": "Non serve nulla al momento.",
     "noneHint": "Scorte basse e richiami finiscono qui. Una bacheca vuota è davvero vuota.",
+    "statAll": "Tutti",
+    "statMine": "Mie",
+    "statUrgent": "Urgenti",
     "statOverdue": "In ritardo",
     "statToday": "Oggi",
+    "statLater": "Più avanti",
     "statStock": "Scorte basse",
+    "statOut": "Esaurito",
+    "statOrderLate": "Non arrivato",
     "sectionStock": "Magazzino",
     "sectionStockHint": "Sotto il minimo, oppure ordinato e mai arrivato.",
     "sectionFollowUps": "Richiami",
@@ -1477,13 +1509,34 @@
     "seeAll": "Apri il magazzino",
     "countStock": "{count, plural, one {# materiale} other {# materiali}}",
     "countFollowUps": "{count, plural, one {# richiamo} other {# richiami}}",
-    "badgeLabel": "{count, plural, =0 {niente in attesa} one {# in attesa} other {# in attesa}}"
+    "badgeLabel": "{count, plural, =0 {niente in attesa} one {# in attesa} other {# in attesa}}",
+    "filterLabel": "Quali promemoria mostrare",
+    "filterEmpty": "Qui non è rimasto nulla.",
+    "filterEmptyHint": "{count, plural, one {# promemoria è ancora sulla bacheca} other {# promemoria sono ancora sulla bacheca}}, sotto gli altri filtri.",
+    "filterShowAll": "Mostra tutti",
+    "sectionElsewhere": "Altrove nell'app",
+    "sectionElsewhereHint": "Aspettano su una schermata propria. La bacheca dice solo che ci sono.",
+    "countElsewhere": "{count, plural, one {# in attesa} other {# in attesa}}",
+    "elsewhere": {
+      "works": "{count, plural, one {# caso è ancora dal laboratorio} other {# casi sono ancora dal laboratorio}}",
+      "requests": "{count, plural, one {# richiesta di appuntamento dal sito} other {# richieste di appuntamento dal sito}}",
+      "mail": "{count, plural, one {# messaggio di un paziente, senza risposta} other {# messaggi di pazienti, senza risposta}}",
+      "unreminded": "{count, plural, one {# paziente di domani non ha ricevuto nulla} other {# pazienti di domani non hanno ricevuto nulla}}",
+      "unwritten": "{count, plural, one {# appuntamento non è mai stato chiuso} other {# appuntamenti non sono mai stati chiusi}}"
+    },
+    "elsewhereHint": {
+      "works": "In consegna entro pochi giorni, o già scaduti.",
+      "requests": "Uno sconosciuto ha lasciato il numero e aspetta.",
+      "mail": "Qualcuno ha scritto e nessuno ha risposto.",
+      "unreminded": "Domani, e nessuno ha mandato niente.",
+      "unwritten": "Di' cos'è successo, così la cartella resta onesta."
+    },
+    "newSince": "{count, plural, one {# nuovo dall'ultima volta} other {# nuovi dall'ultima volta}}"
   },
   "requests": {
     "title": "Richieste dal sito",
     "subtitle": "Persone che hanno lasciato il numero sulla pagina pubblica. Prima le più vecchie.",
     "filterOpen": "Aperte",
-    "filterAll": "Tutte",
     "empty": "Nessuna richiesta al momento.",
     "allPickedUp": "Sono state prese tutte in carico.",
     "status": {
@@ -2147,7 +2200,19 @@
     "attachments": "File",
     "attachmentsEmpty": "Nessun allegato. Una foto del manufatto vale più di una frase che lo descrive.",
     "attach": "Allega un file",
-    "attachmentCount": "{count, plural, one {# file} other {# file}}"
+    "attachmentCount": "{count, plural, one {# file} other {# file}}",
+    "fieldRepeat": "Ritorna",
+    "fieldRepeatHint": "Spuntandolo si crea il prossimo, calcolato dal giorno di scadenza.",
+    "repeatNever": "Una sola volta",
+    "repeatsEvery": "Si ripete {every}",
+    "repeat": {
+      "WEEKLY": "Ogni settimana",
+      "FORTNIGHTLY": "Ogni due settimane",
+      "MONTHLY": "Ogni mese",
+      "QUARTERLY": "Ogni tre mesi",
+      "YEARLY": "Ogni anno"
+    },
+    "fresh": "Nuovo"
   },
   "workProcedures": {
     "title": "Tipi di lavorazione",
@@ -2401,12 +2466,14 @@
     "name": {
       "queue-appointment-reminders": "Promemoria di domani",
       "sweep-orphan-files": "Pulisci i file inutilizzati",
-      "queue-recalls": "Controlli in ritardo"
+      "queue-recalls": "Controlli in ritardo",
+      "compose-morning-digest": "Registra cosa aspettava stamattina"
     },
     "hint": {
       "queue-appointment-reminders": "Individua chi ricordare per domani e riempie la coda di invio. Non invia nulla.",
       "sweep-orphan-files": "Rimuove i file caricati a cui non punta più alcun record.",
-      "queue-recalls": "Mette in coda i pazienti che nessuno vede da mesi. Non invia nulla."
+      "queue-recalls": "Mette in coda i pazienti che nessuno vede da mesi. Non invia nulla.",
+      "compose-morning-digest": "Annota cosa conteneva la bacheca dei promemoria, così resta una storia. Non manda niente."
     },
     "reason": {
       "ok": "Funziona",
@@ -2661,7 +2728,19 @@
     "lineQuantity": "Quanti {name}",
     "formatElement": "GS1",
     "formatDigitalLink": "QR GS1",
-    "formatPlain": "Codice semplice"
+    "formatPlain": "Codice semplice",
+    "byNameLabel": "Nessun codice a barre sulla scatola?",
+    "byNamePlaceholder": "Inizia a scrivere il nome del materiale",
+    "byNameHint": "Lo aggiunge al carrello senza codice a barre. Non vengono registrati lotto né scadenza.",
+    "byNameNoMatch": "Nessun materiale con questo nome. Aggiungilo prima dalla pagina magazzino.",
+    "byNameAmbiguous": "{count, plural, other {# materiali iniziano così. Scrivi ancora un po’.}}",
+    "offlineHint": "Nessuna connessione. Continua a scansionare — il carrello è salvato su questo dispositivo e resterà qui. Premi Salva quando torna la connessione.",
+    "linkModeLabel": "Istruisci lo scanner",
+    "linkModeHint": "Non muove nulla. Leggi ogni scatola di uno scaffale per vedere quali l’app già conosce.",
+    "linkModeTitle": "Istruzione dello scanner",
+    "linkModeKnown": "{count, plural, =0 {nessuno ancora noto} one {# già noto} other {# già noti}}",
+    "linkModeToName": "{count, plural, one {# da nominare} other {# da nominare}}",
+    "linkModeBody": "Percorri uno scaffale leggendo ogni scatola. Ciò che l’app riconosce già viene spuntato qui; ciò che non riconosce compare sotto per essere nominato una volta sola, e da lì in poi è riconosciuto per sempre."
   },
   "editor": {
     "bold": "Grassetto",
@@ -2697,7 +2776,8 @@
     "noName": "Manca il nome",
     "badNumber": "Un numero non è stato compreso — è stato usato il valore predefinito",
     "duplicateInFile": "Compare prima in questo file",
-    "alreadyHere": "Già presente qui"
+    "alreadyHere": "Già presente qui",
+    "badBarcode": "La colonna del codice a barre non conteneva un simbolo valido: il materiale viene importato ma non sarà leggibile con lo scanner."
   },
   "messageTemplates": {
     "title": "Scrivi a {name}",
@@ -2795,5 +2875,1112 @@
     "mailRejected": "Il provider di posta ha rifiutato il messaggio.",
     "mailLimit": "Il limite di invii di oggi è esaurito.",
     "mailUnreachable": "Non è stato possibile raggiungere il provider di posta."
+  },
+  "help": {
+    "button": "A cosa serve questa schermata?",
+    "close": "Chiudi",
+    "example": "Per esempio",
+    "tips": "Da sapere",
+    "related": "Dove andare",
+    "footer": "Premi <key>?</key> su qualsiasi schermata per aprire questa guida.",
+    "shapes": {
+      "dashboard": "Uno schizzo di questa schermata: una riga di conteggi in alto, un pannello con il lavoro di oggi accanto a uno con ciò che richiede attenzione, e due pulsanti sotto.",
+      "calendar": "Uno schizzo di questa schermata: un selettore giorno-settimana-mese sopra una griglia di giorni, con gli appuntamenti disegnati come blocchi pieni e il tempo libero tratteggiato.",
+      "list": "Uno schizzo di questa schermata: una casella di ricerca e un pulsante in alto, e sotto le righe, ognuna con il suo stato e il suo menu.",
+      "record": "Uno schizzo di questa schermata: un nome con i suoi avvisi in alto, una fila di schede sotto, e un pannello largo accanto a uno più stretto.",
+      "steps": "Uno schizzo di questa schermata: un titolo con una barra di avanzamento, poi i passaggi in ordine, ciascuno con una casella e un pulsante, e in fondo una riga vuota per aggiungerne un altro.",
+      "board": "Uno schizzo di questa schermata: tre conteggi in alto, poi il lavoro diviso in sezioni, con ogni riga che porta una data e i pulsanti per chiuderla.",
+      "gallery": "Uno schizzo di questa schermata: una casella di ricerca sopra una griglia di schede, ciascuna con una fotografia e un nome sotto.",
+      "charts": "Uno schizzo di questa schermata: un selettore di periodo, una riga di cifre, un grafico a barre e una tabella sotto.",
+      "week": "Uno schizzo di questa schermata: una riga per ogni giorno della settimana, con apertura, chiusura e pausa, e un pulsante di salvataggio in fondo.",
+      "form": "Uno schizzo di questa schermata: campi con un suggerimento sotto ciascuno, un’anteprima del risultato accanto, e un pulsante per salvare."
+    },
+    "diagrams": {
+      "recall": {
+        "title": "Come si finisce nella lista dei richiami",
+        "labels": [
+          "Viene registrata una visita",
+          "Parte il conteggio del suo intervallo di richiamo — sei mesi, un anno, quello che dice la scheda",
+          "L’intervallo passa senza un nuovo appuntamento",
+          "La persona compare in Richiami",
+          "Si prepara un promemoria, si invia, e il paziente riprenota"
+        ]
+      },
+      "plan": {
+        "title": "Come nasce un piano di cura",
+        "labels": [
+          "Un reperto viene segnato su un dente",
+          "Diventa un passaggio del piano, con il dente attaccato",
+          "Il passaggio viene messo in agenda",
+          "La visita avviene e il passaggio viene spuntato"
+        ]
+      },
+      "work": {
+        "title": "Un lavoro in laboratorio",
+        "labels": [
+          "Il caso viene scritto nel registro e spedito",
+          "Il laboratorio promette una data di ritorno",
+          "La data passa — risulta in ritardo e si può sollecitare",
+          "Torna e viene segnato come rientrato"
+        ]
+      },
+      "message": {
+        "title": "Come arriva una conversazione",
+        "labels": [
+          "Un promemoria o un messaggio parte verso il paziente",
+          "Lui risponde, dal suo telefono o dalla sua email",
+          "La risposta arriva in Posta in arrivo come conversazione",
+          "La colleghi alla sua scheda, e da lì compare sul suo fascicolo"
+        ]
+      },
+      "request": {
+        "title": "Dal sito pubblico all’agenda",
+        "labels": [
+          "Qualcuno compila il modulo sul sito dello studio",
+          "Arriva sotto Richieste, prima le più vecchie",
+          "Lo richiami e concordate un orario",
+          "Diventa un paziente con un appuntamento"
+        ]
+      },
+      "prescription": {
+        "title": "Scrivere una prescrizione",
+        "labels": [
+          "Il testo standard si scrive una volta come modello",
+          "Un paziente viene curato e il testo viene proposto",
+          "Lo si adatta a quel paziente e lo si emette",
+          "Si stampa, e resta sulla sua scheda per sempre"
+        ]
+      },
+      "import": {
+        "title": "Portare dentro un foglio di calcolo",
+        "labels": [
+          "La lista che hai già, come file CSV",
+          "Le colonne vengono abbinate ai campi dell’app",
+          "Vedi esattamente cosa verrà aggiunto e cosa cambiato",
+          "Nulla viene salvato finché non confermi"
+        ]
+      },
+      "scan": {
+        "title": "Movimentare il magazzino con la scansione",
+        "labels": [
+          "Ogni materiale ha un’etichetta QR sulla scatola",
+          "La scansioni — con la fotocamera o con un lettore",
+          "Dici se sta entrando o uscendo",
+          "La giacenza e il registro si muovono insieme"
+        ]
+      },
+      "followUp": {
+        "title": "Come funziona un promemoria interno",
+        "labels": [
+          "Scrivi cosa va fatto e quando ricordartelo",
+          "Resta in silenzio fino al suo giorno",
+          "Quel giorno riemerge nella campanella e sulla lavagna",
+          "Lo fai e lo spunti — oppure lo sposti di qualche giorno"
+        ]
+      },
+      "stock": {
+        "title": "Cosa vuol dire “scorta bassa”",
+        "labels": [
+          "Comodamente sopra il minimo — non viene detto nulla",
+          "Al minimo o sotto — entra nella lista degli ordini",
+          "Finito — viene segnalato in rosso su ogni schermata",
+          "Il minimo che imposti su ogni materiale. È l’unica linea che conta."
+        ]
+      },
+      "teeth": {
+        "title": "Come si numerano i denti (FDI)",
+        "labels": [
+          "Alto a destra",
+          "Alto a sinistra",
+          "Basso a destra",
+          "Basso a sinistra",
+          "La prima cifra è il quadrante, la seconda dice quanto indietro sta il dente. Così 26 è il sesto dente in alto a sinistra — il primo molare. Le cartelle sono sempre salvate così, anche quando le etichette sono impostate sulla numerazione americana 1–32."
+        ]
+      },
+      "roles": {
+        "title": "Cosa può fare ogni ruolo",
+        "labels": [
+          "Prendere appuntamenti",
+          "Aprire la cartella",
+          "Vedere le statistiche",
+          "Personale e registro",
+          "Le risposte non si restringono semplicemente riga dopo riga. Un sostituto legge la cartella e le cifre e non cambia nulla; la reception scrive in agenda tutto il giorno e non apre mai una cartella. Cancellare è solo del titolare."
+        ]
+      },
+      "expiry": {
+        "title": "I lotti rispetto a oggi",
+        "labels": [
+          "Oggi",
+          "Già scaduti",
+          "In scadenza",
+          "Ancora buoni"
+        ]
+      },
+      "day": {
+        "title": "Di cosa è fatta una giornata",
+        "labels": [
+          "Prenotato",
+          "Chiuso — fuori orario, o la pausa pranzo",
+          "Libero e prenotabile",
+          "Il grigio viene da Orari di apertura. Cambia la settimana lì e ogni schermata che disegna un giorno si adegua."
+        ]
+      }
+    },
+    "topics": {
+      "dashboard": {
+        "title": "Cruscotto",
+        "tagline": "I cinque minuti che aprono la giornata",
+        "what": "La schermata da aprire per prima al mattino e di nuovo per ultima la sera. Raccoglie ciò di cui la giornata ha davvero bisogno — chi arriva, cosa non è stato scritto, cosa manca in magazzino — così non va né ricordato né cercato.",
+        "steps": [
+          {
+            "title": "I conteggi in alto",
+            "body": "Pazienti in archivio, appuntamenti di oggi e della settimana, richiami dovuti e materiali sotto il minimo. Ognuno apre la lista che c’è dietro."
+          },
+          {
+            "title": "Azioni rapide",
+            "body": "Aggiungi un paziente o prendi un appuntamento senza uscire da qui — sono gli stessi moduli del calendario."
+          },
+          {
+            "title": "Cosa richiede attenzione",
+            "body": "Avvisi di magazzino, richiami e richieste dal sito. In una buona giornata questi pannelli sono vuoti, ed è esattamente il loro scopo."
+          },
+          {
+            "title": "L’agenda di oggi",
+            "body": "Tutti gli appuntamenti di oggi in ordine, con il loro stato. Premi una riga per aprire il paziente."
+          },
+          {
+            "title": "Tempo libero",
+            "body": "I buchi rimasti oggi. Premine uno per prenotarci dentro quando qualcuno chiama chiedendo “qualcosa questo pomeriggio”."
+          }
+        ],
+        "example": "Sono le 08:40. Il cruscotto dice tre appuntamenti oggi, due richiami dovuti e un materiale in esaurimento. Premi il materiale, vedi che è l’anestetico, e chiami il fornitore prima che il primo paziente arrivi alle nove.",
+        "tips": [
+          "Un pannello vuoto non è un pannello rotto — vuol dire che non c’è nulla in attesa.",
+          "Torna qui a fine giornata. “Curati, non registrati” raccoglie le note di visita che alla poltrona nessuno ha avuto tempo di scrivere."
+        ]
+      },
+      "appointments": {
+        "title": "Calendario",
+        "tagline": "Il giorno, la settimana e il mese dello studio",
+        "what": "Tutto ciò che lo studio si è impegnato a fare, e quando. La giornata si costruisce e si ricostruisce qui — gli appuntamenti si prendono, si spostano, si segnano come arrivati e si chiudono su questa schermata.",
+        "steps": [
+          {
+            "title": "Giorno, settimana, mese o elenco",
+            "body": "Quattro modi di guardare gli stessi appuntamenti. La settimana serve a programmare, il giorno a lavorare, l’elenco a cercare."
+          },
+          {
+            "title": "Muoversi nel tempo",
+            "body": "Le frecce vanno avanti e indietro, “Oggi” riporta a casa. Accanto ci sono i filtri per dentista o per poltrona."
+          },
+          {
+            "title": "La griglia",
+            "body": "Le ore di chiusura sono in grigio e vengono da Orari di apertura. Trascina un appuntamento per spostarlo."
+          },
+          {
+            "title": "Un appuntamento",
+            "body": "Premilo per il paziente, la prestazione e le note — poi segnalo come arrivato, completato o mancata presentazione."
+          },
+          {
+            "title": "Tempo libero",
+            "body": "Doppio clic su uno spazio vuoto per prenotarlo. Il modulo avvisa se l’orario si sovrappone o sfora il buco."
+          }
+        ],
+        "example": "Martedì un paziente chiama per spostare l’otturazione di giovedì. Apri la settimana, trascini il blocco da giovedì a venerdì mattina e scrivi il motivo — la scheda conserva insieme il nuovo orario e la ragione.",
+        "tips": [
+          "Un appuntamento mai chiuso falsa il dato sulle mancate presentazioni. Il cruscotto li elenca perché si possano sistemare onestamente.",
+          "Pause, chiusure e festività vengono tutte da Orari di apertura. Cambiale lì e questa griglia si adegua."
+        ]
+      },
+      "daySheet": {
+        "title": "Foglio del giorno",
+        "tagline": "Oggi, su un foglio di carta",
+        "what": "La giornata stampata: ogni appuntamento in ordine con il paziente, la prestazione e una casella da spuntare. Per il muro dello studio, per il carrello, o per chi preferisce lavorare su carta.",
+        "steps": [
+          {
+            "title": "Il giorno mostrato",
+            "body": "Oggi, salvo diversa scelta. Segue il giorno da cui sei arrivato sul calendario."
+          },
+          {
+            "title": "Le righe",
+            "body": "Ora, paziente, prestazione — nell’ordine in cui accadranno, così il foglio si legge come si svolge la giornata."
+          },
+          {
+            "title": "Cosa resta libero",
+            "body": "I buchi sono elencati sotto gli appuntamenti, così il foglio risponde a “possiamo infilare qualcuno” senza uno schermo."
+          },
+          {
+            "title": "Stampa",
+            "body": "Esce pulito: niente menu, niente casella di ricerca, niente colore sprecato."
+          }
+        ],
+        "example": "Venerdì mattina la stampante fa una copia per lo studio e una per la reception. L’assistente spunta ogni paziente all’uscita, e fra la poltrona e il computer non si perde nulla.",
+        "tips": [
+          "Il foglio è una fotografia. Un appuntamento preso dopo la stampa non ci sarà — ristampalo dopo una mattinata piena."
+        ]
+      },
+      "patients": {
+        "title": "Pazienti",
+        "tagline": "Tutte le persone in archivio",
+        "what": "L’elenco delle persone, cercabile per nome, telefono o email. È la porta d’ingresso alla scheda: cartella, piani, visite, file e prescrizioni pendono tutti da una persona che si trova qui.",
+        "steps": [
+          {
+            "title": "Cerca",
+            "body": "Scrivi un pezzo qualsiasi di nome, numero o indirizzo. Gli accenti non contano — “cesh” trova “Çeshtje”."
+          },
+          {
+            "title": "Nuovo paziente",
+            "body": "Bastano un nome e un numero di telefono. Tutto il resto si può aggiungere dopo, o mai."
+          },
+          {
+            "title": "Una riga",
+            "body": "Premila per aprire l’intera scheda. La riga stessa mostra età, telefono e l’ultima volta che è stato visto."
+          },
+          {
+            "title": "I contrassegni",
+            "body": "Un contrassegno rosso segnala un’allergia o un avviso medico. È disegnato sull’elenco per essere visto prima della poltrona, non dopo."
+          },
+          {
+            "title": "Il menu della riga",
+            "body": "Prenota, scrivi o modifica senza aprire la scheda — per quando la persona è al telefono e aspetta."
+          }
+        ],
+        "example": "Una signora chiama e dice solo “sono la Marku, per mia figlia”. Scrivi mark nella ricerca: compaiono entrambi i Marku con la loro età, e l’ottenne è ovviamente quella giusta.",
+        "tips": [
+          "Due schede per la stessa persona capitano. Sulla scheda c’è una funzione di unione che le fonde senza perdere nessuna delle due storie.",
+          "È l’intervallo di richiamo sulla scheda a far comparire qualcuno nella lista dei richiami. Lasciato su “Mai”, non verrà mai sollecitato."
+        ]
+      },
+      "patientRecord": {
+        "title": "La scheda di un paziente",
+        "tagline": "Una persona, tutto di lei",
+        "what": "Tutto ciò che lo studio sa di una persona, diviso in schede: chi è, la sua cartella dentale, cosa è stato fatto, cosa è previsto, i suoi appuntamenti, i suoi file e le sue prescrizioni.",
+        "steps": [
+          {
+            "title": "L’intestazione",
+            "body": "Nome, età, telefono — e ogni allergia o avviso medico in rosso, su tutte le schede, perché non possa sfuggire."
+          },
+          {
+            "title": "Le schede",
+            "body": "Dati, cartella, visite, piani, appuntamenti, file, prescrizioni e contatti. Ognuna è una domanda diversa sulla stessa persona."
+          },
+          {
+            "title": "La cartella dentale",
+            "body": "Premi un dente per registrarne la condizione, le superfici, le profondità di sondaggio e una nota. Un reperto qui può diventare subito un piano di cura."
+          },
+          {
+            "title": "Storico delle visite",
+            "body": "Cosa è stato fatto davvero, in che giorno e da chi. Scritto dopo la cura — è la cartella clinica, ed è ciò che il registro attività firma."
+          },
+          {
+            "title": "Registra una visita",
+            "body": "Il pulsante che chiude il cerchio: scrive la nota, scarica i materiali usati, e può proporre la prescrizione che di solito segue."
+          },
+          {
+            "title": "Contatti, appuntamenti e file",
+            "body": "Le schede in cui vive la reception: come raggiungerli e se hanno acconsentito a essere contattati, tutto ciò che hanno prenotato, e i loro documenti."
+          }
+        ],
+        "example": "Viene segnata una carie sul dente 26. La cartella propone di mettere un’otturazione nel piano di cura; accetti, il passaggio arriva già con il numero del dente, e quando viene prenotato l’appuntamento ha già il suo nome.",
+        "tips": [
+          "Note mediche e cartella sono nascoste ai ruoli che non possono vederle. Una receptionist vede la stessa scheda senza la metà clinica.",
+          "I file accettano fotografie, radiografie e PDF — comprese le due facce di un documento d’identità, che la reception può controllare senza aprire l’elenco dei file."
+        ]
+      },
+      "plans": {
+        "title": "Piani di cura",
+        "tagline": "Tutte le cure che lo studio ha in corso",
+        "what": "Un piano è un percorso di cura concordato e diviso in passaggi. Questa schermata li mostra tutti insieme, prima i più trascurati, perché nulla di concordato smetta silenziosamente di accadere.",
+        "steps": [
+          {
+            "title": "Cerca e filtra",
+            "body": "Per paziente, piano o passaggio; e per stato — in corso, fermo, concluso, annullato."
+          },
+          {
+            "title": "Nuovo piano",
+            "body": "Si costruisce, non si scrive: i passaggi vengono dalla cartella del paziente e dal catalogo delle prestazioni."
+          },
+          {
+            "title": "Un piano",
+            "body": "Mostra di chi è, quanti passaggi sono fatti e qual è il prossimo. Premi per aprirlo."
+          },
+          {
+            "title": "Fermo",
+            "body": "Nulla fatto e nulla prenotato da settimane. È tutta la ragione per cui questa schermata è ordinata così."
+          },
+          {
+            "title": "Registra una telefonata",
+            "body": "Li hai chiamati e avete deciso di risentirvi fra un mese? Scrivilo, e il piano smette di essere segnalato fino a quel giorno."
+          }
+        ],
+        "example": "Un piano in quattro passaggi per una devitalizzazione ha avuto una sola visita in nove settimane. Compare in cima segnato come Fermo. Chiami, chiedono il nuovo anno, registri la telefonata con una data — e resta in silenzio fino a gennaio.",
+        "tips": [
+          "Interrompere un piano non lo cancella. Tutto ciò che contiene resta sulla scheda del paziente e può essere riaperto quando si vuole.",
+          "Un piano che scrivi spesso può essere avviato partendo da uno già scritto, passaggi compresi."
+        ]
+      },
+      "planDetail": {
+        "title": "Un piano di cura",
+        "tagline": "I passaggi, nell’ordine in cui si faranno",
+        "what": "Un percorso di cura concordato. I passaggi si spuntano man mano, si prenotano in agenda, si riordinano quando la bocca non è d’accordo con il piano, e si stampano perché il paziente li porti a casa.",
+        "steps": [
+          {
+            "title": "Il piano e il suo avanzamento",
+            "body": "Di chi è, come si chiama, e a che punto è arrivato."
+          },
+          {
+            "title": "I passaggi",
+            "body": "In ordine. Ognuno porta con sé il dente, quando viene dalla cartella, e mostra se è già prenotato."
+          },
+          {
+            "title": "Spuntarne uno",
+            "body": "Fatto, oppure saltato, con il giorno in cui è successo. Un passaggio si può sempre rimettere."
+          },
+          {
+            "title": "Aggiungere un passaggio",
+            "body": "Dalla cartella, dal catalogo delle prestazioni, o scritto a mano. I passaggi si trascinano in un altro ordine."
+          }
+        ],
+        "example": "Lunedì si concorda un piano in tre visite. Premi “Prenota la serie”, chiedi ogni due settimane alla stessa ora, e l’app trova tre posti — saltando il giorno di chiusura — in un colpo solo.",
+        "tips": [
+          "Stampalo. Un paziente che esce con il piano su carta è un paziente che sa quante visite ha accettato.",
+          "Un passaggio prenotato porta il piano con sé, così l’appuntamento sa già a cosa serve."
+        ]
+      },
+      "works": {
+        "title": "Registro lavori",
+        "tagline": "Tutto ciò che esce verso un laboratorio",
+        "what": "Corone, ponti, protesi — tutto ciò che si fa fuori dallo studio. Il registro dice cosa è andato dove, quando è stato promesso indietro, e se è tornato.",
+        "steps": [
+          {
+            "title": "Cerca e filtra",
+            "body": "Per nome, telefono, numero di serie del laboratorio, arcata o tipo di lavoro; e per mese, laboratorio o stato."
+          },
+          {
+            "title": "Nuovo caso",
+            "body": "Ricopia la bolla del laboratorio nel registro. Una riga per ogni lavoro, con quanti elementi porta."
+          },
+          {
+            "title": "Un caso",
+            "body": "Per chi è, cosa si sta facendo, da parte di chi, quando è partito e quando deve tornare."
+          },
+          {
+            "title": "Fuori o rientrato",
+            "body": "Un caso oltre la data promessa risulta in ritardo. Segnalo rientrato il giorno in cui arriva ed esce dalla lista dei solleciti."
+          },
+          {
+            "title": "La bolla",
+            "body": "Stampa una bolla da mettere nella scatola con l’impronta — colore, tipo di lavoro, fasi e date."
+          }
+        ],
+        "example": "Una corona in zirconia per il dente 46 parte il 3 ed è promessa per il 17. Il 18 il registro la mostra con un giorno di ritardo; il numero del laboratorio è a una pressione di distanza sulla lavagna dei promemoria.",
+        "tips": [
+          "Dai un nome ai laboratori e ai tipi di lavoro una volta sola, in questa sezione — poi ogni caso li sceglie da un elenco invece di essere scritto in tre modi diversi.",
+          "La reception può leggere questo registro ma non scriverlo, ed è ciò che le permette di rispondere a “è tornata la mia corona” senza aprire una cartella."
+        ]
+      },
+      "workProcedures": {
+        "title": "Tipi di lavoro",
+        "tagline": "Nominati una volta, poi scelti",
+        "what": "I lavori che questo studio manda fuori — una corona, un ponte, una protesi, una riparazione. Nominarli qui è ciò che impedisce a un tipo di lavoro di diventare tre grafie diverse nel registro.",
+        "steps": [
+          {
+            "title": "L’elenco",
+            "body": "Tutti i tipi di lavoro che il registro può proporre. Corto per scelta."
+          },
+          {
+            "title": "Aggiungi",
+            "body": "Un nome e nient’altro. Aggiungili tutti in una volta."
+          },
+          {
+            "title": "Suggerimenti",
+            "body": "Nomi scritti sui casi prima che questo elenco esistesse. Tieni quello giusto; gli altri di solito sono lo stesso lavoro scritto diversamente."
+          }
+        ],
+        "example": "Nel registro ci sono “Corona in zirconia”, “corona zirconio” e “corona Zr” scritte su vecchi casi. Aggiungi “Corona in zirconia” una volta, e da lì in poi ogni caso la sceglie dall’elenco.",
+        "tips": [
+          "Questo elenco riguarda solo i nomi. Non cambia nulla sui casi già scritti."
+        ]
+      },
+      "labs": {
+        "title": "Laboratori",
+        "tagline": "A chi va il lavoro, e come raggiungerli",
+        "what": "Le ditte esterne a cui lo studio manda i casi. Il nome finisce su ogni caso; il numero di telefono è ciò che la lavagna dei promemoria compone quando qualcosa è in ritardo.",
+        "steps": [
+          {
+            "title": "L’elenco",
+            "body": "Ogni laboratorio con il suo numero e quanti casi sono da loro."
+          },
+          {
+            "title": "Aggiungine uno",
+            "body": "Il nome come lo chiama lo studio, e il numero che qualcuno compone davvero."
+          },
+          {
+            "title": "Note",
+            "body": "Di chi chiedere, in che giorni ritirano — qualunque cosa serva a farlo giusto la prima volta."
+          }
+        ],
+        "example": "Un ponte è in ritardo di quattro giorni. Apri il promemoria, premi il numero del laboratorio e parli con la persona il cui nome è scritto nelle note — invece di cercare un biglietto in un cassetto.",
+        "tips": [
+          "Un laboratorio senza numero in archivio è un laboratorio che qualcuno deve cercare ogni volta che un caso ritarda."
+        ]
+      },
+      "prescriptions": {
+        "title": "Testi standard",
+        "tagline": "Scritti una volta, letti per anni",
+        "what": "I modelli da cui si scrivono le prescrizioni. Questa schermata è il testo, non le prescrizioni: ciò che è stato davvero emesso ha una schermata sua.",
+        "steps": [
+          {
+            "title": "I modelli",
+            "body": "Tutto ciò che lo studio scrive spesso, raggruppato perché l’elenco resti corto."
+          },
+          {
+            "title": "Aggiungine uno",
+            "body": "Un nome per sceglierlo, e il testo: dose, quante volte, e cosa fare se peggiora."
+          },
+          {
+            "title": "Dopo una prestazione",
+            "body": "Collega un modello alle prestazioni che di solito segue, e verrà proposto per primo quando una di quelle è appena stata registrata."
+          }
+        ],
+        "example": "Colleghi il testo post-estrazione a “Estrazione”. Da quel momento, appena un’estrazione viene registrata, quel testo è la prima cosa proposta — con nome del paziente e data già compilati.",
+        "tips": [
+          "Il testo è un punto di partenza, mai una gabbia. Si modifica liberamente per ogni paziente prima di emetterlo.",
+          "Prescrivere è un atto del dentista. Gli assistenti possono leggere le prescrizioni; solo il dentista le scrive."
+        ]
+      },
+      "prescriptionsIssued": {
+        "title": "Prescrizioni emesse",
+        "tagline": "Ciò che lo studio ha davvero scritto",
+        "what": "Ogni prescrizione uscita dallo studio, dalla più recente, cercabile per paziente. Questa è la documentazione — la schermata dei modelli è solo il testo da cui è stata scritta.",
+        "steps": [
+          {
+            "title": "Cerca",
+            "body": "Per nome del paziente, che è l’unico nome che chi cerca una prescrizione ha."
+          },
+          {
+            "title": "Una prescrizione",
+            "body": "Per chi era, cosa c’era scritto, chi l’ha firmata e quando."
+          },
+          {
+            "title": "Ristampa",
+            "body": "A un paziente che ha perso la sua si può ridare lo stesso foglio senza riscriverlo."
+          }
+        ],
+        "example": "Un paziente chiama di domenica dicendo di aver perso il foglio dell’antibiotico. Cerchi il cognome, apri la prescrizione di venerdì e stampi la stessa — senza riscrivere e senza indovinare la dose.",
+        "tips": [
+          "Ogni prescrizione viene confrontata con le allergie registrate del paziente mentre la si scrive. Quel controllo vale quanto gli avvisi sulla sua scheda."
+        ]
+      },
+      "inbox": {
+        "title": "Posta in arrivo",
+        "tagline": "Cosa hanno risposto i pazienti",
+        "what": "Le risposte dei pazienti, raccolte in conversazioni. È l’unica coda qui la cui lunghezza non dipende da nessuno — un paziente risponde quando risponde, e una risposta non vista per tre giorni è peggio di un richiamo non fatto per tre giorni.",
+        "steps": [
+          {
+            "title": "Conversazioni",
+            "body": "Prima le non lette. Ognuna è un filo con una persona, non un mucchio di messaggi sparsi."
+          },
+          {
+            "title": "Collegare a un paziente",
+            "body": "Una risposta da un indirizzo sconosciuto non è attaccata a nessuno. Collegala una volta, e la conversazione compare sulla sua scheda per sempre."
+          },
+          {
+            "title": "Leggere un filo",
+            "body": "Tutto lo scambio in ordine, compreso ciò che lo studio aveva mandato per primo."
+          },
+          {
+            "title": "Rispondi, o archivia",
+            "body": "Rispondi da qui, oppure archivia la conversazione quando è finita. Archiviato non è cancellato."
+          }
+        ],
+        "example": "Martedì parte un promemoria. Mercoledì arriva “possiamo spostare a giovedì?”. Colleghi il messaggio al paziente, sposti l’appuntamento e rispondi — e tutto lo scambio resta sul suo fascicolo.",
+        "tips": [
+          "Qui non può arrivare nulla finché non è configurato un provider di posta. Fino ad allora la schermata lo dice, invece di sembrare rotta.",
+          "La reception può leggere e rispondere. Sono per lo più “possiamo spostare”, che è il suo mestiere, non quello del dentista."
+        ]
+      },
+      "requests": {
+        "title": "Richieste dal sito",
+        "tagline": "Persone che non sono ancora pazienti",
+        "what": "Qualcuno ha lasciato nome e numero sulla pagina pubblica dello studio. È l’unica coda qui in cui nessuno ha ancora un rapporto con lo studio — un giorno di silenzio non si legge come un ritardo, si legge come essere ignorati.",
+        "steps": [
+          {
+            "title": "La coda",
+            "body": "Prima le più vecchie, di proposito. Chi ha aspettato di più è chi va chiamato."
+          },
+          {
+            "title": "Cosa hanno scritto",
+            "body": "Il nome, il numero, e quello che hanno scritto di aver bisogno."
+          },
+          {
+            "title": "Richiamali",
+            "body": "Il numero è a una pressione di distanza. Qui non si scrive: questa è una telefonata."
+          },
+          {
+            "title": "Trasformala in appuntamento",
+            "body": "Concordato un orario, la richiesta diventa un paziente e un appuntamento in un solo passaggio."
+          }
+        ],
+        "example": "Sabato arriva una richiesta: “dente rotto, un orario qualsiasi la prossima settimana”. Lunedì alle nove la reception chiama, prenota martedì pomeriggio, e la richiesta si chiude da sé nel momento in cui l’appuntamento nasce.",
+        "tips": [
+          "Il numero nel menu è una persona che aspetta una telefonata, ed è per questo che è uno dei soli due numeri di tutto il menu."
+        ]
+      },
+      "followUps": {
+        "title": "Promemoria interni",
+        "tagline": "Ciò che lo studio deve a sé stesso",
+        "what": "La lavagna delle cose da fare dello studio: chiamare il laboratorio, sollecitare una fattura, ordinare la cosa che nessuno ha annotato. Tutto ciò che deve succedere in un giorno che non è oggi, e che altrimenti vivrebbe su un post-it.",
+        "steps": [
+          {
+            "title": "I conteggi",
+            "body": "Quanto è aperto e quanto è in ritardo. Gli stessi numeri viaggiano sulla campanella nell’angolo di ogni schermata."
+          },
+          {
+            "title": "Le sezioni",
+            "body": "In ritardo, oggi, questa settimana, più avanti, fatte. Non c’è nulla da ordinare a mano."
+          },
+          {
+            "title": "Una riga",
+            "body": "Cosa va fatto, quando deve riemergere, e di chi è il compito — o di chiunque, che è la risposta onesta quasi sempre."
+          },
+          {
+            "title": "Fatto, o più tardi",
+            "body": "Spuntalo, o spostalo di qualche giorno. Spostare non è fallire: è ciò che impedisce alla lavagna di riempirsi di cose che oggi nessuno farà."
+          }
+        ],
+        "example": "Mercoledì scrivi “chiamare Dentaland per il ponte Berisha”, per venerdì. Resta fuori dai piedi fino a venerdì mattina, quando compare nella campanella con un segno rosso accanto.",
+        "tips": [
+          "Segnarne una come urgente la porta in cima e ce la tiene. Usalo con parsimonia, o la cima smette di voler dire qualcosa.",
+          "Un caso in ritardo nel registro lavori può diventare un promemoria con il numero del laboratorio già attaccato."
+        ]
+      },
+      "recalls": {
+        "title": "Richiami",
+        "tagline": "Pazienti da chiamare oggi",
+        "what": "Persone che lo studio non vede da più tempo di quanto dica la loro stessa scheda. Due elenchi: chi è atteso per un controllo, e chi vale la pena risentire dopo una cura recente.",
+        "steps": [
+          {
+            "title": "I conteggi",
+            "body": "Quanti sono in ritardo e quanti meritano una chiamata dopo la cura."
+          },
+          {
+            "title": "Attesi per un controllo",
+            "body": "Il loro intervallo è passato e non hanno nulla in agenda. Chi ha già un appuntamento non compare mai in questo elenco."
+          },
+          {
+            "title": "Un paziente",
+            "body": "Quando è stato visto l’ultima volta, quanto tempo è passato e come raggiungerlo."
+          },
+          {
+            "title": "Contatta, o ricordamelo dopo",
+            "body": "Prepara un promemoria, o spostalo di qualche giorno se adesso non è il momento di chiamare."
+          }
+        ],
+        "example": "Un paziente con richiamo a sei mesi è stato visto undici mesi fa e non ha nulla in agenda. Compare qui; metti in coda un promemoria, parte con l’invio di domani, e giovedì richiama lui.",
+        "tips": [
+          "L’intervallo vive sulla scheda di ogni paziente. Chi è impostato su “Mai” non viene mai sollecitato, e a volte è esattamente giusto così.",
+          "I promemoria preparati qui non partono da soli. Aspettano sotto Promemoria da inviare finché qualcuno non preme il pulsante."
+        ]
+      },
+      "outbox": {
+        "title": "Promemoria da inviare",
+        "tagline": "Pronti, ma non partiti",
+        "what": "La coda dei messaggi in attesa di uscire — per lo più i promemoria degli appuntamenti di domani. Da questo studio non parte nulla finché una persona non preme invia, ed è tutta la ragione per cui questa schermata esiste.",
+        "steps": [
+          {
+            "title": "I conteggi",
+            "body": "In attesa, mancati, e gestiti oggi."
+          },
+          {
+            "title": "In attesa di invio",
+            "body": "Gli appuntamenti di domani di cui nessuno è ancora stato avvisato. È l’elenco da svuotare una volta al giorno."
+          },
+          {
+            "title": "Un promemoria",
+            "body": "Per chi è, per quale appuntamento, e per quale via — WhatsApp, email o una telefonata."
+          },
+          {
+            "title": "Invia, o sistemalo",
+            "body": "Invialo, o segnalo come gestito se è stato risolto in altro modo."
+          }
+        ],
+        "example": "Alle cinque e mezza apri questa schermata, vedi sei promemoria per domani e ne invii cinque. Il sesto non ha un numero in archivio, così lo segni come gestito e chiami la madre.",
+        "tips": [
+          "“Nessuno ci è arrivato” è la sezione onesta: appuntamenti già iniziati di cui non si era detto nulla. In una buona settimana è corta.",
+          "Un paziente che ha chiesto di non essere contattato non compare mai qui, qualunque cosa abbia in agenda."
+        ]
+      },
+      "services": {
+        "title": "Prestazioni",
+        "tagline": "Cosa offre lo studio, e per quanto tempo",
+        "what": "Il catalogo delle cure. Ogni appuntamento, ogni passaggio di un piano e ogni preventivo escono da questo elenco, ed è per questo che vale la pena farlo bene una volta sola.",
+        "steps": [
+          {
+            "title": "Cerca e filtra",
+            "body": "Per nome, o per il reparto sotto cui è archiviata."
+          },
+          {
+            "title": "Aggiungi una prestazione",
+            "body": "Bastano un nome e una durata. La durata è ciò che l’agenda blocca ogni volta che viene prenotata."
+          },
+          {
+            "title": "Una prestazione",
+            "body": "Il nome, il reparto, quanto dura e quanto costa."
+          },
+          {
+            "title": "Materiali che consuma",
+            "body": "Dichiara cosa una prestazione consuma di norma, e registrare la visita lo scarica automaticamente dal magazzino."
+          }
+        ],
+        "example": "“Otturazione in composito — 45 minuti” si inserisce una volta. Da lì in poi ogni otturazione prenotata blocca tre quarti d’ora in agenda senza che nessuno debba ricordarsene.",
+        "tips": [
+          "Durate corrette sono ciò che rende utile la ricerca del tempo libero. Una prestazione da 20 minuti prenotata come un’ora nasconde spazi che esistono.",
+          "Un listino esistente si può portare dentro da un foglio di calcolo invece di riscriverlo — vedi Importa."
+        ]
+      },
+      "serviceCategories": {
+        "title": "Categorie delle prestazioni",
+        "tagline": "I reparti in cui è diviso il catalogo",
+        "what": "Le parti dello studio a cui una prestazione può appartenere — chirurgia, ortodonzia, igiene. Nominate una volta qui, perché un reparto non diventi tre grafie di sé stesso.",
+        "steps": [
+          {
+            "title": "L’elenco",
+            "body": "I reparti, e le suddivisioni dentro di essi. Due livelli e non di più, di proposito."
+          },
+          {
+            "title": "Aggiungine una",
+            "body": "Un nome, e se sta dentro un reparto o ne è uno."
+          },
+          {
+            "title": "Chi la usa",
+            "body": "Ogni prestazione sceglie il suo reparto da questo elenco, e il catalogo si filtra con esso."
+          }
+        ],
+        "example": "Aggiungi “Chirurgia” con dentro “Estrazioni” e “Implantologia”. L’elenco delle prestazioni si può poi restringere ai soli impianti quando se ne preventiva uno.",
+        "tips": [
+          "Fallo prima di importare un listino. I nomi già esistenti vengono riconosciuti invece che duplicati."
+        ]
+      },
+      "imports": {
+        "title": "Importa da un foglio di calcolo",
+        "tagline": "Porta dentro ciò che hai già",
+        "what": "Uno studio che adotta questa app ha già degli elenchi — un listino, un inventario del magazzino, un archivio pazienti. Questo li porta dentro da un file CSV, e mostra esattamente cosa farà prima di fare qualunque cosa.",
+        "steps": [
+          {
+            "title": "Il file",
+            "body": "Un CSV esportato da un foglio di calcolo. La prima riga dovrebbe contenere i nomi delle colonne."
+          },
+          {
+            "title": "Abbinare le colonne",
+            "body": "Dici quale colonna è il nome, quale il prezzo, e così via. L’app prova a indovinare e tu correggi."
+          },
+          {
+            "title": "L’anteprima",
+            "body": "Riga per riga: cosa verrà aggiunto, cosa aggiornato, e cosa non è leggibile. A questo punto non è ancora successo nulla."
+          },
+          {
+            "title": "Importa",
+            "body": "Solo quando premi qui. Le righe con problemi vengono lasciate fuori invece che indovinate."
+          }
+        ],
+        "example": "Un listino di 180 prestazioni entra in un colpo solo. L’anteprima mostra 174 nuove, 6 già presenti e niente di rotto — così importi, e il catalogo è pronto in una mattina invece che in due settimane.",
+        "tips": [
+          "L’importazione è una faccenda che si fa una volta per studio, ed è per questo che sta sotto la sua sezione invece di occupare per sempre l’intestazione.",
+          "L’importazione dei materiali porta dentro cosa ogni cosa *è*, non quanta ce n’è sullo scaffale. Quella si conta con un inventario."
+        ]
+      },
+      "stock": {
+        "title": "Magazzino",
+        "tagline": "Il magazzino, come elenco",
+        "what": "Ogni materiale e consumabile che lo studio tiene, quanti ce ne sono sullo scaffale, e quanto in basso ognuno può scendere prima che l’app cominci a chiederne ancora.",
+        "steps": [
+          {
+            "title": "Cerca e filtra",
+            "body": "Per nome, codice, marca o scaffale — e per stato: in esaurimento, finito, o a posto."
+          },
+          {
+            "title": "Aggiungi un materiale",
+            "body": "Bastano un nome e una quantità. Scaffale, minimo e fornitore possono aspettare."
+          },
+          {
+            "title": "Un materiale",
+            "body": "Cos’è, quante scatole ci sono, su quale scaffale vive e da chi si compra."
+          },
+          {
+            "title": "In esaurimento e finito",
+            "body": "Un materiale al minimo o sotto entra nella lista degli ordini e viene segnalato nella campanella su ogni schermata."
+          },
+          {
+            "title": "Carica o scarica",
+            "body": "Movimenta senza aprire la scheda — una consegna in entrata, una scatola usata in uscita."
+          }
+        ],
+        "example": "L’anestetico ha un minimo di 3 scatole. L’assistente prende la penultima, la quantità scende a 2, e quando il dentista guarda la campanella è già nella lista degli ordini.",
+        "tips": [
+          "Ogni movimento è scritto in un registro con chi lo ha fatto e perché, così “dove sono finite sei scatole” è una domanda con risposta.",
+          "I numeri di lotto contano. Un avviso di ritiro chiede il lotto, e nient’altro nello studio può rispondere."
+        ]
+      },
+      "stockCatalog": {
+        "title": "Catalogo del magazzino",
+        "tagline": "Il magazzino, in fotografie",
+        "what": "Gli stessi materiali dell’elenco, ma con la fotografia di ogni scatola. Per chi sa che aspetto ha una cosa ma non come si chiama — cioè, con un’assistente nuova e uno scaffale di confezioni italiane, quasi tutti.",
+        "steps": [
+          {
+            "title": "Cerca",
+            "body": "La stessa ricerca dell’elenco. Scrivi quello che ricordi."
+          },
+          {
+            "title": "Le schede",
+            "body": "Una fotografia, il nome, il colore o la misura, e quanti ne restano."
+          },
+          {
+            "title": "La fotografia",
+            "body": "Premila per scattarne o sceglierne una. Una variante senza foto propria mostra quella del prodotto."
+          },
+          {
+            "title": "Cosa è in esaurimento",
+            "body": "La scheda porta lo stesso contrassegno di esaurimento dell’elenco."
+          }
+        ],
+        "example": "Un sostituto cerca “il composito nella scatola blu”. Apre il catalogo, riconosce la confezione in due secondi, e scopre che è l’A2 sullo scaffale 3.",
+        "tips": [
+          "Le fotografie valgono un pomeriggio, una volta sola. Si ripagano ogni volta che qualcuno di nuovo fa un turno."
+        ]
+      },
+      "stockLabels": {
+        "title": "Etichette da scaffale",
+        "tagline": "Un codice QR per ogni scatola",
+        "what": "Un foglio di etichette da stampare, una per materiale. Attaccale sulle scatole, e movimentare il magazzino diventa questione di puntare una fotocamera a uno scaffale invece di scrivere.",
+        "steps": [
+          {
+            "title": "Il foglio",
+            "body": "Tutti i materiali, o solo quelli che hai filtrato. Esce come una pagina di adesivi."
+          },
+          {
+            "title": "Un’etichetta",
+            "body": "Il nome, il codice, e un QR che apre direttamente quel materiale."
+          },
+          {
+            "title": "Scansionarne una",
+            "body": "Apre il materiale con “carica o scarica” già pronto — scegli quante scatole e premi."
+          },
+          {
+            "title": "Una soltanto",
+            "body": "Per un materiale nuovo si può stampare una sola etichetta, senza rifare il foglio."
+          }
+        ],
+        "example": "Uno scaffale nuovo di compositi viene etichettato un venerdì pomeriggio. Il lunedì l’assistente scarica tre scatole scansionando tre adesivi, e non apre mai l’elenco del magazzino.",
+        "tips": [
+          "Le etichette si stampano una volta per materiale e poi non più per un anno, ed è per questo che stanno qui e non sull’intestazione del magazzino."
+        ]
+      },
+      "stockScan": {
+        "title": "Scansiona",
+        "tagline": "Movimenta leggendo la scatola",
+        "what": "Il modo più rapido di sistemare una consegna o di scaricare qualcosa: leggi il codice sulla scatola, dici quante, fatto. Funziona con la fotocamera del telefono o con un lettore a pistola.",
+        "steps": [
+          {
+            "title": "Entrata o uscita",
+            "body": "Una consegna carica lo scaffale, con lotto e scadenza. Qualcosa di usato scarica, dal lotto che hai scansionato."
+          },
+          {
+            "title": "Scansionare",
+            "body": "Punta la fotocamera, o premi il grilletto del lettore — funziona ovunque su questa pagina, senza dover cliccare prima."
+          },
+          {
+            "title": "Codici sconosciuti",
+            "body": "Dici una volta cos’è un codice che non conosce, e da lì in poi viene riconosciuto. Un cartone e una singola scatola hanno codici diversi."
+          },
+          {
+            "title": "Il carrello",
+            "body": "Tutto ciò che è stato scansionato finora, pronto per essere corretto prima di salvare."
+          }
+        ],
+        "example": "Arriva una consegna di dodici cartoni. L’assistente li scansiona uno a uno, scrive lotto e scadenza una volta per prodotto, e l’intera consegna è a magazzino prima che le scatole siano aperte.",
+        "tips": [
+          "Scaricare più di quanto lo scaffale dica di avere è permesso — capita, e l’app ti dice che la quantità era già sbagliata invece di rifiutare."
+        ]
+      },
+      "stocktake": {
+        "title": "Conta lo scaffale",
+        "tagline": "Cosa c’è davvero",
+        "what": "La resa dei conti: gira il magazzino, scrivi quello che vedi, e l’app registra la differenza come una correzione. Solo le righe che cambi vengono registrate, così una quantità già giusta non costa nulla.",
+        "steps": [
+          {
+            "title": "L’elenco",
+            "body": "Ogni materiale con ciò che l’app crede ci sia. Filtra su uno scaffale e percorrilo."
+          },
+          {
+            "title": "Scrivi quello che vedi",
+            "body": "Il numero vero. Lascia stare le righe giuste — vuoto significa “nessun cambiamento”."
+          },
+          {
+            "title": "Le differenze",
+            "body": "Cosa verrà corretto, e di quanto, prima che qualcosa venga salvato."
+          },
+          {
+            "title": "Salva",
+            "body": "Ogni correzione viene scritta nel registro come un movimento, firmata come tutto il resto."
+          }
+        ],
+        "example": "Un inventario prima della chiusura estiva trova i guanti a 4 scatole mentre l’app ne diceva 9. Scrivi 4, salvi, e la correzione resta agli atti con il tuo nome e la data — invece di cinque scatole sparite in silenzio.",
+        "tips": [
+          "Farlo una volta a trimestre è ciò che rende affidabili gli avvisi di esaurimento. Avvisi costruiti su quantità sbagliate vengono ignorati, e a quel punto non valgono nulla."
+        ]
+      },
+      "stockExpiry": {
+        "title": "Scadenze",
+        "tagline": "Cosa è scaduto, e cosa sta per farlo",
+        "what": "Lotti oltre la loro data, e lotti che scadono nelle prossime settimane. È la schermata che evita che l’anestetico scaduto lo trovi un paziente invece dello studio.",
+        "steps": [
+          {
+            "title": "I conteggi",
+            "body": "Quanti lotti sono scaduti e quanti sono vicini."
+          },
+          {
+            "title": "Scaduti",
+            "body": "Oltre la data, prima i più vecchi. Questi escono dallo scaffale oggi."
+          },
+          {
+            "title": "In scadenza",
+            "body": "Ancora usabili — usa prima questi, o programma di sostituirli."
+          },
+          {
+            "title": "Agire su un lotto",
+            "body": "Toglilo dallo scaffale da qui, e il movimento viene registrato come qualunque altro."
+          }
+        ],
+        "example": "Due lotti di anestetico scadono a fine mese. Compaiono sotto “in scadenza”, così lo studio usa prima quelli e quelli comprati la settimana scorsa restano nella scatola.",
+        "tips": [
+          "Le date di scadenza esistono solo per i lotti scansionati o inseriti con una data. Un materiale caricato senza date non può avvisare nessuno."
+        ]
+      },
+      "stockCategories": {
+        "title": "Categorie del magazzino",
+        "tagline": "Gli scaffali in cui è diviso il magazzino",
+        "what": "Gli scaffali, i cassetti e gli armadi sotto cui sono archiviati i materiali. Nominati una volta qui, perché uno scaffale non diventi tre grafie di sé stesso su duecento materiali.",
+        "steps": [
+          {
+            "title": "L’elenco",
+            "body": "Tutti gli scaffali che il magazzino ha. Corto, e resta corto."
+          },
+          {
+            "title": "Aggiungine uno",
+            "body": "Un nome e nient’altro. Aggiungili tutti in una volta."
+          },
+          {
+            "title": "Chi lo usa",
+            "body": "Ogni materiale sceglie il suo scaffale da questo elenco, e l’elenco del magazzino si filtra con esso."
+          }
+        ],
+        "example": "Aggiungi “Conservativa”, “Anestetici”, “Monouso” ed “Endodonzia”. Filtrare il magazzino su uno scaffale corrisponde allora al giro che qualcuno fa davvero nella stanza.",
+        "tips": [
+          "Chiamali come sono fisicamente disposte le cose, non come in teoria si classificano. L’elenco si usa stando in piedi nella stanza."
+        ]
+      },
+      "suppliers": {
+        "title": "Fornitori",
+        "tagline": "Da chi si comprano i materiali",
+        "what": "Le ditte da cui lo studio ordina. Dentro questa app non si ordina, per scelta — questo è l’elenco di chi chiamare, attaccato a ciò che fornisce.",
+        "steps": [
+          {
+            "title": "L’elenco",
+            "body": "Ogni fornitore, con il numero che fa davvero partire un ordine."
+          },
+          {
+            "title": "Aggiungine uno",
+            "body": "Basta un nome, ma il senso della scheda è il numero di telefono."
+          },
+          {
+            "title": "Note",
+            "body": "Di chi chiedere, in che giorni consegnano, ordine minimo — qualunque cosa serva a farlo giusto la prima volta."
+          }
+        ],
+        "example": "La lista degli ordini dice che quattro materiali sono in esaurimento, e tre si comprano dalla stessa ditta. Apri quel fornitore, chiami il numero sulla scheda, e fai un ordine invece di tre.",
+        "tips": [
+          "Collega ogni materiale al suo fornitore. La lista degli ordini si raggruppa allora da sé per chi chiamare."
+        ]
+      },
+      "analytics": {
+        "title": "Statistiche",
+        "tagline": "Cosa ha fatto lo studio",
+        "what": "I numeri dietro il lavoro: quanto è stata piena l’agenda, quali prestazioni tornano più spesso, quante persone non si presentano, e quanto ha incassato lo studio. Si leggono su mesi, non su giorni.",
+        "steps": [
+          {
+            "title": "Il periodo",
+            "body": "Sei mesi salvo diversa scelta. Cambialo e tutta la schermata si adegua."
+          },
+          {
+            "title": "Le cifre principali",
+            "body": "I due o tre numeri da conoscere prima di leggere qualsiasi grafico."
+          },
+          {
+            "title": "I grafici",
+            "body": "Appuntamenti e incassi nel tempo, e quali prestazioni li compongono."
+          },
+          {
+            "title": "Le tabelle",
+            "body": "Le stesse cifre in righe, per chi preferisce leggere numeri invece di forme."
+          }
+        ],
+        "example": "L’utilizzo della poltrona segna il 61% negli ultimi sei mesi. Il grafico mostra che il buco è il martedì; lo studio ci sposta una seduta di igiene e guarda lo stesso numero il trimestre dopo.",
+        "tips": [
+          "L’utilizzo sono i minuti prenotati sulle ore in cui lo studio era davvero aperto — quindi orari sbagliati lo rendono sbagliato.",
+          "Il dato sulle mancate presentazioni esclude gli appuntamenti annullati dallo studio. Riguarda i pazienti, non l’agenda."
+        ]
+      },
+      "settings": {
+        "title": "Orari di apertura",
+        "tagline": "Quando lo studio è aperto, e quando è chiuso",
+        "what": "La settimana da cui è disegnato tutto il calendario — orari, pausa pranzo, chiusure e quante poltrone possono lavorare insieme. Quasi tutto il resto dell’app che disegna un giorno lo legge da qui.",
+        "steps": [
+          {
+            "title": "La settimana",
+            "body": "Una riga per giorno: quando si apre, quando si chiude, e la pausa in mezzo. Gli orari sono l’ora dello studio."
+          },
+          {
+            "title": "Gli orari",
+            "body": "Lascia un giorno vuoto e lo studio è chiuso. Il calendario lo ingrigisce subito."
+          },
+          {
+            "title": "Pause e chiusure",
+            "body": "Una pausa si ripete ogni settimana; una chiusura è una festività o una sospensione e prevale del tutto sulla settimana."
+          },
+          {
+            "title": "Salva",
+            "body": "Nulla cambia finché non salvi — e se ci sono già appuntamenti nelle ore che stai chiudendo, te lo si dice prima che accada."
+          }
+        ],
+        "example": "Lo studio smette di aprire il sabato. Svuoti i due orari del sabato, salvi, e ogni sabato del calendario diventa grigio — e la ricerca del tempo libero smette di proporli.",
+        "tips": [
+          "Vale la pena aggiungere poltrone solo se lo studio ne ha davvero più di una. Due poltrone significano due appuntamenti in parallelo.",
+          "Le ferie di una persona sono una chiusura solo per lei. Il resto dello studio continua a lavorare."
+        ]
+      },
+      "staff": {
+        "title": "Personale e ruoli",
+        "tagline": "Chi lavora qui, e cosa può fare ciascuno",
+        "what": "Gli account con cui si accede, e il ruolo che ognuno porta. Qui un ruolo non è una qualifica — è l’insieme delle porte che si aprono, ed è il campo su cui vale la pena fermarsi.",
+        "steps": [
+          {
+            "title": "L’elenco",
+            "body": "Tutti quelli che hanno un account, il loro ruolo, e se l’account è ancora attivo."
+          },
+          {
+            "title": "Aggiungi qualcuno",
+            "body": "Un nome, un ruolo e un PIN — detto di persona, non mandato per email."
+          },
+          {
+            "title": "Il ruolo",
+            "body": "Tutto ciò che un ruolo concede è elencato sotto mentre lo scegli, così la decisione si prende avendo davanti le sue conseguenze."
+          },
+          {
+            "title": "Chiudere un account",
+            "body": "Disattiva, non cancellare. Il nome resta sulle visite che ha registrato, come una cartella clinica richiede."
+          }
+        ],
+        "example": "Arriva un sostituto per tre settimane. Gli dai Sola lettura: vede cartelle, agenda e cifre, e non può cambiare nulla — e ogni schermata glielo dice, invece di rifiutare all’ultimo momento.",
+        "tips": [
+          "Cancellare qualcosa è solo del titolare, di proposito. Tutti gli altri annullano, disattivano o correggono.",
+          "Ognuno cambia il proprio PIN dal menu dell’account. Nessuno, titolare compreso, può leggere quello di un altro."
+        ]
+      },
+      "activity": {
+        "title": "Registro attività",
+        "tagline": "Ogni modifica, e chi l’ha fatta",
+        "what": "Un registro in sola aggiunta di cosa è stato cambiato, da chi e quando. Nulla qui può essere modificato o rimosso, nemmeno dal titolare — ed è tutta la ragione per cui lo si tiene.",
+        "steps": [
+          {
+            "title": "Le voci",
+            "body": "Dalla più recente: chi, cosa, e quale scheda ha toccato."
+          },
+          {
+            "title": "Filtra per tipo",
+            "body": "Restringi a un solo tipo di modifica — appuntamenti, pazienti, magazzino, personale."
+          },
+          {
+            "title": "Intervallo di date",
+            "body": "Restringi ai giorni in questione quando c’è una domanda precisa."
+          },
+          {
+            "title": "Cosa firma",
+            "body": "Ogni voce porta l’account che ha fatto la modifica, ed è per questo che i PIN sono personali e non si condividono."
+          }
+        ],
+        "example": "Una nota di visita dice qualcosa che nessuno ricorda di aver scritto. Il registro mostra che è stata registrata alle 16:20 del 4 da un account con un nome — e la domanda si chiude in un minuto invece di diventare una discussione.",
+        "tips": [
+          "Solo il titolare può leggerlo, e nessuno può cambiarlo.",
+          "Condividere un PIN rende senza valore ogni riga che questo registro scrive. È la vera ragione per cui ognuno ha il suo."
+        ]
+      }
+    },
+    "pointerTitle": "Ogni schermata sa spiegarsi",
+    "pointerBody": "Questo pulsante dice a cosa serve la schermata in cui sei — con un disegno e un esempio concreto. Quello accanto mette via le parti dell’app che il tuo studio non usa.",
+    "pointerOpen": "Mostrami",
+    "pointerDismiss": "Ho capito"
+  },
+  "tailor": {
+    "button": "Scegli cosa c’è nel tuo menu",
+    "title": "Cosa c’è nel tuo menu",
+    "subtitle": "Metti via le schermate che questo studio non usa.",
+    "close": "Chiudi",
+    "note": "Questo cambia solo il tuo menu e quello di nessun altro. Nessun permesso cambia, nulla viene cancellato, e tutto ciò che metti via resta trovabile con la ricerca in cima a ogni pagina.",
+    "group": {
+      "admin": "Gestione dello studio",
+      "start": "Ogni giorno",
+      "care": "Cure",
+      "contact": "Contatti",
+      "practice": "Studio"
+    },
+    "shown": "Visibile",
+    "hidden": "Nascosto",
+    "count": "{shown} di {total} visibili",
+    "reset": "Mostra tutto",
+    "done": "Fatto"
+  },
+  "orders": {
+    "title": "Ordini",
+    "subtitle": "Cosa è stato ordinato e cosa è davvero arrivato.",
+    "subtitleClosed": "Ordini conclusi o abbandonati.",
+    "empty": "Nessun ordine in corso. Inviandone uno dalla lista di riordino nella pagina magazzino verrà registrato qui.",
+    "emptyClosed": "Nessun ordine è ancora stato completato.",
+    "noSupplier": "Nessun fornitore registrato",
+    "placed": "Inviato il {placed}",
+    "placedExpected": "Inviato il {placed} · atteso il {expected}",
+    "late": "{days, plural, one {# giorno di ritardo} other {# giorni di ritardo}}",
+    "outstanding": "{count, plural, one {# scatola ancora attesa} other {# scatole ancora attese}}",
+    "stillOwed": "{count, plural, one {# attesa} other {# attese}}",
+    "receivedOf": "{got} di {asked}",
+    "lineFull": "Ricevuto per intero",
+    "complete": "Completo",
+    "cancelled": "Annullato",
+    "cancel": "Rinuncia",
+    "cancelConfirm": "Chiudere questo ordine e smettere di attendere ciò che non è arrivato? Ciò che è arrivato resta in magazzino.",
+    "showClosed": "Ordini conclusi",
+    "showOpen": "Ordini aperti",
+    "openCount": "{count, plural, one {# ordine aperto} other {# ordini aperti}}"
+  },
+  "ledger": {
+    "title": "Storico movimenti",
+    "subtitle": "Ogni scatola entrata o uscita da questo scaffale.",
+    "empty": "Nessun movimento finora.",
+    "usable": "Utilizzabili",
+    "minimum": "Minimo",
+    "lastMoved": "Ultima modifica",
+    "lots": "Lotti",
+    "onOrder": "Ordinato",
+    "onOrderOutstanding": "{count, plural, one {Ordinato · # scatola ancora attesa} other {Ordinato · # scatole ancora attese}}",
+    "reason_delivery": "Consegna",
+    "reason_deliveryReversed": "Consegna annullata",
+    "reason_scanIn": "Entrata con scanner",
+    "reason_scanOut": "Uscita con scanner",
+    "reason_stocktake": "Inventario",
+    "reason_used": "Usato",
+    "reason_usedInVisit": "Usato in una visita",
+    "reason_restock": "Rifornimento",
+    "reason_visitDeleted": "Visita eliminata — rimesso",
+    "reason_writeOff": "Scaricato",
+    "reason_unknown": "Rettifica"
   }
 }

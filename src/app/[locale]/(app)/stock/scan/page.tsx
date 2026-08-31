@@ -7,6 +7,7 @@ import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
 import { ACTIVE_STOCK, getStockCategories } from '@/lib/queries';
+import { getScanIndex } from '@/lib/scan-index';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,11 +46,17 @@ export default async function ScanPage({ params }: { params: Promise<{ locale: s
   // names become rows, and it has to finish before the shelves are offered.
   const categories = await getStockCategories();
 
-  const items = await prisma.stockItem.findMany({
-    where: ACTIVE_STOCK,
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true },
-  });
+  const [items, scanIndex] = await Promise.all([
+    prisma.stockItem.findMany({
+      where: ACTIVE_STOCK,
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+    // Every symbol the practice has linked, sent down with the page. A beep then
+    // costs no round trip and keeps working when the storage room's wifi does
+    // not — which is where deliveries are actually received. See `getScanIndex`.
+    getScanIndex(),
+  ]);
 
   return (
     <>
@@ -74,7 +81,7 @@ export default async function ScanPage({ params }: { params: Promise<{ locale: s
         }
       />
 
-      <ScanConsole items={items} categories={categories} />
+      <ScanConsole items={items} categories={categories} scanIndex={scanIndex} />
     </>
   );
 }
