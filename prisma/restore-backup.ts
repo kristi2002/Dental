@@ -99,6 +99,8 @@ const ORDER = [
   'visits',
   'visitServices',
   'teeth',
+  // After the visits it may name and the patients it belongs to, both above.
+  'perioExams',
   'plans',
   'documents',
   'templates',
@@ -169,6 +171,7 @@ const MODEL: Record<Key, string> = {
   visits: 'visitRecord',
   visitServices: 'visitService',
   teeth: 'toothRecord',
+  perioExams: 'perioExam',
   plans: 'treatmentPlan',
   documents: 'patientDocument',
   templates: 'prescriptionTemplate',

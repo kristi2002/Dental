@@ -67,6 +67,7 @@ export async function POST(request: Request) {
     appointments,
     visits,
     teeth,
+    perioExams,
     services,
     serviceMaterials,
     stockProducts,
@@ -121,6 +122,10 @@ export async function POST(request: Request) {
     prisma.appointment.findMany(),
     prisma.visitRecord.findMany(),
     prisma.toothRecord.findMany(),
+    // The periodontal history, which is the one table here whose rows can
+    // never be reconstructed from anything else: the snapshot only holds the
+    // newest reading and the ones before it exist nowhere but this table.
+    prisma.perioExam.findMany(),
     prisma.service.findMany(),
     prisma.serviceMaterial.findMany(),
     // Before `stock`, because every material may name the product it is a
@@ -260,6 +265,7 @@ export async function POST(request: Request) {
         appointments,
         visits,
         teeth,
+        perioExams,
         services,
         serviceMaterials,
         stockProducts,

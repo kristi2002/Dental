@@ -4,6 +4,8 @@ import { Droplet } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useRef, useState } from 'react';
 import {
+  FURCATION_GRADES,
+  hasFurcation,
   MOBILITY_GRADES,
   MOBILITY_LABEL,
   PERIO_SITE_COUNT,
@@ -11,6 +13,7 @@ import {
   perioLayout,
   POCKET_MAX,
   pocketBand,
+  RECESSION_MAX,
   toPocketDepth,
   type PerioSummary,
 } from '@/lib/perio';
@@ -173,6 +176,49 @@ export function PerioFields({ summary, toothNum }: { summary: PerioSummary; toot
                           {t('perioBleedingAt', { site: t(`site_${PERIO_SITES[site]}`) })}
                         </span>
                       </label>
+
+                      {/* Recession, under the depth it belongs with rather than
+                          in a row of its own.
+
+                          It is the second half of the only number a periodontal
+                          diagnosis runs on — pocket plus recession is attachment
+                          loss, and a 4mm pocket on a gum that has retreated 3mm
+                          is a very different tooth from a 4mm pocket on one that
+                          has not. Keeping it in the site's own column is what
+                          lets the pair be read together; a separate row means
+                          counting along to find which depth a number belongs to,
+                          which is the mistake the bleeding tick is placed here
+                          to avoid.
+
+                          Uncontrolled, unlike the depth above. Depths are
+                          coloured as they are typed because a mistyped 7 is
+                          exactly what that colour is for; recession has no
+                          bands, so there is nothing for React to hold. */}
+                      <input
+                        name={`recession${site}`}
+                        defaultValue={summary.recession[site] ?? ''}
+                        aria-label={t('perioRecessionAt', {
+                          site: t(`site_${PERIO_SITES[site]}`),
+                        })}
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={2}
+                        className={cn(
+                          'h-8 w-11 rounded-md border border-line-strong bg-surface text-center',
+                          'text-meta font-semibold tabular-nums text-ink-soft',
+                          'focus:border-brand-dark focus:outline-none',
+                        )}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onChange={(event) => {
+                          // Digits only and inside the range the column will
+                          // keep. A leading zero survives here where it does not
+                          // in a depth: `0mm` of recession is the normal healthy
+                          // finding and the commonest value in a mouth.
+                          const typed = event.target.value.replace(/\D/g, '').slice(0, 2);
+                          event.target.value =
+                            Number.parseInt(typed, 10) > RECESSION_MAX ? typed.slice(0, 1) : typed;
+                        }}
+                      />
                     </div>
                   );
                 })}
@@ -182,6 +228,7 @@ export function PerioFields({ summary, toothNum }: { summary: PerioSummary; toot
         </div>
 
         <p className="mt-2 text-meta text-ink-faint">{t('perioHint')}</p>
+        <p className="text-meta text-ink-faint">{t('perioRecessionHint')}</p>
       </fieldset>
 
       <fieldset>
@@ -227,6 +274,53 @@ export function PerioFields({ summary, toothNum }: { summary: PerioSummary; toot
           ))}
         </div>
       </fieldset>
+
+      {/* Only where there is a furcation to grade. A grade on a central incisor
+          is a category error rather than a finding, so the control is absent
+          rather than disabled — and `saveToothPerio` refuses one on the way in
+          too, because a form is not a permission. */}
+      {hasFurcation(toothNum) ? (
+        <fieldset>
+          <legend className="field-label">{t('furcation')}</legend>
+          <div className="flex flex-wrap gap-2">
+            <label
+              className={cn(
+                'cursor-pointer rounded-lg border border-line-strong px-3 py-2 text-meta font-semibold',
+                'hover:border-ink has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
+              )}
+            >
+              <input
+                type="radio"
+                name="furcation"
+                value=""
+                defaultChecked={summary.furcation === null}
+                className="sr-only"
+              />
+              {t('mobilityUnknown')}
+            </label>
+
+            {FURCATION_GRADES.map((grade) => (
+              <label
+                key={grade}
+                className={cn(
+                  'cursor-pointer rounded-lg border border-line-strong px-3 py-2 text-meta font-semibold',
+                  'hover:border-ink has-checked:border-brand has-checked:bg-brand-soft has-checked:text-brand-deep',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="furcation"
+                  value={grade}
+                  defaultChecked={summary.furcation === grade}
+                  className="sr-only"
+                />
+                <span className="font-bold tabular-nums">{grade}</span>
+                <span className="ml-1.5 font-normal text-ink-soft">{t(`furcation_${grade}`)}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
     </div>
   );
 }

@@ -983,7 +983,12 @@
     "importAlreadyHere": "Already registered here",
     "message": "Message",
     "messagePatient": "Write to this patient",
-    "tabWorks": "Laboratory"
+    "tabWorks": "Laboratory",
+    "showToPatient": "Show to patient",
+    "patientViewHeading": "Your teeth",
+    "patientViewArchLabel": "Your upper and lower teeth, with the ones we talked about marked",
+    "patientViewNone": "Nothing needs attention right now. Everything we checked looks healthy.",
+    "patientViewBabyTeeth": "Baby teeth"
   },
   "appointments": {
     "title": "Calendar",
@@ -1402,7 +1407,27 @@
     "perioBandWatch": "Pocket to watch",
     "perioBandWatchRange": "4–5",
     "perioBandDiseased": "Deep pocket",
-    "perioBandDiseasedRange": "6+"
+    "perioBandDiseasedRange": "6+",
+    "planned": "Planned",
+    "plannedBooked": "booked {date}",
+    "plannedCount": "{count, plural, one {# treatment planned} other {# treatments planned}}",
+    "perioRecessionAt": "Recession at {site}",
+    "perioRecessionHint": "The small box under each is gum recession in mm — 0 where the gum is still at the tooth.",
+    "furcation": "Furcation",
+    "furcation_0": "none",
+    "furcation_1": "probe catches",
+    "furcation_2": "probe enters",
+    "furcation_3": "passes through",
+    "perioAttachment": "Attachment loss",
+    "perioSince": "Since {date}",
+    "perioWorse": "deeper than last time",
+    "perioBetter": "shallower than last time",
+    "toothFiles": "Files on this tooth",
+    "status_SEALANT": "Sealant",
+    "status_FRACTURE": "Fracture",
+    "status_VENEER": "Veneer",
+    "status_BRIDGE": "Bridge",
+    "perioSaveNext": "Save · next is {num}"
   },
   "reminders": {
     "whatsappTemplate": "Hello {name}, this is a reminder of your dental appointment on {date} at {time}. See you soon!",

@@ -45,7 +45,8 @@ import { cn } from '@/lib/utils';
  *  - **Every tooth is lit from one place** — above and to the left. Enamel is
  *    glassy, so what sells it is the value range: a warm dentin core glowing
  *    through, the silhouette thickened into a form shadow so each edge turns
- *    away, growth lines banding the cervical half, and a hard little specular.
+ *    away, growth lines banding the cervical half, and a band of gloss down
+ *    the wet surfaces — measured against the photograph, not guessed at.
  *    Flat fills with an outline look like a diagram no matter how correct.
  *
  * **The ivory is the storefront's, and it was measured rather than matched by
@@ -984,6 +985,50 @@ const DEFAULT_FACES: readonly ToothSurface[] = ['O', 'B', 'M', 'D'];
  * Mesial is always to the right here, because that is the frame every tooth is
  * drawn in; the mirror on the other side of the mouth carries the marks with it.
  */
+/**
+ * Where a crack runs, from the tooth's own measurements.
+ *
+ * Enamel splits along its rods, so the line jogs rather than curves and the
+ * corners stay sharp — every other path in this file is a spline and this one
+ * deliberately is not. It starts at the biting edge, which is where a crack
+ * starts, and dies out in the middle third rather than reaching the neck: a
+ * crack that ran the whole height of the crown would be a tooth in two pieces
+ * and a different finding.
+ *
+ * Computed rather than stored, and computed the same way every time. A crack
+ * placed at random would move on every re-render, and a finding that will not
+ * hold still is not a finding.
+ */
+function fractureLine(g: Geometry): string {
+  const cej = INCISAL - g.height;
+  // Wide swings and most of the crown's height, because the first pass was
+  // neither: a short low-amplitude jog in the middle of a molar read as a
+  // scratch on the enamel rather than as the tooth being split. A crack is the
+  // second most urgent thing this chart can say and it has to carry at 68px.
+  const points: Pt[] = [
+    [CENTRE + g.halfWidth * 0.34, INCISAL + g.height * 0.02],
+    [CENTRE - g.halfWidth * 0.06, cej + g.height * 0.66],
+    [CENTRE + g.halfWidth * 0.3, cej + g.height * 0.4],
+    [CENTRE - g.halfWidth * 0.14, cej + g.height * 0.14],
+  ];
+  return points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${f(x)} ${f(y)}`).join(' ');
+}
+
+/**
+ * The height a bridge connector runs at: where this tooth touches the next one.
+ *
+ * Taken from the contact areas the crown already models rather than from a
+ * fraction of the height, so the bar leaves the tooth at the point a real
+ * connector is soldered to — and so two neighbouring units, which are different
+ * teeth of different lengths, still meet at the same line across the arch.
+ */
+function bridgeBarY(g: Geometry): number {
+  const contacts = g.contacts.map(([, cy]) => cy);
+  return contacts.length > 0
+    ? contacts.reduce((total, cy) => total + cy, 0) / contacts.length
+    : INCISAL - g.height * 0.55;
+}
+
 function markAt(
   surface: ToothSurface,
   { halfWidth, cej, height }: Geometry,
@@ -1111,6 +1156,132 @@ export function ToothGlyph({
           />
           <path d={g.crown} fill="none" stroke="#92400E" strokeWidth="1.4" opacity="0.75" />
         </g>
+      ) : null}
+
+      {/* A sealant is resin flowed into the fissures and cured there. It is not
+          a restoration — no tooth was drilled — so it is drawn as the grooves
+          being *filled in* rather than as a body set into the crown: the same
+          fissure paths the enamel carries, stroked wide enough to read as
+          material and translucent enough to read as resin. A tooth whose
+          grooves are sealed looks like a tooth whose grooves have gone, which
+          is exactly what it looks like in a mouth. */}
+      {status === 'SEALANT' ? (
+        <g clipPath={`url(#lt-crown-clip-${key})`}>
+          {g.grooves.map((d) => (
+            <path
+              key={d}
+              d={d}
+              fill="none"
+              stroke="url(#lt-sealant)"
+              strokeWidth={g.halfWidth * 0.34}
+              strokeLinecap="round"
+              opacity="0.85"
+            />
+          ))}
+          {/* Cured resin is glossy and sits proud of the enamel by a hair. */}
+          {g.grooves.map((d) => (
+            <path
+              key={`${d}-gloss`}
+              d={d}
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth={g.halfWidth * 0.1}
+              strokeLinecap="round"
+              opacity="0.4"
+              transform="translate(0 -1.4)"
+              filter="url(#lt-haze)"
+            />
+          ))}
+        </g>
+      ) : null}
+
+      {/* A crack, drawn as a crack: a sharp dark line that does not run
+          straight, with a lit lip on one side of it. Enamel splits along its
+          rods rather than in a curve, which is why this is a polyline with hard
+          corners and not one of the splines everything else here is made of.
+
+          Deterministic, from the tooth's own measurements. A crack placed at
+          random would move every time the chart re-rendered, and a finding that
+          will not hold still is not a finding. */}
+      {status === 'FRACTURE' ? (
+        <g clipPath={`url(#lt-crown-clip-${key})`}>
+          <path
+            d={fractureLine(g)}
+            fill="none"
+            stroke="#5b4a35"
+            strokeWidth="2.7"
+            strokeLinejoin="miter"
+            opacity="0.8"
+          />
+          <path
+            d={fractureLine(g)}
+            fill="none"
+            stroke="#fffdf6"
+            strokeWidth="1.3"
+            strokeLinejoin="miter"
+            opacity="0.55"
+            transform="translate(-1.5 -1.5)"
+          />
+        </g>
+      ) : null}
+
+      {/* A veneer is a facing, and the whole of what distinguishes it from a
+          crown is where it *stops*: it covers the front of the crown and leaves
+          the neck and the biting edge as enamel, where a crown wraps the lot and
+          finishes at the gum. So this is the crown shape inset on every side,
+          in porcelain rather than gold, with the margin line the eye reads as
+          the edge of a facing. */}
+      {status === 'VENEER' ? (
+        <g clipPath={`url(#lt-crown-clip-${key})`}>
+          <path
+            d={g.crown}
+            fill="url(#lt-porcelain)"
+            transform={`translate(${CENTRE} ${INCISAL - g.height * 0.5}) scale(0.82 0.78) translate(${-CENTRE} ${-(INCISAL - g.height * 0.5)})`}
+          />
+          <path
+            d={g.crown}
+            fill="none"
+            stroke="#a9a2b4"
+            strokeWidth="1.3"
+            opacity="0.6"
+            transform={`translate(${CENTRE} ${INCISAL - g.height * 0.5}) scale(0.82 0.78) translate(${-CENTRE} ${-(INCISAL - g.height * 0.5)})`}
+          />
+        </g>
+      ) : null}
+
+      {/* One unit of a bridge, and the connector is what says so.
+          The cap is porcelain over the crown, like a veneer that does wrap the
+          neck; the bar runs out of both sides at the height the teeth touch, so
+          two adjacent bridge units join into one continuous span across the
+          arch and a lone one shows the stubs of a span that carries on into a
+          tooth the chart is not drawing. That is the honest picture either way,
+          and it needs no span stored on the tooth to draw it. */}
+      {status === 'BRIDGE' ? (
+        <>
+          <g clipPath={`url(#lt-crown-clip-${key})`}>
+            <path d={g.crown} fill="url(#lt-porcelain)" opacity="0.94" />
+            <path d={g.crown} fill="none" stroke="#8f8aa0" strokeWidth="1.4" opacity="0.7" />
+          </g>
+          <rect
+            x={VIEW.x}
+            y={bridgeBarY(g) - 3}
+            width={VIEW.w}
+            height="6"
+            rx="2"
+            fill="url(#lt-porcelain)"
+          />
+          <rect
+            x={VIEW.x}
+            y={bridgeBarY(g) - 3}
+            width={VIEW.w}
+            height="6"
+            rx="2"
+            fill="none"
+            stroke="#8f8aa0"
+            strokeWidth="1.1"
+            opacity="0.7"
+          />
+        </>
       ) : null}
 
       {patches.map((surface) => {
@@ -1273,9 +1444,16 @@ function ToothForm({ variant }: { variant: Variant }) {
 
         <g filter="url(#lt-soft)">
           {/* The darkest place on a tooth: the crotch where the roots divide,
-              which nothing reaches into. */}
+              which nothing reaches into.
+
+              Deeper than it was, along with the two shadows under it, and for
+              the reason the specular is stronger: against the photograph these
+              were all half a stop too polite. A furcation that nothing reaches
+              into should be the one frankly dark note on the drawing — it is
+              what tells the eye the roots are three separate legs rather than a
+              webbed foot, and it has to survive being drawn at 68px. */}
           {g.furcations.map(([cx, cy, r]) => (
-            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} fill="#7a6b5a" opacity="0.36" />
+            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} fill="#6b5b46" opacity="0.5" />
           ))}
           {/* Each root's own edge turning away — an ambient shadow rolled in
               from the outline, which the lamp alone cannot give a shape that
@@ -1285,9 +1463,9 @@ function ToothForm({ variant }: { variant: Variant }) {
               key={root.d}
               d={root.d}
               fill="none"
-              stroke="#8a7a68"
-              strokeWidth={root.width * 0.18}
-              opacity="0.36"
+              stroke="#7d6c57"
+              strokeWidth={root.width * 0.2}
+              opacity="0.46"
             />
           ))}
         </g>
@@ -1297,7 +1475,7 @@ function ToothForm({ variant }: { variant: Variant }) {
             overhangs and casts down onto the neck. Without this they meet at a
             flat ledge and read as two pieces glued together. */}
         <g filter="url(#lt-soft)">
-          <path d={cervical} fill="none" stroke="#7d6e5d" strokeWidth={ch * 0.3} opacity="0.32" />
+          <path d={cervical} fill="none" stroke="#6f6049" strokeWidth={ch * 0.32} opacity="0.42" />
         </g>
       </g>
 
@@ -1404,16 +1582,39 @@ function ToothForm({ variant }: { variant: Variant }) {
             </g>
           ))}
 
+          {/* The fissures, cut rather than drawn on. A groove at one opacity is
+              a pencil line lying on the enamel; a groove is a *crevice*, so it
+              gets the two things a crevice has — a dark core where no light
+              reaches, and a lit lip on the side facing the lamp. The offset is
+              the same 1.6 the growth lines use, and for the same reason: it is
+              the smallest displacement that reads as relief rather than as a
+              doubled stroke.
+
+              This is the one marking on the crown allowed to be *seen* rather
+              than felt. A molar is a molar because of its fissure pattern, and
+              at the old single-pass 0.16 it was gone by the time the tooth
+              reached chart size — which left an upper molar and an upper
+              premolar distinguishable only by their outline. */}
           {g.grooves.map((d) => (
-            <path
-              key={d}
-              d={d}
-              fill="none"
-              stroke="#93836f"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              opacity="0.16"
-            />
+            <g key={d}>
+              <path
+                d={d}
+                fill="none"
+                stroke="#7a6a55"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                opacity="0.26"
+              />
+              <path
+                d={d}
+                fill="none"
+                stroke="#fffdf4"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                opacity="0.16"
+                transform="translate(0 -1.6)"
+              />
+            </g>
           ))}
         </g>
       </g>
@@ -1636,25 +1837,6 @@ const DEFS = (
         />
         <feGaussianBlur in="lt-height" stdDeviation="3.4" result="lt-bump" />
 
-        {/* The body turning away from the light. `diffuseConstant` is set to
-            1/sin(elevation) so a surface facing straight at the viewer comes
-            back at exactly white and multiplies to nothing — anything less and
-            the whole tooth is dimmed rather than modelled.
-
-            `surfaceScale` is the tuning that matters and it wants to be *low*.
-            A height map made by blurring an alpha channel is flat across the
-            middle and ramps at every edge, so the scale controls how steeply
-            that rim turns away from the lamp — and at 6 it turned far enough
-            to go frankly dark, which drew a grey halo round the silhouette of
-            every tooth on the chart. Halved, with a wider blur under it, the
-            edge now rolls instead of falling off a cliff. */}
-        {/* `diffuseConstant` was set to 1/sin(elevation) = 1.2208, which is
-            exactly the value that makes a surface facing the viewer come back
-            at 1.0 and multiply to nothing. Against a mesa height map that was
-            deliberate — it kept the flat interior from being dimmed. Against a
-            height map that now has the anatomy in it, it is the one thing
-            stopping any of that anatomy from showing, so it comes down: a
-            little under unity is what lets a lit face read as lit. */}
         <feDiffuseLighting
           in="lt-bump"
           surfaceScale="2.1"
@@ -1675,12 +1857,23 @@ const DEFS = (
             entire interior — the crown goes uniformly white and the shading
             underneath is lost. Off to the side, the flat middle falls to almost
             nothing and only the surfaces rolling over towards the lamp light
-            up, which is where enamel actually shines. */}
+            up, which is where enamel actually shines.
+
+            **The constant is set against the photograph, not by eye.** Beside
+            the stock render of the same tooth — `ToothPhoto`'s upper first
+            molar, the one thing on disk that is a picture of what this is
+            drawing — the old 0.34 was the clearest difference between them: the
+            photograph carries a defined bright band down each root and this had
+            a diffuse sheen. Enamel and cementum are wet, and gloss is most of
+            how a viewer knows that. 0.52 with the exponent pulled from 34 to 24
+            widens the band and brings it up to something like the artwork's,
+            which is the register the practice already publishes. Past about
+            0.6 the roots blow out to paper white and stop being ivory. */}
         <feSpecularLighting
           in="lt-bump"
           surfaceScale="3.6"
-          specularConstant="0.34"
-          specularExponent="34"
+          specularConstant="0.52"
+          specularExponent="24"
           lightingColor="#fffdf8"
           result="lt-spec"
         >
@@ -1723,14 +1916,27 @@ const DEFS = (
           than the storefront arch, whose incisal edges stay warm. It now holds a
           trace of the cool rather than the whole of it — and `g.translucent`
           below is where that reading is still made properly, locally, on the
-          front teeth that actually have a translucent edge. */}
+          front teeth that actually have a translucent edge.
+
+          **Eight stops rather than six, and the white is a peak rather than a
+          plateau.** The ramp used to hold #ffffff from 34% to 64% — thirty per
+          cent of the crown at one flat value — and that shelf is what made a
+          molar's buccal surface read as a white shield with a soft edge instead
+          of a surface with a form. The peak now sits at 40%, roughly where the
+          height of contour actually is, and falls away on both sides; the neck
+          is a step warmer and more chromatic, which is what thin cervical
+          enamel over dentine really does. Same two endpoints, so the value step
+          against the root at one end and the translucent edge at the other are
+          both unchanged. */}
       <linearGradient id="lt-enamel" x1="0.5" y1="0" x2="0.5" y2="1">
-        <stop offset="0%" stopColor="#ece3d8" />
-        <stop offset="10%" stopColor="#fbf7ef" />
-        <stop offset="34%" stopColor="#ffffff" />
-        <stop offset="64%" stopColor="#fffefc" />
-        <stop offset="86%" stopColor="#faf8f4" />
-        <stop offset="100%" stopColor="#e5e1da" />
+        <stop offset="0%" stopColor="#e9dfd0" />
+        <stop offset="8%" stopColor="#f6efe2" />
+        <stop offset="22%" stopColor="#fdfaf3" />
+        <stop offset="40%" stopColor="#ffffff" />
+        <stop offset="58%" stopColor="#fdfcf8" />
+        <stop offset="74%" stopColor="#f6f3ec" />
+        <stop offset="88%" stopColor="#eceae4" />
+        <stop offset="100%" stopColor="#e5e3dd" />
       </linearGradient>
 
       {/* y=0 is the apex, y=1 where it meets the crown: dull at the tip,
@@ -1743,6 +1949,27 @@ const DEFS = (
           as one carved beige object: on a real tooth the cementum is the one
           frankly *tan* thing on the page, and that contrast is most of what
           tells the eye where the gum line would sit. */}
+      {/* Cured sealant resin: near-colourless with a green cast, because the
+          tinted resins are what a practice actually uses — an untinted sealant
+          is invisible on a chart and invisible in a mouth, which is why the
+          material is sold tinted in the first place. */}
+      <linearGradient id="lt-sealant" x1="0.5" y1="0" x2="0.5" y2="1">
+        <stop offset="0%" stopColor="#d8f3e0" />
+        <stop offset="55%" stopColor="#b7e7c8" />
+        <stop offset="100%" stopColor="#9fd9b4" />
+      </linearGradient>
+
+      {/* Feldspathic porcelain, for the veneer and the bridge. Cooler and
+          flatter than enamel on purpose: ceramic has none of the dentine glow
+          underneath it, and that absence is most of how a laid-on facing reads
+          as manufactured rather than grown. */}
+      <linearGradient id="lt-porcelain" x1="0.5" y1="0" x2="0.5" y2="1">
+        <stop offset="0%" stopColor="#eceaf1" />
+        <stop offset="30%" stopColor="#fbfbfd" />
+        <stop offset="62%" stopColor="#f4f3f7" />
+        <stop offset="100%" stopColor="#dedae6" />
+      </linearGradient>
+
       <linearGradient id="lt-root" x1="0.5" y1="0" x2="0.5" y2="1">
         <stop offset="0%" stopColor="#d4c8ba" />
         <stop offset="32%" stopColor="#e0d5c6" />

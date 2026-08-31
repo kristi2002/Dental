@@ -25,7 +25,7 @@
  * taken in one pass, written down together and read together.
  */
 
-import { isRightSide, isUpperArch } from '@/lib/teeth';
+import { dentitionOf, isRightSide, isUpperArch } from '@/lib/teeth';
 
 /**
  * The six sites, in storage order — distal to mesial round the cheek, then the
@@ -142,6 +142,93 @@ export function formatPockets(depths: PocketDepths): string | null {
   return written.some((part) => part !== '') ? written.join(',') : null;
 }
 
+/**
+ * Gingival recession, in millimetres, at the same six sites.
+ *
+ * How far the gum has retreated from the enamel margin, which is the other half
+ * of the only number periodontal diagnosis actually runs on. A probe reads from
+ * wherever the gum currently is, so pocket depth alone under-reports a recessed
+ * tooth badly: 4mm of pocket on 3mm of recession is 7mm of attachment gone,
+ * which is a referral, against 4mm with no recession, which is a hygiene visit.
+ *
+ * Zero *is* a reading here, unlike a pocket depth — "the margin is exactly at
+ * the enamel" is the normal healthy finding and the commonest value in a mouth.
+ * So an unmeasured site is the empty string and nothing else, and `RECESSION_MAX`
+ * rather than `> 0` is what a value has to clear.
+ */
+export const RECESSION_MAX = 20;
+
+export type Recessions = readonly (number | null)[];
+export const NO_RECESSION: Recessions = [null, null, null, null, null, null];
+
+export function toRecession(value: unknown): number | null {
+  const mm = typeof value === 'string' ? Number.parseInt(value.trim(), 10) : value;
+  return typeof mm === 'number' && Number.isInteger(mm) && mm >= 0 && mm <= RECESSION_MAX
+    ? mm
+    : null;
+}
+
+export function parseRecession(value: string | null | undefined): Recessions {
+  if (!value) return NO_RECESSION;
+  const parts = value.split(',');
+  return Array.from({ length: PERIO_SITE_COUNT }, (_, i) => toRecession(parts[i] ?? ''));
+}
+
+export function formatRecession(values: Recessions): string | null {
+  const written = Array.from({ length: PERIO_SITE_COUNT }, (_, i) => {
+    const mm = toRecession(values[i]);
+    return mm === null ? '' : String(mm);
+  });
+  return written.some((part) => part !== '') ? written.join(',') : null;
+}
+
+/**
+ * Clinical attachment loss at one site: how much of the tooth's hold is gone.
+ *
+ * Pocket plus recession, and null unless *both* were read — an estimate made by
+ * treating an unmeasured recession as zero is exactly the under-report this
+ * column was added to stop, and it would be indistinguishable from a real
+ * reading once stored.
+ */
+export function attachmentLoss(depth: number | null, recession: number | null): number | null {
+  return depth === null || recession === null ? null : depth + recession;
+}
+
+/**
+ * Furcation grades, where the roots of a multi-rooted tooth divide.
+ *
+ * 0 none, 1 a probe catches the concavity, 2 it enters but does not pass
+ * through, 3 it passes clean between the roots. Grade 2 is where a molar's
+ * prognosis changes and 3 is usually where it ends, which is why one number per
+ * tooth — the worst of its furcations — answers the question this is for.
+ */
+export const FURCATION_GRADES = [0, 1, 2, 3] as const;
+export type FurcationGrade = (typeof FURCATION_GRADES)[number];
+
+export function isFurcationGrade(value: number): value is FurcationGrade {
+  return (FURCATION_GRADES as readonly number[]).includes(value);
+}
+
+export function parseFurcation(value: unknown): FurcationGrade | null {
+  const grade = typeof value === 'string' ? Number.parseInt(value, 10) : value;
+  return typeof grade === 'number' && Number.isInteger(grade) && isFurcationGrade(grade)
+    ? grade
+    : null;
+}
+
+/**
+ * Whether a tooth has a furcation at all — a grade on a single-rooted tooth is
+ * a category error, not a finding, so the field is not offered there.
+ *
+ * Every molar, upper and lower, and the upper first premolar, which is the one
+ * premolar in the mouth that routinely has two roots.
+ */
+export function hasFurcation(toothNum: number): boolean {
+  const position = toothNum % 10;
+  if (dentitionOf(toothNum) === 'PRIMARY') return position >= 4;
+  return position >= 6 || (position === 4 && isUpperArch(toothNum));
+}
+
 export function parseBleeding(value: string | null | undefined): BleedingSites {
   if (!value) return NO_BLEEDING;
   return Array.from({ length: PERIO_SITE_COUNT }, (_, i) => value[i] === '1');
@@ -206,6 +293,12 @@ export interface PerioSummary {
   depths: PocketDepths;
   bleeding: BleedingSites;
   mobility: MobilityGrade | null;
+  recession: Recessions;
+  furcation: FurcationGrade | null;
+  /** Pocket plus recession per site, null where either was not read. */
+  attachment: readonly (number | null)[];
+  /** The worst attachment loss, which is the number a prognosis turns on. */
+  worstAttachment: number | null;
   /** How many of the six were actually probed. */
   probed: number;
   /** The worst reading, which is the one that decides the treatment. */
@@ -224,9 +317,15 @@ export function perioSummaryOf(record: {
   pockets?: string | null;
   bleeding?: string | null;
   mobility?: number | null;
+  recession?: string | null;
+  furcation?: number | null;
 }): PerioSummary {
   const depths = parsePockets(record.pockets);
   const mobility = parseMobility(record.mobility ?? null);
+  const recession = parseRecession(record.recession);
+  const furcation = parseFurcation(record.furcation ?? null);
+  const attachment = depths.map((depth, site) => attachmentLoss(depth, recession[site]));
+  const measuredAttachment = attachment.filter((mm): mm is number => typeof mm === 'number');
 
   // A tick at a site with no depth is dropped rather than reported. Bleeding is
   // recorded per site *alongside* the depth or not at all — that is what the
@@ -245,11 +344,28 @@ export function perioSummaryOf(record: {
     depths,
     bleeding,
     mobility,
+    recession,
+    furcation,
+    attachment,
+    worstAttachment: measuredAttachment.length > 0 ? Math.max(...measuredAttachment) : null,
     probed: measured.length,
     deepest,
     bleedingCount,
-    recorded: measured.length > 0 || bleedingCount > 0 || mobility !== null,
-    concerning: (deepest !== null && deepest > POCKET_SHALLOW) || (mobility !== null && mobility > 0),
+    // Recession and furcation count as having been examined. A tooth whose only
+    // finding is 3mm of recession has certainly been looked at, and leaving it
+    // out of `recorded` drops it from every average the overview computes.
+    recorded:
+      measured.length > 0 ||
+      bleedingCount > 0 ||
+      mobility !== null ||
+      furcation !== null ||
+      recession.some((mm) => mm !== null),
+    // Grade 2 furcation is where a molar's prognosis changes, so it belongs in
+    // the same flag a 4mm pocket raises.
+    concerning:
+      (deepest !== null && deepest > POCKET_SHALLOW) ||
+      (mobility !== null && mobility > 0) ||
+      (furcation !== null && furcation >= 2),
   };
 }
 

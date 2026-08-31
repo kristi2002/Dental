@@ -110,6 +110,8 @@ export default async function PatientRecordPage({
         mobility: record.mobility,
         pockets: record.pockets,
         bleeding: record.bleeding,
+        recession: record.recession,
+        furcation: record.furcation,
         chartedOn: format.dateTime(record.updatedAt, {
           day: 'numeric',
           month: 'short',

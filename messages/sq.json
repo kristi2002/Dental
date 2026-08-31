@@ -983,7 +983,12 @@
     "importAlreadyHere": "Tashmë i regjistruar këtu",
     "message": "Mesazh",
     "messagePatient": "Shkruaji këtij pacienti",
-    "tabWorks": "Laboratori"
+    "tabWorks": "Laboratori",
+    "showToPatient": "Shfaq pacientit",
+    "patientViewHeading": "Dhëmbët tuaj",
+    "patientViewArchLabel": "Dhëmbët e sipërm dhe të poshtëm, me shenjë mbi ata për të cilët biseduam",
+    "patientViewNone": "Për momentin nuk ka asgjë për të trajtuar. Gjithçka që kontrolluam duket e shëndetshme.",
+    "patientViewBabyTeeth": "Dhëmbët e qumështit"
   },
   "appointments": {
     "title": "Kalendari",
@@ -1402,7 +1407,27 @@
     "perioBandWatch": "Xhep për t’u ndjekur",
     "perioBandWatchRange": "4–5",
     "perioBandDiseased": "Xhep i thellë",
-    "perioBandDiseasedRange": "6+"
+    "perioBandDiseasedRange": "6+",
+    "planned": "E planifikuar",
+    "plannedBooked": "e caktuar më {date}",
+    "plannedCount": "{count, plural, one {# trajtim i planifikuar} other {# trajtime të planifikuara}}",
+    "perioRecessionAt": "Tërheqja te {site}",
+    "perioRecessionHint": "Kutia e vogël nën secilën është tërheqja e mishrave në mm — 0 kur mishi është ende te dhëmbi.",
+    "furcation": "Furkacioni",
+    "furcation_0": "pa furkacion",
+    "furcation_1": "sonda kapet",
+    "furcation_2": "sonda hyn",
+    "furcation_3": "kalon tejpërtej",
+    "perioAttachment": "Humbja e mbështetjes",
+    "perioSince": "Nga {date}",
+    "perioWorse": "më i thellë se herën e fundit",
+    "perioBetter": "më i cekët se herën e fundit",
+    "toothFiles": "Skedarët për këtë dhëmb",
+    "status_SEALANT": "Vulosës fisurash",
+    "status_FRACTURE": "Thyerje",
+    "status_VENEER": "Faseta",
+    "status_BRIDGE": "Urë",
+    "perioSaveNext": "Ruaj · tjetri {num}"
   },
   "reminders": {
     "whatsappTemplate": "Përshëndetje {name}, ju kujtojmë takimin tuaj dentar më {date} në orën {time}. Ju presim!",

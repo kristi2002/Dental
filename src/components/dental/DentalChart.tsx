@@ -1,6 +1,14 @@
 'use client';
 
-import { Activity, ClipboardList, Droplet, Stethoscope, X } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  ClipboardList,
+  Droplet,
+  Paperclip,
+  Stethoscope,
+  X,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useActionState, useEffect, useId, useRef, useState, useTransition } from 'react';
 import { ConditionPalette } from '@/components/dental/ConditionPalette';
@@ -86,6 +94,78 @@ import { cn } from '@/lib/utils';
  * does when no tool is held, which is where the chart starts.
  */
 
+/**
+ * The treatment already decided on for a tooth, which the chart has never shown.
+ *
+ * Every paper odontogram in the world carries two layers — what is *there* and
+ * what is *intended* — and reads them apart by colour. This one only ever had
+ * the first. That was not a data problem: `TreatmentStep.toothNum` has held the
+ * link since treatment plans existed, and `planStepForTooth` fills it in from
+ * this very screen. The chart offered to plan a filling and then had no way to
+ * tell you it had been planned, so the dentist who found the decay on Tuesday
+ * saw the same chart on Friday as the one who had not planned anything.
+ *
+ * **Pending steps of active plans only.** A `DONE` step is already answered by
+ * the tooth's own status — a filled tooth reads as filled — and drawing it again
+ * as a plan would say the work is still owed. `SKIPPED` is a decision not to do
+ * it. A plan that is `COMPLETED` or `CANCELLED` has no outstanding intent in it
+ * at all, whatever its steps say.
+ *
+ * Composed on the server, like `chartedOn` and for the same reason: the booked
+ * date has to be spelled by something with the locale's month names in it.
+ */
+/**
+ * The files already attached to a tooth.
+ *
+ * `PatientDocument.toothNum` has existed since documents did, and the upload
+ * dialog has always asked which tooth — so an OPG or a periapical filed against
+ * 46 was already stored as being about 46. The gallery showed that as a badge.
+ * Nothing went the other way: standing on the tooth, in the record where the
+ * question "have we got an X-ray of this one?" is actually asked, the answer
+ * was three clicks away in another tab.
+ *
+ * Names only, and no link. A thumbnail here would want the bytes, which means a
+ * permission check and a signed URL per tooth on a screen that draws
+ * thirty-two of them; and the gallery already does that job properly one tab
+ * over. This says "there are two, and what they are", which is what turns a
+ * hunt into a decision.
+ */
+export type ToothFile = { id: string; fileName: string; kind: string };
+export type ToothFileMap = Record<number, ToothFile[]>;
+
+/**
+ * The reading before the one on screen, per tooth.
+ *
+ * A pocket depth is only diagnostic against its own history: 5mm that was 3mm
+ * last year is disease progressing and gets referred, 5mm that has been 5mm for
+ * three years is a stable defect that gets maintained. Until `PerioExam` existed
+ * the practice was taking the measurement and overwriting the comparison.
+ *
+ * `deepest` and `worstAttachment` rather than the whole six readings, because
+ * this is a comparison and not a second examination — the question at the chair
+ * is "better or worse than last time", and six numbers beside six numbers is a
+ * puzzle rather than an answer.
+ */
+export type PerioBefore = {
+  /** The day it was taken, formatted on the server for the same reason
+   *  `chartedOn` is: a browser without full ICU spells Albanian months wrong. */
+  on: string;
+  deepest: number | null;
+  worstAttachment: number | null;
+};
+
+export type PerioBeforeMap = Record<number, PerioBefore>;
+
+export type PlannedStep = {
+  /** The step's own id, so the list has a key that is not its position. */
+  id: string;
+  title: string;
+  /** The slot it is booked into, already formatted, or null if unbooked. */
+  booked: string | null;
+};
+
+export type PlannedMap = Record<number, PlannedStep[]>;
+
 export type ToothRecordMap = Record<
   number,
   {
@@ -108,6 +188,11 @@ export type ToothRecordMap = Record<
     pockets?: string | null;
     /** Which of those six bled, as a six-character mask. */
     bleeding?: string | null;
+    /** Gingival recession at the same six sites — the other half of
+     *  attachment loss. See `perio.ts`. */
+    recession?: string | null;
+    /** Furcation grade, or null on a tooth that has no furcation. */
+    furcation?: number | null;
   }
 >;
 
@@ -145,6 +230,33 @@ const CELL = 'w-(--tooth-col) shrink-0';
 /** Eight cells — a full permanent quadrant, and the width the shorter primary
  *  quadrants are padded to so every midline on the page lines up. */
 const HALF = 'w-[calc(var(--tooth-col)*8)] shrink-0';
+
+/**
+ * The order a periodontal sweep walks the mouth in.
+ *
+ * A full-mouth examination is six readings on each of thirty-two teeth: a
+ * hundred and ninety-two numbers, dictated by one person and typed by another.
+ * `PerioFields` already moves between the six boxes on its own; what it could
+ * not do was move between *teeth*, so every tooth cost a save, a close, a hunt
+ * along the arch for the next one, and a click. That is thirty-two hunts, and
+ * it is most of what makes a perio pass take ten minutes.
+ *
+ * Upper right to upper left, then lower left to lower right — round the arch
+ * the way a probe travels rather than the way the rows are drawn, so the sweep
+ * never asks the hand to jump the midline and come back. The lower run is
+ * reversed for the same reason: at the end of the upper arch the probe is at
+ * the patient's left, and the next tooth it reaches is the lower left eight.
+ *
+ * Permanent teeth only. A mixed dentition is charted tooth by tooth anyway, and
+ * a sweep that walked into a milk tooth the patient had lost last year would
+ * stop the run dead in the middle.
+ */
+const SWEEP_ORDER: readonly number[] = [
+  ...PERMANENT_UPPER_RIGHT,
+  ...PERMANENT_UPPER_LEFT,
+  ...PERMANENT_LOWER_LEFT.toReversed(),
+  ...PERMANENT_LOWER_RIGHT.toReversed(),
+];
 
 /** Deep enough that one wrong click never costs an examination, short enough
  *  that the stack is not a second copy of the chart's history. */
@@ -252,6 +364,9 @@ function PlateTooth({ toothNum }: { toothNum: number }) {
 export function DentalChart({
   patientId,
   records,
+  planned,
+  perioBefore,
+  files,
   numbering = 'FDI',
   showPrimary: initialShowPrimary = false,
   readOnly = false,
@@ -259,6 +374,14 @@ export function DentalChart({
 }: {
   patientId: string;
   records: ToothRecordMap;
+  /** Outstanding treatment, per tooth. Optional because the pickers that reuse
+   *  this chart are choosing teeth rather than reading a record. */
+  planned?: PlannedMap;
+  /** The previous periodontal reading, per tooth. Same reason for optional. */
+  perioBefore?: PerioBeforeMap;
+  /** Files filed against each tooth. Only ever passed by a page that has
+   *  already checked `document.view` — this component does not gate. */
+  files?: ToothFileMap;
   /** Which numbering the practice reads. Storage is always FDI. */
   numbering?: ToothNumbering;
   /** Start with the primary arches open — set for a patient young enough. */
@@ -290,6 +413,14 @@ export function DentalChart({
   const [dialogTab, setDialogTab] = useState<ChartView>('CONDITION');
 
   const [perioState, perioFormAction] = useActionState(saveToothPerio, IDLE_STATE);
+  /**
+   * Whether the last periodontal save asked to move on rather than to close.
+   *
+   * A ref rather than state: it is read once, by the effect that handles the
+   * save landing, and re-rendering the form because a button was pressed would
+   * throw away what is typed in it.
+   */
+  const sweeping = useRef(false);
   const handledPerioTs = useRef<number | undefined>(undefined);
 
   /** What the tooth was before this edit — the offer below turns on the change. */
@@ -450,7 +581,29 @@ export function DentalChart({
   useEffect(() => {
     if (perioState.status !== 'ok' || perioState.ts === handledPerioTs.current) return;
     handledPerioTs.current = perioState.ts;
+
+    // A sweep saves and walks on without the dialog ever closing: the form is
+    // keyed on the tooth, so pointing `selected` at the next one remounts six
+    // empty boxes with the focus already in the first. The whole saving is that
+    // the hand never leaves the keyboard between teeth.
+    if (sweeping.current) {
+      sweeping.current = false;
+      const at = SWEEP_ORDER.indexOf(selected ?? -1);
+      const next = at >= 0 ? SWEEP_ORDER[at + 1] : undefined;
+      if (next !== undefined) {
+        setSelected(next);
+        setFocusSurface(null);
+        return;
+      }
+      // The end of the arch. Closing is the right answer — there is nothing
+      // after 18, and silently wrapping round to the start would have somebody
+      // re-probe the mouth they have just finished.
+    }
+
     dialogRef.current?.close();
+    // `selected` is read at the moment the save lands, which is what the
+    // `handledTs` guard exists to make once-only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perioState]);
 
   useEffect(() => {
@@ -509,6 +662,7 @@ export function DentalChart({
   const surfacesApply = statusTakesSurfaces(status);
   const current = selected === null ? null : records[selected];
   const openKind = selected === null ? null : toothKind(selected);
+  const plannedFor = (toothNum: number): PlannedStep[] => planned?.[toothNum] ?? [];
   const label = (n: number) => toothLabelFor(n, numbering);
   const perioOf = (toothNum: number): PerioSummary => perioSummaryOf(records[toothNum] ?? {});
 
@@ -560,12 +714,18 @@ export function DentalChart({
    */
   function announce(toothNum: number): string {
     const name = t('tooth', { num: label(toothNum) });
-    if (view !== 'PERIO') return name;
+    // The chip drawn on the tooth is a coloured ring and nothing else, so
+    // without this the one fact it carries reaches nobody using a reader.
+    const withPlan = (text: string) => {
+      const count = plannedFor(toothNum).length;
+      return count > 0 ? `${text} — ${t('plannedCount', { count })}` : text;
+    };
+    if (view !== 'PERIO') return withPlan(name);
 
     const perio = perioOf(toothNum);
-    if (!perio.recorded) return `${name} — ${t('perioNone')}`;
+    if (!perio.recorded) return withPlan(`${name} — ${t('perioNone')}`);
 
-    return `${name} — ${[
+    return withPlan(`${name} — ${[
       perio.deepest !== null ? `${t('perioDeepest')} ${perio.deepest}mm` : null,
       perio.bleedingCount > 0
         ? `${t('perioBleeding')}: ${t('perioBleedingCount', { count: perio.bleedingCount })}`
@@ -573,7 +733,7 @@ export function DentalChart({
       perio.mobility !== null ? `${t('mobility')} ${MOBILITY_LABEL[perio.mobility]}` : null,
     ]
       .filter(Boolean)
-      .join(', ')}`;
+      .join(', ')}`);
   }
 
   const rowProps = {
@@ -582,6 +742,7 @@ export function DentalChart({
     perioOf,
     readOnly,
     hasNote: (n: number) => Boolean(records[n]?.notes),
+    plannedCount: (n: number) => plannedFor(n).length,
     marking: tool !== null && !readOnly && view === 'CONDITION',
     onSelect: touch,
     highlight,
@@ -902,6 +1063,56 @@ export function DentalChart({
                   ))}
                 </div>
 
+                {/* Outstanding treatment, above both examinations rather than
+                    inside either. What is planned for a tooth is a fact about
+                    the tooth, not about which examination happens to be open —
+                    and the perio tab is exactly where somebody re-probing a
+                    pocket wants to know a crown is already on the list. */}
+                {plannedFor(selected).length > 0 ? (
+                  <section className="border-b border-line bg-brand-soft/40 px-5 py-3.5">
+                    <h3 className="field-label">{t('planned')}</h3>
+                    <ul className="mt-1.5 space-y-1.5">
+                      {plannedFor(selected).map((step) => (
+                        <li key={step.id} className="flex items-start gap-2.5 text-[0.95rem]">
+                          {/* The same hollow ring the tooth carries, so the mark
+                              on the chart and the line explaining it are
+                              recognisably one thing. */}
+                          <span
+                            aria-hidden
+                            className="mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-brand-dark"
+                          />
+                          <span className="min-w-0">
+                            <span className="font-semibold text-ink">{step.title}</span>
+                            {step.booked ? (
+                              <span className="ml-1.5 text-ink-soft">
+                                {t('plannedBooked', { date: step.booked })}
+                              </span>
+                            ) : null}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+
+                {files?.[selected]?.length ? (
+                  <section className="border-b border-line px-5 py-3.5">
+                    <h3 className="field-label">{t('toothFiles')}</h3>
+                    <ul className="mt-1.5 space-y-1">
+                      {files[selected].map((file) => (
+                        <li key={file.id} className="flex items-center gap-2.5 text-[0.95rem]">
+                          <Paperclip size={15} aria-hidden className="shrink-0 text-ink-faint" />
+                          <span className="truncate text-ink">{file.fileName}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+
+                {dialogTab === 'PERIO' && perioBefore?.[selected] ? (
+                  <PerioTrend now={perioOf(selected)} before={perioBefore[selected]} />
+                ) : null}
+
                 {dialogTab === 'PERIO' ? (
                   readOnly ? (
                     <>
@@ -938,7 +1149,7 @@ export function DentalChart({
                         ) : null}
                       </div>
 
-                      <footer className="flex items-center justify-end gap-3 border-t border-line px-5 py-4">
+                      <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-line px-5 py-4">
                         <button
                           type="button"
                           className="btn btn-secondary"
@@ -946,6 +1157,31 @@ export function DentalChart({
                         >
                           {tc('cancel')}
                         </button>
+
+                        {/* The sweep. Same form and same action as `Save` — the
+                            only difference is a flag set on the way in, which
+                            the effect above reads when the save lands. Sharing
+                            the submit means the two buttons can never disagree
+                            about what gets written.
+
+                            Hidden on the last tooth of the run rather than
+                            disabled: there is nothing after it, and a control
+                            that is present but dead invites the press it then
+                            refuses. */}
+                        {SWEEP_ORDER.indexOf(selected) >= 0 &&
+                        SWEEP_ORDER.indexOf(selected) < SWEEP_ORDER.length - 1 ? (
+                          <SubmitButton
+                            variant="secondary"
+                            label={t('perioSaveNext', {
+                              num: label(SWEEP_ORDER[SWEEP_ORDER.indexOf(selected) + 1]),
+                            })}
+                            pendingLabel={tc('saving')}
+                            onClick={() => {
+                              sweeping.current = true;
+                            }}
+                          />
+                        ) : null}
+
                         <SubmitButton label={tc('save')} pendingLabel={tc('saving')} />
                       </footer>
                     </form>
@@ -1117,6 +1353,74 @@ export function DentalChart({
 /** The three bands the depth numbers are coloured in, spelled out — the colour
  *  is a second channel over the digits, and a reader has to be told what it
  *  means once. */
+/**
+ * This tooth's last reading, and which way it has gone.
+ *
+ * The whole argument for keeping periodontal history is in this strip: a probe
+ * reading means almost nothing on its own and nearly everything against the one
+ * before it. Deeper is disease progressing; the same is a defect being held;
+ * shallower is treatment working, which is the one thing a hygienist never got
+ * to see on this chart before.
+ *
+ * **Deepest pocket and worst attachment loss, not the six sites.** Six numbers
+ * beside six numbers is a puzzle set at the chairside, and the decision being
+ * made — refer, treat, or watch — turns on the worst reading rather than on
+ * which corner it was at. The six are still on screen directly below this.
+ *
+ * Direction is carried by a word and an arrow rather than by colour alone, and
+ * the arrow is the *clinical* direction rather than the arithmetic one: a
+ * shallower pocket is a bigger number going down and is good news, so it is
+ * drawn in the same green the rest of the app uses for good news.
+ */
+function PerioTrend({ now, before }: { now: PerioSummary; before: PerioBefore }) {
+  const t = useTranslations('teeth');
+
+  const rows: Array<{ label: string; was: number | null; nowValue: number | null }> = [
+    { label: t('perioDeepest'), was: before.deepest, nowValue: now.deepest },
+    { label: t('perioAttachment'), was: before.worstAttachment, nowValue: now.worstAttachment },
+  ];
+
+  return (
+    <section className="border-b border-line bg-paper px-5 py-3.5">
+      <h3 className="field-label">{t('perioSince', { date: before.on })}</h3>
+
+      <dl className="mt-1.5 space-y-1">
+        {rows.map((row) => {
+          // Nothing to compare is not the same as no change, so a pair with a
+          // missing half is left as a reading rather than given a direction.
+          const delta =
+            row.was === null || row.nowValue === null ? null : row.nowValue - row.was;
+
+          return (
+            <div key={row.label} className="flex items-baseline gap-2 text-[0.95rem]">
+              <dt className="text-ink-soft">{row.label}</dt>
+              <dd className="flex items-baseline gap-1.5 font-semibold tabular-nums text-ink">
+                <span className="text-ink-faint">{row.was === null ? '—' : `${row.was}mm`}</span>
+                <ArrowRight size={13} aria-hidden className="self-center text-ink-faint" />
+                <span>{row.nowValue === null ? '—' : `${row.nowValue}mm`}</span>
+                {delta !== null && delta !== 0 ? (
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-caption font-bold',
+                      delta > 0 ? 'bg-danger-soft text-danger' : 'bg-ok-soft text-ok',
+                    )}
+                  >
+                    {delta > 0 ? `+${delta}` : delta}
+                    <span className="sr-only">
+                      {' '}
+                      {t(delta > 0 ? 'perioWorse' : 'perioBetter')}
+                    </span>
+                  </span>
+                ) : null}
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </section>
+  );
+}
+
 function PerioLegend() {
   const t = useTranslations('teeth');
 
@@ -1551,6 +1855,8 @@ type ToothCellProps = {
   conditionOf: (toothNum: number) => ToothCondition;
   perioOf: (toothNum: number) => PerioSummary;
   hasNote: (toothNum: number) => boolean;
+  /** How much outstanding treatment is planned on this tooth. */
+  plannedCount: (toothNum: number) => number;
   readOnly: boolean;
   /** Whether a condition is held, so a click writes rather than opens. */
   marking: boolean;
@@ -1573,6 +1879,7 @@ function ToothCell({
   conditionOf,
   perioOf,
   hasNote,
+  plannedCount,
   readOnly,
   marking,
   upper = false,
@@ -1611,6 +1918,24 @@ function ToothCell({
       <ToothGlyph toothNum={toothNum} status={status} surfaces={marked} />
       {hasNote(toothNum) ? (
         <span aria-hidden className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-ink-faint" />
+      ) : null}
+      {/* Planned work, opposite the note dot.
+
+          A hollow ring rather than a filled one, and that is the whole design:
+          every other mark on this chart says what *is*, and a filled shape here
+          would read as one more finding. Planned work has not happened, so it is
+          drawn as an outline — the same instinct that puts existing work in one
+          colour and intended work in another on a paper chart, in the one
+          channel this drawing had left.
+
+          Not a count. A tooth with three planned steps is not three times as
+          planned as one with a single step, and the dialog is one click away
+          with the list in it. The accessible name carries the number. */}
+      {plannedCount(toothNum) > 0 ? (
+        <span
+          aria-hidden
+          className="absolute top-0.5 left-0.5 size-2.5 rounded-full border-2 border-brand-dark bg-surface"
+        />
       ) : null}
     </button>
   );

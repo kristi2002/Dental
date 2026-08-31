@@ -25,6 +25,15 @@ export const TOOTH_STATUSES = [
   'EXTRACTED',
   'IMPLANT',
   'MISSING',
+  // Four the chart could not say, added together because the gap they left was
+  // one gap: everything here was either decay, a repair of decay, or the tooth
+  // being gone. A sealed fissure, a cracked cusp, a veneer and a bridge unit are
+  // none of those, and a practice that does all four was recording them in the
+  // notes field — which the findings list can print and nothing can count.
+  'SEALANT',
+  'FRACTURE',
+  'VENEER',
+  'BRIDGE',
 ] as const;
 
 export type ToothStatus = (typeof TOOTH_STATUSES)[number];
@@ -102,6 +111,35 @@ export const TOOTH_STATUS_STYLE: Record<
     button: 'bg-slate-100 border-slate-300 text-slate-600 hover:border-slate-500',
     short: '–',
     hue: '#94A3B8', // slate-400
+  },
+  // Green for the one preventive finding on the chart: a sealed fissure is the
+  // only entry here that means nothing went wrong.
+  SEALANT: {
+    swatch: 'bg-green-100 border-green-300 text-green-800',
+    button: 'bg-green-100 border-green-300 text-green-800 hover:border-green-500',
+    short: 'S',
+    hue: '#22C55E', // green-500
+  },
+  // Orange rather than another red. A crack and a cavity are the two urgent
+  // findings on a chart and they call for different instruments, so they must
+  // not be the same colour at a glance.
+  FRACTURE: {
+    swatch: 'bg-orange-100 border-orange-300 text-orange-800',
+    button: 'bg-orange-100 border-orange-300 text-orange-800 hover:border-orange-500',
+    short: 'Fx',
+    hue: '#F97316', // orange-500
+  },
+  VENEER: {
+    swatch: 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-800',
+    button: 'bg-fuchsia-100 border-fuchsia-300 text-fuchsia-800 hover:border-fuchsia-500',
+    short: 'V',
+    hue: '#D946EF', // fuchsia-500
+  },
+  BRIDGE: {
+    swatch: 'bg-indigo-100 border-indigo-300 text-indigo-800',
+    button: 'bg-indigo-100 border-indigo-300 text-indigo-800 hover:border-indigo-500',
+    short: 'B',
+    hue: '#6366F1', // indigo-500
   },
 };
 
@@ -302,6 +340,12 @@ export const WHOLE_TOOTH_STATUSES: readonly ToothStatus[] = [
   'MISSING',
   'IMPLANT',
   'CROWN',
+  // A veneer faces the whole crown and a bridge unit replaces it; neither is a
+  // finding *on* a face. A sealant and a fracture are — a sealed occlusal
+  // fissure and a cracked mesial cusp are two different entries on two
+  // different faces, and the chart has to be able to tell them apart.
+  'VENEER',
+  'BRIDGE',
 ];
 
 export function statusTakesSurfaces(status: ToothStatus): boolean {

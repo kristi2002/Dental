@@ -28,9 +28,17 @@ import { AppointmentFormDialog } from '@/components/appointments/AppointmentForm
 import { AppointmentRow } from '@/components/appointments/AppointmentRow';
 import { DocumentGallery } from '@/components/documents/DocumentGallery';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
-import { DentalChart, type ToothRecordMap } from '@/components/dental/DentalChart';
+import {
+  DentalChart,
+  type PerioBeforeMap,
+  type PlannedMap,
+  type ToothFileMap,
+  type ToothRecordMap,
+} from '@/components/dental/DentalChart';
 import { ToothDefsProvider } from '@/components/dental/ToothDefsProvider';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
+import { PatientView } from '@/components/patients/PatientView';
+import { PatientViewButton } from '@/components/patients/PatientViewButton';
 import { PatientFormDialog } from '@/components/patients/PatientFormDialog';
 import { ReliabilityBadge } from '@/components/patients/ReliabilityBadge';
 import { AlertFormDialog } from '@/components/patients/AlertFormDialog';
@@ -56,13 +64,19 @@ import { archivePatient, deletePatient } from '@/lib/actions/patients';
 import { MergeDialog } from '@/components/patients/MergeDialog';
 import { recordView, requirePermission } from '@/lib/auth/guard';
 import type { Permission } from '@/lib/auth/permissions';
-import { DocumentKind, TreatmentStepStatus } from '@/generated/prisma/enums';
+import {
+  AppointmentStatus,
+  DocumentKind,
+  TreatmentPlanStatus,
+  TreatmentStepStatus,
+} from '@/generated/prisma/enums';
 import { addDays, addMonths, age, toDateKey, today } from '@/lib/dates';
 import { isPromisedSlot } from '@/lib/plan-progress';
 import { ID_KINDS } from '@/lib/documents';
 import { allergyLines } from '@/lib/medical';
 import { mailerStatus } from '@/lib/messages/mailer';
 import { composeTemplates } from '@/lib/messages/templates';
+import { perioSummaryOf } from '@/lib/perio';
 import { prisma } from '@/lib/prisma';
 import { DEFAULT_TOOTH_STATUS } from '@/lib/teeth';
 import {
@@ -333,6 +347,96 @@ export default async function PatientDetailPage({
     mailerConfigured: mailerStatus().configured,
   };
 
+  /**
+   * The files filed against each tooth, for the chart's own dialog.
+   *
+   * **Gated here rather than in the chart.** `DentalChart` does no permission
+   * work and should not start: the chart tab is open to clinical staff, and the
+   * documents tab is behind `document.view`, which are two different
+   * permissions. Somebody who may chart a tooth but may not see the practice's
+   * files gets an empty map and no block, not a hidden one.
+   */
+  const toothFiles: ToothFileMap = can('document.view')
+    ? patient.documents.reduce<ToothFileMap>((map, document) => {
+        if (document.toothNum !== null) {
+          (map[document.toothNum] ??= []).push({
+            id: document.id,
+            fileName: document.fileName,
+            kind: document.kind,
+          });
+        }
+        return map;
+      }, {})
+    : {};
+
+  /**
+   * The periodontal reading before the one the chart is showing, per tooth.
+   *
+   * `saveToothPerio` appends to `PerioExam` on every save, so the newest row for
+   * a tooth mirrors the snapshot and the *second* newest is the comparison — see
+   * `PerioBefore` in `DentalChart` for why the comparison is the point.
+   *
+   * **Capped, and the cap is a real limit rather than a formality.** Six hundred
+   * rows is roughly nineteen full-mouth examinations, which is a decade of
+   * six-monthly recalls for a patient whose every tooth is probed every time.
+   * Past that the oldest teeth fall off the end and simply show no comparison,
+   * which is the right failure: a missing comparison reads as missing, where a
+   * comparison against the wrong exam would read as a finding.
+   *
+   * One query and grouped here rather than a per-tooth `DISTINCT ON`, because
+   * thirty-two round trips to answer one screen is the worse trade at this size.
+   */
+  const perioBefore: PerioBeforeMap = {};
+  {
+    const seen = new Map<number, number>();
+    const exams = await prisma.perioExam.findMany({
+      where: { patientId: patient.id },
+      orderBy: { recordedAt: 'desc' },
+      take: 600,
+    });
+    for (const exam of exams) {
+      const count = (seen.get(exam.toothNum) ?? 0) + 1;
+      seen.set(exam.toothNum, count);
+      // The first row per tooth is the reading already on screen.
+      if (count !== 2) continue;
+      const summary = perioSummaryOf(exam);
+      perioBefore[exam.toothNum] = {
+        on: format.dateTime(exam.recordedAt, { day: 'numeric', month: 'short', year: 'numeric' }),
+        deepest: summary.deepest,
+        worstAttachment: summary.worstAttachment,
+      };
+    }
+  }
+
+  /**
+   * What is still owed on each tooth, for the chart's planned layer.
+   *
+   * Pending steps of active plans only — `PlannedMap` in `DentalChart` argues
+   * the case. The date is formatted here because the client cannot be trusted
+   * to spell an Albanian month, which is the same reason `chartedOn` below is.
+   */
+  const planned: PlannedMap = {};
+  for (const plan of patient.plans) {
+    if (plan.status !== TreatmentPlanStatus.ACTIVE) continue;
+    for (const step of plan.steps) {
+      if (step.toothNum === null || step.status !== TreatmentStepStatus.PENDING) continue;
+      (planned[step.toothNum] ??= []).push({
+        id: step.id,
+        title: step.title,
+        // A slot the patient cancelled is not a date this step is waiting for —
+        // the same call the plans tab makes about its own linked appointments.
+        booked:
+          step.appointment && step.appointment.status !== AppointmentStatus.CANCELLED
+            ? format.dateTime(step.appointment.date, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })
+            : null,
+      });
+    }
+  }
+
   const teeth: ToothRecordMap = Object.fromEntries(
     patient.teethRecords.map((record) => [
       record.toothNum,
@@ -347,6 +451,8 @@ export default async function PatientDetailPage({
         mobility: record.mobility,
         pockets: record.pockets,
         bleeding: record.bleeding,
+        recession: record.recession,
+        furcation: record.furcation,
         // When the tooth was last charted. A caries found two years ago and one
         // found this morning are the same red on the drawing and two very
         // different conversations.
@@ -945,7 +1051,18 @@ export default async function PatientDetailPage({
 
       {tab === 'chart' ? (
         <Card>
-          <CardHeader title={tt('title')} />
+          <CardHeader
+            title={tt('title')}
+            // The findings are rendered here, by the page that has already
+            // proved this viewer may see this patient, and handed to the button
+            // as children — so the patient-facing view adds no second route to
+            // protect and stays off the client bundle. See `PatientViewButton`.
+            action={
+              <PatientViewButton>
+                <PatientView name={`${patient.firstName} ${patient.lastName}`} records={teeth} />
+              </PatientViewButton>
+            }
+          />
           <CardBody>
             {/* Under thirteen the primary arches open by themselves — a child's
                 chart is unusable without them, and nobody should have to
@@ -953,6 +1070,9 @@ export default async function PatientDetailPage({
             <DentalChart
               patientId={patient.id}
               records={teeth}
+              planned={planned}
+              perioBefore={perioBefore}
+              files={toothFiles}
               numbering={clinicProfile.toothNumbering}
               showPrimary={patient.dateOfBirth ? age(patient.dateOfBirth) < 13 : false}
               readOnly={!canEditMedical}

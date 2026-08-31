@@ -23,11 +23,15 @@ import { isDateKey, isTimeOfDay, timeToMinutes, today } from '@/lib/dates';
 import {
   formatBleeding,
   formatPockets,
+  formatRecession,
+  hasFurcation,
   hasPerio,
+  parseFurcation,
   parseMobility,
   parsePockets,
   PERIO_SITE_COUNT,
   toPocketDepth,
+  toRecession,
 } from '@/lib/perio';
 import {
   DEFAULT_TOOTH_STATUS,
@@ -919,8 +923,29 @@ export async function saveToothPerio(
   );
   const mobility = parseMobility(optionalString(formData.get('mobility')));
 
+  // Recession is read even where no pocket was: a receded margin at a site the
+  // probe found nothing in is a real finding, and pairing it with the depth is
+  // the reader's job, not this one's.
+  const recession = formatRecession(
+    Array.from({ length: PERIO_SITE_COUNT }, (_, site) =>
+      toRecession(requiredString(formData.get(`recession${site}`))),
+    ),
+  );
+  // Refused outright on a tooth that has no furcation, rather than stored and
+  // ignored — a grade on a central incisor is a category error, and a column
+  // that quietly holds one will eventually be read by something that believes
+  // it.
+  const furcation = hasFurcation(toothNum)
+    ? parseFurcation(optionalString(formData.get('furcation')))
+    : null;
+
   const { row } = await toothRowContext(patientId, toothNum);
-  const empty = pockets === null && bleeding === null && mobility === null;
+  const empty =
+    pockets === null &&
+    bleeding === null &&
+    mobility === null &&
+    recession === null &&
+    furcation === null;
 
   try {
     // Clearing the last reading off a tooth that has nothing else recorded takes
@@ -938,11 +963,39 @@ export async function saveToothPerio(
           mobility,
           pockets,
           bleeding,
+          recession,
+          furcation,
           visitRecordId: await sameDayVisitId(patientId),
         },
-        update: { mobility, pockets, bleeding },
+        update: { mobility, pockets, bleeding, recession, furcation },
       });
     }
+
+    // And the same reading into the history, which is the whole reason this
+    // change exists. The snapshot above is overwritten on every save; this is
+    // append-only, so a pocket that was 3mm last year and is 5mm today is still
+    // two readings tomorrow instead of one.
+    //
+    // Written for a clearing save too — `empty` is itself a finding. "Probed
+    // and found nothing" is the record of an examination, and dropping it would
+    // make a resolved pocket look like a tooth nobody ever went back to.
+    //
+    // Inside the same `try` as the snapshot but deliberately *after* it: if the
+    // history insert fails the snapshot still stands, which is the right way
+    // round. The reverse would leave the practice with a history of a reading
+    // the chart does not show.
+    await prisma.perioExam.create({
+      data: {
+        patientId,
+        toothNum,
+        pockets,
+        bleeding,
+        recession,
+        mobility,
+        furcation,
+        visitRecordId: await sameDayVisitId(patientId),
+      },
+    });
   } catch {
     return actionError(t('generic'));
   }

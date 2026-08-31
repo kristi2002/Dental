@@ -13,6 +13,7 @@ export function SubmitButton({
   value,
   variant = 'primary',
   icon,
+  onClick,
 }: {
   label: string;
   pendingLabel: string;
@@ -29,6 +30,16 @@ export function SubmitButton({
   /** The quieter of two submits, when a form has both. */
   variant?: 'primary' | 'secondary';
   /**
+   * Run as the press starts, before the form is submitted.
+   *
+   * For the case `name`/`value` cannot serve: when it is the *client* that has
+   * to know which of two submits was pressed, not the server. The periodontal
+   * sweep is that case — both buttons write exactly the same reading through
+   * exactly the same action, and the only difference is whether the dialog
+   * closes afterwards or walks on to the next tooth.
+   */
+  onClick?: () => void;
+  /**
    * Shown before the label, and dropped while pending — the spinner-less
    * "Saving…" is the whole feedback, and an icon left beside it reads as though
    * the button is still offering the thing it is already doing.
@@ -42,6 +53,7 @@ export function SubmitButton({
       type="submit"
       name={name}
       value={value}
+      onClick={onClick}
       className={cn('btn', variant === 'secondary' ? 'btn-secondary' : 'btn-primary', className)}
       disabled={pending || disabled}
     >

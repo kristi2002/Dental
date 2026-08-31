@@ -160,6 +160,7 @@ model Patient {
   appointments  Appointment[]
   visitRecords  VisitRecord[]
   teethRecords  ToothRecord[]
+  perioExams    PerioExam[]
   waitlist      WaitlistEntry[]
   plans         TreatmentPlan[]
   documents     PatientDocument[]
@@ -570,6 +571,7 @@ model VisitRecord {
 
   services       VisitService[]
   toothRecords   ToothRecord[]
+  perioExams     PerioExam[]
   stockMovements StockMovement[]
 
   /// Who recorded it — shown on the timeline, kept when the account is disabled.
@@ -586,6 +588,57 @@ model VisitRecord {
   /// "Has this slot been written up?" is asked of every completed appointment
   /// on the day sheet, and `saveVisit` asks it again for every candidate slot.
   @@index([appointmentId])
+}
+
+/// One periodontal reading of one tooth, kept forever.
+///
+/// `ToothRecord` holds a tooth's *current* state and is unique on
+/// `[patientId, toothNum]`, so every save overwrites the last one. For the
+/// condition half that is defensible — a filled tooth is filled, and the audit
+/// trail carries who changed it and when. For the periodontal half it destroys
+/// the reading.
+///
+/// A pocket depth is only diagnostic against its own history. 5mm that was 3mm
+/// last year is disease progressing and gets referred; 5mm that has been 5mm
+/// for three years is a stable defect that gets maintained. The practice was
+/// taking the measurement and throwing away the comparison, which is most of
+/// what the measurement is for.
+///
+/// So every perio save appends here as well as updating the snapshot. Two
+/// consequences worth stating:
+///
+///   - The newest row for a tooth **mirrors** `ToothRecord`. That duplication is
+///     deliberate: it makes this table answer "chart this tooth's pockets over
+///     time" on its own, without joining to a snapshot that is about to change.
+///   - There is no notion of an examination *session*. A tooth probed today and
+///     its neighbour probed tomorrow are two rows with two timestamps, which is
+///     what actually happened. The clinical question is always per tooth.
+model PerioExam {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  toothNum  Int
+
+  /// When the reading was taken. Defaulted rather than passed, because a
+  /// history whose timestamps the caller can choose is not a history.
+  recordedAt DateTime @default(now())
+
+  /// The same four encodings `ToothRecord` documents, copied verbatim so a row
+  /// here can be read without reference to the snapshot it came from.
+  pockets   String?
+  bleeding  String?
+  recession String?
+  mobility  Int?
+  furcation Int?
+
+  /// The visit it was taken during, when it was taken during one.
+  visitRecordId String?
+  visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
+
+  /// "This tooth's readings, newest first" — the only question asked of this
+  /// table, and asked once per tooth on every perio view.
+  @@index([patientId, toothNum, recordedAt])
+  @@index([visitRecordId])
 }
 
 model ToothRecord {
