@@ -66,6 +66,19 @@ services:
       # Optional, and the one option worth setting: without it a patient's
       # answer to a reminder goes back to the no-reply address it came from.
       MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      # The other half of the mail configuration, and the half that was never
+      # wired through: `.env.production.example` has documented this since
+      # inbound mail shipped, but it was missing from this block — so a practice
+      # that set it in Coolify got an app that still refused every delivery, and
+      # the only symptom is a webhook log full of 404s at the provider's end.
+      #
+      # One secret for both `/api/mail/inbound` and `/api/mail/events`, which is
+      # the app's own reading: they are one permission — "this request came from
+      # the mail provider" — and a second variable would be a second thing to
+      # leave unset. Empty is a supported value and means both endpoints stay
+      # closed, which is how a deployment that has not configured mail should
+      # behave.
+      MAIL_INBOUND_SECRET: ${MAIL_INBOUND_SECRET:-}
 
       # The clinic's own wall clock. Every appointment day is stored at UTC
       # midnight and read back against this — see src/lib/dates.ts. Its default
@@ -169,6 +182,26 @@ services:
       # Monday morning, once a week. A recall is urgent over a season rather than
       # on any particular day, and a queue refilled nightly is read as noise.
       RECALLS_SCHEDULE: ${RECALLS_SCHEDULE:-30 7 * * 1}
+      # The three courtesy sweeps. They have run since the day they were written
+      # — `docker/jobs/entrypoint.sh` schedules all seven jobs and each of these
+      # carries the same default it does — but they were never named here, so
+      # they were the only jobs on the clock that could not be retimed without
+      # rebuilding the sidecar. Listed now for the same reason the five above
+      # are: the schedule a practice actually wants is a thing it should be able
+      # to change from Coolify.
+      #
+      # Twenty past seven, before the desk opens: "we treated you on Friday, how
+      # are you getting on?" is a call that has to happen inside a window four
+      # days wide, which is exactly the kind of thing a person forgets.
+      FOLLOW_UPS_SCHEDULE: ${FOLLOW_UPS_SCHEDULE:-20 7 * * *}
+      # Five minutes later. The one message on the list a patient is actively
+      # waiting for — the crown is back from the laboratory — so it is daily and
+      # it is early.
+      WORK_READY_SCHEDULE: ${WORK_READY_SCHEDULE:-25 7 * * *}
+      # Monday, with the recalls. A plan that has gone quiet for sixty days has
+      # not become more urgent overnight, and two stalled plans for one person
+      # are still one telephone call.
+      PLANS_SCHEDULE: ${PLANS_SCHEDULE:-35 7 * * 1}
       # Sunday, a quarter past three — after the backup's own verify at 03:30
       # would be worse, so it sits before it and competes with nothing.
       SWEEP_SCHEDULE: ${SWEEP_SCHEDULE:-15 3 * * 0}

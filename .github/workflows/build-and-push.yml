@@ -87,9 +87,18 @@ jobs:
           # actually at shehudental.testdemo.it. That mismatch predates this workflow.
           # It is reproduced deliberately rather than silently corrected here; fix it
           # by setting the repo variable below, as its own change.
+          #
+          # NEXT_PUBLIC_CLINIC_PHONE is passed with an empty default on purpose.
+          # It reached no build until now: the Dockerfile declared no ARG for it,
+          # and a build argument with no matching ARG is dropped with a warning
+          # nobody reads. The only thing that reads it is the storefront's
+          # client-side error boundary, so the "call us" button has never
+          # rendered in a built image. Empty reproduces exactly that, so adding
+          # it here changes nothing until somebody sets the repo variable.
           build-args: |
             NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL || 'https://dental.testdemo.it' }}
             NEXT_PUBLIC_CLINIC_NAME=${{ vars.NEXT_PUBLIC_CLINIC_NAME || 'Klinika Dentare' }}
+            NEXT_PUBLIC_CLINIC_PHONE=${{ vars.NEXT_PUBLIC_CLINIC_PHONE || '' }}
           # Layer cache lives in GitHub. Runners are ephemeral, so without this every
           # run is a cold build.
           cache-from: type=gha,scope=${{ matrix.service }}

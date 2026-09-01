@@ -63,6 +63,25 @@ ARG NEXT_PUBLIC_CLINIC_NAME="Shehu Dental"
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV NEXT_PUBLIC_CLINIC_NAME=${NEXT_PUBLIC_CLINIC_NAME}
 
+# The storefront's error boundary is a client component, so its "call us" button
+# reads this from the bundle rather than from the server — which is why it
+# belongs here and not in the runtime environment.
+#
+# `.env.production.example` has always filed it correctly, under "Build-time …
+# in Coolify these belong in Build Variables". What was missing was this line:
+# a build argument with no matching ARG is dropped with a warning nobody reads,
+# so the value was being passed in and thrown away, and the number resolved to
+# undefined in the built JavaScript.
+#
+# **Why the default is empty and not a number.** Every other value in this block
+# reproduces what the running container was built with, and what it was built
+# with here is nothing. A placeholder default would put a wrong telephone number
+# on the practice's public error page the moment somebody rebuilt, which is
+# worse than the button being absent. The page already drops the button when
+# this is blank, which is why the omission survived unnoticed.
+ARG NEXT_PUBLIC_CLINIC_PHONE=""
+ENV NEXT_PUBLIC_CLINIC_PHONE=${NEXT_PUBLIC_CLINIC_PHONE}
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 

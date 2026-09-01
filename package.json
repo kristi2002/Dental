@@ -17,6 +17,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "db:seed:inbox": "tsx prisma/seed-inbox.ts",
     "postinstall": "prisma generate && node scripts/copy-zxing-wasm.mjs"
   },
   "prisma": {
