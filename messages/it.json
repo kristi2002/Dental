@@ -2626,6 +2626,7 @@
     "mailProblem_no-key": "MAIL_API_KEY manca",
     "mailProblem_bad-from": "MAIL_FROM non è un indirizzo valido",
     "mailProblem_bad-reply-to": "MAIL_REPLY_TO non è un indirizzo valido",
+    "mailProblem_bad-test-to": "MAIL_TEST_TO non è un indirizzo valido",
     "mailReplyToUnset": "non impostato — le risposte vanno all'indirizzo di invio",
     "mailNotConfigured": "l'email non è configurata",
     "mailVia": "tramite {provider}",

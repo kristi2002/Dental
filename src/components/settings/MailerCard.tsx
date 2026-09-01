@@ -80,8 +80,14 @@ export async function MailerCard({ canEdit }: { canEdit: boolean }) {
               {t('mailTest')}
             </button>
           </ReportingActionForm>
+          {/* The address itself, not a description of how it was arrived at.
+              It used to print `status.from` when Reply-To was unset — the
+              formatted `Name <address>` rather than the address the send
+              actually used — so the sentence beside the button and the message
+              it produced could name two different things. `testTo` is the one
+              the mailer will use, resolved in one place. */}
           <span className="text-meta text-ink-faint">
-            {t('mailTestHint', { to: status.replyTo ?? status.from })}
+            {t('mailTestHint', { to: status.testTo })}
           </span>
         </div>
       ) : null}

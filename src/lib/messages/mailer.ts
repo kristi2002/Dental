@@ -88,7 +88,14 @@ export async function sendMail(mail: OutgoingMail): Promise<MailResult> {
 }
 
 export type MailerStatus =
-  | { configured: true; provider: string; from: string; replyTo: string | null }
+  | {
+      configured: true;
+      provider: string;
+      from: string;
+      replyTo: string | null;
+      /** Where the test button lands, resolved. See `MailerConfig.testTo`. */
+      testTo: string;
+    }
   | { configured: false; problem: MailerProblem };
 
 /**
@@ -138,5 +145,6 @@ export function mailerStatus(): MailerStatus {
       ? `${result.config.fromName} <${result.config.fromAddress}>`
       : result.config.fromAddress,
     replyTo: result.config.replyTo,
+    testTo: result.config.testTo,
   };
 }

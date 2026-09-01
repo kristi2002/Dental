@@ -2626,6 +2626,7 @@
     "mailProblem_no-key": "MAIL_API_KEY mungon",
     "mailProblem_bad-from": "MAIL_FROM nuk është adresë e vlefshme",
     "mailProblem_bad-reply-to": "MAIL_REPLY_TO nuk është adresë e vlefshme",
+    "mailProblem_bad-test-to": "MAIL_TEST_TO nuk është adresë e vlefshme",
     "mailReplyToUnset": "e pavendosur — përgjigjet shkojnë te adresa dërguese",
     "mailNotConfigured": "emaili nuk është i konfiguruar",
     "mailVia": "përmes {provider}",

@@ -39,6 +39,27 @@ export type MailerConfig = {
    * optional setting the deployment guide argues hardest for.
    */
   replyTo: string | null;
+  /**
+   * Where Settings → Sending email aims its test message. Never null: there is
+   * always somewhere sensible to put one, and resolving the fallback here means
+   * the button and the sentence printed beside it cannot disagree about where
+   * it is about to go.
+   *
+   * **Why it is a setting of its own rather than Reply-To.** The two answer
+   * different questions. Reply-To is where a *patient* is sent when they answer
+   * a reminder, and on a real practice that is the front desk's mailbox. The
+   * test is for whoever is wiring the DNS up, and they need it in a folder they
+   * can watch — which during setup is very often not the practice's inbox at
+   * all. Overloading Reply-To to get a test somewhere means every patient reply
+   * follows it there, which is a strange price for reading one message.
+   *
+   * **Still not a form field.** It comes from the environment, so the only
+   * person who can change it is the one with access to the server — which is
+   * the property `sendTestEmail` is really defending. A "send a test to…" box
+   * on the settings page would be a way of mailing anyone at all from the
+   * practice's verified domain.
+   */
+  testTo: string;
 };
 
 /**
@@ -53,7 +74,8 @@ export type MailerProblem =
   | 'unknown-provider'
   | 'no-key'
   | 'bad-from'
-  | 'bad-reply-to';
+  | 'bad-reply-to'
+  | 'bad-test-to';
 
 export type MailerConfigResult =
   | { ok: true; config: MailerConfig }
@@ -129,10 +151,11 @@ export function readMailerConfig(env: Record<string, string | undefined>): Maile
   const from = (env.MAIL_FROM ?? '').trim();
   const named = (env.MAIL_PROVIDER ?? '').trim().toLowerCase();
   const reply = (env.MAIL_REPLY_TO ?? '').trim();
+  const test = (env.MAIL_TEST_TO ?? '').trim();
 
   // Nothing at all is the ordinary state of a clinic that has not got to this
   // yet, and it is not an error — the queue keeps offering `mailto:` links.
-  if (!key && !from && !named && !reply) return { ok: false, problem: 'unset' };
+  if (!key && !from && !named && !reply && !test) return { ok: false, problem: 'unset' };
 
   if (named !== 'brevo' && named !== 'resend') {
     return { ok: false, problem: 'unknown-provider' };
@@ -147,6 +170,11 @@ export function readMailerConfig(env: Record<string, string | undefined>): Maile
   // nothing else in the system would ever mention it.
   if (reply && !isEmailAddress(reply)) return { ok: false, problem: 'bad-reply-to' };
 
+  // Same argument once more, and it lands harder here: a typo in this one means
+  // the test button reports success against an address nobody reads, which is
+  // precisely the false reassurance the button exists to prevent.
+  if (test && !isEmailAddress(test)) return { ok: false, problem: 'bad-test-to' };
+
   return {
     ok: true,
     config: {
@@ -155,6 +183,10 @@ export function readMailerConfig(env: Record<string, string | undefined>): Maile
       fromAddress: sender.address,
       fromName: sender.name,
       replyTo: reply || null,
+      // The ladder, resolved once. Unset falls back to Reply-To, which is what
+      // this did before the setting existed, so a deployment that never names
+      // one behaves exactly as it always has.
+      testTo: test || reply || sender.address,
     },
   };
 }

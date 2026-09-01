@@ -2626,6 +2626,7 @@
     "mailProblem_no-key": "MAIL_API_KEY is missing",
     "mailProblem_bad-from": "MAIL_FROM is not a valid address",
     "mailProblem_bad-reply-to": "MAIL_REPLY_TO is not a valid address",
+    "mailProblem_bad-test-to": "MAIL_TEST_TO is not a valid address",
     "mailReplyToUnset": "not set — replies go to the sending address",
     "mailNotConfigured": "email is not set up",
     "mailVia": "through {provider}",

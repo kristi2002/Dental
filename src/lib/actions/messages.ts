@@ -423,15 +423,20 @@ function toPurpose(value: FormDataEntryValue | null): ContactPurpose {
 }
 
 /**
- * Send one message to the practice's own address, to find out whether any of
- * this works.
+ * Send one message to an address the environment names, to find out whether any
+ * of this works.
  *
- * The recipient is `ClinicProfile.email` and cannot be anything else. That is
- * the entire security design of this action: a settings page with a "send a test
- * to…" box would be a way of sending mail from the clinic's verified domain to
- * an address of the sender's choosing, which is a spam relay with a nice form
- * around it. Here the only thing a press can do is put a message in the
- * practice's own inbox.
+ * **The recipient never comes from the request.** That is the entire security
+ * design of this action, and it survives `MAIL_TEST_TO` intact: a settings page
+ * with a "send a test to…" box would be a way of mailing anyone at all from the
+ * clinic's verified domain, whereas an environment variable can only be changed
+ * by somebody who already has the server. `MailerConfig.testTo` resolves the
+ * ladder — `MAIL_TEST_TO`, else Reply-To, else the sending address — so the
+ * press has exactly one destination and this function does not get to pick it.
+ *
+ * (An earlier version of this note claimed the recipient was
+ * `ClinicProfile.email`. It was never read here; the argument was right and the
+ * column was wrong.)
  *
  * Worth having because SPF, DKIM and DMARC are three DNS records that are wrong
  * in a way nothing reports: the provider accepts the message, the app says it
@@ -448,7 +453,7 @@ export async function sendTestEmail(_prev: ActionState, _formData: FormData): Pr
   if (!config) return actionError(t('mailNotConfigured'));
 
   const result = await sendMail({
-    to: config.replyTo ?? config.fromAddress,
+    to: config.testTo,
     toName: config.fromName,
     subject: t('mailTestSubject'),
     text: t('mailTestBody'),
@@ -462,7 +467,7 @@ export async function sendTestEmail(_prev: ActionState, _formData: FormData): Pr
   await recordAudit(user, {
     action: 'create',
     entity: 'settings',
-    summary: `test email to ${config.replyTo ?? config.fromAddress}`,
+    summary: `test email to ${config.testTo}`,
   });
 
   return actionOk();

@@ -15,6 +15,7 @@ const CONFIG: MailerConfig = {
   fromAddress: 'no-reply@klinika.al',
   fromName: 'Klinika Dentare',
   replyTo: 'info@klinika.al',
+  testTo: 'info@klinika.al',
 };
 
 describe('isEmailAddress — conservative on purpose', () => {
@@ -173,10 +174,79 @@ describe('readMailerConfig — configured, unconfigured, or wrong', () => {
   });
 
   it('treats whitespace as absence', () => {
-    assert.deepEqual(readMailerConfig({ MAIL_PROVIDER: '  ', MAIL_API_KEY: ' ', MAIL_FROM: '' }), {
+    assert.deepEqual(
+      readMailerConfig({
+        MAIL_PROVIDER: '  ',
+        MAIL_API_KEY: ' ',
+        MAIL_FROM: '',
+        MAIL_TEST_TO: '   ',
+      }),
+      { ok: false, problem: 'unset' },
+    );
+  });
+
+  /**
+   * A test address on its own is still a configuration somebody started, and
+   * calling it `unset` would report "not set up" on a settings card that has a
+   * value sitting in it — the one thing `MailerProblem` exists to avoid.
+   */
+  it('does not call an environment unset just because only the test address is in it', () => {
+    assert.deepEqual(readMailerConfig({ MAIL_TEST_TO: 'owner@klinika.al' }), {
       ok: false,
-      problem: 'unset',
+      problem: 'unknown-provider',
     });
+  });
+
+  it('refuses a test address that is set and wrong', () => {
+    assert.deepEqual(
+      readMailerConfig({
+        MAIL_PROVIDER: 'brevo',
+        MAIL_API_KEY: 'k',
+        MAIL_FROM: 'a@b.al',
+        MAIL_TEST_TO: 'not an address',
+      }),
+      { ok: false, problem: 'bad-test-to' },
+    );
+  });
+
+  /**
+   * The whole point of the setting: the test goes somewhere the person wiring
+   * up DNS is watching, and patient replies keep going to the front desk. If
+   * these two ever collapsed into one value the setting would be decorative.
+   */
+  it('sends the test where MAIL_TEST_TO says, leaving reply-to alone', () => {
+    const result = readMailerConfig({
+      MAIL_PROVIDER: 'brevo',
+      MAIL_API_KEY: 'k',
+      MAIL_FROM: 'Klinika Dentare <no-reply@klinika.al>',
+      MAIL_REPLY_TO: 'info@klinika.al',
+      MAIL_TEST_TO: 'owner@example.com',
+    });
+    assert.equal(result.ok && result.config.testTo, 'owner@example.com');
+    assert.equal(result.ok && result.config.replyTo, 'info@klinika.al');
+  });
+
+  /**
+   * The fallback, which is what this did before the setting existed. A
+   * deployment that never names one must keep behaving exactly as it always
+   * has — reply-to first, and the sending address when there is not one.
+   */
+  it('falls back to reply-to, then to the sending address', () => {
+    const withReply = readMailerConfig({
+      MAIL_PROVIDER: 'brevo',
+      MAIL_API_KEY: 'k',
+      MAIL_FROM: 'no-reply@klinika.al',
+      MAIL_REPLY_TO: 'info@klinika.al',
+    });
+    assert.equal(withReply.ok && withReply.config.testTo, 'info@klinika.al');
+
+    const withNeither = readMailerConfig({
+      MAIL_PROVIDER: 'brevo',
+      MAIL_API_KEY: 'k',
+      MAIL_FROM: 'Klinika Dentare <no-reply@klinika.al>',
+    });
+    // The bare address, not the `Name <address>` form the settings card prints.
+    assert.equal(withNeither.ok && withNeither.config.testTo, 'no-reply@klinika.al');
   });
 });
 
