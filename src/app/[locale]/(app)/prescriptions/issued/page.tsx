@@ -1,14 +1,17 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Pill, ScrollText } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
+import { PrescriptionDialog } from '@/components/prescriptions/PrescriptionDialog';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
+import { today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { fold, patientSearchClauses, phoneKey } from '@/lib/patient-search';
+import { ACTIVE_TEMPLATES } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +57,8 @@ export default async function IssuedPrescriptionsPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  await requirePermission('prescription.view');
+  const user = await requirePermission('prescription.view');
+  const canIssue = user.permissions.includes('prescription.edit');
 
   const t = await getTranslations('prescriptions');
   const tc = await getTranslations('common');
@@ -73,7 +77,7 @@ export default async function IssuedPrescriptionsPage({
     ? { patient: { OR: patientSearchClauses(query, fold(query), phoneKey(query)) } }
     : {};
 
-  const [rows, total] = await Promise.all([
+  const [rows, total, templates] = await Promise.all([
     prisma.prescription.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -89,9 +93,30 @@ export default async function IssuedPrescriptionsPage({
       },
     }),
     prisma.prescription.count({ where }),
+    // The standard wording, for the dialog in the header. Not fetched for a
+    // receptionist who may read this list but not write on it.
+    canIssue
+      ? prisma.prescriptionTemplate.findMany({
+          where: ACTIVE_TEMPLATES,
+          orderBy: [{ category: 'asc' }, { name: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            body: true,
+            services: { select: { serviceId: true } },
+          },
+        })
+      : [],
   ]);
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // For `{date}` in a template's wording, in the reader's locale.
+  const todayLabel = format.dateTime(today(), {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
   const pageHref = (n: number) => {
     const search = new URLSearchParams();
     if (query) search.set('q', query);
@@ -107,10 +132,33 @@ export default async function IssuedPrescriptionsPage({
         subtitle={t('issuedSubtitle', { count: total })}
         trail={[{ href: '/prescriptions', label: t('templatesTitle') }, { label: t('issuedTitle') }]}
         actions={
-          <Link href="/prescriptions" className="btn btn-secondary">
-            <ArrowLeft size={18} aria-hidden />
-            {t('templatesTitle')}
-          </Link>
+          <>
+            <Link href="/prescriptions" className="btn btn-secondary">
+              <ArrowLeft size={18} aria-hidden />
+              {t('templatesTitle')}
+            </Link>
+
+            {/* Writing one, from the list of the ones already written.
+                Prescribing began on the patient's own record and stayed there,
+                which is right when the patient is who you are holding — but the
+                dentist who has just printed Tuesday's script and needs to write
+                today's was sent back through the patient search to reach the
+                same dialog. It asks for the patient itself now. */}
+            {canIssue ? (
+              <PrescriptionDialog
+                templates={templates.map((template) => ({
+                  id: template.id,
+                  name: template.name,
+                  category: template.category ?? '',
+                  body: template.body,
+                  serviceIds: template.services.map((link) => link.serviceId),
+                }))}
+                todayLabel={todayLabel}
+                canManageTemplates={canIssue}
+                triggerClassName="btn btn-primary"
+              />
+            ) : null}
+          </>
         }
       />
 

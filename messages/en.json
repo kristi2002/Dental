@@ -2362,6 +2362,7 @@
     "template": "Start from a template",
     "body": "Prescription",
     "forPatient": "For {name}",
+    "patient": "Patient",
     "empty": "No prescriptions issued to this patient yet.",
     "print": "Print",
     "sheetTitle": "Prescription",

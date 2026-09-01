@@ -15,6 +15,7 @@ import { ArchivedList } from '@/components/ui/ArchivedList';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth/guard';
 import {
+  getAllWorkProcedures,
   getProcedureUsage,
   getWorkProcedures,
   linesUsing,
@@ -59,8 +60,10 @@ export default async function WorkProceduresPage({
   const tc = await getTranslations('common');
   const tw = await getTranslations('works');
 
-  const [procedures, archivedProcedures, usage] = await Promise.all([
+  const [procedures, allProcedures, archivedProcedures, usage] = await Promise.all([
     getWorkProcedures(),
+    // The whole catalogue, for the duplicate check below.
+    getAllWorkProcedures(),
     // Retired kinds of work — see `deleteWorkProcedure`, which stopped deleting
     // them the moment `WorkLine.procedureId` made a delete destroy the link.
     prisma.workProcedure.findMany({
@@ -70,9 +73,16 @@ export default async function WorkProceduresPage({
     }),
     getProcedureUsage(),
   ]);
+  // Measured against the *whole* catalogue, retired entries included.
+  //
+  //  above is the active list, and using it here made a retired
+  // kind of work reappear under "names the register is already using" — an
+  // invitation to adopt a second row for the thing the practice had just
+  // retired. "Is this name in the catalogue" is a question that does not care
+  // whether the row is still offered.
   const suggestions = unnamedProcedures(
     usage,
-    procedures.map((procedure) => procedure.name),
+    allProcedures.map((procedure) => procedure.name),
   );
 
   const newLink = (

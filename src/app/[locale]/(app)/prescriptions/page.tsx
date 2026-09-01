@@ -1,5 +1,6 @@
 import { Pill, Plus, Trash2 } from 'lucide-react';
-import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
+import { PrescriptionDialog } from '@/components/prescriptions/PrescriptionDialog';
 import { TemplateFormDialog } from '@/components/prescriptions/TemplateFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
@@ -11,6 +12,7 @@ import { deletePrescriptionTemplate,
   restorePrescriptionTemplate,
 } from '@/lib/actions/prescriptions';
 import { requirePermission } from '@/lib/auth/guard';
+import { today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
 import { getServiceOptions,
   ACTIVE_TEMPLATES,
@@ -44,6 +46,7 @@ export default async function PrescriptionsPage({
 
   const t = await getTranslations('prescriptions');
   const tc = await getTranslations('common');
+  const format = await getFormatter();
 
   const [templates, archivedTemplates, services] = await Promise.all([
     prisma.prescriptionTemplate.findMany({
@@ -72,13 +75,44 @@ export default async function PrescriptionsPage({
     </Link>
   ) : null;
 
+  /**
+   * Writing one, from the catalogue of wording it is written out of.
+   *
+   * Secondary, and left of the primary: this page's own job is the standard
+   * text, and “New template” stays the action it leads with. But the nav item a
+   * dentist opens is *Prescriptions*, and until now landing here meant reading a
+   * list of the wording without being able to use any of it — the way to
+   * actually prescribe was back out through the patient search. The dialog asks
+   * for the patient itself, so the wording on this screen is one press from the
+   * person it is for.
+   */
+  const writeButton = canEdit ? (
+    <PrescriptionDialog
+      templates={templates.map((template) => ({
+        id: template.id,
+        name: template.name,
+        category: template.category ?? '',
+        body: template.body,
+        serviceIds: template.services.map((link) => link.serviceId),
+      }))}
+      todayLabel={format.dateTime(today(), { day: 'numeric', month: 'long', year: 'numeric' })}
+      canManageTemplates={canEdit}
+      triggerClassName="btn btn-secondary"
+    />
+  ) : null;
+
   return (
     <>
       <PageHeader
         title={t('templatesTitle')}
         subtitle={t('templatesSubtitle')}
         trail={[{ label: t('templatesTitle') }]}
-        actions={newLink}
+        actions={
+          <>
+            {writeButton}
+            {newLink}
+          </>
+        }
       />
 
       {templates.length === 0 ? (

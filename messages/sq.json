@@ -2362,6 +2362,7 @@
     "template": "Nis nga një model",
     "body": "Receta",
     "forPatient": "Për {name}",
+    "patient": "Pacienti",
     "empty": "Ende nuk ka receta për këtë pacient.",
     "print": "Printo",
     "sheetTitle": "Recetë",

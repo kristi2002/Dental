@@ -5,6 +5,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { MedicalAlertKind } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
+import { addDays, today } from '@/lib/dates';
 import { allergyLines, matchingAllergies } from '@/lib/medical';
 import { prisma } from '@/lib/prisma';
 import { sameDayVisitId } from '@/lib/visit-link';
@@ -140,6 +141,47 @@ export async function restorePrescriptionTemplate(formData: FormData): Promise<v
     summary: `${template.name} → restored`,
   });
   revalidateAll();
+}
+
+/**
+ * The last fortnight of treatments for one patient, as ids and as names.
+ *
+ * The patient's own screen works this out from visits it has already loaded.
+ * The prescriptions section starts from nobody in particular, so once a person
+ * is picked the same window has to be fetched — otherwise a prescription
+ * written from there sees a flat list of every wording the practice has ever
+ * saved, which is the thing the suggestions exist to avoid.
+ *
+ * Same fourteen days as the patient page, so the wording offered first does not
+ * depend on which screen the dentist happened to be standing on.
+ */
+const RECENT_WORK_DAYS = 14;
+
+export async function recentWorkFor(
+  patientId: string,
+): Promise<{ serviceIds: string[]; serviceNames: string[] }> {
+  const nothing = { serviceIds: [], serviceNames: [] };
+
+  const user = await authorize('prescription.edit');
+  if (!user || !patientId) return nothing;
+
+  const rows = await prisma.visitService.findMany({
+    where: {
+      visit: { patientId, visitDate: { gte: addDays(today(), -RECENT_WORK_DAYS) } },
+    },
+    orderBy: { position: 'asc' },
+    select: { serviceId: true, name: true },
+  });
+
+  return {
+    serviceIds: [
+      ...new Set(
+        rows.map((row) => row.serviceId).filter((value): value is string => value !== null),
+      ),
+    ],
+    // Whatever it was called on the day, which is what the legend reads back.
+    serviceNames: [...new Set(rows.map((row) => row.name))],
+  };
 }
 
 /**

@@ -2362,6 +2362,7 @@
     "template": "Parti da un modello",
     "body": "Ricetta",
     "forPatient": "Per {name}",
+    "patient": "Paziente",
     "empty": "Nessuna ricetta emessa per questo paziente.",
     "print": "Stampa",
     "sheetTitle": "Ricetta",
