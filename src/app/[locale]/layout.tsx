@@ -77,7 +77,16 @@ export default async function LocaleLayout({
   // The signed-in chrome lives in `(app)/layout.tsx`; the login screen renders
   // inside this document without it.
   return (
-    <html lang={locale} className={bodyFont.variable}>
+    /* `suppressHydrationWarning`, on this element only, because `ThemeScript`
+       below deliberately writes `data-theme` and `data-density` onto it before
+       React has run. Hydration would otherwise find attributes in the DOM that
+       its own tree has no record of, call that a mismatch, and *recover* by
+       re-rendering this subtree from scratch — which strips the very attributes
+       the script set, so the dim-surgery workstation flashes back to light on
+       every load. The suppression tells React the DOM is right and its own
+       output for this element is not. It reaches one level deep: everything
+       inside `<body>` is still checked as strictly as before. */
+    <html lang={locale} className={bodyFont.variable} suppressHydrationWarning>
       <head>
         {/* Before anything is painted. A theme applied by React arrives a frame
             late, and on a dim surgery screen that frame is a white flash — the

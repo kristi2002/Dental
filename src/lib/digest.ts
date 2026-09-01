@@ -33,6 +33,15 @@ export type DigestCounts = {
   worksToChase: number;
   requestsWaiting: number;
   unreadMail: number;
+  /**
+   * What is waiting on the send queue.
+   *
+   * The column is called `unremindedTomorrow` because that is what it counted
+   * when it was written — tomorrow's appointments with nobody told — and it is
+   * not worth a migration to rename: the number it holds now is the send
+   * queue's own, which is the same fact told properly. See the `unreminded`
+   * pile in `board-elsewhere.ts` for why the two had to become one count.
+   */
   unremindedTomorrow: number;
   appointmentsUnclosed: number;
 };
@@ -104,6 +113,49 @@ export function urgentTotal(counts: DigestCounts): number {
  * Only the non-zero parts, because a summary that always reads the same length
  * whatever happened is one nobody scans. A clear morning says so in three words.
  */
+/**
+ * The morning email, or null when there is nothing to say.
+ *
+ * **English, and that is a decision rather than an oversight.** It is the same
+ * one `digestSummary` makes two paragraphs below, for the same reason: a clock
+ * has no reader, so there is no locale to compose in — the job runs at seven in
+ * the morning with nobody signed in, and guessing at whose screen this will
+ * land on is how a practice ends up with a daily email in a language the person
+ * reading it does not use. The link at the bottom opens the board, which *is*
+ * in the reader's language because by then there is a reader.
+ *
+ * **Null on a clear morning.** A digest that arrives every day whatever
+ * happened is one that is filed unread by the second week, and then the one
+ * that matters is filed with it. Nothing waiting is exactly the morning not to
+ * send an email about.
+ */
+export function digestMail(
+  counts: DigestCounts,
+  /** Where the board is. Omitted when `NEXT_PUBLIC_APP_URL` is unset. */
+  boardUrl: string | null,
+): { subject: string; text: string } | null {
+  const total = digestTotal(counts);
+  if (total === 0) return null;
+
+  const urgent = urgentTotal(counts);
+  const lines = [
+    digestSummary(counts),
+    '',
+    urgent > 0
+      ? `${urgent} of them will not keep until tomorrow.`
+      : 'None of it is urgent today.',
+  ];
+
+  if (boardUrl) lines.push('', `Open the board: ${boardUrl}`);
+
+  return {
+    // The number in the subject line, because that is the whole of what most
+    // mornings need to communicate and the only part read on a lock screen.
+    subject: `${total} waiting at the practice`,
+    text: lines.join('\n'),
+  };
+}
+
 export function digestSummary(counts: DigestCounts): string {
   const parts: string[] = [];
 
@@ -123,7 +175,7 @@ export function digestSummary(counts: DigestCounts): string {
   add(counts.worksToChase, 'case at the lab', 'cases at the lab');
   add(counts.requestsWaiting, 'booking request', 'booking requests');
   add(counts.unreadMail, 'unread message', 'unread messages');
-  add(counts.unremindedTomorrow, 'unreminded tomorrow', 'unreminded tomorrow');
+  add(counts.unremindedTomorrow, 'waiting to send', 'waiting to send');
   add(counts.appointmentsUnclosed, 'appointment unclosed', 'appointments unclosed');
 
   if (parts.length === 0) return 'Nothing waiting.';

@@ -12,6 +12,8 @@ export type PatientDefaults = {
   email: string;
   /** `YYYY-MM-DD`, or empty. */
   dateOfBirth: string;
+  /** A `PatientSex` value, or `''` for nobody having asked. */
+  sex: string;
   medicalNotes: string;
   /** How often to recall this patient. 0 = never. */
   recallMonths: number;
@@ -31,6 +33,16 @@ export type PatientDefaults = {
 const RECALL_CHOICES = [0, 3, 4, 6, 12, 24] as const;
 
 const CHANNELS = ['WHATSAPP', 'EMAIL', 'PHONE'] as const;
+
+/**
+ * The three answers, in the order they are offered.
+ *
+ * `''` sits above them and is the default, because "nobody has asked" is the
+ * honest state of a form that has just been opened — and picking one for
+ * somebody rather than leaving it blank is how a guess ends up in a medical
+ * record. See `Patient.sex`.
+ */
+const SEXES = ['FEMALE', 'MALE', 'OTHER'] as const;
 
 /**
  * One patient, five groups of fields — and no opinion about what surrounds them.
@@ -92,6 +104,26 @@ export function IdentityFields({ uid, patient }: Group) {
           defaultValue={patient?.dateOfBirth}
         />
       </div>
+
+      {/* Beside the birthday rather than in the medical section, because it is
+          asked at the same moment and by the same person: both are on the
+          registration slip somebody fills in at the desk, and the medical
+          section needs `patient.medical.edit` that the front desk does not
+          have. */}
+      <SelectField
+        id={`${uid}-sex`}
+        name="sex"
+        label={t('sex')}
+        optional={tc('optional')}
+        defaultValue={patient?.sex ?? ''}
+      >
+        <option value="">{t('sexUnknown')}</option>
+        {SEXES.map((value) => (
+          <option key={value} value={value}>
+            {t(`sex_${value}`)}
+          </option>
+        ))}
+      </SelectField>
 
       <TextField
         id={`${uid}-email`}

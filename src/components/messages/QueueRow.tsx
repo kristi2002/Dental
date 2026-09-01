@@ -1,4 +1,17 @@
-import { BellRing, CalendarClock, Check, Clock3, Mail, Phone, Undo2 } from 'lucide-react';
+import {
+  BellRing,
+  CalendarClock,
+  Check,
+  Clock3,
+  FlaskConical,
+  HeartPulse,
+  ListChecks,
+  Mail,
+  MailWarning,
+  Phone,
+  RotateCcw,
+  Undo2,
+} from 'lucide-react';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { QueueSendLinks } from '@/components/messages/QueueSendLinks';
 import { ReportingActionForm } from '@/components/ui/ActionForm';
@@ -22,17 +35,33 @@ const STATUS_TONE: Record<string, BadgeTone> = {
 };
 
 /**
+ * One picture per kind, borrowed from the screen each kind belongs to.
+ *
+ * The appointment reminder has none on purpose: it is four rows in five, and a
+ * badge that appears on everything is a badge nobody reads. The other four are
+ * the exceptions, and looking like exceptions is the point.
+ */
+const KIND_ICONS = {
+  RECALL_DUE: BellRing,
+  POST_OP_CHECK: HeartPulse,
+  WORK_READY: FlaskConical,
+  PLAN_NEXT_STEP: ListChecks,
+} as const;
+
+/**
  * One line of the send queue.
  *
  * A server component because the message has to be, and that is the whole
- * arrangement in one sentence: `composeReminder` needs the patient's locale and
- * the translation catalogue for it, neither of which a browser has. So the
- * wording is built here, at the moment the row is drawn, and the client half
- * receives two finished hrefs and a body to log.
+ * arrangement in one sentence: composing needs the patient's locale and the
+ * translation catalogue for it, neither of which a browser has. So the wording
+ * is built here, at the moment the row is drawn, and the client half receives
+ * two finished hrefs and a body to log.
  *
  * That is also why `ScheduledMessage` has no text column. Composing at draw time
  * means a slot that moved from 09:00 to 09:30 this morning produces the right
- * sentence this afternoon, with nothing having had to notice.
+ * sentence this afternoon, with nothing having had to notice — and it means the
+ * four kinds that are about something other than a booking quote the *live*
+ * fact: how long since the visit, which case came back, which plan stopped.
  */
 export async function QueueRow({
   message,
@@ -43,10 +72,12 @@ export async function QueueRow({
 }: {
   message: QueuedMessage;
   /**
-   * `send` is a row to work; `passed` is one whose moment has gone, offered
-   * only a dismissal; `handled` is the record of one already dealt with.
+   * `send` is a row to work; `held` is one the mail provider refused, which is
+   * still workable — by telephone, by WhatsApp, or by pressing send again once
+   * it comes back; `passed` is one whose moment has gone, offered only a
+   * dismissal; `handled` is the record of one already dealt with.
    */
-  mode: 'send' | 'passed' | 'handled';
+  mode: 'send' | 'held' | 'passed' | 'handled';
   locale: string;
   canSend: boolean;
   /**
@@ -77,6 +108,9 @@ export async function QueueRow({
   // is what a row from a newer version of the rules will be. See `noteKey`.
   const note = key ? t(`note.${key}`) : message.note;
 
+  const KindIcon = KIND_ICONS[message.kind as keyof typeof KIND_ICONS];
+  const workable = mode === 'send' || mode === 'held';
+
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4">
       <div className="min-w-0 flex-1">
@@ -87,6 +121,15 @@ export async function QueueRow({
           >
             {patientName}
           </Link>
+
+          {/* Which of the five this is. Only ever shown for the four that are
+              not an appointment reminder — see `KIND_ICONS`. */}
+          {KindIcon ? (
+            <Badge tone="neutral">
+              <KindIcon size={13} aria-hidden />
+              {t(`kind_${message.kind}`)}
+            </Badge>
+          ) : null}
 
           {mode === 'handled' ? (
             <Badge tone={STATUS_TONE[message.status] ?? 'neutral'}>
@@ -120,12 +163,11 @@ export async function QueueRow({
 
           {appointment?.serviceName ? <span>{appointment.serviceName}</span> : null}
 
-          {/* A recall has no slot to print, and the thing it is about is how
-              long it has been — which is also what the message quotes back to
-              the patient, so the reader and the recipient see the same fact. */}
+          {/* What each kind is actually about, in the same words the message
+              quotes back to the patient — so the reader and the recipient are
+              looking at one fact rather than two descriptions of it. */}
           {message.kind === 'RECALL_DUE' ? (
-            <span className="flex items-center gap-1.5">
-              <BellRing size={15} aria-hidden />
+            <span>
               {message.lastVisit
                 ? t('lastSeen', {
                     date: format.dateTime(new Date(`${message.lastVisit}T00:00:00.000Z`), {
@@ -138,8 +180,65 @@ export async function QueueRow({
             </span>
           ) : null}
 
+          {message.kind === 'POST_OP_CHECK' && message.lastVisit ? (
+            <span>
+              {t('treatedOn', {
+                date: format.dateTime(new Date(`${message.lastVisit}T00:00:00.000Z`), {
+                  day: 'numeric',
+                  month: 'long',
+                }),
+              })}
+              {message.lastVisitServices ? ` · ${message.lastVisitServices}` : ''}
+            </span>
+          ) : null}
+
+          {message.kind === 'WORK_READY' && message.work ? (
+            <span>{t('workBack', { work: message.work.label })}</span>
+          ) : null}
+
+          {message.kind === 'PLAN_NEXT_STEP' && message.plan ? (
+            <span>
+              {message.plan.title}
+              {message.plan.nextStep ? ` · ${message.plan.nextStep}` : ''}
+            </span>
+          ) : null}
+
           <span className="tabular-nums">{patient.phone || t('noPhone')}</span>
+
+          {/* The channel this patient asked for, on the one screen built for
+              sending things. The patient record has honoured `preferredChannel`
+              since it was collected; the queue was choosing WhatsApp for
+              everybody, including the people who had said not to. */}
+          {workable && patient.preferredChannel ? (
+            <span className="font-semibold text-ink-soft">
+              {t(`prefers_${patient.preferredChannel}`)}
+            </span>
+          ) : null}
         </p>
+
+        {/* Tried, refused, and coming back. The count is what separates this
+            from a row nobody has got to, which is the whole reason the section
+            exists. */}
+        {mode === 'held' ? (
+          <p className="mt-1 flex items-center gap-1.5 text-meta font-semibold text-warn">
+            <RotateCcw size={14} aria-hidden />
+            {t('triedTimes', { count: message.attempts })}
+            {' · '}
+            {t('backAt', {
+              time: format.dateTime(message.sendAfter, { hour: '2-digit', minute: '2-digit' }),
+            })}
+          </p>
+        ) : null}
+
+        {/* The address is on the record and the practice cannot use it. Said
+            out loud, because "why is the email button greyed out?" is otherwise
+            answered by nothing at all. */}
+        {workable && patient.emailBounced ? (
+          <p className="mt-1 flex items-center gap-1.5 text-meta text-ink-faint">
+            <MailWarning size={14} aria-hidden />
+            {t('emailBounced')}
+          </p>
+        ) : null}
 
         {note ? (
           <p className="mt-1 text-meta text-ink-faint">
@@ -152,7 +251,7 @@ export async function QueueRow({
       <div className="flex flex-wrap items-center gap-2">
         {!canSend ? (
           <span className="text-meta text-ink-faint">{tc('viewOnly')}</span>
-        ) : mode === 'send' && reminder ? (
+        ) : workable && reminder ? (
           <>
             <QueueSendLinks
               messageId={message.id}
@@ -160,6 +259,8 @@ export async function QueueRow({
               mail={reminder.mail}
               body={reminder.body}
               consent={patient.contactConsent}
+              preferred={patient.preferredChannel}
+              emailBounced={patient.emailBounced}
               emailAction={
                 canEmail && patient.email ? (
                   /* Reporting rather than fire-and-forget, because this one can

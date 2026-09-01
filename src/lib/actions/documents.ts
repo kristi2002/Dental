@@ -7,6 +7,7 @@ import { authorize, recordAudit } from '@/lib/auth/guard';
 import { isAllowedMimeType, MAX_FILE_BYTES } from '@/lib/file-constants';
 import { deleteStoredFile, storeFile } from '@/lib/files';
 import { prisma } from '@/lib/prisma';
+import { sameDayVisitId } from '@/lib/visit-link';
 import { isValidTooth } from '@/lib/teeth';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -65,6 +66,10 @@ export async function uploadDocument(
         toothNum: isValidTooth(toothRaw) ? toothRaw : null,
         notes: optionalString(formData.get('notes')),
         uploadedById: user.id,
+        // The visit it was taken at, where there is one written up today. See
+        // `sameDayVisitId`: a radiograph is exposed during treatment and
+        // uploaded from the patient's files tab, which knows nothing about it.
+        visitRecordId: await sameDayVisitId(patientId),
       },
       select: { id: true },
     });
@@ -146,6 +151,11 @@ export async function saveIdDocument(
         sizeBytes: file.size,
         storageKey,
         uploadedById: user.id,
+        // Deliberately not linked to a visit, unlike every other upload. An
+        // identity card is a fact about the person rather than about a
+        // treatment, and it happens to be photographed on whichever day they
+        // first walked in — filing it under that visit would say something the
+        // document does not mean.
       },
       select: { id: true },
     });

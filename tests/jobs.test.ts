@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, it } from 'node:test';
+import { locales } from '../src/i18n/routing';
 
 /**
  * The scheduler's wiring, which no unit test can reach and no reader checks.
@@ -150,6 +151,50 @@ describe('jobs — the compose file wires both halves', () => {
       compose,
       /JOBS_SWEEP_APPLY:\s*\$\{JOBS_SWEEP_APPLY:-false\}/,
       'the file-deleting job must default to reporting only',
+    );
+  });
+});
+
+/**
+ * The fourth file that has to agree: the words.
+ *
+ * A job with no `jobs.name.<name>` does not fail a build and does not fail this
+ * suite's parity check either — `messages.test.ts` compares the locales against
+ * each other, and a job added without labels is missing from all three equally.
+ * What happens instead is that the staff page logs `MISSING_MESSAGE` and prints
+ * the key path where the job's name should be, which is how three jobs reached
+ * a running dev server captioned `jobs.name.queue-post-op-checks`.
+ *
+ * Read as text for the reason the checks above are: the registry imports the
+ * database and half the message layer, and none of that is needed to ask
+ * whether somebody wrote the label.
+ */
+describe('jobs — the registry and the labels agree', () => {
+  it('names and explains every job, in every language', async () => {
+    const registry = await readFile(REGISTRY, 'utf8');
+    const defined = jobNames(registry);
+    assert.ok(defined.length > 0, 'no jobs found in the registry — the parser is wrong');
+
+    const missing: string[] = [];
+    for (const locale of locales) {
+      const messages = JSON.parse(
+        await readFile(path.join(process.cwd(), 'messages', `${locale}.json`), 'utf8'),
+      );
+      for (const name of defined) {
+        // Both halves: the card prints the name and the hint on one line, so a
+        // job with one and not the other still renders a key path on screen.
+        for (const part of ['name', 'hint'] as const) {
+          if (typeof messages.jobs?.[part]?.[name] !== 'string') {
+            missing.push(`${locale}: jobs.${part}.${name}`);
+          }
+        }
+      }
+    }
+
+    assert.deepEqual(
+      missing,
+      [],
+      `the staff page would print these key paths instead of words: ${missing.join(', ')}`,
     );
   });
 });

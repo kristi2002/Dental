@@ -6,14 +6,19 @@ import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from '../src/lib/messages/email';
 import {
   CANCEL_NOTES,
   dedupeKey,
+  isHeld,
+  MAX_COURTESY_CONTACTS,
+  monthCycle,
   noteKey,
-  recallCycle,
   reminderWindow,
+  retryAfter,
+  RETRY_MINUTES,
   SENT_NOTES,
-  shouldQueueRecall,
+  shouldQueueCourtesy,
   shouldQueueReminder,
   SKIP_NOTES,
   stillWorthSending,
+  usableEmail,
   type ReminderCandidate
 } from '../src/lib/messages/outbox';
 
@@ -257,6 +262,9 @@ describe('notes — every outcome can explain itself', () => {
       'passed',
       'set-aside',
       'no-longer-due',
+      'opted-out',
+      'window-closed',
+      'booked-in',
     ] as const;
     for (const reason of reasons) {
       assert.ok(CANCEL_NOTES[reason]?.length > 0, `no note for ${reason}`);
@@ -280,21 +288,21 @@ describe('notes — every outcome can explain itself', () => {
   });
 });
 
-describe('shouldQueueRecall — what the recall list leaves to a person', () => {
+describe('shouldQueueCourtesy — what the courtesy lists leave to a person', () => {
   const reachable = { contactConsent: null, phone: '069', email: '' };
 
   it('queues somebody the recall list has already decided is due', () => {
     // Thin on purpose. `selectRecalls` has already excluded anybody booked,
     // snoozed, recently chased or opted out of recalls entirely; what is left
     // for this to ask is only what that list deliberately does not.
-    assert.deepEqual(shouldQueueRecall(reachable), { queue: true });
+    assert.deepEqual(shouldQueueCourtesy(reachable), { queue: true });
   });
 
   it('refuses somebody who asked not to be contacted', () => {
     // The recall *list* still shows them — it is worked by a person who can see
     // the refusal on the row and ring them about something else. A queue is
     // worked down without reading, so it must not contain them at all.
-    assert.deepEqual(shouldQueueRecall({ ...reachable, contactConsent: false }), {
+    assert.deepEqual(shouldQueueCourtesy({ ...reachable, contactConsent: false }), {
       queue: false,
       reason: 'opted-out',
     });
@@ -303,31 +311,31 @@ describe('shouldQueueRecall — what the recall list leaves to a person', () => 
   it('treats "nobody asked" as permission to ask', () => {
     // Tri-state, and null is the honest state of every record predating the
     // question — which in a real practice is most of them.
-    assert.equal(shouldQueueRecall({ ...reachable, contactConsent: null }).queue, true);
-    assert.equal(shouldQueueRecall({ ...reachable, contactConsent: true }).queue, true);
+    assert.equal(shouldQueueCourtesy({ ...reachable, contactConsent: null }).queue, true);
+    assert.equal(shouldQueueCourtesy({ ...reachable, contactConsent: true }).queue, true);
   });
 
   it('refuses a patient there is no way to reach', () => {
-    assert.deepEqual(shouldQueueRecall({ ...reachable, phone: '  ', email: '' }), {
+    assert.deepEqual(shouldQueueCourtesy({ ...reachable, phone: '  ', email: '' }), {
       queue: false,
       reason: 'no-contact-details',
     });
   });
 
   it('takes an email address as a way to reach them', () => {
-    assert.equal(shouldQueueRecall({ ...reachable, phone: '', email: 'a@b.al' }).queue, true);
+    assert.equal(shouldQueueCourtesy({ ...reachable, phone: '', email: 'a@b.al' }).queue, true);
   });
 });
 
-describe('recallCycle — one row per patient per cycle', () => {
+describe('monthCycle — one row per patient per cycle', () => {
   it('is the calendar month, zero-padded', () => {
-    assert.equal(recallCycle(new Date('2026-08-26T00:00:00.000Z')), '2026-08');
-    assert.equal(recallCycle(new Date('2026-01-01T00:00:00.000Z')), '2026-01');
-    assert.equal(recallCycle(new Date('2026-12-31T23:59:59.000Z')), '2026-12');
+    assert.equal(monthCycle(new Date('2026-08-26T00:00:00.000Z')), '2026-08');
+    assert.equal(monthCycle(new Date('2026-01-01T00:00:00.000Z')), '2026-01');
+    assert.equal(monthCycle(new Date('2026-12-31T23:59:59.000Z')), '2026-12');
   });
 
   it('builds a key that cannot collide with a reminder', () => {
-    const key = dedupeKey('RECALL_DUE', 'p1', recallCycle(new Date('2026-08-26T00:00:00.000Z')));
+    const key = dedupeKey('RECALL_DUE', 'p1', monthCycle(new Date('2026-08-26T00:00:00.000Z')));
     assert.equal(key, 'recall:p1:2026-08');
     assert.notEqual(key, dedupeKey('APPOINTMENT_REMINDER', 'p1'));
   });
@@ -337,9 +345,9 @@ describe('recallCycle — one row per patient per cycle', () => {
     // to, so nobody is queued twice for one overdue check-up; and short enough
     // that somebody still overdue in November is asked about again rather than
     // dropping out for ever after one unanswered August.
-    const august = dedupeKey('RECALL_DUE', 'p1', recallCycle(new Date('2026-08-02T00:00:00.000Z')));
-    const laterAugust = dedupeKey('RECALL_DUE', 'p1', recallCycle(new Date('2026-08-29T00:00:00.000Z')));
-    const september = dedupeKey('RECALL_DUE', 'p1', recallCycle(new Date('2026-09-01T00:00:00.000Z')));
+    const august = dedupeKey('RECALL_DUE', 'p1', monthCycle(new Date('2026-08-02T00:00:00.000Z')));
+    const laterAugust = dedupeKey('RECALL_DUE', 'p1', monthCycle(new Date('2026-08-29T00:00:00.000Z')));
+    const september = dedupeKey('RECALL_DUE', 'p1', monthCycle(new Date('2026-09-01T00:00:00.000Z')));
 
     assert.equal(august, laterAugust);
     assert.notEqual(august, september);
@@ -393,5 +401,140 @@ describe('outbox — the reminder window', () => {
       covers(tueMorning, tuesday),
       "Tuesday's morning run must still cover Tuesday — that is the whole point of the second trigger",
     );
+  });
+});
+
+/**
+ * The ceiling that four lists could not see between them.
+ *
+ * Each courtesy list has always declined to be the second message *of its own
+ * kind*; none of them could see the other three. These are about the rule that
+ * finally counts them together, and about the order it is reported in — a skip
+ * for "we have written twice this week" must never be mistaken for a refusal,
+ * because one comes back next week and the other does not.
+ */
+describe('the contact ceiling — how much one patient hears in a week', () => {
+  const reachable = { contactConsent: null, phone: '069 000 000', email: 'a@b.al' };
+
+  it('queues somebody who has heard nothing', () => {
+    assert.deepEqual(shouldQueueCourtesy({ ...reachable, recentContacts: 0 }), { queue: true });
+  });
+
+  it('still queues at one below the ceiling', () => {
+    const decision = shouldQueueCourtesy({
+      ...reachable,
+      recentContacts: MAX_COURTESY_CONTACTS - 1,
+    });
+    assert.deepEqual(decision, { queue: true });
+  });
+
+  it('refuses at the ceiling and above it', () => {
+    for (const count of [MAX_COURTESY_CONTACTS, MAX_COURTESY_CONTACTS + 5]) {
+      assert.deepEqual(shouldQueueCourtesy({ ...reachable, recentContacts: count }), {
+        queue: false,
+        reason: 'recently-contacted',
+      });
+    }
+  });
+
+  it('treats an absent count as nought, so a caller that cannot count still queues', () => {
+    assert.deepEqual(shouldQueueCourtesy(reachable), { queue: true });
+  });
+
+  it('reports a refusal ahead of a ceiling, because only one of them comes back', () => {
+    const decision = shouldQueueCourtesy({
+      ...reachable,
+      contactConsent: false,
+      recentContacts: 99,
+    });
+    assert.deepEqual(decision, { queue: false, reason: 'opted-out' });
+  });
+
+  it('reports missing details ahead of a ceiling', () => {
+    const decision = shouldQueueCourtesy({
+      contactConsent: null,
+      phone: '',
+      email: '',
+      recentContacts: 99,
+    });
+    assert.deepEqual(decision, { queue: false, reason: 'no-contact-details' });
+  });
+});
+
+/**
+ * An address the provider has told us does not work.
+ *
+ * The whole point is that a bounce makes an address *absent* rather than
+ * forbidden: a patient with a telephone is queued exactly as before, and only a
+ * patient with nothing else falls out — as a skip somebody can act on rather
+ * than as a message nobody would ever receive.
+ */
+describe('usableEmail — what a bounce does to an address', () => {
+  it('passes an address nothing has been said about', () => {
+    assert.equal(usableEmail('a@b.al', null), 'a@b.al');
+    assert.equal(usableEmail('a@b.al', { bouncedAt: null, kind: null }), 'a@b.al');
+  });
+
+  it('retires an address that hard-bounced, was blocked, or drew a complaint', () => {
+    for (const kind of ['HARD', 'BLOCKED', 'SPAM']) {
+      assert.equal(usableEmail('a@b.al', { bouncedAt: new Date(), kind }), '');
+    }
+  });
+
+  it('keeps one that merely bounced softly — a full mailbox empties again', () => {
+    assert.equal(usableEmail('a@b.al', { bouncedAt: new Date(), kind: 'SOFT' }), 'a@b.al');
+  });
+
+  it('is still empty for a patient who never gave one', () => {
+    assert.equal(usableEmail(null, null), '');
+    assert.equal(usableEmail('   ', null), '');
+  });
+
+  it('leaves the rest of the rules to decide what that means', () => {
+    // A bounced address and a telephone is still somebody worth queueing.
+    const decision = shouldQueueCourtesy({
+      contactConsent: null,
+      phone: '069 000 000',
+      email: usableEmail('a@b.al', { bouncedAt: new Date(), kind: 'HARD' }),
+    });
+    assert.deepEqual(decision, { queue: true });
+  });
+});
+
+/**
+ * A send the provider refused, and how long it stays out of the way.
+ *
+ * The distinction being protected here is the one the queue screen is built on:
+ * a row nobody has tried and a row tried three times must not look alike.
+ */
+describe('retryAfter — a refused send steps aside', () => {
+  const now = new Date('2026-09-01T09:12:00.000Z');
+
+  it('waits longest for a used-up daily allowance and least for a blip', () => {
+    assert.ok(RETRY_MINUTES.limit > RETRY_MINUTES.auth);
+    assert.ok(RETRY_MINUTES.auth > RETRY_MINUTES.unreachable);
+  });
+
+  it('always moves forward, never back', () => {
+    for (const failure of ['auth', 'rejected', 'limit', 'unreachable'] as const) {
+      assert.ok(retryAfter(failure, now).getTime() > now.getTime(), failure);
+    }
+  });
+
+  it('is exactly the table, so the wait can be read off it', () => {
+    assert.equal(
+      retryAfter('unreachable', now).toISOString(),
+      new Date('2026-09-01T09:17:00.000Z').toISOString(),
+    );
+  });
+
+  it('holds a row only while the wait is running and only if it was tried', () => {
+    const later = retryAfter('limit', now);
+
+    assert.equal(isHeld({ attempts: 1, sendAfter: later }, now), true);
+    // Nobody has tried it: it is waiting to be worked, not waiting to come back.
+    assert.equal(isHeld({ attempts: 0, sendAfter: later }, now), false);
+    // The wait is up. Back on the main list, where the count still shows.
+    assert.equal(isHeld({ attempts: 3, sendAfter: now }, later), false);
   });
 });

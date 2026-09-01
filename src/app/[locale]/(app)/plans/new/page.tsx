@@ -8,6 +8,7 @@ import { TreatmentStepStatus } from '@/generated/prisma/enums';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
 import { getClinicProfile, getServiceOptions } from '@/lib/queries';
+import { chartedTeethOf } from '@/lib/tooth-chart';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,18 +91,13 @@ export default async function NewPlanPage({
             firstName: true,
             lastName: true,
             phone: true,
-            teethRecords: { select: { toothNum: true, status: true, surfaces: true } },
+            toothFindings: { select: { toothNum: true, status: true, surfaces: true } },
           },
         })
       : Promise.resolve(null),
   ]);
 
-  const charted = Object.fromEntries(
-    (patient?.teethRecords ?? []).map((record) => [
-      record.toothNum,
-      { status: record.status, surfaces: record.surfaces ?? '' },
-    ]),
-  );
+  const charted = chartedTeethOf(patient?.toothFindings ?? []);
 
   const backHref = patient ? `/patients/${patient.id}?tab=plans` : '/plans';
   const patientName = patient ? `${patient.lastName} ${patient.firstName}`.trim() : '';

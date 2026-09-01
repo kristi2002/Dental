@@ -119,6 +119,12 @@ model StaffUser {
   /// `AppointmentRequest`.
   requestsHandled AppointmentRequest[] @relation("AppointmentRequestHandler")
 
+  /// Chart authorship: the findings this person made, and the examinations they
+  /// signed. Named because "who edited the chart" already lives in the audit
+  /// log and answers a different question — see `ToothFinding.recordedById`.
+  toothFindings ToothFinding[] @relation("ToothFindingRecorder")
+  chartExams    ChartExam[]    @relation("ChartExaminer")
+
   @@index([active])
 }
 
@@ -199,6 +205,25 @@ model Patient {
   phone         String
   email         String?
   dateOfBirth   DateTime?
+
+  /// Recorded because the clinical record turns on it and nothing here could
+  /// say it.
+  ///
+  /// Three things in this app already need the answer and were guessing or
+  /// silent: the periodontal charting, where risk and progression are read
+  /// differently; radiography, where the question asked before every exposure
+  /// has a different weight; and `MedicalAlertKind.PREGNANCY`, which the schema
+  /// has modelled since alerts existed while the record it hangs off could not
+  /// state the fact that makes it askable. It is also on every referral letter
+  /// and consent form the practice prints, which is the same argument
+  /// `address` and `fiscalCode` are here for.
+  ///
+  /// Nullable, and null is not "unknown male" — it is nobody having asked,
+  /// which is the honest state of every record written before this column and
+  /// of anybody who would rather not say. `OTHER` is a separate answer from the
+  /// absence of one, which is why both exist.
+  sex           PatientSex?
+
   medicalNotes  String?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
@@ -207,6 +232,7 @@ model Patient {
   teethRecords  ToothRecord[]
   perioExams    PerioExam[]
   toothFindings ToothFinding[]
+  chartExams    ChartExam[]
   waitlist      WaitlistEntry[]
   plans         TreatmentPlan[]
   documents     PatientDocument[]
@@ -219,10 +245,34 @@ model Patient {
   works             Work[]
   followUps         FollowUp[]
 
+  /// Enquiries off the public page that turned out to be this person. See
+  /// `AppointmentRequest.patientId` — the link is made by the desk, on purpose,
+  /// and it is what lets the practice count how many strangers became patients.
+  requests          AppointmentRequest[]
+
   /// Whether they have agreed to be messaged. Deliberately tri-state: `null`
   /// means nobody has asked yet, which is a different thing from "no" and is
   /// the honest state of every record that predates the question.
+  ///
+  /// Set by three hands now, and the third is the patient's own: every message
+  /// that is not about a slot they booked carries a signed opt-out link, and
+  /// following it writes `false` here. See `src/lib/opt-out.ts`.
   contactConsent   Boolean?
+
+  /// The day the provider told us this address does not work.
+  ///
+  /// Until something read the provider's delivery events, "sent" meant "the
+  /// provider accepted it" and nothing more: an address that died two years ago
+  /// was written to for ever, every send reporting success. This is the app
+  /// finally being told, and the rules treat a bounced address as no address at
+  /// all — the patient still has a telephone, so the queue still queues them.
+  ///
+  /// Cleared by editing the address, because a new address is a new answer to
+  /// the question this column records.
+  emailBouncedAt   DateTime?
+  /// Which of the four ways it failed, so the record can say whether this is a
+  /// typo, a full mailbox, or somebody who marked the practice as spam.
+  emailBounceKind  EmailBounceKind?
   preferredChannel ContactChannel?
   /// Which language to write to them in. Falls back to the app's default —
   /// without it, reminders go out in whichever language the *receptionist*
@@ -281,9 +331,39 @@ model Patient {
   @@index([lastName, firstName])
   /// Every list filters it out, so it leads the ordering index the lists use.
   @@index([archivedAt])
-  @@index([searchKey])
+  /// A **trigram** index, because the search is `contains` and a B-tree cannot
+  /// answer one.
+  ///
+  /// The column's own comment claimed "one folded column, one comparison,
+  /// indexable" and got two of the three. `searchKey` really did collapse four
+  /// `ILIKE` comparisons into one, and it really is folded — but the comparison
+  /// `patient-search.ts` issues is `LIKE '%bekim%'`, and a leading wildcard is
+  /// exactly the shape a B-tree cannot start from. So the index was built,
+  /// maintained on every write, and never once used: every search was the
+  /// sequential scan the column was added to avoid.
+  ///
+  /// `gin_trgm_ops` is the index that answers that comparison, and the reason
+  /// the migration installs `pg_trgm` alongside it. It costs more to build and
+  /// more to keep than the B-tree did, which is the correct trade for an index
+  /// that is actually read.
+  @@index([searchKey(ops: raw("gin_trgm_ops"))], type: Gin)
   /// "A patient with this number already exists" needs to be a lookup, not a scan.
   @@index([phone])
+}
+
+/// How the record answers a question the clinical half of this app keeps
+/// asking. See `Patient.sex`.
+///
+/// Three values, and the third is not a tidy-up. A record that can say only
+/// *female* or *male* forces whoever is typing to pick one of them for somebody
+/// they are looking at, which is the practice putting a guess into a medical
+/// record; leaving the field null would say "nobody asked", which is a
+/// different and now untrue thing. `OTHER` is what lets the desk record the
+/// answer they were actually given.
+enum PatientSex {
+  FEMALE
+  MALE
+  OTHER
 }
 
 model Appointment {
@@ -368,16 +448,29 @@ model Appointment {
   visitRecords      VisitRecord[]
 
   @@index([date])
-  @@index([patientId])
+  /// "This patient's appointments, newest first", which is what the patient
+  /// page, the print sheet and `patientAuditIds` all ask. `patientId` alone
+  /// answered the filter and then handed the ordering to a sort — fine on the
+  /// four rows a new patient has, and this is the table a twenty-year record
+  /// accumulates most of.
+  @@index([patientId, date])
   /// The conflict search filters on both at once.
   @@index([date, status])
   /// "The rest of this run" — asked of every appointment that belongs to one.
   @@index([seriesId])
-  /// Postgres does not index a foreign key on its own, and all three of these
-  /// are `SetNull`: retiring a service, a dentist or a chair makes the database
-  /// look for every appointment naming it, which without these is a sequential
-  /// scan of the diary — the one table here that grows for the life of the
-  /// practice and is never pruned.
+  /// Three columns something genuinely asks about, on the one table here that
+  /// grows for the life of the practice and is never pruned. Postgres does not
+  /// index a foreign key on its own, so without these each is a sequential scan
+  /// of the whole diary.
+  ///
+  ///  - `serviceId` — `deleteService` reads it to find out whether a treatment
+  ///    is still named by anything before it refuses (see `Service.archivedAt`).
+  ///  - `staffUserId` — the utilisation figures group the diary by dentist.
+  ///  - `operatoryId` — the day view is filterable to one chair.
+  ///
+  /// Note what is *not* the argument: none of these is indexed merely for being
+  /// a foreign key, and the delete-scan case is only cited where a delete can
+  /// actually happen. See the rule on `Prescription`.
   @@index([serviceId])
   @@index([staffUserId])
   @@index([operatoryId])
@@ -478,7 +571,25 @@ model PatientDocument {
   uploadedBy   StaffUser? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
 
+  /// The visit this was taken at, when it was taken at one.
+  ///
+  /// The last table on the patient's side that could not say it. `ToothRecord`,
+  /// `ToothFinding`, `PerioExam`, `ChartExam` and `StockMovement` all carry this
+  /// column, so a visit can already account for the teeth charted, the pockets
+  /// probed, the sweep signed and the boxes burnt — and then could not name the
+  /// radiograph that was exposed in the same twenty minutes. Which is the file
+  /// a disputed visit turns on.
+  ///
+  /// `SetNull` and nullable for the reasons the others give: an X-ray brought in
+  /// from another clinic belongs to nobody's visit, a file uploaded on a day
+  /// with no write-up stays unattributed, and deleting a write-up must not take
+  /// the image with it.
+  visitRecordId String?
+  visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
+
   @@index([patientId])
+  /// `SetNull`, so deleting a visit looks for every file it produced.
+  @@index([visitRecordId])
 }
 
 enum DocumentKind {
@@ -501,6 +612,13 @@ model PrescriptionTemplate {
   name     String
   category String?
   body     String
+
+  /// Retired from the picker, not erased. See `Service.archivedAt` — the same
+  /// rule, for the same reason: `Prescription.templateId` is `SetNull`, so
+  /// deleting a wording the practice has stopped using went and unlinked every
+  /// prescription ever issued from it. The issued text survives on its own row
+  /// either way; what does not is the answer to "which of these did we write".
+  archivedAt DateTime?
 
   prescriptions Prescription[]
   /// Which treatments this wording follows. See `PrescriptionTemplateService`.
@@ -540,13 +658,34 @@ model Prescription {
   issuedBy   StaffUser? @relation(fields: [issuedById], references: [id], onDelete: SetNull)
   createdAt  DateTime   @default(now())
 
+  /// The visit it was written at, when it was written at one. Same column,
+  /// same rules and the same argument as `PatientDocument.visitRecordId` —
+  /// "what happened at this visit" could account for everything done to the
+  /// mouth and not for the antibiotics sent home with the patient.
+  visitRecordId String?
+  visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
+
   @@index([patientId])
+  /// `SetNull`, so deleting a visit looks for every prescription written at it.
+  @@index([visitRecordId])
   /// `SetNull`, and `deletePrescriptionTemplate` is a real action — so deleting
   /// a piece of standard wording searched every prescription ever issued.
   ///
   /// The staff columns on this table and the others like it are deliberately
-  /// left unindexed: an account is deactivated, never deleted (see
-  /// `StaffUser.active`), so nothing ever asks the question those would answer.
+  /// left unindexed, and the rule is stated once here for the whole schema:
+  ///
+  /// **A column is indexed because something asks about it, not because it is a
+  /// foreign key.** Nineteen columns in this file point at `StaffUser`, and no
+  /// query filters on any of them — the name is read through the relation, off
+  /// the row already in hand. The other question an unindexed foreign key
+  /// answers, "find every child of the parent being deleted", is never asked
+  /// either: an account is deactivated, never deleted (see `StaffUser.active`),
+  /// and no action in the app can delete one.
+  ///
+  /// Four of the nineteen were indexed anyway and have been dropped, because a
+  /// rule with four silent exceptions reads as no rule and the next person adds
+  /// a fifth. They cost a write on every insert to the four busiest tables here
+  /// and were never once read.
   @@index([templateId])
 }
 
@@ -619,7 +758,14 @@ model VisitRecord {
   toothRecords   ToothRecord[]
   perioExams     PerioExam[]
   toothFindings  ToothFinding[]
+  chartExams     ChartExam[]
   stockMovements StockMovement[]
+  /// The paper the visit produced and the case it sent out. Every one of these
+  /// is `SetNull` on this side: a write-up deleted in error must not take the
+  /// radiograph, the prescription or the laboratory docket with it.
+  documents      PatientDocument[]
+  prescriptions  Prescription[]
+  works          Work[]
 
   /// Who recorded it — shown on the timeline, kept when the account is disabled.
   staffUserId String?
@@ -716,21 +862,79 @@ model PerioExam {
 /// Notes stay on `ToothRecord`. They are a sentence about the tooth rather than
 /// about one finding on it, they predate this table, and moving them would have
 /// lost the note on every tooth that carries one without a finding.
+/// That somebody examined this mouth, on this day.
+///
+/// The chart could not say it. A healthy tooth is a tooth with no findings —
+/// which is the right model, and it means a fully examined mouth with nothing
+/// wrong in it and a mouth nobody has ever looked in render identically: thirty-
+/// two clean teeth. Every other question the record answers has a date and a
+/// name against it; the one a complaint actually turns on — *was this patient
+/// examined, when, and by whom* — was the one thing the chart could only imply.
+///
+/// A row rather than a column on the patient, because it is an event and there
+/// is a history of them: "last examined" is the newest row, and "examined every
+/// six months for four years" is the table. The findings are not restated here —
+/// they are on the teeth, dated — so this says only that the sweep happened.
+model ChartExam {
+  id        String  @id @default(uuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  examinedAt DateTime @default(now())
+
+  /// Who examined. Nullable so that deactivating a dentist does not delete the
+  /// evidence that they examined somebody — the same call `recordedById` makes.
+  examinedById String?
+  examinedBy   StaffUser? @relation("ChartExaminer", fields: [examinedById], references: [id], onDelete: SetNull)
+
+  /// The visit it was done at, when it was done at one.
+  visitRecordId String?
+  visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
+
+  /// Anything the examiner wanted said about the sweep as a whole — "recall
+  /// check, no new findings" — as against about one tooth.
+  note String?
+
+  /// "This patient's examinations, newest first", which is the only question
+  /// asked of this table.
+  @@index([patientId, examinedAt])
+  @@index([visitRecordId])
+}
+
 model ToothFinding {
   id        String  @id @default(uuid())
   patientId String
   patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   toothNum  Int
 
-  /// One of `TOOTH_STATUSES` from `src/lib/teeth.ts`, never `HEALTHY`.
-  status String
+  /// What is true of the tooth. See `ToothFindingStatus`.
+  status ToothFindingStatus
   /// Which faces, as letters from `TOOTH_SURFACES` — e.g. `"MOD"`. Null where
   /// the finding is about the whole tooth, which `statusTakesSurfaces` decides.
   surfaces String?
 
   /// When it was recorded. The chart shows the newest first, because that is
   /// the order a tooth's story is told in.
+  ///
+  /// **The day the finding was first made, not the day the row was last
+  /// written.** `writeFindings` rewrites a tooth's whole list on every mark, so
+  /// for as long as it let this default it stamped today onto every finding on
+  /// the tooth — adding a crown in August re-dated the caries found in March,
+  /// and the chart quietly lost the one fact that separates decay found two
+  /// years ago from decay found this morning. A finding whose status survives a
+  /// rewrite carries its date across; only a genuinely new one gets today's.
   recordedAt DateTime @default(now())
+
+  /// Who found it, or null for a finding recorded before this column existed.
+  ///
+  /// The audit trail has always held this, and answers a different question:
+  /// "who has been changing this chart" rather than "who found this". The second
+  /// is the one asked at the chair and in a complaint, and reaching it through
+  /// the audit log means reading a list of every edit ever made to the patient
+  /// and matching tooth numbers by eye. It is carried across a rewrite for the
+  /// same reason `recordedAt` is — the finding is still theirs.
+  recordedById String?
+  recordedBy   StaffUser? @relation("ToothFindingRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
 
   /// The visit that recorded it, when it was recorded during one.
   visitRecordId String?
@@ -743,6 +947,40 @@ model ToothFinding {
   @@unique([patientId, toothNum, status])
   @@index([patientId])
   @@index([visitRecordId])
+}
+
+/// The findings a tooth can carry, as a type the database checks.
+///
+/// This was a `String` validated only by `isToothStatus` on the way in, which
+/// is a guard on one code path rather than a property of the column — and the
+/// unique key above is `[patientId, toothNum, status]`, so the cost of a value
+/// slipping past was not a rejected write but a *second finding*. A typo, an
+/// old spelling, a value from a branch where the palette had one more entry:
+/// each of them lands beside the real row instead of colliding with it, and the
+/// chart quietly draws two.
+///
+/// `HEALTHY` is deliberately not here. A healthy tooth is a tooth with no
+/// findings — the model this table exists to express — so it is a value the
+/// column must never hold, and an enum is the one place that can say so. The
+/// palette's own list still carries it, and `src/lib/teeth.ts` asserts at
+/// compile time that the two agree apart from that one member.
+enum ToothFindingStatus {
+  CARIES
+  FILLED
+  CROWN
+  ROOT_CANAL
+  EXTRACTED
+  IMPLANT
+  MISSING
+  SEALANT
+  FRACTURE
+  VENEER
+  BRIDGE
+  IMPACTED
+  RETAINED_ROOT
+  PERIAPICAL
+  TEMPORARY
+  WATCH
 }
 
 model ToothRecord {
@@ -859,22 +1097,6 @@ model StockItem {
   quantity Int    @default(0)
   minLimit Int    @default(5)
 
-  /// What the shelf used to be counted in, back when every material named its
-  /// own unit — "fiola", "copë", "litra", "pcs".
-  ///
-  /// Dead. Nothing reads it and no form asks for it: the app counts boxes and
-  /// says so, in one word, in one place (`BOX_UNIT` in `src/lib/units.ts`). Ten
-  /// units meant ten different words on ten rows of one list, and a reader
-  /// holding a carton had to translate each one back into "how many of these are
-  /// on the shelf" — which was always the actual question.
-  ///
-  /// Kept because dropping a populated column is a decision, not a tidy-up —
-  /// no longer because the deploy cannot carry it, which was the reason while it
-  /// ran `db push`. A migration could drop this in reviewed SQL whenever the
-  /// practice is sure. New rows are written "box" in the meantime, for the day
-  /// somebody wants the old wording back and finds it never left.
-  unit String @default("box")
-
   updatedAt DateTime @updatedAt
 
   /// The product this is one variant of — the same box in a different shade,
@@ -912,18 +1134,6 @@ model StockItem {
   categoryId String?
   category   StockCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
-  /// What `category` used to be: whatever anyone typed into a free-text box.
-  ///
-  /// Superseded by `categoryId`. `@map` keeps the database column exactly where
-  /// it was, which is what let the value survive the rename at all:
-  /// `getStockCategories` reads it once, turns each distinct spelling into a
-  /// `StockCategory`, and clears it. Nothing writes it again.
-  ///
-  /// Kept now only until somebody confirms every practice has been through that
-  /// adoption pass — the deploy replays migrations, so dropping it is a
-  /// migration away rather than impossible.
-  legacyCategory String? @map("category")
-
   /// The practice's own article number, as written on the shelf label.
   ///
   /// A uuid is the database's name for a row, not the clinic's name for a
@@ -959,7 +1169,7 @@ model StockItem {
   /// an answer everybody already knows.
   location String?
 
-  /// What one `unit` costs to buy — the last price actually paid.
+  /// What one box costs to buy — the last price actually paid.
   ///
   /// Set by hand, or overwritten by a delivery that records what it cost, so
   /// the figure ages with the invoices rather than with whoever last edited the
@@ -967,17 +1177,6 @@ model StockItem {
   /// an unpriced material is left out of the valuation instead of counted as 0.
   unitPrice Decimal? @db.Decimal(12, 2)
 
-  /// How many pieces were in one box — 100 gloves.
-  ///
-  /// Dead, like `unit`, and for a blunter reason: nobody could keep it true. It
-  /// asked the practice to state a number the supplier changes without telling
-  /// anyone, in return for printing the order form in pieces — an order nobody
-  /// places in pieces. The shelf is boxes, the order is boxes, the ledger is
-  /// boxes, and every screen now says so in the same word.
-  ///
-  /// Kept for the reason `unit` is: dropping a populated column is a decision
-  /// nobody has made, rather than one the deploy cannot carry.
-  packSize Int @default(1)
 
   /// How many boxes to buy once the minimum is reached.
   ///
@@ -1006,7 +1205,6 @@ model StockItem {
   archivedAt DateTime?
 
   movements  StockMovement[]
-  usedBy     ServiceMaterial[]
   batches    StockBatch[]
   barcodes   ProductBarcode[]
   followUps  FollowUp[]
@@ -1161,6 +1359,14 @@ model Supplier {
   phone String?
   email String?
   notes String?
+
+  /// Retired, not erased. `StockItem.supplierId` and `PurchaseOrder.supplierId`
+  /// are both `SetNull`, so deleting a supplier the practice has stopped buying
+  /// from went and detached every order ever placed with them from the row that
+  /// says who they were. The order keeps `supplierName` and can still be read;
+  /// what it loses is the telephone number, and "who did we buy this from" stops
+  /// being a question the register can answer by following a link.
+  archivedAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -1350,10 +1556,10 @@ model StockMovement {
   /// serves the plain "movements for this material" lookup.
   @@index([itemId, createdAt])
   /// The ledger is append-only and never pruned, which makes it the largest
-  /// table in the database and the worst one to scan. Both of these are
-  /// `SetNull`, so deleting a visit or an account did exactly that.
+  /// table in the database and the worst one to scan — so the one `SetNull`
+  /// parent that can actually be deleted gets an index. The staff column does
+  /// not; see the rule on `Prescription`.
   @@index([visitRecordId])
-  @@index([staffUserId])
 }
 
 /// A heading in the treatment catalogue — a department, or one subdivision of a
@@ -1394,21 +1600,29 @@ model Service {
   categoryId String?
   category   ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
-  /// What `category` used to be: whatever anyone typed into a free-text box.
+  /// Retired from the catalogue, not erased — the rule `StockItem`, `Lab` and
+  /// `Patient` already live under, and it is overdue here more than on any of
+  /// them.
   ///
-  /// Superseded by `categoryId`. `@map` keeps the database column exactly where
-  /// it was, which is what let the value survive the rename at all:
-  /// `getServiceCategories` reads it once, turns each distinct spelling into a
-  /// top-level `ServiceCategory`, and clears it. Nothing writes it again.
+  /// Four tables point at this row and every one of them is `SetNull`:
+  /// `VisitService`, `Appointment`, `TreatmentStep`, `WaitlistEntry`. So
+  /// deleting a treatment the practice has stopped offering used to unlink
+  /// every visit that ever performed it, every slot that ever booked it and
+  /// every plan that still intends it — silently, in one statement, and
+  /// retroactively changing what the statistics page reports about last year.
   ///
-  /// Kept now only until somebody confirms every practice has been through that
-  /// adoption pass — the deploy replays migrations, so dropping it is a
-  /// migration away rather than impossible.
-  legacyCategory String? @map("category")
+  /// Which is precisely the failure `VisitService` was created to prevent. Its
+  /// own comment calls the free-text service name "the single most consequential
+  /// thing the schema did not have", because a rename split a treatment's
+  /// history in two; a delete did the same thing and worse, and the id that was
+  /// added to stop it was `SetNull` all along.
+  ///
+  /// An archived treatment leaves every picker and stays on every record that
+  /// names it. `deleteService` survives for the case archiving cannot answer —
+  /// a row typed in by mistake that nothing has ever pointed at — and refuses
+  /// as soon as anything does.
+  archivedAt DateTime?
 
-  /// Retired — see `ServiceMaterial`. Declared because Prisma requires both
-  /// sides of a relation, not because anything reads it.
-  materials             ServiceMaterial[]
   visits                VisitService[]
   appointments          Appointment[]
   waitlist              WaitlistEntry[]
@@ -1452,37 +1666,6 @@ model VisitService {
   position Int @default(1)
 
   @@index([visitId])
-  @@index([serviceId])
-}
-
-/// Retired. Nothing in the application reads or writes this table.
-///
-/// It was the bill of materials for a treatment: set once per service, and
-/// recording a visit deducted it. Consumption is now recorded by scanning the
-/// product itself (see `ProductBarcode`), which is both more accurate — the
-/// actual box, its actual lot — and honest about the case a bill of materials
-/// could never handle, where a treatment used two anaesthetic carpules instead
-/// of the one the catalogue predicted.
-///
-/// Still declared because the table still holds rows, and dropping a populated
-/// table is a decision rather than a tidy-up. It is no longer *blocked*, though:
-/// the deploy replays migrations now, so a migration could empty and drop it in
-/// reviewed SQL — which is what `prisma/drop-service-materials.ts` does by hand
-/// today.
-///
-/// To be rid of it: fold that script into a migration, then delete this model
-/// and the two relation fields that name it (`Service.materials`,
-/// `StockItem.usedBy`). What is wanted before that is somebody deciding the
-/// bills of materials are genuinely not coming back.
-model ServiceMaterial {
-  id        String    @id @default(uuid())
-  serviceId String
-  service   Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  itemId    String
-  item      StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  quantity  Int       @default(1)
-
-  @@unique([serviceId, itemId])
   @@index([serviceId])
 }
 
@@ -1560,10 +1743,48 @@ model Contact {
   actorId String?
   actor   StaffUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
+  /// The queue row this answers, when it came off the queue rather than off a
+  /// patient's own screen.
+  ///
+  /// The two rows are written in one transaction by `sendQueuedMessage` and
+  /// were nevertheless strangers: the queue recorded what happened to it as a
+  /// `note` — a *sentence*, matched later against `SENT_NOTES` to work out which
+  /// button had been pressed — and the contact recorded what was said with
+  /// nothing to say why. So "did this reminder actually go out, and what was in
+  /// it" needed a human to line up two tables by patient and timestamp, which is
+  /// the same guess-by-calendar-day that `VisitRecord.appointmentId` exists to
+  /// stop.
+  ///
+  /// Unique: a queue row is resolved once. The send is guarded on `PENDING`
+  /// inside the transaction, so two people pressing at once already produce one
+  /// contact — this is the database saying so rather than the action being
+  /// trusted to.
+  ///
+  /// `SetNull` rather than cascade. The contact is the record that a patient was
+  /// written to, which has to outlive the queue's own housekeeping; the reverse
+  /// is not true, which is why the queue is the side that may go.
+  scheduledMessageId String?           @unique
+  scheduledMessage   ScheduledMessage? @relation(fields: [scheduledMessageId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
 
   @@index([patientId, createdAt])
   @@index([appointmentId])
+}
+
+/// How a provider says an address did not work.
+///
+/// Four values because each one has a different person doing something about
+/// it, which is the test `MailFailure` already applies to sending: `HARD` is a
+/// wrong address somebody retypes, `SOFT` is a full mailbox that may well work
+/// next week, `BLOCKED` is the practice's domain being refused by the far side,
+/// and `SPAM` is the patient themselves having said no in the strongest terms
+/// their mail client offers — which is why that one also closes consent.
+enum EmailBounceKind {
+  HARD
+  SOFT
+  BLOCKED
+  SPAM
 }
 
 enum ContactChannel {
@@ -1742,17 +1963,36 @@ model Work {
   /// the same reasoning, as `WaitlistEntry.urgent`.
   urgent Boolean @default(false)
 
+  /// The visit the impression was taken at, when it was taken at one.
+  ///
+  /// The register knew who the case was for and not what produced it. Every
+  /// other clinical record made in that twenty minutes can name the visit — the
+  /// teeth charted, the pockets probed, the boxes burnt, and now the radiograph
+  /// and the prescription — while the one that leaves the building could only
+  /// say "Berisha, some time in March". So "what did this appointment actually
+  /// cost us" stopped at the door, and a case whose impression was retaken had
+  /// no way to say which visit it belonged to.
+  ///
+  /// Nullable and `SetNull`, like the rest: a case logged for somebody whose
+  /// visit was never written up keeps working, and deleting a write-up must not
+  /// take the laboratory's docket with it.
+  visitRecordId String?
+  visitRecord   VisitRecord? @relation(fields: [visitRecordId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lines     WorkLine[]
-  followUps FollowUp[]
+  lines             WorkLine[]
+  followUps         FollowUp[]
+  scheduledMessages ScheduledMessage[]
 
   /// The register is read a month at a time, newest first, and searched by the
   /// laboratory's serial.
   @@index([sentAt])
   @@index([patientId])
   @@index([labSerial])
+  /// `SetNull`, so deleting a write-up looks for every case it sent out.
+  @@index([visitRecordId])
   /// "What is late" reads the open cases by promised date, so both columns are
   /// in the index the question is asked of.
   @@index([receivedAt, dueAt])
@@ -1796,14 +2036,37 @@ model WorkLine {
   /// repair, a bite splint.
   teeth String?
 
-  /// What is being made — a crown, a bridge, a denture, a repair.
+  /// What is being made — a crown, a bridge, a denture, a repair — in the words
+  /// that were on the docket.
   ///
-  /// The *name*, not a link to `WorkProcedure`, for the reason `patientName` is
-  /// a copy and not a lookup: this row is a record of a docket that has already
-  /// left the building, and renaming an entry in the catalogue two years later
-  /// must not rewrite what was sent in March. The catalogue is where the form
-  /// gets its options; this is what was chosen.
+  /// A copy and not a lookup, for the reason `patientName` is one: this row
+  /// records a slip that has already left the building, and renaming an entry
+  /// in the catalogue two years later must not rewrite what was sent in March.
+  /// It stays the thing the row prints.
   procedure String
+
+  /// Which entry in the catalogue it was, as a row that can be counted.
+  ///
+  /// The snapshot above used to be the whole answer, on the argument that the
+  /// catalogue is where the form gets its options and this is what was chosen.
+  /// That argument is right about *printing* and wrong about the register's
+  /// actual job. `WorkProcedure` exists — directly below this — because a
+  /// zirconia crown went out as three spellings in one week and "nothing could
+  /// be counted, and the register's whole job is counting". A name-only line
+  /// does not fix that; it moves it. Every spelling the old text box left behind
+  /// is still its own bucket, and a rename in the catalogue splits a procedure's
+  /// history in two exactly as the free-text box did.
+  ///
+  /// `lab`, three fields up, had the identical argument made for it and then
+  /// reversed for the identical reason. This is the same reversal, and it makes
+  /// the pair symmetrical: a name for the docket, an id for the quarter's
+  /// invoice.
+  ///
+  /// Nullable and `SetNull`: a line written before this existed keeps its text
+  /// and has no row, a one-off nobody catalogued keeps working, and retiring a
+  /// kind of work must not take the register's history with it.
+  procedureId  String?
+  procedureRef WorkProcedure? @relation(fields: [procedureId], references: [id], onDelete: SetNull)
 
   /// Which laboratory, as it was written on the docket.
   ///
@@ -1836,9 +2099,11 @@ model WorkLine {
   labRef Lab?    @relation(fields: [labId], references: [id], onDelete: SetNull)
 
   @@index([workId])
-  /// "Everything we sent to this laboratory", which is the question a quarter's
-  /// invoice is checked against and the reason this column exists.
+  /// "Everything we sent to this laboratory", and "how many crowns did we send
+  /// at all" — the two questions a quarter's invoice is checked against, and
+  /// the reason both columns exist.
   @@index([labId])
+  @@index([procedureId])
 }
 
 /// A laboratory the practice sends work to.
@@ -1889,7 +2154,17 @@ model WorkProcedure {
   id   String @id @default(uuid())
   name String
 
+  /// Retired, not erased — which only became a distinction worth drawing once
+  /// `WorkLine.procedureId` existed. While the catalogue was a list of options
+  /// and nothing more, deleting a typo was free and the doc comment on
+  /// `deleteWorkProcedure` said so. Now that lines point here, deleting one
+  /// unlinks every case that named it, and a practice that stops sending a kind
+  /// of work still has to be able to count what it sent.
+  archivedAt DateTime?
+
   createdAt DateTime @default(now())
+
+  lines WorkLine[]
 }
 
 /// How loudly a follow-up asks. Two values on purpose, like `Work.urgent`: a
@@ -2004,7 +2279,6 @@ model FollowUp {
   /// The bell's own query: what is still open, soonest first. `doneAt` leads
   /// because filtering the closed lines away is the first thing every read does.
   @@index([doneAt, dueAt])
-  @@index([assignedToId])
   @@index([patientId])
   @@index([workId])
   @@index([stockItemId])
@@ -2059,11 +2333,35 @@ model ScheduledMessage {
 
   /// The earliest this may go out.
   ///
-  /// Carries little weight while a human presses send — the queue simply shows
-  /// what is due, and "quiet hours" are whatever hour the job runs at. It earns
-  /// its keep the day anything sends by itself, which is why it is here now
-  /// rather than added later to a table full of rows that lack it.
+  /// It began as a column for the day something sends by itself, and it earned
+  /// its keep before that day arrived: a send that the provider *refused* pushes
+  /// this forward rather than failing the row, so a queue worked at nine does
+  /// not offer the same broken button nine times before somebody gives up. The
+  /// screen reads it — a row whose moment has not come sits in its own section
+  /// with the time it comes back, instead of being silently hidden or silently
+  /// shown. See `retryAfter` in `src/lib/messages/outbox.ts`.
   sendAfter DateTime
+
+  /// How many times somebody has pressed send on this row and been refused.
+  ///
+  /// Nought is the ordinary state and means "nobody has tried", which is the
+  /// distinction this column exists to make: a `note` explaining a refusal looks
+  /// exactly like a `note` explaining a skip, so a provider outage at nine in the
+  /// morning left ten rows indistinguishable from ten nobody had got to.
+  attempts      Int       @default(0)
+  /// When that last happened. Read beside `sendAfter` to say "tried at 09:12,
+  /// back at 09:27" rather than making the reader work it out.
+  lastAttemptAt DateTime?
+
+  /// The case at the laboratory this is about, when it is about one.
+  ///
+  /// The second nullable subject on this table and it earns its place the same
+  /// way `appointmentId` does: the wording quotes what the thing *is* — "your
+  /// crown is back" — and that description has to be read at compose time, not
+  /// copied onto the row. Cascades for the same reason too: a deleted case has
+  /// nothing left to tell anybody about.
+  workId String?
+  work   Work?   @relation(fields: [workId], references: [id], onDelete: Cascade)
 
   /// When it stopped being PENDING, and who did that. Null while it waits.
   resolvedAt   DateTime?
@@ -2078,10 +2376,16 @@ model ScheduledMessage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// What was actually put in front of the patient when this was sent. See
+  /// `Contact.scheduledMessageId` — at most one, which is why this side is
+  /// singular.
+  contact Contact?
+
   /// The queue's own question: what is still waiting, soonest first.
   @@index([status, sendAfter])
   @@index([patientId])
   @@index([appointmentId])
+  @@index([workId])
 }
 
 enum MessageKind {
@@ -2100,6 +2404,37 @@ enum MessageKind {
   /// this table growing a period column, which is the shape `dedupeKey`'s own
   /// doc comment reserved for it.
   RECALL_DUE
+
+  /// "It has been four days since we treated you — how are you getting on?"
+  ///
+  /// The wording and the rule both existed already: the recall screen has had a
+  /// post-treatment list since it was written, and `selectFollowUps` decides who
+  /// is on it. What it did not have was the queue — so a courtesy that matters
+  /// most in the four days after a surgical visit depended on somebody opening
+  /// the right screen inside a window four days wide.
+  ///
+  /// Keyed by the visit day (`postop:<patientId>:2026-08-30`), so a patient
+  /// treated twice in a fortnight is asked about twice, and a job that runs
+  /// every morning through the window asks once.
+  POST_OP_CHECK
+
+  /// "Your crown is back from the laboratory."
+  ///
+  /// The one message on this list the patient is actively waiting for. The
+  /// register has known since `receivedAt` existed; the patient found out when
+  /// somebody remembered to ring. Keyed by the case (`work:<workId>`) — one
+  /// arrival, one message, ever.
+  WORK_READY
+
+  /// "There is a step of your treatment still to do — shall we book it?"
+  ///
+  /// A plan goes quiet for sixty days with nothing booked and `summarisePlan`
+  /// calls it stalled; the plans screen has a tab for them. This is the same
+  /// list handed to the front desk instead of waited for.
+  ///
+  /// Keyed by patient and cycle (`plan:<patientId>:2026-08`) rather than by
+  /// plan, because two stalled plans for one person are one telephone call.
+  PLAN_NEXT_STEP
 }
 
 enum MessageStatus {
@@ -2449,8 +2784,6 @@ model StockAlertDismissal {
   dismissedAt   DateTime   @default(now())
   dismissedById String?
   dismissedBy   StaffUser? @relation(fields: [dismissedById], references: [id], onDelete: SetNull)
-
-  @@index([dismissedById])
 }
 
 /// Somebody who has not been here yet, asking to be seen.
@@ -2530,6 +2863,27 @@ model AppointmentRequest {
 
   status AppointmentRequestStatus @default(NEW)
 
+  /// Who this turned out to be, once somebody registered them.
+  ///
+  /// The one edge this table was missing, and the argument against it does not
+  /// survive contact with the question the practice actually asks. The comment
+  /// above is right that a request is *not* a patient and must not write into
+  /// the book by itself — that stays true, and this column is set by the desk
+  /// afterwards, never by the form. But having refused the link outright, the
+  /// app could not answer "how many of these enquiries became patients", which
+  /// is the single figure the public page exists to move, and which
+  /// `Patient.referralSource` was added to get at from the other end.
+  ///
+  /// Set when the desk registers somebody from the request — `/patients/new`
+  /// carries the id through and `savePatient` writes it back. Null on a request
+  /// that was a wrong number, a supplier, or somebody who never came.
+  ///
+  /// `SetNull` and not cascade: erasing a patient must not also erase the
+  /// evidence that they once wrote in, which is a record of the practice's own
+  /// dealings rather than part of the clinical file.
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
   /// Who picked it up, and when. Kept rather than cleared: a request that was
   /// answered is the evidence that it was answered.
   handledAt   DateTime?
@@ -2550,6 +2904,9 @@ model AppointmentRequest {
   /// has been sitting for two days is more urgent than one that arrived this
   /// morning, which is the reverse of how every other list in this app is read.
   @@index([status, createdAt])
+  /// "Did this person write in before they were registered?", asked from the
+  /// patient's own page, and "how many enquiries converted", asked of the lot.
+  @@index([patientId])
 }
 
 /// What a stranger attached to a request: an X-ray, a report, a photograph.

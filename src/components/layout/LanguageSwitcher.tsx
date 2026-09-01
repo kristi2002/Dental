@@ -10,12 +10,20 @@ import { cn } from '@/lib/utils';
 
 export function LanguageSwitcher({
   compact = false,
-  stacked = false,
+  tone = 'brand',
 }: {
-  /** Endonyms cost ~230px; in the rail the three codes have to do instead. */
+  /** Endonyms cost ~230px; in a narrow bar the three codes have to do instead. */
   compact?: boolean;
-  /** The pinched rail: a column of codes rather than a row. */
-  stacked?: boolean;
+  /**
+   * Which ground this is sitting on.
+   *
+   * `brand` is the teal masthead the signed-out screens wear. `menu` is the
+   * account menu's white surface, where it is drawn with the same `.segmented`
+   * control as the theme and the density beside it — the three of them are one
+   * question ("how does this look to me") and should not read as three
+   * different kinds of switch.
+   */
+  tone?: 'brand' | 'menu';
 } = {}) {
   const t = useTranslations('nav');
   const active = useLocale();
@@ -32,20 +40,39 @@ export function LanguageSwitcher({
     });
   }
 
+  if (tone === 'menu') {
+    return (
+      <div className="segmented w-full" role="group" aria-label={t('language')}>
+        {locales.map((locale) => (
+          <button
+            key={locale}
+            type="button"
+            lang={locale}
+            disabled={pending}
+            className="segment flex-1"
+            aria-pressed={locale === active}
+            title={localeLabels[locale]}
+            onClick={() => switchTo(locale)}
+          >
+            <span aria-hidden className="text-meta font-bold">
+              {localeShortLabels[locale]}
+            </span>
+            <span className="sr-only">{localeLabels[locale]}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className={cn('flex shrink-0 items-center gap-2', stacked && 'flex-col')}>
-      <Languages
-        size={18}
-        aria-hidden
-        className={cn('text-white/85', stacked ? 'hidden' : 'hidden sm:block')}
-      />
+    <div className="flex shrink-0 items-center gap-2">
+      <Languages size={18} aria-hidden className="hidden text-white sm:block" />
       <div
         role="group"
         aria-label={t('language')}
-        className={cn(
-          'flex gap-0.5 rounded-lg border border-white/35 p-0.5',
-          stacked ? 'flex-col' : 'w-full',
-        )}
+        // white/65 on the masthead's teal, for the same reason as
+        // `.on-brand-control`: a control's boundary has to clear 3:1.
+        className="flex w-full gap-0.5 rounded-lg border border-white/65 p-0.5"
       >
         {locales.map((locale) => (
           <button
@@ -60,9 +87,9 @@ export function LanguageSwitcher({
               // brand colour it would otherwise disappear into.
               'min-h-9 rounded-md px-2 text-meta font-bold transition-colors focus-visible:outline-white',
               compact ? 'flex-1' : 'md:px-2.5',
-              locale === active
-                ? 'bg-white text-brand-deep'
-                : 'text-white/85 hover:bg-white/15 hover:text-white',
+              // Full white when it is not the chosen one — dimmed type on teal
+              // is what put the rail below AA. See `.app-rail` in `globals.css`.
+              locale === active ? 'bg-white text-brand-deep' : 'text-white hover:bg-white/15',
             )}
           >
             {/* Three endonyms are ~230px wide — more than a phone masthead or a

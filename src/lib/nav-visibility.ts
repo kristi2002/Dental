@@ -51,6 +51,16 @@ export type Hideable = {
   labels: 'nav' | 'auth';
   labelKey: string;
   group: 'start' | 'care' | 'contact' | 'practice' | 'admin';
+  /**
+   * A sub-screen, listed under the section it is filed in.
+   *
+   * The panel used to offer the fourteen top-level rows and nothing else, so
+   * the only way to be rid of the shelf-label sheet was to switch off the whole
+   * cupboard — and the shelf-label sheet is exactly the kind of row people want
+   * gone: printed once a year, and in the menu every day. The section's own
+   * name, so a run of Categories and Imports can be told apart.
+   */
+  under?: string;
 };
 
 /**
@@ -59,16 +69,36 @@ export type Hideable = {
  * It is where every session starts and where a signed-in person lands with no
  * other destination in mind. A menu whose first row can be switched off is a
  * menu somebody can lock themselves out of the front of.
+ *
+ * Every other row is here, at both levels — the sections and the lists filed
+ * under them. Switching a section off takes its whole list with it, because the
+ * section is what carries the list; switching the last of a section's own
+ * sub-rows off leaves the section as the plain link it was before it had any.
+ * See `AppShell`, which does both.
  */
 export const HIDEABLE: readonly Hideable[] = [
-  ...NAV_DESTINATIONS.filter(({ key }) => key !== 'dashboard').map(
-    ({ key, permission, group }): Hideable => ({
-      key,
-      permission,
-      labels: 'nav',
-      labelKey: key,
-      group: group ?? 'start',
-    }),
+  ...NAV_DESTINATIONS.filter(({ key }) => key !== 'dashboard').flatMap(
+    ({ key, permission, group, children }): Hideable[] => [
+      {
+        key,
+        permission,
+        labels: 'nav',
+        labelKey: key,
+        group: group ?? 'start',
+      },
+      // Directly under their section, in the rail's own order, so the panel
+      // reads as the menu it is editing rather than as an alphabet of rows.
+      ...(children ?? []).map(
+        (child): Hideable => ({
+          key: child.key,
+          permission: child.permission,
+          labels: 'nav',
+          labelKey: child.key,
+          group: group ?? 'start',
+          under: key,
+        }),
+      ),
+    ],
   ),
   // The three the account menu carries. Named here by the words that menu uses,
   // because "Opening hours" is what the reader is looking for — not "Settings",

@@ -5,7 +5,9 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
-import { getStockCategories } from '@/lib/queries';
+import { getStockCategories,
+  ACTIVE_SUPPLIERS,
+} from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +42,11 @@ export default async function NewStockItemPage({
     // "Filtek Z250", "filtek z250" and "Filtek  Z250" from becoming three
     // products holding one shade each.
     prisma.stockProduct.findMany({ orderBy: { name: 'asc' }, select: { name: true } }),
-    prisma.supplier.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.supplier.findMany({
+      where: ACTIVE_SUPPLIERS,
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
   ]);
 
   return (

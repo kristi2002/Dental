@@ -10,6 +10,7 @@ import {
   IdentityFields,
   MedicalField,
   RecordFields,
+  type PatientDefaults,
 } from '@/components/patients/PatientFields';
 import { FormActions, FormLayout, FormPreview, FormSection } from '@/components/ui/FormPage';
 import { savePatient } from '@/lib/actions/patients';
@@ -33,9 +34,25 @@ import { initials } from '@/lib/utils';
 export function NewPatientForm({
   referralSources,
   canEditMedical,
+  fromRequest,
 }: {
   referralSources: string[];
   canEditMedical: boolean;
+  /**
+   * The public enquiry this registration came out of, when there is one.
+   *
+   * Prefills what the person already typed and posts its id back, which is what
+   * `savePatient` links. Absent for the ordinary case — somebody standing at
+   * the desk — and the form is exactly what it was.
+   */
+  fromRequest?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string;
+    locale: string;
+  };
 }) {
   const t = useTranslations('patients');
   const tc = useTranslations('common');
@@ -51,7 +68,46 @@ export function NewPatientForm({
   // What the record will look like once saved, kept in step as it is typed. The
   // fields stay uncontrolled — this listens to the change events they bubble, so
   // the preview costs the form nothing and cannot fall out of sync with it.
-  const [preview, setPreview] = useState({ firstName: '', lastName: '', phone: '', dateOfBirth: '' });
+  const [preview, setPreview] = useState({
+    firstName: fromRequest?.firstName ?? '',
+    lastName: fromRequest?.lastName ?? '',
+    phone: fromRequest?.phone ?? '',
+    dateOfBirth: '',
+  });
+
+  /**
+   * The enquiry's answers, shaped as the field groups already expect them.
+   *
+   * `PatientDefaults` is the record's own shape and every field in it is
+   * required, so a partial prefill is spelled out in full rather than cast —
+   * everything an enquiry does not know is the empty string, which is what an
+   * unfilled box is anyway.
+   */
+  const prefill: PatientDefaults | undefined = fromRequest
+    ? {
+        id: '',
+        firstName: fromRequest.firstName,
+        lastName: fromRequest.lastName,
+        phone: fromRequest.phone,
+        email: fromRequest.email,
+        dateOfBirth: '',
+        sex: '',
+        medicalNotes: '',
+        recallMonths: 6,
+        // Writing in to ask for an appointment is not consent to be messaged
+        // about anything else, so this stays at "nobody has asked". The one
+        // thing the enquiry does settle is which language to write in.
+        contactConsent: '',
+        preferredChannel: '',
+        locale: fromRequest.locale,
+        guardianName: '',
+        guardianPhone: '',
+        address: '',
+        fiscalCode: '',
+        emergencyContact: '',
+        referralSource: '',
+      }
+    : undefined;
 
   const fullName = `${preview.lastName} ${preview.firstName}`.trim();
   const born = preview.dateOfBirth ? new Date(`${preview.dateOfBirth}T00:00:00.000Z`) : null;
@@ -70,6 +126,7 @@ export function NewPatientForm({
       }}
     >
       {force ? <input type="hidden" name="force" value="1" /> : null}
+      {fromRequest ? <input type="hidden" name="requestId" value={fromRequest.id} /> : null}
 
       <FormLayout
         aside={
@@ -114,7 +171,7 @@ export function NewPatientForm({
           subtitle={t('sectionIdentityHint')}
           icon={<UserRound size={22} aria-hidden />}
         >
-          <IdentityFields uid={uid} />
+          <IdentityFields uid={uid} patient={prefill} />
         </FormSection>
 
         <FormSection
@@ -123,7 +180,7 @@ export function NewPatientForm({
           icon={<MessageCircle size={22} aria-hidden />}
           className="grid gap-4 p-5 sm:grid-cols-3"
         >
-          <ContactFields uid={uid} />
+          <ContactFields uid={uid} patient={prefill} />
         </FormSection>
 
         <FormSection

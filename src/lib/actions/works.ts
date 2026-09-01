@@ -6,6 +6,7 @@ import { redirect } from '@/i18n/navigation';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { followUpFileKeys, forgetFiles } from '@/lib/cascade-files';
 import { prisma } from '@/lib/prisma';
+import { sameDayVisitId } from '@/lib/visit-link';
 import { fromDateKey, today } from '@/lib/dates';
 import { optionalString, requiredString } from '@/lib/utils';
 import { parseDraftLines } from '@/lib/works';
@@ -65,6 +66,16 @@ export async function saveWork(_prev: ActionState, formData: FormData): Promise<
     // which is the right answer for a docket being written as it goes out.
     sentAt: fromDateKey(optionalString(formData.get('sentAt'))),
     dueAt: optionalDay('dueAt'),
+    // The visit that produced the impression, where the patient is on the
+    // register and today's treatment has been written up. See `sameDayVisitId`:
+    // a docket is filled in at the chair, minutes either side of the write-up,
+    // and has no more idea of the visit's id than the chart does.
+    //
+    // Only on the first save. Re-opening a case in June to type in the lab's
+    // serial must not re-attribute a March impression to whatever happened to
+    // be written up in June — which is precisely what an unconditional
+    // same-day inference would do on every subsequent edit.
+    ...(id || !patient ? {} : { visitRecordId: await sameDayVisitId(patient.id) }),
     receivedAt: optionalDay('receivedAt'),
     // An unticked checkbox posts nothing at all, so absence is `false`.
     urgent: formData.get('urgent') !== null,
@@ -92,6 +103,18 @@ export async function saveWork(_prev: ActionState, formData: FormData): Promise<
     : [];
   const labNames = new Map(labs.map((lab) => [lab.id, lab.name]));
 
+  // The same pass for the kind of work, and word for word the same reasoning:
+  // the id arrives in a hidden field and is checked, the name is read back from
+  // the catalogue so the snapshot is its spelling rather than the browser's.
+  const procedureIds = [...new Set(lines.map((line) => line.procedureId).filter(Boolean))];
+  const procedures = procedureIds.length
+    ? await prisma.workProcedure.findMany({
+        where: { id: { in: procedureIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const procedureNames = new Map(procedures.map((procedure) => [procedure.id, procedure.name]));
+
   let savedId = id;
   try {
     await prisma.$transaction(async (tx) => {
@@ -110,7 +133,11 @@ export async function saveWork(_prev: ActionState, formData: FormData): Promise<
             workId: savedId!,
             position: index + 1,
             elements: line.elements,
-            procedure: line.procedure,
+            // The catalogue's spelling when the line names a row, the typed
+            // text when it does not — see `WorkLine.procedure`, which is the
+            // docket's copy and never moves again.
+            procedure: procedureNames.get(line.procedureId) ?? line.procedure,
+            procedureId: procedureNames.has(line.procedureId) ? line.procedureId : null,
             // The catalogue's spelling when the line names a row, the typed
             // text when it does not. See `WorkLine.lab` — the snapshot is what
             // the docket said and stays put for ever after.

@@ -88,7 +88,6 @@ const ORDER = [
   // stops the restore partway.
   'stockProducts',
   'stock',
-  'serviceMaterials',
   'productBarcodes',
   'batches',
   // After `suppliers`, `stock` and `staff`, all of which an order names. The
@@ -107,6 +106,8 @@ const ORDER = [
   'toothFindings',
   // After the visits it may name and the patients it belongs to, both above.
   'perioExams',
+  // Same two parents, same reason.
+  'chartExams',
   'plans',
   'documents',
   'templates',
@@ -114,7 +115,6 @@ const ORDER = [
   'templateServices',
   'prescriptions',
   'alerts',
-  'contacts',
   'closures',
   'waitlist',
   // The laboratory register. `workProcedures` and `labs` are free-standing
@@ -136,6 +136,12 @@ const ORDER = [
   // it is about and the staff member who resolved it — all three are foreign
   // keys, and all three are far above.
   'scheduledMessages',
+  // **After the outbox**, which it did not used to be. A contact records what
+  // was put in front of a patient, and since `Contact.scheduledMessageId` exists
+  // it may name the queue row it answers — so restoring it first is a foreign
+  // key violation that stops the restore partway, which is the failure every
+  // other comment in this list is about.
+  'contacts',
   // One row a morning, and no foreign keys at all — it holds ten integers and a
   // date. Placed here rather than first only because it reads as part of the
   // same story as the outbox above it.
@@ -170,7 +176,6 @@ const MODEL: Record<Key, string> = {
   stockCategories: 'stockCategory',
   stockProducts: 'stockProduct',
   stock: 'stockItem',
-  serviceMaterials: 'serviceMaterial',
   productBarcodes: 'productBarcode',
   batches: 'stockBatch',
   purchaseOrders: 'purchaseOrder',
@@ -185,6 +190,7 @@ const MODEL: Record<Key, string> = {
   teeth: 'toothRecord',
   toothFindings: 'toothFinding',
   perioExams: 'perioExam',
+  chartExams: 'chartExam',
   plans: 'treatmentPlan',
   documents: 'patientDocument',
   templates: 'prescriptionTemplate',

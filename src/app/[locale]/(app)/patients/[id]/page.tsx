@@ -20,6 +20,7 @@ import {
   Sparkles,
   Trash2,
   TriangleAlert,
+  UserRound,
 } from 'lucide-react';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -29,8 +30,10 @@ import { AppointmentRow } from '@/components/appointments/AppointmentRow';
 import { DocumentGallery } from '@/components/documents/DocumentGallery';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import {
+  type ChartExamStamp,
   DentalChart,
   type PerioBeforeMap,
+  type PerioMouthPoint,
   type PlannedMap,
   type ToothFileMap,
   type ToothRecordMap,
@@ -77,21 +80,42 @@ import { ID_KINDS } from '@/lib/documents';
 import { allergyLines } from '@/lib/medical';
 import { mailerStatus } from '@/lib/messages/mailer';
 import { composeTemplates } from '@/lib/messages/templates';
-import { perioSummaryOf } from '@/lib/perio';
-import { toothRecordMap } from '@/lib/tooth-chart';
+import { perioOverview, perioSummaryOf } from '@/lib/perio';
+import { chartedTeethOf, toothRecordMap, visitToothViews } from '@/lib/tooth-chart';
+import { usableEmail } from '@/lib/messages/outbox';
 import { prisma } from '@/lib/prisma';
-import { DEFAULT_TOOTH_STATUS, findingOf, headlineStatus } from '@/lib/teeth';
 import {
   getOperatoryOptions,
   getPatientAppointments,
   getProviderOptions,
   getServiceOptions,
+  ACTIVE_TEMPLATES,
 } from '@/lib/queries';
 import { clinicDisplayName, getClinicProfile } from '@/lib/queries';
 import { getReliability } from '@/lib/reliability';
 import { cn, initials, parseServiceList } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * How much periodontal history one patient page reads.
+ *
+ * Twelve hundred rows is about thirty-seven full-mouth examinations — eighteen
+ * years of six-monthly recalls on a patient whose every tooth is probed every
+ * time. It was six hundred while the chart only compared with last time; the
+ * trend line reads further back than that, and a line that stops halfway
+ * through a patient's history without saying so is worse than no line.
+ */
+const PERIO_HISTORY_ROWS = 1200;
+
+/**
+ * How many points a trend line carries.
+ *
+ * A shape read at a glance beside a number, not a chart: eight recalls is four
+ * years of history and about as much as sixty pixels can hold before the line
+ * stops being legible as a direction.
+ */
+const PERIO_TREND_POINTS = 8;
 
 const TABS = [
   'details',
@@ -193,7 +217,13 @@ export default async function PatientDetailPage({
         },
       },
       teethRecords: true,
-      toothFindings: true,
+      // Newest first, and with the person who made each one. The chart draws a
+      // tooth's findings in the order a tooth's story is told in, and it now
+      // says when each of them was found and by whom — see `ToothFinding`.
+      toothFindings: {
+        orderBy: { recordedAt: 'desc' },
+        include: { recordedBy: { select: { firstName: true, lastName: true } } },
+      },
       visitRecords: {
         orderBy: { visitDate: 'desc' },
         include: {
@@ -204,8 +234,14 @@ export default async function PatientDetailPage({
           // a comma-separated sentence), which teeth were charted during it,
           // and what came off the shelf because of it.
           services: { orderBy: { position: 'asc' } },
+          // Two tables again: what was found on a tooth that day, and the note
+          // written about the tooth. Findings left `ToothRecord` when one column
+          // stopped being able to hold a crowned, root-filled molar.
+          toothFindings: {
+            select: { toothNum: true, status: true, surfaces: true },
+          },
           toothRecords: {
-            select: { toothNum: true, status: true, surfaces: true, notes: true },
+            select: { toothNum: true, notes: true },
           },
           stockMovements: {
             select: { delta: true, item: { select: { name: true } } },
@@ -264,6 +300,10 @@ export default async function PatientDetailPage({
     getReliability(id),
     can('prescription.view')
       ? prisma.prescriptionTemplate.findMany({
+          // The picker, so retired wording is out of it. The prescriptions
+          // already issued from a retired template keep their link and their
+          // text — see `deletePrescriptionTemplate`.
+          where: ACTIVE_TEMPLATES,
           orderBy: [{ category: 'asc' }, { name: 'asc' }],
           include: { services: { select: { serviceId: true } } },
         })
@@ -373,43 +413,116 @@ export default async function PatientDetailPage({
     : {};
 
   /**
-   * The periodontal reading before the one the chart is showing, per tooth.
+   * The periodontal history: the previous reading per tooth, and the shape of
+   * every reading before that.
    *
    * `saveToothPerio` appends to `PerioExam` on every save, so the newest row for
    * a tooth mirrors the snapshot and the *second* newest is the comparison — see
-   * `PerioBefore` in `DentalChart` for why the comparison is the point.
+   * `PerioBefore` in `DentalChart` for why the comparison is the point, and why
+   * a comparison alone is not enough: "one millimetre deeper than last time" is
+   * the same sentence on a tooth being lost over four recalls and on one that
+   * has been stable for a decade.
    *
-   * **Capped, and the cap is a real limit rather than a formality.** Six hundred
-   * rows is roughly nineteen full-mouth examinations, which is a decade of
-   * six-monthly recalls for a patient whose every tooth is probed every time.
-   * Past that the oldest teeth fall off the end and simply show no comparison,
-   * which is the right failure: a missing comparison reads as missing, where a
-   * comparison against the wrong exam would read as a finding.
+   * **Capped, and the cap is a real limit rather than a formality.** Past it the
+   * oldest teeth fall off the end and simply show no comparison, which is the
+   * right failure: a missing comparison reads as missing, where a comparison
+   * against the wrong exam would read as a finding.
    *
    * One query and grouped here rather than a per-tooth `DISTINCT ON`, because
    * thirty-two round trips to answer one screen is the worse trade at this size.
    */
   const perioBefore: PerioBeforeMap = {};
+  const perioTrend: PerioMouthPoint[] = [];
   {
-    const seen = new Map<number, number>();
     const exams = await prisma.perioExam.findMany({
       where: { patientId: patient.id },
       orderBy: { recordedAt: 'desc' },
-      take: 600,
+      take: PERIO_HISTORY_ROWS,
     });
+
+    const day = (value: Date) =>
+      format.dateTime(value, { day: 'numeric', month: 'short', year: 'numeric' });
+
+    /** Each tooth's readings, newest first, which is the order they arrive in. */
+    const byTooth = new Map<number, typeof exams>();
     for (const exam of exams) {
-      const count = (seen.get(exam.toothNum) ?? 0) + 1;
-      seen.set(exam.toothNum, count);
-      // The first row per tooth is the reading already on screen.
-      if (count !== 2) continue;
-      const summary = perioSummaryOf(exam);
-      perioBefore[exam.toothNum] = {
-        on: format.dateTime(exam.recordedAt, { day: 'numeric', month: 'short', year: 'numeric' }),
-        deepest: summary.deepest,
-        worstAttachment: summary.worstAttachment,
+      const list = byTooth.get(exam.toothNum) ?? [];
+      list.push(exam);
+      byTooth.set(exam.toothNum, list);
+    }
+
+    for (const [toothNum, list] of byTooth) {
+      // The first row per tooth is the reading already on screen; the second is
+      // the comparison. A tooth probed once has no comparison and gets no
+      // entry — the trend strip is about change, and there has not been any.
+      if (list.length < 2) continue;
+      const previous = perioSummaryOf(list[1]);
+      perioBefore[toothNum] = {
+        on: day(list[1].recordedAt),
+        deepest: previous.deepest,
+        worstAttachment: previous.worstAttachment,
+        // Oldest first, which is how a line is read, and only the readings that
+        // exist: a tooth whose third-oldest examination recorded recession and
+        // no depths has no point to plot for it.
+        series: list
+          .slice(0, PERIO_TREND_POINTS)
+          .toReversed()
+          .map((row) => perioSummaryOf(row).deepest)
+          .filter((depth): depth is number => depth !== null),
       };
     }
+
+    /**
+     * And the mouth, examination by examination.
+     *
+     * Grouped by the *day*, because a full-mouth examination is thirty-two rows
+     * written within a few minutes of each other and each one of them is a
+     * tooth rather than a visit. Bleeding as a percentage of the sites probed
+     * that day, which is the only form of it comparable between two
+     * examinations that reached different numbers of teeth — see
+     * `perioOverview`.
+     */
+    const byDay = new Map<string, typeof exams>();
+    for (const exam of exams) {
+      const key = exam.recordedAt.toISOString().slice(0, 10);
+      const list = byDay.get(key) ?? [];
+      list.push(exam);
+      byDay.set(key, list);
+    }
+    for (const [, list] of [...byDay].slice(0, PERIO_TREND_POINTS).reverse()) {
+      const overview = perioOverview(list.map((row) => perioSummaryOf(row)));
+      perioTrend.push({
+        on: day(list[0].recordedAt),
+        bleedingPercent: overview.bleedingPercent,
+        deepest: overview.deepest,
+      });
+    }
   }
+
+  /**
+   * The last time anybody examined this chart.
+   *
+   * One row, because that is the question the chart asks — "when was this mouth
+   * last looked at" — and the history behind it belongs to the audit trail
+   * rather than to the top of a drawing. See `ChartExam`.
+   */
+  const chartExamRow = await prisma.chartExam.findFirst({
+    where: { patientId: patient.id },
+    orderBy: { examinedAt: 'desc' },
+    include: { examinedBy: { select: { firstName: true, lastName: true } } },
+  });
+  const chartExam: ChartExamStamp | null = chartExamRow
+    ? {
+        on: format.dateTime(chartExamRow.examinedAt, {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }),
+        by: chartExamRow.examinedBy
+          ? `${chartExamRow.examinedBy.firstName} ${chartExamRow.examinedBy.lastName}`.trim()
+          : null,
+      }
+    : null;
 
   /**
    * What is still owed on each tooth, for the chart's planned layer.
@@ -444,19 +557,8 @@ export default async function PatientDetailPage({
     format.dateTime(value, { day: 'numeric', month: 'short', year: 'numeric' }),
   );
 
-  /**
-   * The same teeth, collapsed to one status each, for the pickers.
-   *
-   * A picker tints a button; it has no room for the list of findings a tooth
-   * now carries and no need for it. `headlineStatus` decides which one speaks
-   * for the tooth — gone beats built beats broken.
-   */
-  const chartedTeeth: ChartedTeeth = Object.fromEntries(
-    Object.entries(teeth).map(([toothNum, tooth]) => {
-      const status = headlineStatus(tooth.findings);
-      return [toothNum, { status, surfaces: findingOf(tooth.findings, status)?.surfaces ?? '' }];
-    }),
-  );
+  /** The same teeth, collapsed to one status each, for the pickers. */
+  const chartedTeeth: ChartedTeeth = chartedTeethOf(patient.toothFindings);
 
   const referralSources = referralRows
     .map((row) => row.referralSource)
@@ -635,6 +737,17 @@ export default async function PatientDetailPage({
             <ContactActions
               {...messageProps}
               preferredChannel={patient.preferredChannel}
+              /* An address on the record that the provider has refused. The
+                 chip still shows it — that is the thing somebody has to look
+                 at and correct — and the menu says why it cannot be written
+                 to. Editing the address clears this; see `savePatient`. */
+              emailBounced={
+                Boolean(patient.email) &&
+                usableEmail(patient.email, {
+                  bouncedAt: patient.emailBouncedAt,
+                  kind: patient.emailBounceKind,
+                }) === ''
+              }
               canMessage={canMessage}
             />
             {patient.dateOfBirth ? (
@@ -692,6 +805,7 @@ export default async function PatientDetailPage({
                 phone: patient.phone,
                 email: patient.email ?? '',
                 dateOfBirth: patient.dateOfBirth ? toDateKey(patient.dateOfBirth) : '',
+                sex: patient.sex ?? '',
                 medicalNotes,
                 recallMonths: patient.recallMonths,
                 contactConsent:
@@ -876,6 +990,16 @@ export default async function PatientDetailPage({
                     note={
                       patient.dateOfBirth ? t('age', { age: age(patient.dateOfBirth) }) : undefined
                     }
+                    empty={tc('none')}
+                  />
+                  {/* Beside the birthday, because the two are read together:
+                      both are recorded at the desk and both change how the
+                      perio charting and the radiography are read. Blank where
+                      nobody has asked, which `empty` already says properly. */}
+                  <Fact
+                    icon={<UserRound size={18} aria-hidden />}
+                    label={t('sex')}
+                    value={patient.sex ? t(`sex_${patient.sex}`) : ''}
                     empty={tc('none')}
                   />
                   <Fact
@@ -1065,6 +1189,8 @@ export default async function PatientDetailPage({
               records={teeth}
               planned={planned}
               perioBefore={perioBefore}
+              perioTrend={perioTrend}
+              exam={chartExam}
               files={toothFiles}
               numbering={clinicProfile.toothNumbering}
               showPrimary={patient.dateOfBirth ? age(patient.dateOfBirth) < 13 : false}
@@ -1128,24 +1254,7 @@ export default async function PatientDetailPage({
                       name,
                       fromCatalog: false,
                     })),
-              teeth: [...visit.toothRecords]
-                // Only the rows that say something about the *tooth*. Probing a
-                // gum creates a row too — healthy, no surfaces, holding nothing
-                // but pocket depths — and the timeline draws a condition, so a
-                // full periodontal examination would otherwise append thirty-two
-                // teeth captioned "Healthy" to the visit that took it, none of
-                // which the visit changed and none of which show the readings.
-                .filter(
-                  (record) =>
-                    record.status !== DEFAULT_TOOTH_STATUS || record.surfaces || record.notes,
-                )
-                .sort((a, b) => a.toothNum - b.toothNum)
-                .map((record) => ({
-                  toothNum: record.toothNum,
-                  status: record.status,
-                  surfaces: record.surfaces ?? '',
-                  notes: record.notes ?? '',
-                })),
+              teeth: visitToothViews(visit.toothFindings, visit.toothRecords),
               // A consumption that spans two lots writes one movement per lot,
               // so the lines are summed back into one figure per material —
               // "composite ×2", not "composite ×1, composite ×1".

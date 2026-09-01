@@ -39,9 +39,6 @@ export async function saveService(_prev: ActionState, formData: FormData): Promi
     name,
     categoryId: category?.id ?? null,
     durationMin: Math.max(5, toInt(formData.get('durationMin'), 30)),
-    // `categoryId` is authoritative for this row from here on — see
-    // `Service.legacyCategory`.
-    legacyCategory: null,
   };
 
   let savedId = id;
@@ -202,6 +199,27 @@ export async function deleteServiceCategory(formData: FormData): Promise<void> {
   revalidateAll();
 }
 
+/**
+ * Retire a treatment.
+ *
+ * Archives rather than deletes as soon as anything names it — the same rule
+ * `deleteStockItem` follows, and it is overdue here more than there.
+ *
+ * Four tables point at a `Service` and every one of them is `SetNull`:
+ * `VisitService`, `Appointment`, `TreatmentStep` and `WaitlistEntry`. So this
+ * used to unlink every visit that ever performed the treatment, every slot that
+ * ever booked it and every plan that still intends it — in one statement, with
+ * nothing on screen to say so, and retroactively changing what the statistics
+ * page reports about last year.
+ *
+ * Which is exactly the failure `VisitService` was created to prevent. Its own
+ * comment calls the free-text service name "the single most consequential thing
+ * the schema did not have", because a *rename* split a treatment's history in
+ * two; a delete did worse, and the id added to stop it was `SetNull` all along.
+ *
+ * A treatment nothing has ever named has no history to protect and is genuinely
+ * deleted, so a typo made on the new-treatment form does not haunt the archive.
+ */
 export async function deleteService(formData: FormData): Promise<void> {
   const user = await authorize('service.delete');
   if (!user) return;
@@ -209,15 +227,59 @@ export async function deleteService(formData: FormData): Promise<void> {
   const id = requiredString(formData.get('id'));
   if (!id) return;
 
-  const service = await prisma.service.findUnique({ where: { id }, select: { name: true } });
+  const service = await prisma.service.findUnique({
+    where: { id },
+    select: {
+      name: true,
+      _count: {
+        select: {
+          visits: true,
+          appointments: true,
+          planSteps: true,
+          waitlist: true,
+          prescriptionTemplates: true,
+        },
+      },
+    },
+  });
   if (!service) return;
 
-  await prisma.service.delete({ where: { id } });
+  const used = Object.values(service._count).some((count) => count > 0);
+
+  if (used) {
+    await prisma.service.update({ where: { id }, data: { archivedAt: new Date() } });
+  } else {
+    await prisma.service.delete({ where: { id } });
+  }
+
   await recordAudit(user, {
-    action: 'delete',
+    action: used ? 'update' : 'delete',
     entity: 'service',
     entityId: id,
-    summary: service.name,
+    summary: used ? `${service.name} → archived` : service.name,
+  });
+  revalidateAll();
+}
+
+/** Put a retired treatment back in the catalogue. */
+export async function restoreService(formData: FormData): Promise<void> {
+  const user = await authorize('service.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const service = await prisma.service.update({
+    where: { id },
+    data: { archivedAt: null },
+    select: { name: true },
+  });
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'service',
+    entityId: id,
+    summary: `${service.name} → restored`,
   });
   revalidateAll();
 }

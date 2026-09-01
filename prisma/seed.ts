@@ -9,7 +9,9 @@ import { hashPin } from '../src/lib/auth/crypto';
 import { gtinCheckDigit } from '../src/lib/barcode';
 import { pgAdapterOptions, schemaFromDatabaseUrl } from '../src/lib/db-url';
 import { storeFile } from '../src/lib/files';
+import { buildSearchKey } from '../src/lib/patient-search';
 import { PrismaClient } from '../src/generated/prisma/client';
+import type { PatientSex, ToothFindingStatus } from '../src/generated/prisma/enums';
 
 try {
   process.loadEnvFile();
@@ -111,17 +113,25 @@ const STOCK = [
   { name: 'Solucion dezinfektues', category: 'Higjienë', quantity: 6, minLimit: 8 },
 ];
 
-const PATIENTS = [
-  { firstName: 'Arben', lastName: 'Hoxha', phone: '069 21 45 782', email: 'arben.hoxha@example.al', dob: '1968-03-14', notes: 'Alergji ndaj penicilinës. Hipertension i kontrolluar.' },
-  { firstName: 'Elira', lastName: 'Kola', phone: '068 33 91 204', email: 'elira.kola@example.al', dob: '1985-11-02', notes: null },
-  { firstName: 'Bledar', lastName: 'Shehu', phone: '067 44 12 990', email: null, dob: '1979-07-22', notes: 'Bruksizëm — rekomanduar mbrojtëse nate.' },
-  { firstName: 'Migena', lastName: 'Dervishi', phone: '069 55 60 118', email: 'migena.d@example.al', dob: '1992-01-30', notes: null },
-  { firstName: 'Genti', lastName: 'Prifti', phone: '068 77 23 456', email: 'genti.prifti@example.al', dob: '1955-09-08', notes: 'Diabet tip 2. Kujdes me shërimin pas ndërhyrjeve.' },
-  { firstName: 'Anila', lastName: 'Rama', phone: '069 12 88 340', email: null, dob: '2001-05-17', notes: null },
-  { firstName: 'Dritan', lastName: 'Basha', phone: '067 90 41 275', email: 'dritan.basha@example.al', dob: '1974-12-11', notes: 'Duhanpirës. Kontroll periodontal çdo 6 muaj.' },
-  { firstName: 'Vjollca', lastName: 'Mehmeti', phone: '068 20 15 663', email: 'vjollca.m@example.al', dob: '1963-02-25', notes: null },
-  { firstName: 'Ermal', lastName: 'Zeneli', phone: '069 66 30 887', email: null, dob: '1998-08-04', notes: null },
-  { firstName: 'Suela', lastName: 'Cami', phone: '068 45 72 019', email: 'suela.cami@example.al', dob: '1989-06-19', notes: 'Shtatzënë — shmang radiografitë.' },
+const PATIENTS: Array<{
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  sex: PatientSex;
+  dob: string;
+  notes: string | null;
+}> = [
+  { firstName: 'Arben', lastName: 'Hoxha', phone: '069 21 45 782', email: 'arben.hoxha@example.al', sex: 'MALE', dob: '1968-03-14', notes: 'Alergji ndaj penicilinës. Hipertension i kontrolluar.' },
+  { firstName: 'Elira', lastName: 'Kola', phone: '068 33 91 204', email: 'elira.kola@example.al', sex: 'FEMALE', dob: '1985-11-02', notes: null },
+  { firstName: 'Bledar', lastName: 'Shehu', phone: '067 44 12 990', email: null, sex: 'MALE', dob: '1979-07-22', notes: 'Bruksizëm — rekomanduar mbrojtëse nate.' },
+  { firstName: 'Migena', lastName: 'Dervishi', phone: '069 55 60 118', email: 'migena.d@example.al', sex: 'FEMALE', dob: '1992-01-30', notes: null },
+  { firstName: 'Genti', lastName: 'Prifti', phone: '068 77 23 456', email: 'genti.prifti@example.al', sex: 'MALE', dob: '1955-09-08', notes: 'Diabet tip 2. Kujdes me shërimin pas ndërhyrjeve.' },
+  { firstName: 'Anila', lastName: 'Rama', phone: '069 12 88 340', email: null, sex: 'FEMALE', dob: '2001-05-17', notes: null },
+  { firstName: 'Dritan', lastName: 'Basha', phone: '067 90 41 275', email: 'dritan.basha@example.al', sex: 'MALE', dob: '1974-12-11', notes: 'Duhanpirës. Kontroll periodontal çdo 6 muaj.' },
+  { firstName: 'Vjollca', lastName: 'Mehmeti', phone: '068 20 15 663', email: 'vjollca.m@example.al', sex: 'FEMALE', dob: '1963-02-25', notes: null },
+  { firstName: 'Ermal', lastName: 'Zeneli', phone: '069 66 30 887', email: null, sex: 'MALE', dob: '1998-08-04', notes: null },
+  { firstName: 'Suela', lastName: 'Cami', phone: '068 45 72 019', email: 'suela.cami@example.al', sex: 'FEMALE', dob: '1989-06-19', notes: 'Shtatzënë — shmang radiografitë.' },
 ];
 
 /**
@@ -174,11 +184,26 @@ const PLACEHOLDER_PNG = Buffer.from(
   'base64',
 );
 
-const TOOTH_STATUSES = ['CARIES', 'FILLED', 'CROWN', 'ROOT_CANAL', 'EXTRACTED', 'IMPLANT', 'MISSING'];
+/**
+ * A handful of the sixteen, typed as the column now is.
+ *
+ * `ToothFindingStatus` rather than a string array: the column stopped being an
+ * unconstrained string, and this is the one file that used to be able to write
+ * anything into it.
+ */
+const TOOTH_STATUSES: ToothFindingStatus[] = [
+  'CARIES',
+  'FILLED',
+  'CROWN',
+  'ROOT_CANAL',
+  'EXTRACTED',
+  'IMPLANT',
+  'MISSING',
+];
 /** FDI permanent teeth — 11–18, 21–28, 31–38, 41–48. See src/lib/teeth.ts. */
 const FDI_PERMANENT = [1, 2, 3, 4].flatMap((q) => [1, 2, 3, 4, 5, 6, 7, 8].map((i) => q * 10 + i));
 /** Surfaces are only meaningful for the statuses that describe part of a tooth. */
-const SURFACE_STATUSES = new Set(['CARIES', 'FILLED', 'ROOT_CANAL']);
+const SURFACE_STATUSES = new Set<ToothFindingStatus>(['CARIES', 'FILLED', 'ROOT_CANAL']);
 const START_TIMES = ['08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
 const APPOINTMENT_STATUSES = ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
 
@@ -221,9 +246,6 @@ async function main() {
   await prisma.auditLog.deleteMany();
   await prisma.stockMovement.deleteMany();
   await prisma.productBarcode.deleteMany();
-  // Retired, and no longer seeded — cleared so a re-seed leaves no rows behind
-  // from a database that predates the change. See `drop-service-materials.ts`.
-  await prisma.serviceMaterial.deleteMany();
   await prisma.toothFinding.deleteMany();
   await prisma.toothRecord.deleteMany();
   await prisma.visitRecord.deleteMany();
@@ -422,18 +444,100 @@ async function main() {
   }
 
   console.log('Seeding stock movements…');
+  /**
+   * The ledger, made to add up to the shelf.
+   *
+   * `DATA-MODEL.md` §7 lists "every quantity change has a matching
+   * `StockMovement`" as an invariant, and every write path in the app pairs the
+   * two inside one transaction. This file did not: it set `quantity` on the
+   * item and then wrote negative movements against it that nothing balanced, so
+   * on seeded data the counter disagreed with its own ledger for **every**
+   * material — and the valuation, the 90-day burn rate and the usage chart were
+   * all reading a history that could not produce the number beside it.
+   *
+   * So the usage is worked out first, and an opening delivery is written for
+   * what the shelf must have held to end up where the demo wants it. The item's
+   * `quantity` is left exactly as designed — 0 for the out-of-stock demo, 3 for
+   * the low one — and now the ledger explains it.
+   */
   for (const item of stockItems) {
-    // A handful of "used" entries spread over the last six months.
+    // A handful of "used" entries spread over the last six months, decided
+    // before anything is written so the opening delivery can account for them.
+    const uses: Array<{ delta: number; createdAt: Date }> = [];
     for (let monthsAgo = 5; monthsAgo >= 0; monthsAgo -= 1) {
-      const uses = randomInt(0, 4);
-      for (let i = 0; i < uses; i += 1) {
-        const date = addDays(TODAY, -(monthsAgo * 30 + randomInt(0, 27)));
+      for (let i = 0, count = randomInt(0, 4); i < count; i += 1) {
+        uses.push({
+          delta: -randomInt(1, 3),
+          createdAt: addDays(TODAY, -(monthsAgo * 30 + randomInt(0, 27))),
+        });
+      }
+    }
+    const consumed = uses.reduce((total, use) => total - use.delta, 0);
+
+    // What arrived, dated before the first use — the shelf as it stands plus
+    // everything since taken off it.
+    if (item.quantity + consumed > 0) {
+      await prisma.stockMovement.create({
+        data: {
+          itemId: item.id,
+          delta: item.quantity + consumed,
+          reason: 'restock',
+          createdAt: addDays(TODAY, -200),
+          staffUserId: owner.id,
+        },
+      });
+    }
+
+    /**
+     * Which lot each use came out of.
+     *
+     * Oldest expiry first, which is the order `takeFromShelf` allocates in and
+     * the order a shelf should be worked. Without it `StockMovement.batchId`
+     * was null on every seeded row, so "which lot number went into this
+     * patient" — the question the lots exist to answer, and the one a recall
+     * notice asks — had no demo data behind it at all. A use that outruns the
+     * recorded lots is written untagged, exactly as the real allocation does.
+     */
+    const lots = await prisma.stockBatch.findMany({
+      where: { itemId: item.id },
+      orderBy: [{ expiryDate: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, quantity: true, usedQuantity: true },
+    });
+
+    for (const use of uses) {
+      let outstanding = -use.delta;
+      for (const lot of lots) {
+        if (outstanding <= 0) break;
+        const room = lot.quantity - lot.usedQuantity;
+        if (room <= 0) continue;
+
+        const take = Math.min(room, outstanding);
+        lot.usedQuantity += take;
+        outstanding -= take;
+
         await prisma.stockMovement.create({
           data: {
             itemId: item.id,
-            delta: -randomInt(1, 3),
+            delta: -take,
             reason: 'used',
-            createdAt: date,
+            createdAt: use.createdAt,
+            staffUserId: assistant.id,
+            batchId: lot.id,
+          },
+        });
+        await prisma.stockBatch.update({
+          where: { id: lot.id },
+          data: { usedQuantity: lot.usedQuantity },
+        });
+      }
+
+      if (outstanding > 0) {
+        await prisma.stockMovement.create({
+          data: {
+            itemId: item.id,
+            delta: -outstanding,
+            reason: 'used',
+            createdAt: use.createdAt,
             staffUserId: assistant.id,
           },
         });
@@ -451,7 +555,24 @@ async function main() {
           lastName: person.lastName,
           phone: person.phone,
           email: person.email,
+          // The folded column every patient search compares against, built by
+          // the same helper `savePatient` and the importer use. Seeded rows had
+          // it blank, so demo search only ever ran down the unfolded fallback
+          // `patientSearchClauses` keeps for a database that has not been
+          // backfilled — and the trigram index added for it was never once
+          // exercised. Typing *cesh* has to find *Çështje*, and that is the
+          // path this makes reachable.
+          searchKey: buildSearchKey({
+            firstName: person.firstName,
+            lastName: person.lastName,
+            phone: person.phone,
+            email: person.email ?? undefined,
+          }),
           dateOfBirth: new Date(`${person.dob}T00:00:00.000Z`),
+          // Recorded, because the column exists to be recorded rather than
+          // inferred, and a demo where every patient's is blank shows neither
+          // the field nor what the record reads like once it is answered.
+          sex: person.sex,
           medicalNotes: person.notes,
           // A spread of intervals, so the recall list is not all one number.
           recallMonths: [6, 6, 12, 4, 6, 3, 6, 12, 6, 4][index] ?? 6,
@@ -562,17 +683,34 @@ async function main() {
 
     // And what the visit consumed, so the timeline's materials line has
     // something to show. One movement per material, the way a real deduction
-    // writes it.
+    // writes it — **and the shelf moves with it**, which is the pairing every
+    // write path in the app makes inside one transaction and this file used not
+    // to make at all.
     if (lastVisit && stockItems.length > 0) {
       for (const item of stockItems.slice(0, randomInt(1, 3))) {
+        // Only what is actually there. `takeFromShelf` will not drive a shelf
+        // below nought and neither does this — and taking a box that is not on
+        // it would put the counter and the ledger back out of step, which is
+        // the thing this whole section exists to stop.
+        const shelf = await prisma.stockItem.findUnique({
+          where: { id: item.id },
+          select: { quantity: true },
+        });
+        const taken = Math.min(randomInt(1, 2), shelf?.quantity ?? 0);
+        if (taken <= 0) continue;
+
         await prisma.stockMovement.create({
           data: {
             itemId: item.id,
-            delta: -randomInt(1, 2),
+            delta: -taken,
             reason: 'used in visit',
             staffUserId: assistant.id,
             visitRecordId: lastVisit.id,
           },
+        });
+        await prisma.stockItem.update({
+          where: { id: item.id },
+          data: { quantity: { decrement: taken } },
         });
       }
     }
@@ -611,6 +749,11 @@ async function main() {
         startTime,
         durationMin: service.durationMin,
         status: 'SCHEDULED',
+        // Both halves, the way `saveAppointment` writes them. The name alone is
+        // what the row prints; the id is what anything counting groups by, and
+        // seeding only the name left every join this pair exists for untested
+        // and every demo screen rendering down the string path.
+        serviceId: serviceIdByName.get(service.name) ?? null,
         serviceName: service.name,
         ...assign(index),
         // Two answered the confirmation link, two have not — so the digest has
@@ -640,18 +783,58 @@ async function main() {
       // A booked patient is not overdue, so the recall demo group stays clear of
       // anything upcoming.
       const bookable = offset > 0 ? patients.filter((p) => !overdue.includes(p)) : patients;
+      const patient = pick(bookable);
 
-      await prisma.appointment.create({
+      const appointment = await prisma.appointment.create({
         data: {
-          patientId: pick(bookable).id,
+          patientId: patient.id,
           date,
           startTime,
           durationMin: service.durationMin,
           status,
+          serviceId: serviceIdByName.get(service.name) ?? null,
           serviceName: service.name,
           ...assign(offset + i),
         },
+        select: { id: true },
       });
+
+      /**
+       * The write-up for a slot that was kept, linked to it.
+       *
+       * `VisitRecord.appointmentId` is the join the schema calls the fix for
+       * "the two rows describe the same event from opposite ends", and no seeded
+       * row had ever carried it — so the timeline, the day sheet's "written up?"
+       * test and `saveVisit`'s own duplicate check all ran, in every demo, down
+       * the branch where the link is absent.
+       *
+       * Two in three, not all: the dashboard's "appointments still to write up"
+       * pile and the digest's `appointmentsUnclosed` count are real piles, and a
+       * seed where every completed slot is closed empties both of them.
+       */
+      if (status === 'COMPLETED' && random() > 0.34) {
+        await prisma.visitRecord.create({
+          data: {
+            patientId: patient.id,
+            appointmentId: appointment.id,
+            // The day it was kept, which is what makes the pair agree.
+            visitDate: date,
+            notes: `${service.name} — përfunduar sipas planit.`,
+            servicesText: service.name,
+            services: {
+              create: [
+                {
+                  name: service.name,
+                  serviceId: serviceIdByName.get(service.name) ?? null,
+                  position: 1,
+                },
+              ],
+            },
+            staffUserId: assistant.id,
+            performedById: owner.id,
+          },
+        });
+      }
     }
   }
 
@@ -674,6 +857,17 @@ async function main() {
   }
 
   console.log('Seeding treatment plans…');
+  /**
+   * A step's own catalogue entry, where its title names one.
+   *
+   * `TreatmentStep.serviceId` is what tells the diary how long to leave for a
+   * step when it is booked, and which planned treatments were actually
+   * delivered. Every seeded step had a title and no id, so both of those read as
+   * "this step plans nothing in particular" — which is a real state, and not the
+   * one four of these eight steps are in.
+   */
+  const stepService = (title: string) => serviceIdByName.get(title) ?? null;
+
   await prisma.treatmentPlan.create({
     data: {
       patientId: patients[0].id,
@@ -682,8 +876,20 @@ async function main() {
       steps: {
         create: [
           { position: 1, title: 'Pastrim dhe vlerësim', status: 'DONE', completedAt: addDays(TODAY, -40) },
-          { position: 2, title: 'Mbushje kompozite', toothNum: 22, status: 'DONE', completedAt: addDays(TODAY, -12) },
-          { position: 3, title: 'Mbushje kompozite', toothNum: 23 },
+          {
+            position: 2,
+            title: 'Mbushje kompozite',
+            serviceId: stepService('Mbushje kompozite'),
+            toothNum: 22,
+            status: 'DONE',
+            completedAt: addDays(TODAY, -12),
+          },
+          {
+            position: 3,
+            title: 'Mbushje kompozite',
+            serviceId: stepService('Mbushje kompozite'),
+            toothNum: 23,
+          },
           { position: 4, title: 'Kontroll përfundimtar' },
         ],
       },
@@ -698,21 +904,91 @@ async function main() {
       steps: {
         create: [
           { position: 1, title: 'Radiografi dhe planifikim', status: 'DONE', completedAt: addDays(TODAY, -60) },
-          { position: 2, title: 'Heqje dhëmbi', toothNum: 46, status: 'DONE', completedAt: addDays(TODAY, -55) },
-          { position: 3, title: 'Vendosje implanti', toothNum: 46 },
-          { position: 4, title: 'Kurorë mbi implant', toothNum: 46 },
+          {
+            position: 2,
+            title: 'Heqje dhëmbi',
+            serviceId: stepService('Heqje dhëmbi'),
+            toothNum: 46,
+            status: 'DONE',
+            completedAt: addDays(TODAY, -55),
+          },
+          {
+            position: 3,
+            title: 'Vendosje implanti',
+            serviceId: stepService('Implant dentar'),
+            toothNum: 46,
+          },
+          {
+            position: 4,
+            title: 'Kurorë mbi implant',
+            serviceId: stepService('Kurorë porcelani'),
+            toothNum: 46,
+          },
         ],
       },
     },
   });
 
+  /**
+   * One pending step actually booked, which is the whole point of the link.
+   *
+   * `TreatmentStep.appointmentId` is unique and is what makes "3 of 5 done" and
+   * the calendar agree — and no seeded step had ever carried one, so the plan
+   * screen's "booked for Thursday" state and `completeStepForAppointment` were
+   * both unreachable in demo data. The slot is a real future appointment for the
+   * same patient, so the two sides say the same thing.
+   */
+  const plannedStep = await prisma.treatmentStep.findFirst({
+    where: { plan: { patientId: patients[0].id }, status: 'PENDING', appointmentId: null },
+    orderBy: { position: 'asc' },
+    select: { id: true },
+  });
+  const slotForStep = plannedStep
+    ? await prisma.appointment.findFirst({
+        where: {
+          patientId: patients[0].id,
+          date: { gt: utcDay(TODAY) },
+          status: 'SCHEDULED',
+          planStep: null,
+        },
+        orderBy: { date: 'asc' },
+        select: { id: true },
+      })
+    : null;
+  if (plannedStep && slotForStep) {
+    await prisma.treatmentStep.update({
+      where: { id: plannedStep.id },
+      data: { appointmentId: slotForStep.id },
+    });
+  }
+
   console.log('Seeding prescriptions…');
+  /**
+   * The visit a patient's paper came out of.
+   *
+   * `Prescription.visitRecordId` and `PatientDocument.visitRecordId` were the
+   * last two clinical children of `Patient` that could not name one, and the
+   * app fills them by `sameDayVisitId`. Here the newest visit stands in for
+   * "the same day", which is what the demo needs it to mean: the timeline's
+   * account of a visit should be able to show the radiograph that was exposed
+   * at it and the antibiotics sent home from it.
+   */
+  const newestVisitFor = async (patientId: string) =>
+    (
+      await prisma.visitRecord.findFirst({
+        where: { patientId },
+        orderBy: { visitDate: 'desc' },
+        select: { id: true },
+      })
+    )?.id ?? null;
+
   await prisma.prescription.create({
     data: {
       patientId: patients[4].id,
       templateId: templates[0].id,
       body: PRESCRIPTION_TEMPLATES[0].body,
       issuedById: owner.id,
+      visitRecordId: await newestVisitFor(patients[4].id),
       createdAt: addDays(TODAY, -55),
     },
   });
@@ -731,6 +1007,10 @@ async function main() {
         toothNum: index === 0 ? 46 : null,
         notes: index === 0 ? 'Radiografi panoramike para ndërhyrjes.' : null,
         uploadedById: owner.id,
+        // The consent form is left unattached on purpose: a form signed at the
+        // desk before anybody sat down belongs to no visit, and null is what
+        // that honestly says.
+        visitRecordId: index === 2 ? null : await newestVisitFor(patient.id),
         createdAt: addDays(TODAY, -randomInt(5, 60)),
       },
     });
@@ -742,6 +1022,7 @@ async function main() {
     await prisma.waitlistEntry.create({
       data: {
         patientId: patient.id,
+        serviceId: serviceIdByName.get(service.name) ?? null,
         serviceName: service.name,
         durationMin: service.durationMin,
         note: index === 0 ? 'Vetëm paradite' : null,

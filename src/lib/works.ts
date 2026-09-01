@@ -27,6 +27,17 @@ export const MAX_ELEMENTS = 99;
 export type DraftLine = {
   elements: number;
   procedure: string;
+  /**
+   * Which `WorkProcedure` row was picked, when one was.
+   *
+   * The same pair as `lab`/`labId` below, added for the same reason and one
+   * release later: the name is what the docket said and the id is what the
+   * quarter's invoice is counted by. Empty on a case written before the
+   * catalogue had ids, and on a line whose kind of work has since been retired
+   * out of the picker — both keep their `procedure` text and read exactly as
+   * before.
+   */
+  procedureId: string;
   /** The laboratory's name, snapshotted onto the line. */
   lab: string;
   /**
@@ -69,7 +80,10 @@ export function parseDraftLines(raw: string): DraftLine[] {
   const lines: DraftLine[] = [];
   for (const entry of parsed) {
     if (typeof entry !== 'object' || entry === null) continue;
-    const { elements, procedure, lab, labId, teeth } = entry as Record<string, unknown>;
+    const { elements, procedure, procedureId, lab, labId, teeth } = entry as Record<
+      string,
+      unknown
+    >;
 
     // Re-read rather than trusted: what arrives is whatever the chart last put
     // in a hidden field, and it comes back canonical — chart order, one entry
@@ -83,6 +97,9 @@ export function parseDraftLines(raw: string): DraftLine[] {
       // right about. See `spanElements`.
       elements: span ? spanElements(span) : toElementCount(elements),
       procedure: typeof procedure === 'string' ? procedure.trim().slice(0, FIELD_LIMIT) : '',
+      // Checked against the catalogue by `saveWork`, never trusted — see
+      // `labId` below, which says why at length and says it for both.
+      procedureId: typeof procedureId === 'string' ? procedureId.trim().slice(0, FIELD_LIMIT) : '',
       lab: typeof lab === 'string' ? lab.trim().slice(0, FIELD_LIMIT) : '',
       // Read back like everything else here, and checked against the catalogue
       // by `saveWork` rather than trusted: this arrives in a hidden field, and a

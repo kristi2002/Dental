@@ -264,8 +264,14 @@ export default async function RequestsPage({
                   )}
 
                   {/* The point of the whole screen: turn this into a real
-                      appointment, with a real patient record behind it. */}
-                  <Link href="/patients/new" className="btn btn-sm btn-accent">
+                      appointment, with a real patient record behind it.
+                      Carrying the id does two things — the form opens with what
+                      they already typed, and the record links back, so "how many
+                      enquiries became patients" stops being unanswerable. */}
+                  <Link
+                    href={{ pathname: '/patients/new', query: { request: request.id } }}
+                    className="btn btn-sm btn-accent"
+                  >
                     <CalendarPlus size={17} aria-hidden />
                     {t('createPatient')}
                   </Link>

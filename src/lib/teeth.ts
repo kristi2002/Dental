@@ -16,6 +16,8 @@
  * charted at all, and children are a large part of a general practice.
  */
 
+import type { ToothFindingStatus } from '@/generated/prisma/enums';
+
 export const TOOTH_STATUSES = [
   'HEALTHY',
   'CARIES',
@@ -34,6 +36,35 @@ export const TOOTH_STATUSES = [
   'FRACTURE',
   'VENEER',
   'BRIDGE',
+  // Five more, added for the same reason as those four and found the same way:
+  // reading what a general practice was typing into the notes field because the
+  // chart had no column for it.
+  //
+  //   IMPACTED          a tooth that is there and has not come through. Charted
+  //                     as MISSING until now, which is the one wrong answer:
+  //                     the tooth exists, it is usually the one being referred
+  //                     about, and a chart that says it is absent will have it
+  //                     left out of the surgical letter.
+  //   RETAINED_ROOT     the crown is gone and the root is still in. Neither
+  //                     missing nor extracted nor restorable, and it is the
+  //                     finding that decides whether the next appointment is a
+  //                     filling or a surgical extraction.
+  //   PERIAPICAL        infection at the root tip. The most consequential
+  //                     omission of the lot: it is what turns a quiet
+  //                     root-filled tooth into urgent work, and it was
+  //                     invisible on a chart that could only describe crowns.
+  //   TEMPORARY         a dressing rather than a restoration. Recorded as
+  //                     FILLED it reads as finished work, and the tooth stops
+  //                     appearing on anybody's list of things still owed.
+  //   WATCH             the monitored fissure, the shadow on the radiograph you
+  //                     are not opening yet. This lived in the note field,
+  //                     which is exactly the kind of thing written once and
+  //                     never read again.
+  'IMPACTED',
+  'RETAINED_ROOT',
+  'PERIAPICAL',
+  'TEMPORARY',
+  'WATCH',
 ] as const;
 
 export type ToothStatus = (typeof TOOTH_STATUSES)[number];
@@ -42,6 +73,33 @@ export const DEFAULT_TOOTH_STATUS: ToothStatus = 'HEALTHY';
 
 export function isToothStatus(value: string): value is ToothStatus {
   return (TOOTH_STATUSES as readonly string[]).includes(value);
+}
+
+/**
+ * What may actually be *stored* against a tooth: the list above without
+ * `HEALTHY`.
+ *
+ * A healthy tooth is a tooth with no findings, which is the whole model
+ * `ToothFinding` was built to express — so `HEALTHY` is a thing the palette
+ * offers (it is the eraser) and never a row. The database now says so itself:
+ * `status` is the `ToothFindingStatus` enum, which has the other sixteen
+ * members and not that one.
+ *
+ * Two lists in two files is exactly how a palette and a column come to
+ * disagree, so this asserts they do not. `_findingStatusesMatch` fails to
+ * compile the moment somebody adds a finding here without adding it to the
+ * schema, or the reverse — which is the failure that used to be discovered by
+ * a chart quietly drawing two of something.
+ */
+export type ToothFindingKind = Exclude<ToothStatus, 'HEALTHY'>;
+
+type Identical<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+const _findingStatusesMatch: Identical<ToothFindingKind, ToothFindingStatus> = true;
+void _findingStatusesMatch;
+
+/** Whether this is something a tooth can carry a row for, as against the eraser. */
+export function isToothFindingKind(status: ToothStatus): status is ToothFindingKind {
+  return status !== DEFAULT_TOOTH_STATUS;
 }
 
 /** Tailwind red-500 — a marked surface, where the caller has no stronger opinion. */
@@ -140,6 +198,55 @@ export const TOOTH_STATUS_STYLE: Record<
     button: 'bg-indigo-100 border-indigo-300 text-indigo-800 hover:border-indigo-500',
     short: 'B',
     hue: '#6366F1', // indigo-500
+  },
+  // Seventeen findings and about a dozen hues that are distinguishable at chip
+  // size, so the last five are placed by meaning and lean on the drawing and
+  // the letter to finish the job — which is what those two channels are for.
+  //
+  // Stone, because what an impacted tooth is buried in is bone. `Ue` rather
+  // than `I`, which the implant has.
+  IMPACTED: {
+    swatch: 'bg-stone-100 border-stone-300 text-stone-800',
+    button: 'bg-stone-100 border-stone-300 text-stone-800 hover:border-stone-500',
+    short: 'Ue',
+    hue: '#78716C', // stone-500
+  },
+  // Yellow-600 rather than 500: the 500 sits close enough to the crown's amber
+  // that a wedge of one could be read as the other, and these two turn up on
+  // the same tooth constantly — a crowned tooth whose root has fractured off.
+  RETAINED_ROOT: {
+    swatch: 'bg-yellow-100 border-yellow-300 text-yellow-800',
+    button: 'bg-yellow-100 border-yellow-300 text-yellow-800 hover:border-yellow-500',
+    short: 'Rr',
+    hue: '#CA8A04', // yellow-600
+  },
+  // Pink is the nearest free hue to caries' rose, and they are the two findings
+  // most often on one tooth. What keeps them apart is the drawing — decay is a
+  // hole in the crown, this is a halo at the apex, and they are at opposite
+  // ends of the tooth.
+  PERIAPICAL: {
+    swatch: 'bg-pink-100 border-pink-300 text-pink-800',
+    button: 'bg-pink-100 border-pink-300 text-pink-800 hover:border-pink-500',
+    short: 'Pa',
+    hue: '#EC4899', // pink-500
+  },
+  // Deliberately beside the filling's sky, because that is what a temporary is:
+  // the same restoration, not finished. Neighbouring hues are the right answer
+  // where the two findings really are neighbours.
+  TEMPORARY: {
+    swatch: 'bg-cyan-100 border-cyan-300 text-cyan-800',
+    button: 'bg-cyan-100 border-cyan-300 text-cyan-800 hover:border-cyan-500',
+    short: 'T',
+    hue: '#06B6D4', // cyan-500
+  },
+  // The quietest finding on the chart gets the quietest treatment — an outline
+  // rather than a body, everywhere it is drawn. Nothing has happened to this
+  // tooth yet, and the mark has to say so.
+  WATCH: {
+    swatch: 'bg-blue-100 border-blue-300 text-blue-800',
+    button: 'bg-blue-100 border-blue-300 text-blue-800 hover:border-blue-500',
+    short: 'W',
+    hue: '#3B82F6', // blue-500
   },
 };
 
@@ -346,6 +453,16 @@ export const WHOLE_TOOTH_STATUSES: readonly ToothStatus[] = [
   // different faces, and the chart has to be able to tell them apart.
   'VENEER',
   'BRIDGE',
+  // A tooth still under the bone has no face anybody has touched; a retained
+  // root has no crown left to have faces on; and a periapical lesion is at the
+  // other end of the tooth entirely — naming a mesial for it would be recording
+  // the infection on the wrong anatomy.
+  'IMPACTED',
+  'RETAINED_ROOT',
+  'PERIAPICAL',
+  // `TEMPORARY` and `WATCH` are absent on purpose. Both are statements about a
+  // face: a dressing sits in a specific cavity, and what is being watched is a
+  // particular fissure or margin rather than the tooth in general.
 ];
 
 export function statusTakesSurfaces(status: ToothStatus): boolean {
@@ -404,6 +521,21 @@ export function isExclusive(status: ToothStatus): boolean {
 export interface ToothCondition {
   status: ToothStatus;
   surfaces: string;
+  /**
+   * The day this finding was made, formatted on the server, where it is known.
+   *
+   * Optional because half the findings in the app do not have one and must not
+   * pretend to: a finding the browser has just applied optimistically has not
+   * been written yet, the pickers that reuse this type are choosing teeth
+   * rather than reading a record, and a row recorded before the column existed
+   * has no author or date to give.
+   *
+   * Nothing compares teeth by these — `findingsKey` is status and surfaces, so
+   * a tooth is the same tooth whether or not its provenance came along.
+   */
+  on?: string;
+  /** Who made it, where it is known. Same reasons for optional. */
+  by?: string;
 }
 
 export const HEALTHY_TOOTH: ToothCondition = { status: DEFAULT_TOOTH_STATUS, surfaces: '' };
@@ -440,14 +572,29 @@ const HEADLINE_ORDER: readonly ToothStatus[] = [
   'MISSING',
   'EXTRACTED',
   'IMPLANT',
+  // Not a tooth you can treat as a tooth: the crown is gone, or it never came
+  // through. Both belong with "gone" rather than with the pathology below,
+  // because both change what the next appointment *is* before they change what
+  // is wrong.
+  'RETAINED_ROOT',
+  'IMPACTED',
+  // Then the pathology, worst first. A lesion at the apex outranks decay in the
+  // crown: it is the finding that can put the patient in the chair this week.
+  'PERIAPICAL',
   'CARIES',
   'FRACTURE',
   'ROOT_CANAL',
   'BRIDGE',
   'CROWN',
   'VENEER',
+  // A dressing outranks a definitive filling, because the whole point of
+  // recording it separately is that the tooth is not finished.
+  'TEMPORARY',
   'FILLED',
   'SEALANT',
+  // Last, and last on purpose. Watching a fissure is the least that can be true
+  // of a tooth, and anything else recorded on it speaks first.
+  'WATCH',
 ];
 
 export function headlineStatus(findings: ToothFindings): ToothStatus {
@@ -521,15 +668,107 @@ export function applyFinding(
     if (!statusTakesSurfaces(finding.status)) return [finding];
     const kept = parseSurfaces(finding.surfaces).filter((face) => !next.includes(face));
     if (kept.length === parseSurfaces(finding.surfaces).length) return [finding];
-    return kept.length === 0 ? [] : [{ status: finding.status, surfaces: kept.join('') }];
+    // Spread rather than rebuilt: a finding that loses a face to its neighbour
+    // is the same finding, found on the same day by the same person, and
+    // reconstructing it from status and surfaces alone dropped both.
+    return kept.length === 0 ? [] : [{ ...finding, surfaces: kept.join('') }];
   });
 
   return [
-    { status, surfaces: TOOTH_SURFACES.filter((f) => next.includes(f)).join('') },
+    {
+      // Amending a finding's faces does not re-date it — this is the decay
+      // found in March, now known to reach the distal as well.
+      ...current,
+      status,
+      surfaces: TOOTH_SURFACES.filter((f) => next.includes(f)).join(''),
+    },
     ...freed,
   ];
 }
 
+
+/* ------------------------------------------------------------------ *
+ * The chart as one number
+ * ------------------------------------------------------------------ */
+
+/**
+ * Decayed, missing and filled teeth — the score every dental record in the
+ * world is compared by, and the one thing this chart could not produce from
+ * data it has held all along.
+ *
+ * DMFT is what makes two charts comparable: to the same mouth two years apart,
+ * to a sibling, to a national average. Written as a count of *teeth* rather
+ * than of findings, so a molar with three fillings scores one.
+ *
+ * Each tooth is counted once, worst first, because that is the definition:
+ *
+ *   D  decayed        `CARIES`, and `RETAINED_ROOT` — a root left in is decay
+ *                     that got past the point of restoring.
+ *   M  missing        `MISSING`, `EXTRACTED`, `IMPLANT`. An implant is a tooth
+ *                     that was lost and then replaced; the tooth is still gone.
+ *   F  filled         `FILLED`, `TEMPORARY`, `CROWN`, `ROOT_CANAL`, `BRIDGE` —
+ *                     restored, whatever it was restored with. Not `VENEER`,
+ *                     which is usually cosmetic, and not `SEALANT`, which is
+ *                     prevention on a tooth that was never drilled.
+ *
+ * `IMPACTED` is excluded from the count altogether rather than scored as
+ * missing, which is the standard rule and the reason the status had to exist:
+ * an unerupted tooth is not a lost one.
+ *
+ * **One honest overstatement, and it is worth naming.** The index proper counts
+ * teeth missing *because of caries*, and no chart in this app records why a
+ * tooth came out — the extraction that was orthodontic and the one that was
+ * carious are the same row. So M here is every absent tooth. That is the same
+ * approximation a paper chart makes, it errs upward, and the alternative was
+ * either not offering the number or asking for a reason nobody would type.
+ */
+export interface CariesIndex {
+  decayed: number;
+  missing: number;
+  filled: number;
+  /** D + M + F. The score itself. */
+  total: number;
+  /** How many teeth were eligible to be counted — the denominator, and the
+   *  thing that says whether a score of 2 is a sound mouth or a barely
+   *  started examination. */
+  counted: number;
+}
+
+const DECAYED_STATUSES: readonly ToothStatus[] = ['CARIES', 'RETAINED_ROOT'];
+const MISSING_STATUSES: readonly ToothStatus[] = ['MISSING', 'EXTRACTED', 'IMPLANT'];
+const FILLED_STATUSES: readonly ToothStatus[] = [
+  'FILLED',
+  'TEMPORARY',
+  'CROWN',
+  'ROOT_CANAL',
+  'BRIDGE',
+];
+
+export function cariesIndex(
+  teeth: readonly number[],
+  findingsOf: (toothNum: number) => ToothFindings,
+): CariesIndex {
+  const index: CariesIndex = { decayed: 0, missing: 0, filled: 0, total: 0, counted: 0 };
+
+  for (const toothNum of teeth) {
+    const findings = findingsOf(toothNum);
+    const holds = (statuses: readonly ToothStatus[]) =>
+      findings.some((finding) => statuses.includes(finding.status));
+
+    if (holds(['IMPACTED'])) continue;
+    index.counted += 1;
+
+    // Worst first, and each tooth leaves through exactly one of these: a tooth
+    // with an old filling and fresh decay at its margin is a decayed tooth, and
+    // counting it in both columns is how a mouth scores more than it has teeth.
+    if (holds(DECAYED_STATUSES)) index.decayed += 1;
+    else if (holds(MISSING_STATUSES)) index.missing += 1;
+    else if (holds(FILLED_STATUSES)) index.filled += 1;
+  }
+
+  index.total = index.decayed + index.missing + index.filled;
+  return index;
+}
 
 /* ------------------------------------------------------------------ *
  * Anatomy, for the drawn chart

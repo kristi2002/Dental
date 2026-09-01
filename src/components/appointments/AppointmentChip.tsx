@@ -51,6 +51,7 @@ export async function AppointmentChip({
   // Same ask as the row form, so a reminder sent from the day grid carries the
   // confirmation link too — and is written in the patient's language.
   const reminder = await composeReminder({
+    patientId: appointment.patient.id,
     patientName,
     phone: appointment.patient.phone,
     email: appointment.patient.email,
@@ -136,6 +137,7 @@ export async function AppointmentChip({
               durationMin: appointment.durationMin,
               status: appointment.status,
               serviceName: appointment.serviceName,
+              serviceId: appointment.serviceId,
               notes: appointment.notes,
               staffUserId: appointment.staffUserId,
               operatoryId: appointment.operatoryId,

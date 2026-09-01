@@ -11,6 +11,16 @@ type Destination = {
    * one of its siblings — without this it would read as current on all of them.
    */
   exact?: boolean;
+  /**
+   * Extra paths this row also answers for.
+   *
+   * A handful of screens are opened by a button on another screen and have no
+   * row of their own anywhere — the day sheet is the one that matters, because
+   * it is opened from the calendar every morning. Standing on one of them, the
+   * rail used to highlight nothing at all, which is the one question navigation
+   * has to be able to answer. Matched by whole segments, exactly as `href` is.
+   */
+  alsoCurrent?: ReadonlyArray<string>;
 };
 
 /**
@@ -46,14 +56,36 @@ type Group = 'care' | 'contact' | 'practice';
  *
  * A section that has children is a heading, not a destination: its own row only
  * opens and shuts the list. The screen it used to lead to is the first entry in
- * that list, under the section's own name — one row, one job, and the fold no
- * longer moves the page out from under a click meant to open it.
+ * that list — one row, one job, and the fold no longer moves the page out from
+ * under a click meant to open it.
+ *
+ * That first entry is named for what it *is* rather than repeated verbatim from
+ * the heading above it. "Works › Works" reads as a stutter with a label beside
+ * it and as two identical glyphs without one, which is what a pinched rail is:
+ * the collapsed rail drew a stethoscope over a stethoscope and a box over a
+ * box, and nothing said which of the pair was the list. Prescriptions had
+ * always got this right — Issued, then Standard wording — and the other three
+ * now follow it.
+ *
+ * A section is also only a section while it has more than one row to hold. See
+ * `AppShell`: a role that may read the catalogue but not edit it loses both of
+ * Services' lookup tables to the permission filter, and a fold that opens onto
+ * a single row is two clicks where there was one. Those collapse back to the
+ * plain link they would have been.
  */
 export const NAV_DESTINATIONS: ReadonlyArray<
   Destination & { group?: Group; children?: ReadonlyArray<Destination> }
 > = [
   { href: '/dashboard', key: 'dashboard', permission: null },
-  { href: '/appointments', key: 'appointments', permission: 'appointment.view' },
+  // The day sheet has no row of its own — it is opened by a button on the
+  // calendar and printed — so the calendar answers for it rather than leaving
+  // the rail blank on a screen the practice opens every morning.
+  {
+    href: '/appointments',
+    key: 'appointments',
+    permission: 'appointment.view',
+    alsoCurrent: ['/day-sheet'],
+  },
   { href: '/patients', key: 'patients', permission: 'patient.view' },
 
   // ── Care ──────────────────────────────────────────────────────────────────
@@ -69,7 +101,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     permission: 'work.view',
     group: 'care',
     children: [
-      { href: '/works', key: 'works', permission: 'work.view', exact: true },
+      { href: '/works', key: 'worksAll', permission: 'work.view', exact: true },
       // The list the register's rows are written from, filed under it for the
       // same reason the shelves are filed under stock: it is named once and then
       // picked from, which is not a place anybody starts their day.
@@ -146,7 +178,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     permission: 'service.view',
     group: 'practice',
     children: [
-      { href: '/services', key: 'services', permission: 'service.view', exact: true },
+      { href: '/services', key: 'servicesAll', permission: 'service.view', exact: true },
       { href: '/services/categories', key: 'serviceCategories', permission: 'service.edit' },
       // Filed here rather than beside "new treatment" on the list: a catalogue
       // is imported once, when the practice adopts the app, and a header that
@@ -160,7 +192,7 @@ export const NAV_DESTINATIONS: ReadonlyArray<
     permission: 'stock.view',
     group: 'practice',
     children: [
-      { href: '/stock', key: 'stock', permission: 'stock.view', exact: true },
+      { href: '/stock', key: 'stockAll', permission: 'stock.view', exact: true },
       // The one sub-screen here that is not a lookup table: the storage room as
       // photographs. Filed under stock all the same — it answers "what do we
       // keep and what does it look like", which is a question asked when

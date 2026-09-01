@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import type { ToothRecordMap } from '@/components/dental/DentalChart';
+import type {
+  ChartExamStamp,
+  PlannedMap,
+  ToothRecordMap,
+} from '@/components/dental/DentalChart';
 import { PerioStrip } from '@/components/dental/PerioStrip';
 import { SurfaceTarget } from '@/components/dental/SurfaceTarget';
 import { ToothDefs } from '@/components/dental/ToothDefsProvider';
@@ -8,17 +12,19 @@ import { ToothGlyph } from '@/components/dental/ToothGlyph';
 import { MOBILITY_LABEL, perioOverview, perioSummaryOf, type PerioSummary } from '@/lib/perio';
 import {
   ALL_TEETH,
+  cariesIndex,
   DEFAULT_TOOTH_STATUS,
   dentitionOf,
   isAnterior,
-  isToothStatus,
   parseSurfaces,
   PERMANENT_LOWER_LEFT,
   PERMANENT_LOWER_RIGHT,
+  PERMANENT_TEETH,
   PERMANENT_UPPER_LEFT,
   PERMANENT_UPPER_RIGHT,
   PRIMARY_LOWER_LEFT,
   PRIMARY_LOWER_RIGHT,
+  PRIMARY_TEETH,
   PRIMARY_UPPER_LEFT,
   PRIMARY_UPPER_RIGHT,
   headlineStatus,
@@ -83,10 +89,27 @@ function surfaceSummary(findings: ToothFindings): ToothSurface[] {
 
 export function ChartSheet({
   records,
+  planned,
+  exam,
   numbering = 'FDI',
   showPrimary = false,
 }: {
   records: ToothRecordMap;
+  /**
+   * What is still owed on each tooth.
+   *
+   * The screen chart grew a second layer — what is *there* and what is
+   * *intended*, which is what every paper odontogram in the world carries — and
+   * the printed one did not, so the sheet the patient took home and the sheet
+   * that went to the surgeon showed the findings and silently dropped the plan.
+   * That is the wrong way round: on screen the plan is a click away in the
+   * tooth's own dialog, and on paper there are no clicks.
+   */
+  planned?: PlannedMap;
+  /** That this mouth was examined, and by whom. On paper this matters more than
+   *  anywhere: a record sheet with no examination on it is a list of findings
+   *  nobody is named as having made. */
+  exam?: ChartExamStamp | null;
   numbering?: ToothNumbering;
   /** Whether the milk-teeth rows are drawn — a child's chart, or an adult's
    *  that has something recorded on them anyway. */
@@ -100,6 +123,8 @@ export function ChartSheet({
 
   const perioOf = (toothNum: number) => perioSummaryOf(records[toothNum] ?? {});
 
+  const plannedFor = (toothNum: number) => planned?.[toothNum] ?? [];
+
   const findings = ALL_TEETH.map((toothNum) => ({
     toothNum,
     list: findingsOf(toothNum),
@@ -109,8 +134,16 @@ export function ChartSheet({
     notes: records[toothNum]?.notes ?? '',
     chartedOn: records[toothNum]?.chartedOn ?? '',
     perio: perioOf(toothNum),
+    planned: plannedFor(toothNum),
   })).filter(
-    (finding) => finding.list.length > 0 || finding.notes !== '' || finding.perio.recorded,
+    (finding) =>
+      finding.list.length > 0 ||
+      finding.notes !== '' ||
+      finding.perio.recorded ||
+      // A sound tooth with a crown on the plan is a row this sheet has to
+      // carry: it is the one line on the page that says work is owed on a tooth
+      // the drawing shows nothing wrong with.
+      finding.planned.length > 0,
   );
 
   const flagged = findings.filter((finding) => finding.list.length > 0);
@@ -134,7 +167,22 @@ export function ChartSheet({
     .map((status) => ({ status, count: flagged.filter((f) => f.status === status).length }))
     .filter((row) => row.count > 0);
 
-  const arch = { findingsOf, perioOf, probed, numberLabel: label };
+  const arch = {
+    findingsOf,
+    perioOf,
+    probed,
+    numberLabel: label,
+    plannedCount: (toothNum: number) => plannedFor(toothNum).length,
+  };
+
+  /** Whether anything is owed anywhere, which decides whether the sheet grows
+   *  its planned column at all. An empty column on every referral the practice
+   *  sends is the same waste as an unprobed periodontal one. */
+  const anyPlanned = findings.some((finding) => finding.planned.length > 0);
+
+  const dmft = cariesIndex(PERMANENT_TEETH, findingsOf);
+  const dmftPrimary = cariesIndex(PRIMARY_TEETH, findingsOf);
+  const primaryCharted = PRIMARY_TEETH.some((toothNum) => findingsOf(toothNum).length > 0);
 
   return (
     <div className="odontogram odontogram-sheet space-y-4">
@@ -234,6 +282,41 @@ export function ChartSheet({
           </span>
         </p>
 
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-body">
+          {/* The score, with its workings — see `cariesIndex` on why M is an
+              overstatement here and why the parts are printed beside it. */}
+          {dmft.counted > 0 ? (
+            <span className="font-semibold text-ink">
+              DMFT <span className="tabular-nums">{dmft.total}</span>
+              <span className="ml-1 font-normal text-ink-faint tabular-nums">
+                {t('dmftParts', { d: dmft.decayed, m: dmft.missing, f: dmft.filled })}
+              </span>
+            </span>
+          ) : null}
+          {primaryCharted && dmftPrimary.counted > 0 ? (
+            <span className="font-semibold text-ink">
+              dmft <span className="tabular-nums">{dmftPrimary.total}</span>
+              <span className="ml-1 font-normal text-ink-faint tabular-nums">
+                {t('dmftParts', {
+                  d: dmftPrimary.decayed,
+                  m: dmftPrimary.missing,
+                  f: dmftPrimary.filled,
+                })}
+              </span>
+            </span>
+          ) : null}
+          {/* And who examined this mouth. A findings list with nobody named as
+              having made it is the gap this closes, and paper is where it is
+              asked about. */}
+          <span className="text-ink-soft">
+            {exam
+              ? [t('examinedOn', { date: exam.on }), exam.by ? t('examinedBy', { name: exam.by }) : null]
+                  .filter(Boolean)
+                  .join(' · ')
+              : t('examinedNever')}
+          </span>
+        </p>
+
         {tally.length > 0 ? (
           <ul className="mt-1.5 flex flex-wrap gap-1.5">
             {tally.map(({ status, count }) => (
@@ -263,6 +346,7 @@ export function ChartSheet({
               <Th>{t('surfaces')}</Th>
               {probed ? <Th>{t('colPockets')}</Th> : null}
               {probed ? <Th>{t('mobility')}</Th> : null}
+              {anyPlanned ? <Th>{t('planned')}</Th> : null}
               <Th>{t('notes')}</Th>
             </tr>
           </thead>
@@ -342,6 +426,27 @@ export function ChartSheet({
                             {t(`mobility_${finding.perio.mobility}`)}
                           </span>
                         </>
+                      )}
+                    </Td>
+                  ) : null}
+
+                  {anyPlanned ? (
+                    <Td>
+                      {finding.planned.length === 0 ? (
+                        <Dash />
+                      ) : (
+                        <ul>
+                          {finding.planned.map((step) => (
+                            <li key={step.id} className="text-ink">
+                              {step.title}
+                              {step.booked ? (
+                                <span className="block text-micro leading-tight text-ink-faint">
+                                  {t('plannedBooked', { date: step.booked })}
+                                </span>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </Td>
                   ) : null}
@@ -443,6 +548,8 @@ type SheetCellProps = {
   /** Whether the periodontal row is drawn on this chart at all. */
   probed: boolean;
   numberLabel: (toothNum: number) => string;
+  /** How much outstanding treatment is planned on this tooth. */
+  plannedCount: (toothNum: number) => number;
   upper?: boolean;
   primary?: boolean;
 };
@@ -453,6 +560,7 @@ function SheetCell({
   perioOf,
   probed,
   numberLabel,
+  plannedCount,
   upper = false,
   primary = false,
 }: SheetCellProps) {
@@ -463,11 +571,21 @@ function SheetCell({
   const glyph = (
     <span
       className={cn(
-        'block w-full',
+        'relative block w-full',
         primary ? 'h-[calc(var(--tooth-glyph-h)*0.7)]' : 'h-(--tooth-glyph-h)',
       )}
     >
       <ToothGlyph toothNum={toothNum} findings={findings} />
+      {/* Planned work, as the same hollow ring the screen draws — an outline
+          because it has not happened, where every other mark on this chart says
+          what is. The table below names the steps; this is what makes them
+          findable on the arch. */}
+      {plannedCount(toothNum) > 0 ? (
+        <span
+          aria-hidden
+          className="absolute top-0 left-0 size-2 rounded-full border-2 border-brand-dark bg-surface print:border-black"
+        />
+      ) : null}
     </span>
   );
 

@@ -1,5 +1,5 @@
 import { addDays, timeToMinutes } from '@/lib/dates';
-import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from './email';
+import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE, type MailFailure } from './email';
 
 /**
  * What the outbox queues, and what it refuses to.
@@ -11,7 +11,29 @@ import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from './email';
  */
 
 /** Mirrors `MessageKind` in the schema, written out so this module stays pure. */
-export type MessageKind = 'APPOINTMENT_REMINDER' | 'RECALL_DUE';
+export type MessageKind =
+  | 'APPOINTMENT_REMINDER'
+  | 'RECALL_DUE'
+  | 'POST_OP_CHECK'
+  | 'WORK_READY'
+  | 'PLAN_NEXT_STEP';
+
+/**
+ * The kinds that are a courtesy rather than an obligation.
+ *
+ * The distinction earns its keep in exactly one place — the contact ceiling —
+ * and it is worth stating rather than inferring from "has no appointment". An
+ * appointment reminder is about a slot the patient agreed to and must go out
+ * however much else they have heard from us this week. Everything else on this
+ * list is the practice deciding to get in touch, and four such decisions inside
+ * one week are not four courtesies.
+ */
+export const COURTESY_KINDS: ReadonlyArray<MessageKind> = [
+  'RECALL_DUE',
+  'POST_OP_CHECK',
+  'WORK_READY',
+  'PLAN_NEXT_STEP',
+];
 
 /**
  * The unique column that makes a clock safe to run twice.
@@ -34,12 +56,23 @@ export function dedupeKey(kind: MessageKind, ...parts: string[]): string {
   const prefix: Record<MessageKind, string> = {
     APPOINTMENT_REMINDER: 'reminder',
     RECALL_DUE: 'recall',
+    // Keyed by the day of the visit rather than by a month: somebody treated
+    // twice in a fortnight is owed two of these, and the window this list is
+    // read over is only a few days wide.
+    POST_OP_CHECK: 'postop',
+    // One arrival, one message, ever — and the subject is the case rather than
+    // the patient, because somebody with two crowns back has waited for both.
+    WORK_READY: 'work',
+    // By patient and month, not by plan: two stalled plans for one person are
+    // one telephone call.
+    PLAN_NEXT_STEP: 'plan',
   };
   return [prefix[kind], ...parts].join(':');
 }
 
 /**
- * Which cycle a recall belongs to — the `2026-08` in `recall:<patientId>:2026-08`.
+ * Which cycle a monthly kind belongs to — the `2026-08` in
+ * `recall:<patientId>:2026-08`, and in `plan:<patientId>:2026-08` beside it.
  *
  * The period goes in the key rather than in a column, which is the shape this
  * function's own doc reserved for exactly this case. A month is the right grain:
@@ -48,7 +81,7 @@ export function dedupeKey(kind: MessageKind, ...parts: string[]): string {
  * somebody still overdue in November is asked about again rather than dropping
  * out of the queue for ever after one unanswered August.
  */
-export function recallCycle(now: Date): string {
+export function monthCycle(now: Date): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
@@ -102,26 +135,89 @@ export type ReminderCandidate = {
 
 export type QueueDecision =
   | { queue: true }
-  | { queue: false; reason: 'answered' | 'already-contacted' | 'opted-out' | 'no-contact-details' };
+  | {
+      queue: false;
+      reason:
+        | 'answered'
+        | 'already-contacted'
+        | 'opted-out'
+        | 'no-contact-details'
+        | 'recently-contacted';
+    };
 
 /**
- * Whether a patient the recall list has surfaced is worth queueing.
+ * How long a courtesy remembers the others.
  *
- * Thinner than `shouldQueueReminder` because `selectRecalls` has already done
- * the deciding — it has excluded anybody booked, snoozed, recently chased or
- * opted out of recalls entirely. What is left for this to check is what the
- * recall list deliberately does *not*: consent, and whether there is any way to
- * reach them at all.
+ * A week, and two of them inside it. The recall list has had a thirty-day
+ * cooldown since it was written, and it works — but it can only see the
+ * contacts *it* counts as chasing, so it has never known about the reminder
+ * that went out on Tuesday, the "your crown is back" on Wednesday, or the
+ * message somebody typed by hand on Thursday. Four systems each politely
+ * declining to be the third message this week, and between them sending five.
+ *
+ * Two rather than one because a practice genuinely does have two things to say
+ * in a week — a crown arriving two days after a filling is not a nuisance — and
+ * because a ceiling of one would make the *order the jobs happen to run in*
+ * decide which message a patient gets.
+ */
+export const COURTESY_WINDOW_DAYS = 7;
+export const MAX_COURTESY_CONTACTS = 2;
+
+/**
+ * An address the practice may actually use.
+ *
+ * A bounced address is not an address, and this is the one place that is
+ * decided. Everything downstream — whether there is any way to reach this
+ * patient at all, whether the queue offers an email button — reads the answer
+ * rather than the column, so a hard bounce recorded by the delivery webhook
+ * changes every one of those at once instead of in four places that must each
+ * remember. The patient keeps their telephone, so they keep being queued.
+ *
+ * `SOFT` is deliberately still usable: a full mailbox is empty again next week,
+ * and refusing to write to somebody for ever because their inbox was full one
+ * Tuesday is a worse error than one message that bounces twice.
+ */
+export function usableEmail(
+  email: string | null | undefined,
+  bounce: { bouncedAt: Date | null; kind: string | null } | null,
+): string {
+  const address = (email ?? '').trim();
+  if (!address) return '';
+  if (bounce?.bouncedAt && bounce.kind !== 'SOFT') return '';
+  return address;
+}
+
+/**
+ * Whether a patient one of the courtesy lists has surfaced is worth queueing.
+ *
+ * Thinner than `shouldQueueReminder` because the list has already done the
+ * deciding — `selectRecalls` has excluded anybody booked, snoozed, recently
+ * chased or opted out of recalls entirely, and `selectFollowUps`, the stalled
+ * plans and the cases back from the laboratory each have rules of their own.
+ * What is left for this to check is what none of those lists does: consent,
+ * whether there is any way to reach them at all, and how much they have already
+ * heard from us this week.
+ *
+ * One function for four kinds, deliberately. The alternative is four nearly
+ * identical rules that drift, and the first thing to drift would be the opt-out
+ * — which is the one this file exists to get right.
  *
  * Consent is not part of the recall list's own rules on purpose — that list is
  * worked by a person who can see the refusal on the row and ring them about
  * something else. A queue is worked down without reading, so it must not contain
  * anybody who said no.
  */
-export function shouldQueueRecall(candidate: {
+export function shouldQueueCourtesy(candidate: {
   contactConsent: boolean | null;
   phone: string;
+  /** Already reduced by `usableEmail` — a bounced address arrives here as ''. */
   email: string;
+  /**
+   * How many times the practice has put something in front of this patient
+   * inside `COURTESY_WINDOW_DAYS`. Counted by the caller, which is the only
+   * side with a database.
+   */
+  recentContacts?: number;
 }): QueueDecision {
   // Explicit `false` only. `null` is "nobody has asked", the honest state of
   // every record predating the question, and it is not a refusal.
@@ -129,6 +225,13 @@ export function shouldQueueRecall(candidate: {
 
   if (!candidate.phone.trim() && !candidate.email.trim()) {
     return { queue: false, reason: 'no-contact-details' };
+  }
+
+  // Last, and after the refusals, because it is the only reason here that is
+  // about *timing* rather than about the patient — a row skipped for this today
+  // is one the same job will queue quite happily next week, and the note says so.
+  if ((candidate.recentContacts ?? 0) >= MAX_COURTESY_CONTACTS) {
+    return { queue: false, reason: 'recently-contacted' };
   }
 
   return { queue: true };
@@ -194,6 +297,7 @@ export const SKIP_NOTES: Record<Exclude<QueueDecision, { queue: true }>['reason'
   'already-contacted': 'somebody had already reminded them',
   'opted-out': 'the patient asked not to be contacted',
   'no-contact-details': 'no phone number and no email address',
+  'recently-contacted': 'they have heard from us twice this week already',
 };
 
 /**
@@ -221,7 +325,36 @@ export type CancelReason =
    * about an appointment: a recall is about an *absence*, and the absence ends
    * quietly. See `withdrawSettledRecalls`.
    */
-  | 'no-longer-due';
+  | 'no-longer-due'
+  /**
+   * The patient said no while the row was waiting.
+   *
+   * Written by the delivery webhook, which is the only thing in the app that
+   * learns of a refusal without anybody typing it: an unsubscribe link followed,
+   * or a spam complaint filed. Its own reason rather than `set-aside`, because
+   * no member of staff set it aside and the trail should not imply one did.
+   */
+  | 'opted-out'
+  /**
+   * The few days in which it would have been worth sending have gone by.
+   *
+   * `passed` is the same idea for an appointment and cannot be reused: that one
+   * reads "the appointment had already begun", and a post-operative check has no
+   * appointment to have begun. What has expired is a window — asking somebody
+   * how they are getting on a fortnight after a filling is not a courtesy, it is
+   * a form letter.
+   */
+  | 'window-closed'
+  /**
+   * They have an appointment now, so somebody will tell them in person.
+   *
+   * Only ever a WORK_READY row. "Your crown is back" is worth sending to
+   * somebody with nothing booked and is noise to somebody who is coming in on
+   * Thursday to have it fitted — and this is the reason a person reading the
+   * handled list wants, rather than the recall's "no longer overdue", which is
+   * about an absence and says nothing true about a case at the laboratory.
+   */
+  | 'booked-in';
 
 export const CANCEL_NOTES: Record<CancelReason, string> = {
   rescheduled: 'the appointment moved',
@@ -231,6 +364,9 @@ export const CANCEL_NOTES: Record<CancelReason, string> = {
   passed: 'the appointment had already begun',
   'set-aside': 'set aside by hand',
   'no-longer-due': 'the patient is no longer overdue',
+  'opted-out': 'the patient opted out of being messaged',
+  'window-closed': 'too late for it to be worth sending',
+  'booked-in': 'the patient has an appointment booked',
 };
 
 /**
@@ -273,6 +409,7 @@ export function noteKey(note: string | null | undefined): string | null {
 
 const NOTE_KEYS: Record<string, string> = {
   [SKIP_NOTES.answered]: 'skipAnswered',
+  [SKIP_NOTES['recently-contacted']]: 'skipRecentlyContacted',
   [SKIP_NOTES['already-contacted']]: 'skipContacted',
   [SKIP_NOTES['opted-out']]: 'skipOptedOut',
   [SKIP_NOTES['no-contact-details']]: 'skipNoDetails',
@@ -283,6 +420,9 @@ const NOTE_KEYS: Record<string, string> = {
   [CANCEL_NOTES.passed]: 'cancelPassed',
   [CANCEL_NOTES['set-aside']]: 'cancelSetAside',
   [CANCEL_NOTES['no-longer-due']]: 'cancelNoLongerDue',
+  [CANCEL_NOTES['opted-out']]: 'cancelOptedOut',
+  [CANCEL_NOTES['window-closed']]: 'cancelWindowClosed',
+  [CANCEL_NOTES['booked-in']]: 'cancelBookedIn',
   [SENT_NOTES.WHATSAPP]: 'sentWhatsapp',
   [SENT_NOTES.EMAIL]: 'sentEmail',
   [SENT_NOTES.PHONE]: 'sentPhone',
@@ -295,3 +435,51 @@ const NOTE_KEYS: Record<string, string> = {
   [MAIL_FAILURE_NOTES.limit]: 'mailLimit',
   [MAIL_FAILURE_NOTES.unreachable]: 'mailUnreachable',
 };
+
+/**
+ * How long a refused send waits before the queue offers it again.
+ *
+ * The column that makes this possible has been on the table since the outbox
+ * was built, holding the same value as `createdAt` on every row, waiting for
+ * "the day anything sends by itself". That day has not come and this is not it:
+ * a person still presses the button. What changed is that the button can now
+ * *fail*, and a queue that re-offers a failing row to the next person who opens
+ * it — and the next — turns one broken configuration into a morning of
+ * identical disappointments.
+ *
+ * Four intervals because the four failures are four different waits, in the
+ * same way `MailFailure` splits them by who fixes them:
+ *
+ *  - `unreachable` is nobody's fault and usually over in seconds; five minutes
+ *    is long enough that the second press is a different attempt rather than
+ *    the same one.
+ *  - `limit` is a daily allowance, so the honest answer is "tomorrow" — four
+ *    hours is the compromise that still lets an evening run go out.
+ *  - `auth` and `rejected` need somebody to change a setting. Half an hour is
+ *    not a retry, it is the row getting out of the way of the work that can be
+ *    done, and it comes back by itself in case the setting was fixed.
+ *
+ * Pure, and returning a `Date` rather than mutating anything, so
+ * `tests/outbox.test.ts` can state the whole table in four lines.
+ */
+export const RETRY_MINUTES: Record<MailFailure, number> = {
+  unreachable: 5,
+  limit: 240,
+  auth: 30,
+  rejected: 30,
+};
+
+export function retryAfter(failure: MailFailure, now: Date): Date {
+  return new Date(now.getTime() + RETRY_MINUTES[failure] * 60_000);
+}
+
+/**
+ * Whether a row is being held back from a failed attempt rather than waiting to
+ * be worked.
+ *
+ * The distinction the queue screen draws its fourth section on. Both are
+ * PENDING and both are honest; only one of them is anybody's job this minute.
+ */
+export function isHeld(row: { sendAfter: Date; attempts: number }, now: Date): boolean {
+  return row.attempts > 0 && row.sendAfter > now;
+}

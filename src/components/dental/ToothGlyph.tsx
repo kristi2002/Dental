@@ -650,6 +650,11 @@ type Geometry = {
     width: number;
     /** How far up the band this root reaches — the tooth's own length. */
     apexY: number;
+    /** And where across it, which is a different number on every leg of a
+     *  molar. The pair is where anything happening at the root *tip* is drawn:
+     *  a periapical lesion sits on the apex of each root separately, because
+     *  that is where infection leaves the tooth. */
+    apexX: number;
     axis: string;
     canal: string;
   }>;
@@ -802,6 +807,7 @@ function build(a: Anatomy): Geometry {
       behind: root.behind === true,
       width: root.width * MM,
       apexY: rootAxisAt(root, cej, 1)[1],
+      apexX: rootAxisAt(root, cej, 1)[0],
       axis: rootAxisPath(root, cej, 0.02, 0.86),
       // Canals start in the pulp chamber, inside the crown, and stop short of
       // the apex — obturation does, so a canal drawn to the tip is a filled
@@ -1305,21 +1311,33 @@ export function ToothGlyph({
           being a list: it is the commonest reason a tooth is looked at twice. */}
       {(
         [
-          ['FILLED', true],
-          ['ROOT_CANAL', true],
-          ['CARIES', false],
+          ['FILLED', 'restoration'],
+          ['ROOT_CANAL', 'restoration'],
+          // A dressing is a restoration that is not finished, so it is drawn as
+          // one that is not finished: same body in the same cavity, chalky
+          // instead of polished and rimmed with a broken line. It sits under
+          // the decay below it in this list for the same reason the filling
+          // does — fresh caries at the margin of a temporary is the whole
+          // reason the tooth is on somebody's list.
+          ['TEMPORARY', 'dressing'],
+          ['CARIES', 'cavity'],
+          // Last, and an outline rather than a body: nothing has been done to
+          // this face and nothing has been found on it either. A ring around a
+          // fissure says "look here next time", which is exactly as much as a
+          // watch means.
+          ['WATCH', 'watch'],
         ] as const
-      ).flatMap(([status, restorative]) =>
+      ).flatMap(([status, kind]) =>
         has(status)
           ? facesFor(status, status === 'ROOT_CANAL' ? [] : DEFAULT_FACES).map((surface) => ({
               status,
-              restorative,
+              kind,
               surface,
             }))
           : [],
-      ).map(({ status, restorative, surface }) => {
+      ).map(({ status, kind, surface }) => {
         const { cx, cy, r } = markAt(surface, g);
-        if (restorative) {
+        if (kind === 'restoration') {
           return (
             <g key={`${status}-${surface}`} clipPath={`url(#lt-clip-${key})`}>
               {/* A restoration is a solid body set *into* the tooth: a dark
@@ -1333,6 +1351,50 @@ export function ToothGlyph({
                 stroke="#0C4A6E"
                 strokeWidth="1.6"
                 opacity="0.75"
+              />
+            </g>
+          );
+        }
+
+        if (kind === 'dressing') {
+          return (
+            <g key={`${status}-${surface}`} clipPath={`url(#lt-clip-${key})`}>
+              <circle cx={cx} cy={cy} r={r} fill="url(#lt-temporary)" />
+              {/* The broken rim is the whole tell. A definitive filling is
+                  sealed to the enamel all the way round and this one is a plug
+                  in a hole, so its edge is drawn as one that will be opened
+                  again. */}
+              <circle
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill="none"
+                stroke="#155E75"
+                strokeWidth="1.5"
+                strokeDasharray="4 3"
+                opacity="0.8"
+              />
+            </g>
+          );
+        }
+
+        if (kind === 'watch') {
+          // Clipped to the tooth like every other mark, and drawn a little
+          // smaller than one. Unclipped it floated half off the silhouette at
+          // the mesial and read as a sticker on the drawing rather than as a
+          // place on the tooth.
+          return (
+            <g key={`${status}-${surface}`} clipPath={`url(#lt-clip-${key})`}>
+              <circle cx={cx} cy={cy} r={r * 0.82} fill="#3B82F6" opacity="0.12" />
+              <circle
+                cx={cx}
+                cy={cy}
+                r={r * 0.82}
+                fill="none"
+                stroke="#1D4ED8"
+                strokeWidth="2.9"
+                strokeDasharray="5 4"
+                opacity="0.95"
               />
             </g>
           );
@@ -1386,6 +1448,96 @@ export function ToothGlyph({
           {body}
         </g>
       )}
+
+      {/* Infection at the root tip: one lesion per root, because that is where
+          each of them has one.
+
+          Outside the relief filter and outside every clip. It is bone that has
+          gone rather than a thing that is there, so it has no edge to catch a
+          light and no reason to stop at the tooth's outline — it engulfs the
+          apex, which is what makes it read as a radiolucency and not as a pink
+          dot somebody drew on the end of a root. */}
+      {has('PERIAPICAL') ? (
+        <g clipPath="url(#lt-view)">
+          {g.roots.map((root) => {
+            // Sized off the root's own thickness, so a molar's slender
+            // distobuccal root gets a smaller lesion than an incisor's — true,
+            // and it keeps three of them on one tooth from merging into a
+            // single blob across the apices.
+            const r = Math.max(7, root.width * 0.85);
+            return (
+              <circle
+                key={`apex-${root.d}`}
+                transform={frame}
+                cx={root.apexX}
+                // Pulled back off the tip rather than centred on it, which is
+                // both truer and the only way it fits: an apex sits within a
+                // few units of the top of the band, so a lesion centred there
+                // is half outside the drawing — and in the chart the cell does
+                // not clip, so the half that escaped landed on the neighbouring
+                // tooth. Sat over the apical third it stays inside its own
+                // tooth and still reads as engulfing the tip.
+                cy={root.apexY + r * 1.1}
+                r={r}
+                fill="url(#lt-lesion)"
+              />
+            );
+          })}
+        </g>
+      ) : null}
+
+      {/* Buried. The crown washed over in the colour of what it is buried in,
+          and the alveolar crest drawn across the cell above it — a tooth *below*
+          the ridge line is the notation every chart uses for one that has not
+          come through, and it is the only way to draw this that does not just
+          look like a tooth with a stain on it.
+
+          The line runs the full width of the cell rather than the width of the
+          tooth, because a ridge does: it is the arch the tooth has failed to
+          reach, not a lid on this one. */}
+      {has('IMPACTED') ? (
+        <g transform={frame}>
+          <g clipPath={`url(#lt-crown-clip-${key})`}>
+            <rect
+              x={VIEW.x}
+              y={g.cej}
+              width={VIEW.w}
+              height={INCISAL - g.cej + 10}
+              fill="#C4A484"
+              opacity="0.52"
+            />
+          </g>
+          <path
+            d={`M${f(VIEW.x)} ${f(INCISAL + 3)} L${f(VIEW.x + VIEW.w)} ${f(INCISAL + 3)}`}
+            stroke="#8D6E52"
+            strokeWidth="2.6"
+            strokeDasharray="7 5"
+            strokeLinecap="round"
+            opacity="0.9"
+          />
+        </g>
+      ) : null}
+
+      {/* The crown is gone and the root is still in.
+          Drawn as the crown's *absence* over a root left fully rendered — the
+          same dashed ghost a missing tooth is drawn with, applied to the half
+          of the tooth that is missing. The solid line along the enamel margin
+          is where it sheared off, and it is what stops this reading as a tooth
+          that has simply been drawn faintly. */}
+      {has('RETAINED_ROOT') ? (
+        <g transform={frame}>
+          <path
+            d={g.crown}
+            fill="#f8fafc"
+            fillOpacity="0.88"
+            stroke="#94A3B8"
+            strokeWidth="1.8"
+            strokeDasharray="6 5"
+            strokeLinejoin="round"
+          />
+          <path d={g.cervical} fill="none" stroke="#78716C" strokeWidth="3.2" opacity="0.9" />
+        </g>
+      ) : null}
 
       {/* Struck through, over everything, because the point of the mark is that
           there is nothing left to read underneath it — and flat, because it is
@@ -2113,6 +2265,26 @@ const DEFS = (
         <stop offset="100%" stopColor="#4C1D95" />
       </radialGradient>
 
+      {/* Infection at the root tip, drawn the way it is seen: on a radiograph
+          it is an absence — bone that has gone — so this is dark in the middle
+          and dissolves outwards with no edge on it anywhere. The one finding on
+          this chart that is not a thing but a hole where a thing was, and the
+          softness is what says so. */}
+      <radialGradient id="lt-lesion" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0%" stopColor="#831843" stopOpacity="0.72" />
+        <stop offset="55%" stopColor="#DB2777" stopOpacity="0.44" />
+        <stop offset="100%" stopColor="#F472B6" stopOpacity="0" />
+      </radialGradient>
+
+      {/* A dressing. Deliberately dull where the filling's amalgam is bright:
+          it is unpolished, it is chalky, and it is meant to look like something
+          that has not been finished. */}
+      <radialGradient id="lt-temporary" cx="0.5" cy="0.34" r="0.7">
+        <stop offset="0%" stopColor="#CFFAFE" />
+        <stop offset="52%" stopColor="#A5D8E4" />
+        <stop offset="100%" stopColor="#5E8C99" />
+      </radialGradient>
+
       {/* A cylinder, and symmetrical about its axis so it survives the mirror:
           dark at both edges, bright down the core. */}
       <linearGradient id="lt-titanium" x1="0" y1="0.5" x2="1" y2="0.5">
@@ -2129,6 +2301,15 @@ const DEFS = (
         <stop offset="70%" stopColor="#F8FAFC" />
         <stop offset="100%" stopColor="#CBD5E1" />
       </linearGradient>
+
+      {/* The cell. One finding is drawn outside the tooth's own outline — a
+          periapical lesion is in the bone *around* the apex — and an apex sits
+          a few units below the top of this band, so without a stop it paints
+          over the tooth in the row above. Everything else here is clipped to
+          the tooth and never needed one. */}
+      <clipPath id="lt-view">
+        <rect x={VIEW.x} y={VIEW.y} width={VIEW.w} height={VIEW.h} />
+      </clipPath>
 
       {/* The whole tooth — for a finding, which can sit anywhere on it. */}
       {VARIANTS.map((variant) => {

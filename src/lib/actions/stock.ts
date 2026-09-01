@@ -282,7 +282,18 @@ export async function saveStockItem(_prev: ActionState, formData: FormData): Pro
         await tx.stockItem.update({ where: { id }, data });
 
         const delta = quantity - existing.quantity;
-        if (delta !== 0) {
+        if (delta < 0) {
+          // A lower count typed here is a consumption like any other and has to
+          // draw the lots down like one — see `saveStocktake`'s note on the same
+          // bug: a bare movement with no batch left `usedQuantity` stale, so the
+          // expiry screen went on counting boxes that had already left the shelf.
+          await recordConsumption(tx, {
+            itemId: id,
+            quantity: -delta,
+            reason: 'manual',
+            staffUserId: user.id,
+          });
+        } else if (delta > 0) {
           await tx.stockMovement.create({
             data: { itemId: id, delta, reason: 'manual', staffUserId: user.id },
           });
@@ -522,7 +533,11 @@ export async function moveStock(_prev: ActionState, formData: FormData): Promise
  *
  * The delta is computed inside the transaction against what the row actually
  * holds rather than the figure the browser was shown, so the ledger always
- * agrees with the counter it is supposed to explain.
+ * agrees with the counter it is supposed to explain. And the write that applies
+ * it is guarded against that same snapshot, not unconditional — a scan or a tap
+ * landing on an item while this transaction is still working through the rest
+ * of the list is a real change made after the snapshot was taken, and loses to
+ * it rather than being overwritten by a count taken before it happened.
  */
 export async function saveStocktake(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const t = await getTranslations('errors');
@@ -562,7 +577,17 @@ export async function saveStocktake(_prev: ActionState, formData: FormData): Pro
         // movement for it would bury the ledger under confirmations.
         if (delta === 0) continue;
 
-        await tx.stockItem.update({ where: { id: item.id }, data: { quantity: value } });
+        // Guarded against the snapshot above, not written unconditionally: a
+        // scan or a ±1 tap landing on this same item while the stocktake's
+        // transaction is still working through other lines must not be
+        // overwritten by a count taken before it happened. When the row has
+        // moved, this line is left exactly as the concurrent write made it —
+        // the next stocktake will count it again.
+        const moved = await tx.stockItem.updateMany({
+          where: { id: item.id, quantity: item.quantity },
+          data: { quantity: value },
+        });
+        if (moved.count === 0) continue;
 
         if (delta < 0) {
           // A count that comes up short is a consumption like any other, and has
@@ -849,16 +874,54 @@ export async function deleteSupplier(formData: FormData): Promise<void> {
   const id = requiredString(formData.get('id'));
   if (!id) return;
 
-  const supplier = await prisma.supplier.findUnique({ where: { id }, select: { name: true } });
+  const supplier = await prisma.supplier.findUnique({
+    where: { id },
+    select: { name: true, _count: { select: { items: true, orders: true } } },
+  });
   if (!supplier) return;
 
-  // Items keep their history; the link just goes null (`onDelete: SetNull`).
-  await prisma.supplier.delete({ where: { id } });
+  // Archived once anything names it — the same rule `deleteStockItem` follows.
+  // "Items keep their history; the link just goes null" is what this used to
+  // say, and the second half is what was wrong with it: `SetNull` on
+  // `PurchaseOrder.supplierId` detached every order ever placed from the row
+  // that says who they were. The order keeps `supplierName` and still reads;
+  // what it lost was the telephone number, and any way to follow the link back.
+  const used = supplier._count.items > 0 || supplier._count.orders > 0;
+
+  if (used) {
+    await prisma.supplier.update({ where: { id }, data: { archivedAt: new Date() } });
+  } else {
+    await prisma.supplier.delete({ where: { id } });
+  }
+
   await recordAudit(user, {
-    action: 'delete',
+    action: used ? 'update' : 'delete',
     entity: 'supplier',
     entityId: id,
-    summary: supplier.name,
+    summary: used ? `${supplier.name} → archived` : supplier.name,
+  });
+  revalidateAll();
+}
+
+/** Put a retired supplier back in the list. */
+export async function restoreSupplier(formData: FormData): Promise<void> {
+  const user = await authorize('stock.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const supplier = await prisma.supplier.update({
+    where: { id },
+    data: { archivedAt: null },
+    select: { name: true },
+  });
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'supplier',
+    entityId: id,
+    summary: `${supplier.name} → restored`,
   });
   revalidateAll();
 }

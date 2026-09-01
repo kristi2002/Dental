@@ -772,7 +772,11 @@
     "labs": "Laboratori",
     "prescriptionsIssued": "Emesse",
     "prescriptionTemplates": "Testi standard",
-    "requests": "Richieste"
+    "requests": "Richieste",
+    "worksAll": "Tutte le lavorazioni",
+    "servicesAll": "Tutti i trattamenti",
+    "stockAll": "Tutti gli articoli",
+    "skipToContent": "Vai al contenuto"
   },
   "common": {
     "save": "Salva",
@@ -796,6 +800,7 @@
     "moreActions": "Altre azioni",
     "loading": "Caricamento…",
     "confirmDelete": "Sei sicuro di volerlo eliminare? L'operazione non è reversibile.",
+    "confirmRetire": "Rimuovere questo? Ciò che è già registrato viene ritirato anziché eliminato, così la documentazione di quanto è stato fatto resta intatta.",
     "notes": "Note",
     "name": "Nome",
     "category": "Categoria",
@@ -812,7 +817,13 @@
     "clearFilters": "Azzera",
     "breadcrumb": "Percorso",
     "pageOf": "Pagina {page} di {pages}",
-    "saveAndAddAnother": "Salva e aggiungine un altro"
+    "saveAndAddAnother": "Salva e aggiungine un altro",
+    "archivedOn": "ritirato il {date}",
+    "restore": "Ripristina",
+    "archivedServices": "Trattamenti ritirati",
+    "archivedSuppliers": "Fornitori ritirati",
+    "archivedTemplates": "Testi ritirati",
+    "archivedProcedures": "Tipi di lavoro ritirati"
   },
   "calendar": {
     "open": "Scegli una data",
@@ -874,6 +885,11 @@
     "phone": "Telefono",
     "email": "Email",
     "dateOfBirth": "Data di nascita",
+    "sex": "Sesso",
+    "sexUnknown": "Non registrato",
+    "sex_FEMALE": "Femmina",
+    "sex_MALE": "Maschio",
+    "sex_OTHER": "Altro",
     "medicalNotes": "Note mediche",
     "medicalNotesHint": "Allergie, patologie croniche, farmaci…",
     "searchPlaceholder": "Cerca per nome, telefono o email…",
@@ -1078,7 +1094,8 @@
     "waitingFor": "attende da {minutes} min",
     "bookAt": "Prenota {time}",
     "gridHint": "Trascina un appuntamento per spostarlo in un altro orario. Fai doppio clic su un orario libero per prenotarlo.",
-    "openPatient": "Apri paziente"
+    "openPatient": "Apri paziente",
+    "bouncedAddress": "L’indirizzo email in archivio non funziona"
   },
   "services": {
     "title": "Servizi",
@@ -1454,7 +1471,27 @@
     "status_FRACTURE": "Frattura",
     "status_VENEER": "Faccetta",
     "status_BRIDGE": "Ponte",
-    "perioSaveNext": "Salva · poi il {num}"
+    "perioSaveNext": "Salva · poi il {num}",
+    "status_IMPACTED": "Incluso",
+    "status_RETAINED_ROOT": "Radice residua",
+    "status_PERIAPICAL": "Lesione periapicale",
+    "status_TEMPORARY": "Otturazione provvisoria",
+    "status_WATCH": "Da monitorare",
+    "redo": "Ripristina",
+    "toolHintKeys": "Trascina sui denti per segnarne diversi in una volta. I tasti 1–9 prendono lo strumento con quel numero; Esc lo posa.",
+    "markedCount": "{count, plural, one {# dente segnato} other {# denti segnati}}",
+    "undoSaid": "{count, plural, one {Annullato — # dente com’era} other {Annullato — # denti com’erano}}",
+    "redoSaid": "{count, plural, one {Ripristinato — # dente segnato di nuovo} other {Ripristinato — # denti segnati di nuovo}}",
+    "examinedOn": "Esaminato il {date}",
+    "examinedBy": "da {name}",
+    "examinedNever": "Nessun esame ancora registrato",
+    "recordExam": "Registra esame",
+    "recorded": "Già registrato",
+    "foundOn": "Rilevato il {date}",
+    "foundBy": "da {name}",
+    "dmftParts": "D{d} M{m} F{f}",
+    "dmftHint": "Denti cariati, mancanti e otturati. “M” conta ogni dente assente, perché la scheda non registra il motivo della perdita.",
+    "perioTrendSince": "dal {date}"
   },
   "reminders": {
     "whatsappTemplate": "Buongiorno {name}, le ricordiamo il suo appuntamento dal dentista il {date} alle {time}. A presto!",
@@ -1467,7 +1504,17 @@
     "followUpEmailSubject": "Come si sente dopo il trattamento?",
     "followUpEmailBody": "Buongiorno {name},\n\nSono passati {days} giorni dal trattamento ({services}). Volevamo sapere come sta procedendo.\n\nSe qualcosa fa male o non le sembra giusto, risponda a questa email o ci telefoni e la riceveremo.\n\nCordiali saluti,\nLo studio dentistico",
     "waitlistWhatsapp": "Buongiorno {name}, si è liberato un posto {day} alle {time}. Le interessa? Ci faccia sapere e lo teniamo per lei.",
-    "confirmAsk": "Ci faccia sapere se verrà: {link}"
+    "confirmAsk": "Ci faccia sapere se verrà: {link}",
+    "workWhatsapp": "Buongiorno {name}, il suo {work} è tornato dal laboratorio. Desidera venire per applicarlo? Ci faccia sapere un orario che le sia comodo.",
+    "workEmailSubject": "Il suo {work} è pronto",
+    "workEmailBody": "Buongiorno {name},\n\nIl suo {work} è tornato dal laboratorio ed è pronto per lei.\n\nRisponda a questa email o ci telefoni e troveremo un orario che le sia comodo.\n\nCordiali saluti,\nLo studio dentistico",
+    "planWhatsapp": "Buongiorno {name}, manca ancora un passaggio del suo trattamento — {step}. Desidera fissarlo? Troveremo volentieri un orario che le sia comodo.",
+    "planWhatsappPlain": "Buongiorno {name}, il suo trattamento ({plan}) non è ancora concluso. Desidera fissare il prossimo appuntamento?",
+    "planEmailSubject": "Completare il suo trattamento",
+    "planEmailBody": "Buongiorno {name},\n\nIl suo piano di cura ({plan}) ha ancora un passaggio da fare — {step} — ed è passato un po’ di tempo dall’ultima volta che l’abbiamo vista per questo.\n\nCi può essere un buon motivo: in tal caso ce lo dica pure. Altrimenti risponda a questa email o ci telefoni e troveremo un orario.\n\nCordiali saluti,\nLo studio dentistico",
+    "planEmailBodyPlain": "Buongiorno {name},\n\nIl suo piano di cura ({plan}) non è ancora concluso ed è passato un po’ di tempo dall’ultima volta che l’abbiamo vista per questo.\n\nCi può essere un buon motivo: in tal caso ce lo dica pure. Altrimenti risponda a questa email o ci telefoni e troveremo un orario.\n\nCordiali saluti,\nLo studio dentistico",
+    "theTreatment": "il suo trattamento",
+    "optOutAsk": "Se preferisce non ricevere messaggi come questo, ce lo dica qui: {link}"
   },
   "reminderBoard": {
     "title": "Promemoria",
@@ -1522,15 +1569,17 @@
       "works": "{count, plural, one {# caso è ancora dal laboratorio} other {# casi sono ancora dal laboratorio}}",
       "requests": "{count, plural, one {# richiesta di appuntamento dal sito} other {# richieste di appuntamento dal sito}}",
       "mail": "{count, plural, one {# messaggio di un paziente, senza risposta} other {# messaggi di pazienti, senza risposta}}",
-      "unreminded": "{count, plural, one {# paziente di domani non ha ricevuto nulla} other {# pazienti di domani non hanno ricevuto nulla}}",
-      "unwritten": "{count, plural, one {# appuntamento non è mai stato chiuso} other {# appuntamenti non sono mai stati chiusi}}"
+      "unreminded": "{count, plural, one {# messaggio è in attesa di invio} other {# messaggi sono in attesa di invio}}",
+      "unwritten": "{count, plural, one {# appuntamento non è mai stato chiuso} other {# appuntamenti non sono mai stati chiusi}}",
+      "opened": "{count, plural, one {# posto si è appena liberato} other {# posti si sono appena liberati}}"
     },
     "elsewhereHint": {
       "works": "In consegna entro pochi giorni, o già scaduti.",
       "requests": "Uno sconosciuto ha lasciato il numero e aspetta.",
       "mail": "Qualcuno ha scritto e nessuno ha risposto.",
-      "unreminded": "Domani, e nessuno ha mandato niente.",
-      "unwritten": "Di' cos'è successo, così la cartella resta onesta."
+      "unreminded": "Promemoria, controlli e il resto della coda.",
+      "unwritten": "Di' cos'è successo, così la cartella resta onesta.",
+      "opened": "Il paziente lo ha annullato da sé. La lista d’attesa è qui accanto."
     },
     "newSince": "{count, plural, one {# nuovo dall'ultima volta} other {# nuovi dall'ultima volta}}"
   },
@@ -1615,10 +1664,31 @@
       "mailRejected": "il provider di posta ha rifiutato il messaggio",
       "mailLimit": "il limite di invii di oggi è esaurito",
       "mailUnreachable": "impossibile raggiungere il provider di posta",
-      "cancelNoLongerDue": "il paziente non è più in ritardo"
+      "cancelNoLongerDue": "il paziente non è più in ritardo",
+      "skipRecentlyContacted": "hanno già ricevuto due nostri messaggi questa settimana",
+      "cancelOptedOut": "il paziente ha chiesto di non essere contattato",
+      "cancelWindowClosed": "ormai tardi perché valga la pena inviarlo",
+      "cancelBookedIn": "il paziente ha un appuntamento fissato"
     },
     "lastSeen": "Visto l'ultima volta il {date}",
-    "neverSeen": "Non è mai venuto"
+    "neverSeen": "Non è mai venuto",
+    "heldTitle": "In attesa di un nuovo tentativo",
+    "heldSubtitle": "{count, plural, one {# messaggio rifiutato dal servizio email} other {# messaggi rifiutati dal servizio email}}",
+    "kind_APPOINTMENT_REMINDER": "Promemoria",
+    "kind_RECALL_DUE": "Controllo dovuto",
+    "kind_POST_OP_CHECK": "Dopo il trattamento",
+    "kind_WORK_READY": "Lavoro tornato",
+    "kind_PLAN_NEXT_STEP": "Piano incompleto",
+    "treatedOn": "Trattato il {date}",
+    "workBack": "Dal laboratorio: {work}",
+    "triedTimes": "{count, plural, one {Tentato una volta} other {Tentato # volte}}",
+    "backAt": "torna alle {time}",
+    "emailBounced": "L’indirizzo email in archivio non ha funzionato — il messaggio è tornato indietro.",
+    "bouncedError": "l’indirizzo email in archivio non funziona",
+    "prefers_WHATSAPP": "Preferisce WhatsApp",
+    "prefers_EMAIL": "Preferisce l’email",
+    "prefers_PHONE": "Preferisce una telefonata",
+    "prefers_IN_PERSON": "Preferisce di persona"
   },
   "errors": {
     "duplicatePhone": "Esiste già un paziente con questo numero: {list}.",
@@ -2097,6 +2167,7 @@
     "exportPdf": "PDF",
     "exportFileName": "lavorazioni",
     "sheetTitle": "Registro lavorazioni",
+    "sheetCheck": "Verifica",
     "exportedAt": "Esportato il {date}",
     "exportNotes": "Note",
     "sentAt": "Inviato",
@@ -2226,7 +2297,6 @@
     "namePlaceholder": "Corona in zirconia",
     "empty": "Ancora nessun tipo di lavorazione. Aggiungi quelle che lo studio manda fuori — corona, ponte, protesi — e poi scegliile sul caso.",
     "lineCount": "{count, plural, =0 {su nessuna riga} one {su # riga} other {su # righe}}",
-    "confirmDelete": "Togliere questo tipo di lavorazione? I casi già scritti mantengono le parole con cui sono stati scritti; esce solo dall'elenco delle scelte.",
     "sectionNaming": "La lavorazione",
     "sectionNamingHint": "Un tipo di lavorazione è solo un nome. Aggiungili tutti in una volta.",
     "alreadyNamed": "Già nominati",
@@ -2469,12 +2539,18 @@
       "queue-appointment-reminders": "Promemoria di domani",
       "sweep-orphan-files": "Pulisci i file inutilizzati",
       "queue-recalls": "Controlli in ritardo",
+      "queue-post-op-checks": "Controlli dopo il trattamento",
+      "queue-work-ready": "Lavori tornati dal laboratorio",
+      "queue-stalled-plans": "Piani di cura fermi",
       "compose-morning-digest": "Registra cosa aspettava stamattina"
     },
     "hint": {
       "queue-appointment-reminders": "Individua chi ricordare per domani e riempie la coda di invio. Non invia nulla.",
       "sweep-orphan-files": "Rimuove i file caricati a cui non punta più alcun record.",
       "queue-recalls": "Mette in coda i pazienti che nessuno vede da mesi. Non invia nulla.",
+      "queue-post-op-checks": "Mette in coda i pazienti trattati negli ultimi giorni, per chiedere come stanno. Non invia nulla.",
+      "queue-work-ready": "Mette in coda i pazienti il cui lavoro è tornato dal laboratorio. Non invia nulla.",
+      "queue-stalled-plans": "Mette in coda i pazienti il cui percorso di cura si è fermato a metà. Non invia nulla.",
       "compose-morning-digest": "Annota cosa conteneva la bacheca dei promemoria, così resta una storia. Non manda niente."
     },
     "reason": {
@@ -2606,7 +2682,8 @@
     "openMailClient": "Apri nel programma di posta",
     "mailClientHint": "Funziona solo se questo computer ha un programma di posta configurato.",
     "preferred": "preferito",
-    "optedOut": "Ha chiesto di non essere contattato"
+    "optedOut": "Ha chiesto di non essere contattato",
+    "emailBounced": "Il messaggio a questo indirizzo è tornato indietro"
   },
   "alerts": {
     "title": "Allerte mediche",
@@ -4066,5 +4143,20 @@
     "reason_visitDeleted": "Visita eliminata — rimesso",
     "reason_writeOff": "Scaricato",
     "reason_unknown": "Rettifica"
+  },
+  "unsubscribe": {
+    "title": "Messaggi dallo studio",
+    "greeting": "Buongiorno {name}",
+    "intro": "Può smettere di ricevere promemoria e messaggi di richiamo da {clinic} in qualsiasi momento. La chiameremo comunque per qualcosa di urgente e per gli appuntamenti che ha fissato.",
+    "optOut": "Non inviatemi più messaggi",
+    "optIn": "Inviatemi di nuovo i messaggi",
+    "doneOut": "Fatto — non le invieremo più questi messaggi.",
+    "doneIn": "Fatto — la terremo aggiornata come prima.",
+    "stillReachable": "Può cambiare idea quando vuole, o dircelo alla prossima visita.",
+    "invalidTitle": "Questo link non è valido",
+    "invalidText": "Potrebbe essere stato digitato male o copiato solo in parte. Ci telefoni e sistemiamo tutto.",
+    "tooMany": "Troppi tentativi. Attenda un minuto e riprovi.",
+    "errorInvalid": "questo link non è valido",
+    "errorGeneric": "non è stato salvato — riprovi"
   }
 }

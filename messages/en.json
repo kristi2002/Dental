@@ -772,7 +772,11 @@
     "labs": "Laboratories",
     "prescriptionsIssued": "Issued",
     "prescriptionTemplates": "Standard wording",
-    "requests": "Requests"
+    "requests": "Requests",
+    "worksAll": "All works",
+    "servicesAll": "All treatments",
+    "stockAll": "All items",
+    "skipToContent": "Skip to content"
   },
   "common": {
     "save": "Save",
@@ -796,6 +800,7 @@
     "moreActions": "More actions",
     "loading": "Loading…",
     "confirmDelete": "Are you sure you want to delete this? This cannot be undone.",
+    "confirmRetire": "Remove this? Anything already recorded against it is retired instead of deleted, so the record of what was done stays intact.",
     "notes": "Notes",
     "name": "Name",
     "category": "Category",
@@ -812,7 +817,13 @@
     "clearFilters": "Clear",
     "breadcrumb": "Breadcrumb",
     "pageOf": "Page {page} of {pages}",
-    "saveAndAddAnother": "Save and add another"
+    "saveAndAddAnother": "Save and add another",
+    "archivedOn": "retired {date}",
+    "restore": "Restore",
+    "archivedServices": "Retired treatments",
+    "archivedSuppliers": "Retired suppliers",
+    "archivedTemplates": "Retired wording",
+    "archivedProcedures": "Retired kinds of work"
   },
   "calendar": {
     "open": "Choose a date",
@@ -874,6 +885,11 @@
     "phone": "Phone",
     "email": "Email",
     "dateOfBirth": "Date of birth",
+    "sex": "Sex",
+    "sexUnknown": "Not recorded",
+    "sex_FEMALE": "Female",
+    "sex_MALE": "Male",
+    "sex_OTHER": "Other",
     "medicalNotes": "Medical notes",
     "medicalNotesHint": "Allergies, chronic conditions, medication…",
     "searchPlaceholder": "Search by name, phone or email…",
@@ -1078,7 +1094,8 @@
     "waitingFor": "waiting {minutes} min",
     "bookAt": "Book {time}",
     "gridHint": "Drag a booking to move it to another slot. Double-click free time to book it.",
-    "openPatient": "Open patient"
+    "openPatient": "Open patient",
+    "bouncedAddress": "The email address on file does not work"
   },
   "services": {
     "title": "Services",
@@ -1454,7 +1471,27 @@
     "status_FRACTURE": "Fracture",
     "status_VENEER": "Veneer",
     "status_BRIDGE": "Bridge",
-    "perioSaveNext": "Save · next is {num}"
+    "perioSaveNext": "Save · next is {num}",
+    "status_IMPACTED": "Impacted",
+    "status_RETAINED_ROOT": "Retained root",
+    "status_PERIAPICAL": "Periapical lesion",
+    "status_TEMPORARY": "Temporary filling",
+    "status_WATCH": "Watch",
+    "redo": "Redo",
+    "toolHintKeys": "Drag across teeth to mark a run of them in one go. Keys 1–9 pick up the tool with that number on it; Esc puts it down.",
+    "markedCount": "{count, plural, one {# tooth marked} other {# teeth marked}}",
+    "undoSaid": "{count, plural, one {Undone — # tooth back as it was} other {Undone — # teeth back as they were}}",
+    "redoSaid": "{count, plural, one {Redone — # tooth marked again} other {Redone — # teeth marked again}}",
+    "examinedOn": "Examined {date}",
+    "examinedBy": "by {name}",
+    "examinedNever": "No examination recorded yet",
+    "recordExam": "Record examination",
+    "recorded": "Already recorded",
+    "foundOn": "Found {date}",
+    "foundBy": "by {name}",
+    "dmftParts": "D{d} M{m} F{f}",
+    "dmftHint": "Decayed, missing and filled teeth. Missing counts every absent tooth, since the chart does not record why one was lost.",
+    "perioTrendSince": "since {date}"
   },
   "reminders": {
     "whatsappTemplate": "Hello {name}, this is a reminder of your dental appointment on {date} at {time}. See you soon!",
@@ -1467,7 +1504,17 @@
     "followUpEmailSubject": "How are you feeling after your treatment?",
     "followUpEmailBody": "Hello {name},\n\nIt has been {days} days since we treated you ({services}). We wanted to check how you are getting on.\n\nIf anything is painful or does not feel right, reply to this email or call us and we will see you.\n\nKind regards,\nThe dental clinic",
     "waitlistWhatsapp": "Hello {name}, a slot has opened up on {day} at {time}. Would you like it? Let us know and we will hold it for you.",
-    "confirmAsk": "Please let us know if you are coming: {link}"
+    "confirmAsk": "Please let us know if you are coming: {link}",
+    "workWhatsapp": "Hello {name}, your {work} has arrived back from the laboratory. Would you like to come in and have it fitted? Let us know a time that suits you.",
+    "workEmailSubject": "Your {work} is ready",
+    "workEmailBody": "Hello {name},\n\nYour {work} has come back from the laboratory and is ready for you.\n\nReply to this email or call us and we will find a time that suits you.\n\nKind regards,\nThe dental clinic",
+    "planWhatsapp": "Hello {name}, there is still a step of your treatment to do — {step}. Would you like to book it? We are happy to find a time that suits you.",
+    "planWhatsappPlain": "Hello {name}, your treatment ({plan}) is not finished yet. Would you like to book the next appointment?",
+    "planEmailSubject": "Finishing your treatment",
+    "planEmailBody": "Hello {name},\n\nYour treatment plan ({plan}) still has a step to go — {step} — and it has been a while since we saw you for it.\n\nThere may be a good reason, and if so just tell us. Otherwise, reply to this email or call us and we will find a time.\n\nKind regards,\nThe dental clinic",
+    "planEmailBodyPlain": "Hello {name},\n\nYour treatment plan ({plan}) is not finished yet, and it has been a while since we saw you for it.\n\nThere may be a good reason, and if so just tell us. Otherwise, reply to this email or call us and we will find a time.\n\nKind regards,\nThe dental clinic",
+    "theTreatment": "your treatment",
+    "optOutAsk": "If you would rather not receive messages like this, tell us here: {link}"
   },
   "reminderBoard": {
     "title": "Reminders",
@@ -1522,15 +1569,17 @@
       "works": "{count, plural, one {# case is still out at the laboratory} other {# cases are still out at the laboratory}}",
       "requests": "{count, plural, one {# booking request from the website} other {# booking requests from the website}}",
       "mail": "{count, plural, one {# message from a patient, unanswered} other {# messages from patients, unanswered}}",
-      "unreminded": "{count, plural, one {# patient due tomorrow has heard nothing} other {# patients due tomorrow have heard nothing}}",
-      "unwritten": "{count, plural, one {# appointment was never closed off} other {# appointments were never closed off}}"
+      "unreminded": "{count, plural, one {# message is waiting to be sent} other {# messages are waiting to be sent}}",
+      "unwritten": "{count, plural, one {# appointment was never closed off} other {# appointments were never closed off}}",
+      "opened": "{count, plural, one {# slot has just opened up} other {# slots have just opened up}}"
     },
     "elsewhereHint": {
       "works": "Due back within days, or already past.",
       "requests": "A stranger left their number and is waiting.",
       "mail": "Somebody wrote and nobody has replied.",
-      "unreminded": "Tomorrow, and nothing sent by anyone.",
-      "unwritten": "Say what happened, so the record stays honest."
+      "unreminded": "Reminders, check-ups and the rest of the queue.",
+      "unwritten": "Say what happened, so the record stays honest.",
+      "opened": "A patient cancelled it themselves. The waiting list is next door."
     },
     "newSince": "{count, plural, one {# new since you last looked} other {# new since you last looked}}"
   },
@@ -1615,10 +1664,31 @@
       "mailRejected": "the mail provider refused the message",
       "mailLimit": "today's sending limit is used up",
       "mailUnreachable": "the mail provider could not be reached",
-      "cancelNoLongerDue": "the patient is no longer overdue"
+      "cancelNoLongerDue": "the patient is no longer overdue",
+      "skipRecentlyContacted": "they have heard from us twice this week already",
+      "cancelOptedOut": "the patient opted out of being messaged",
+      "cancelWindowClosed": "too late for it to be worth sending",
+      "cancelBookedIn": "the patient has an appointment booked"
     },
     "lastSeen": "Last seen {date}",
-    "neverSeen": "Never been in"
+    "neverSeen": "Never been in",
+    "heldTitle": "Waiting to be tried again",
+    "heldSubtitle": "{count, plural, one {# message the mail provider refused} other {# messages the mail provider refused}}",
+    "kind_APPOINTMENT_REMINDER": "Reminder",
+    "kind_RECALL_DUE": "Check-up due",
+    "kind_POST_OP_CHECK": "After treatment",
+    "kind_WORK_READY": "Work is back",
+    "kind_PLAN_NEXT_STEP": "Plan unfinished",
+    "treatedOn": "Treated {date}",
+    "workBack": "Back from the lab: {work}",
+    "triedTimes": "{count, plural, one {Tried once} other {Tried # times}}",
+    "backAt": "back at {time}",
+    "emailBounced": "The email address on file did not work — mail to it bounced.",
+    "bouncedError": "the email address on file does not work",
+    "prefers_WHATSAPP": "Prefers WhatsApp",
+    "prefers_EMAIL": "Prefers email",
+    "prefers_PHONE": "Prefers a call",
+    "prefers_IN_PERSON": "Prefers in person"
   },
   "errors": {
     "duplicatePhone": "A patient with this number already exists: {list}.",
@@ -2097,6 +2167,7 @@
     "exportPdf": "PDF",
     "exportFileName": "works",
     "sheetTitle": "Works register",
+    "sheetCheck": "Checked",
     "exportedAt": "Exported {date}",
     "exportNotes": "Notes",
     "sentAt": "Sent",
@@ -2226,7 +2297,6 @@
     "namePlaceholder": "Zirconia crown",
     "empty": "No kinds of work yet. Add the ones this practice sends out — a crown, a bridge, a denture — then pick them on a case.",
     "lineCount": "{count, plural, =0 {on no rows} one {on # row} other {on # rows}}",
-    "confirmDelete": "Remove this kind of work? The cases already written keep the words they were written with; it only leaves the list of choices.",
     "sectionNaming": "The work",
     "sectionNamingHint": "A kind of work is a name and nothing else. Add them all in one go.",
     "alreadyNamed": "Already named",
@@ -2469,12 +2539,18 @@
       "queue-appointment-reminders": "Tomorrow's reminders",
       "sweep-orphan-files": "Tidy up unused files",
       "queue-recalls": "Overdue check-ups",
+      "queue-post-op-checks": "Check-ins after treatment",
+      "queue-work-ready": "Work back from the laboratory",
+      "queue-stalled-plans": "Treatment plans gone quiet",
       "compose-morning-digest": "Record what was waiting this morning"
     },
     "hint": {
       "queue-appointment-reminders": "Works out who to remind about tomorrow and fills the outbox. It sends nothing.",
       "sweep-orphan-files": "Removes uploaded files no record points at any more.",
       "queue-recalls": "Puts the patients nobody has seen for months into the outbox. It sends nothing.",
+      "queue-post-op-checks": "Puts the people treated in the last few days into the outbox, to ask how they are getting on. It sends nothing.",
+      "queue-work-ready": "Puts the patients whose case has come back from the laboratory into the outbox. It sends nothing.",
+      "queue-stalled-plans": "Puts the patients whose course of treatment stopped halfway into the outbox. It sends nothing.",
       "compose-morning-digest": "Writes down what the reminder board was holding, so there is a history. It sends nothing."
     },
     "reason": {
@@ -2606,7 +2682,8 @@
     "openMailClient": "Open in a mail program",
     "mailClientHint": "Works only where this computer has a mail program set up.",
     "preferred": "preferred",
-    "optedOut": "They asked not to be contacted"
+    "optedOut": "They asked not to be contacted",
+    "emailBounced": "Mail to this address bounced"
   },
   "alerts": {
     "title": "Medical alerts",
@@ -4066,5 +4143,20 @@
     "reason_visitDeleted": "Visit deleted — put back",
     "reason_writeOff": "Written off",
     "reason_unknown": "Adjustment"
+  },
+  "unsubscribe": {
+    "title": "Messages from the clinic",
+    "greeting": "Hello {name}",
+    "intro": "You can stop receiving reminders and check-up messages from {clinic} at any time. We will still call you about anything urgent, and about appointments you have booked.",
+    "optOut": "Stop sending me messages",
+    "optIn": "Send me messages again",
+    "doneOut": "Done — we will not send you these messages any more.",
+    "doneIn": "Done — we will keep you posted as before.",
+    "stillReachable": "You can change this at any time, or just tell us at your next visit.",
+    "invalidTitle": "This link is not valid",
+    "invalidText": "It may have been mistyped or copied incompletely. Call the practice and we will sort it out.",
+    "tooMany": "Too many attempts. Please wait a minute and try again.",
+    "errorInvalid": "this link is not valid",
+    "errorGeneric": "that did not save — please try again"
   }
 }

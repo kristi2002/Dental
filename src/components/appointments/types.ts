@@ -8,6 +8,14 @@ export type AppointmentView = {
   durationMin: number;
   status: string;
   serviceName: string;
+  /**
+   * The catalogue entry, or empty when the booking names none.
+   *
+   * Carried through to the edit dialog so it can keep an id the *name* can no
+   * longer find — which is what a retired treatment is. See
+   * `AppointmentDefaults.serviceId`.
+   */
+  serviceId: string;
   notes: string;
   /** The patient answered the confirmation link themselves. */
   confirmed: boolean;

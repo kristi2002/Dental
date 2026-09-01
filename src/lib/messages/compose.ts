@@ -1,5 +1,12 @@
 import { confirmationToken, confirmationUrl } from '@/lib/confirmations';
-import { composeRecall, composeReminder, type ReminderMessage } from '@/lib/reminder-messages';
+import {
+  composeFollowUp,
+  composePlanNudge,
+  composeRecall,
+  composeReminder,
+  composeWorkReady,
+  type ReminderMessage,
+} from '@/lib/reminder-messages';
 
 import type { QueuedMessage } from './board';
 
@@ -21,6 +28,13 @@ function monthsSince(lastVisit: string | null): number {
   return Math.max(0, now.getUTCDate() < from.getUTCDate() ? months - 1 : months);
 }
 
+/** Whole days since a date, floored at nought. Same reasoning as `monthsSince`. */
+function daysSince(lastVisit: string | null): number {
+  if (!lastVisit) return 0;
+  const from = new Date(`${lastVisit}T00:00:00.000Z`).getTime();
+  return Math.max(0, Math.floor((Date.now() - from) / 86_400_000));
+}
+
 /**
  * The wording for one queued row, built the same way twice.
  *
@@ -35,6 +49,11 @@ function monthsSince(lastVisit: string | null): number {
  * own mail client anyway, the recipient must never come from a request — that
  * would turn a queue button into a way of sending anything to anyone over the
  * practice's own domain. Both are read from the row instead.
+ *
+ * **Branching on the kind, never on what happens to be attached.** A reminder
+ * whose slot was deleted out from under it must return null rather than quietly
+ * becoming a recall, and a WORK_READY row whose case has been deleted must not
+ * quietly become an announcement about nothing.
  */
 export async function composeForQueued(
   message: QueuedMessage,
@@ -42,30 +61,57 @@ export async function composeForQueued(
 ): Promise<ReminderMessage | null> {
   const { patient, appointment } = message;
 
-  // A recall is about an absence rather than a slot, so it has no appointment
-  // and its own wording. Branching on the kind rather than on whether an
-  // appointment happens to be attached: a reminder whose slot was deleted out
-  // from under it must still return null rather than quietly becoming a recall.
+  const recipient = {
+    patientId: patient.id,
+    patientName: patient.firstName,
+    phone: patient.phone,
+    email: patient.email,
+    patientLocale: patient.locale,
+  };
+
   if (message.kind === 'RECALL_DUE') {
     return composeRecall({
-      patientName: patient.firstName,
-      phone: patient.phone,
-      email: patient.email,
+      ...recipient,
       monthsSince: monthsSince(message.lastVisit),
       lastVisit: message.lastVisit,
-      patientLocale: patient.locale,
+    });
+  }
+
+  if (message.kind === 'POST_OP_CHECK') {
+    // Both facts are read at draw time and neither is on the row: a patient
+    // seen again on Wednesday must not be asked on Thursday how they are
+    // getting on after Monday.
+    if (!message.lastVisit) return null;
+    return composeFollowUp({
+      ...recipient,
+      daysSince: daysSince(message.lastVisit),
+      services: message.lastVisitServices,
+    });
+  }
+
+  if (message.kind === 'WORK_READY') {
+    if (!message.work) return null;
+    return composeWorkReady({ ...recipient, work: message.work.label });
+  }
+
+  if (message.kind === 'PLAN_NEXT_STEP') {
+    // Null when the plan was finished or cancelled between the queueing and the
+    // reading, which is the ordinary way this row stops being true — and the
+    // reason the plan is read live rather than snapshotted onto the row.
+    if (!message.plan) return null;
+    return composePlanNudge({
+      ...recipient,
+      plan: message.plan.title,
+      step: message.plan.nextStep,
     });
   }
 
   if (!appointment) return null;
 
   return composeReminder({
-    patientName: patient.firstName,
-    phone: patient.phone,
-    email: patient.email,
+    ...recipient,
     date: appointment.date,
     startTime: appointment.startTime,
-    patientLocale: patient.locale,
     // Their language, not the reader's: the page the link opens should be in
     // the same tongue as the message that carried it.
     confirmLink: confirmationUrl(

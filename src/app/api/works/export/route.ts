@@ -173,6 +173,10 @@ export async function GET(request: Request) {
         elementsShort: t('elementsShort'),
         procedure: t('procedure'),
         lab: t('lab'),
+        // The heading over the empty boxes. Only the sheet has this column: a
+        // spreadsheet is ticked by typing in it, and a column of blanks in a CSV
+        // is a column somebody has to guess the meaning of.
+        check: t('sheetCheck'),
         urgent: t('urgent'),
         statusBack: t('statusBack'),
         lateBy: (days) => t('lateByDays', { days }),

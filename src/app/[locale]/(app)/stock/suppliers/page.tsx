@@ -3,11 +3,15 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SupplierFormDialog } from '@/components/stock/SupplierFormDialog';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ArchivedList } from '@/components/ui/ArchivedList';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { deleteSupplier } from '@/lib/actions/stock';
+import { deleteSupplier,
+  restoreSupplier,
+} from '@/lib/actions/stock';
 import { requirePermission } from '@/lib/auth/guard';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
+import { ACTIVE_SUPPLIERS } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,10 +41,18 @@ export default async function SuppliersPage({
   const tc = await getTranslations('common');
   const tstock = await getTranslations('stock');
 
-  const suppliers = await prisma.supplier.findMany({
-    orderBy: { name: 'asc' },
-    include: { _count: { select: { items: true } } },
-  });
+  const [suppliers, archivedSuppliers] = await Promise.all([
+    prisma.supplier.findMany({
+      where: ACTIVE_SUPPLIERS,
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { items: true } } },
+    }),
+    prisma.supplier.findMany({
+      where: { archivedAt: { not: null } },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, archivedAt: true },
+    }),
+  ]);
 
   const newLink = (
     <Link href="/stock/suppliers/new" className="btn btn-primary">
@@ -110,7 +122,7 @@ export default async function SuppliersPage({
                   <ActionForm
                     action={deleteSupplier}
                     values={{ id: supplier.id }}
-                    confirmMessage={tc('confirmDelete')}
+                    confirmMessage={tc('confirmRetire')}
                   >
                     <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
                       <Trash2 size={17} aria-hidden />
@@ -123,6 +135,14 @@ export default async function SuppliersPage({
           ))}
         </ul>
       )}
+
+      <div className="mt-6">
+        <ArchivedList
+          rows={archivedSuppliers}
+          action={restoreSupplier}
+          title={tc('archivedSuppliers')}
+        />
+      </div>
     </>
   );
 }

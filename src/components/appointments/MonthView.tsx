@@ -233,6 +233,7 @@ export function MonthView({
             durationMin: editing.durationMin,
             status: editing.status,
             serviceName: editing.serviceName,
+            serviceId: editing.serviceId,
             notes: editing.notes,
             staffUserId: editing.staffUserId,
             operatoryId: editing.operatoryId,

@@ -32,11 +32,12 @@
 import {
   AppointmentRequestStatus,
   AppointmentStatus,
-  ContactPurpose,
+  CancelledBy,
   EmailDirection,
 } from '@/generated/prisma/enums';
 import type { Permission } from '@/lib/auth/permissions';
 import { addDays, today } from '@/lib/dates';
+import { countWaitingMessages } from '@/lib/messages/board';
 import { getUnreadCount } from '@/lib/messages/threads';
 import { prisma } from '@/lib/prisma';
 import { DUE_SOON_DAYS } from '@/lib/works';
@@ -47,7 +48,8 @@ export type ElsewhereKey =
   | 'unwritten'
   | 'unreminded'
   | 'mail'
-  | 'requests';
+  | 'requests'
+  | 'opened';
 
 export type Elsewhere = {
   key: ElsewhereKey;
@@ -65,6 +67,16 @@ export type Elsewhere = {
  * a visit nobody wrote up is paperwork. Reordering it is a product decision
  * somebody can make by moving a line.
  */
+/**
+ * How long a freed slot stays news.
+ *
+ * Three days: long enough that a Friday-evening cancellation is still on the
+ * board on Monday morning, short enough that a gap nobody filled stops being
+ * reported as an opportunity. Counted from when the patient answered rather
+ * than from the slot's own date, because the news is the *cancellation*.
+ */
+const OPENED_SLOT_DAYS = 3;
+
 const PILES: ReadonlyArray<{
   key: ElsewhereKey;
   href: string;
@@ -101,23 +113,51 @@ const PILES: ReadonlyArray<{
     href: '/reminders',
     permission: 'recall.view',
     /*
-     * Tomorrow's patients nobody has told anything.
+     * What is actually waiting on the send queue.
      *
-     * The clause is `getUnremindedTomorrow`'s, and the reason for the `OR` on
-     * consent is worth repeating rather than losing: `contactConsent` is
-     * tri-state, null means nobody has asked them yet, and `{ not: false }`
-     * compiles to a comparison SQL cannot make of a null — so the short version
-     * silently counts nobody in a practice that has never used the field.
+     * This counted something of its own until now — *tomorrow's appointments
+     * with no reminder contact* — which is a different question from the one
+     * the screen behind the number answers, and the two disagreed in both
+     * directions. The queue holds recalls, which have no appointment at all, so
+     * the bell said nought on a morning with a dozen patients waiting to be
+     * rung; and it holds what is left of today, so it said three where the
+     * screen showed nine.
+     *
+     * A badge that disagrees with the page it opens is worse than no badge:
+     * it teaches people that the number is decorative, and the number was the
+     * whole reason the pile is on the board. `countWaitingMessages` asks the
+     * queue's own three questions — pending, still worth sending, not held back
+     * from a refused attempt — so the two cannot drift apart again.
+     */
+    count: countWaitingMessages,
+  },
+  {
+    key: 'opened',
+    href: '/appointments',
+    permission: 'appointment.view',
+    /*
+     * Slots the patient gave back, in the last few days.
+     *
+     * The confirmation link closes the loop properly — "no" cancels the
+     * appointment, frees the chair and records that the patient themselves did
+     * it — and then tells nobody. A slot handed back at twenty to eleven at
+     * night is a gap in tomorrow that the practice discovers by looking at
+     * tomorrow, which on a full day is at about the time it would have
+     * started. The waiting list is right there, on the other side of one
+     * screen, and it needs several days' notice to be any use.
+     *
+     * Bounded at both ends, which is what stops it becoming a pile that only
+     * grows: the slot must still be ahead of us (a gap that has already passed
+     * is not an opportunity), and the cancellation must be recent enough that
+     * nobody has had a chance to fill it. Rows leave by themselves.
      */
     count: () =>
       prisma.appointment.count({
         where: {
-          date: addDays(today(), 1),
-          status: AppointmentStatus.SCHEDULED,
-          confirmedAt: null,
-          declinedAt: null,
-          contacts: { none: { purpose: ContactPurpose.REMINDER } },
-          patient: { OR: [{ contactConsent: null }, { contactConsent: true }] },
+          date: { gte: today() },
+          status: AppointmentStatus.CANCELLED,
+          cancelledBy: CancelledBy.PATIENT,
+          declinedAt: { gte: addDays(today(), -OPENED_SLOT_DAYS) },
         },
       }),
   },

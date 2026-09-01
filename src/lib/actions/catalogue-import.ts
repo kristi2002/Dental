@@ -143,9 +143,6 @@ export async function commitServiceImport(
           name: row.draft.name,
           durationMin: row.draft.durationMin,
           categoryId: row.draft.category ? (categories.get(fold(row.draft.category)) ?? null) : null,
-          // `categoryId` is authoritative from here on — see
-          // `Service.legacyCategory`, and `saveService`, which does the same.
-          legacyCategory: null,
         });
       }
 
@@ -231,9 +228,7 @@ export async function commitStockImport(
         data.push({
           name: draft.name,
           code: draft.code,
-          unit: draft.unit,
           minLimit: draft.minLimit,
-          packSize: draft.packSize,
           unitPrice: draft.unitPrice,
           categoryId: draft.category ? (categories.get(fold(draft.category)) ?? null) : null,
           supplierId: draft.supplier ? (suppliers.get(fold(draft.supplier)) ?? null) : null,
@@ -241,7 +236,6 @@ export async function commitStockImport(
           // says what a material *is*; the stocktake screen records how much
           // there is, as the movement it really is — see `catalogue-import.ts`.
           quantity: 0,
-          legacyCategory: null,
         });
       }
 

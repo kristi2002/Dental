@@ -200,7 +200,11 @@ export function VisitTimeline({
                         const status = statusOf(tooth.status);
                         return (
                           <li
-                            key={tooth.toothNum}
+                            // Not the tooth number alone: a visit that found
+                            // caries and root-filled the same molar lists it
+                            // twice, and two `<li>` under one key is one of them
+                            // silently not rendering.
+                            key={`${tooth.toothNum}-${tooth.status}`}
                             className="flex w-14 flex-col items-center"
                             title={tooth.notes || undefined}
                           >

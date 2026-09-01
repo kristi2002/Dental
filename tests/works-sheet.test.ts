@@ -14,6 +14,7 @@ const LABELS: WorkSheetLabels = {
   elementsShort: 'El.',
   procedure: 'Punimi',
   lab: 'Laboratori',
+  check: 'Kontroll',
   urgent: 'Urgjent',
   statusBack: 'Erdhi',
   lateBy: (days) => `${days} ditë vonesë`,
@@ -64,10 +65,22 @@ describe('worksToSheet — the register as a document rather than a spreadsheet'
     const sheet = sheetOf([]);
     assert.deepEqual(
       sheet.columns.map((column) => column.header),
-      ['Dërguar', 'Afati', 'Nr. serial i lab.', 'Pacienti', 'Dhëmbët', 'El.', 'Punimi', 'Laboratori'],
+      [
+        'Dërguar',
+        'Afati',
+        'Nr. serial i lab.',
+        'Pacienti',
+        'Dhëmbët',
+        'El.',
+        'Punimi',
+        'Laboratori',
+        'Kontroll',
+      ],
     );
     // The only column whose figures are read down rather than across.
     assert.equal(sheet.columns[columnOf(sheet, 'El.')].align, 'right');
+    // And the only one that is drawn rather than set: boxes, not type.
+    assert.equal(sheet.columns[columnOf(sheet, 'Kontroll')].box, true);
   });
 
   it('writes the case once and runs its items underneath it', () => {
@@ -109,6 +122,27 @@ describe('worksToSheet — the register as a document rather than a spreadsheet'
 
     // Nothing to add up, so nothing is added up.
     assert.equal(one.rows.length, 1);
+  });
+
+  it('gives each case one box to tick, on the row that opens it', () => {
+    // The tick is per case, which is what an invoice is queried a case at a
+    // time: four crowns under one patient are one thing to find and one thing to
+    // tick. `null` under it is what makes the box span the case, the same way
+    // the patient's name does.
+    const sheet = sheetOf([
+      work({ lines: [line(), line()] }),
+      work({ lines: [] }),
+    ]);
+    const check = columnOf(sheet, 'Kontroll');
+
+    // Two items, the case's own count, and the case with nothing on it.
+    assert.equal(sheet.rows.length, 4);
+    assert.deepEqual(
+      sheet.rows.map((row) => row.cells[check] !== null),
+      [true, false, false, true],
+    );
+    // Drawn, not written: the cell carries no type of its own.
+    assert.deepEqual(sheet.rows[0].cells[check], []);
   });
 
   it('keeps a case with no items on the sheet', () => {

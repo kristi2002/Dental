@@ -84,6 +84,7 @@ export function SurfaceTarget({
   fillOf,
   labelOf,
   onSurfaceClick,
+  onSurfacePointerDown,
   readOnly = false,
   ring = true,
   className,
@@ -103,6 +104,16 @@ export function SurfaceTarget({
    */
   labelOf?: (surface: ToothSurface) => string;
   onSurfaceClick?: (surface: ToothSurface) => void;
+  /**
+   * The press that *begins* something rather than the click that completes it.
+   *
+   * The chart paints a run of teeth by dragging, and a drag has no click at the
+   * end of it — a press on one target and a release over another produces
+   * neither element's click. Optional, and separate from `onSurfaceClick`
+   * rather than replacing it: the lab chart's wheel is a checkbox and has no
+   * stroke to start.
+   */
+  onSurfacePointerDown?: (surface: ToothSurface) => void;
   readOnly?: boolean;
   /** The outer grey circle. Off where the target sits inside another outline. */
   ring?: boolean;
@@ -111,6 +122,8 @@ export function SurfaceTarget({
   const interactive = !readOnly && onSurfaceClick !== undefined;
   const press = (surface: ToothSurface) =>
     interactive ? () => onSurfaceClick(surface) : undefined;
+  const down = (surface: ToothSurface) =>
+    !readOnly && onSurfacePointerDown ? () => onSurfacePointerDown(surface) : undefined;
 
   const segment = cn(
     'transition-[fill,filter,stroke-width] duration-100',
@@ -144,6 +157,7 @@ export function SurfaceTarget({
             stroke="#ffffff"
             strokeWidth="1.3"
             onClick={press(surface)}
+            onPointerDown={down(surface)}
             className={segment}
           >
             {labelOf ? <title>{labelOf(surface)}</title> : null}
@@ -159,6 +173,7 @@ export function SurfaceTarget({
         stroke="#ffffff"
         strokeWidth="1.3"
         onClick={press('O')}
+        onPointerDown={down('O')}
         className={segment}
       >
         {labelOf ? <title>{labelOf('O')}</title> : null}

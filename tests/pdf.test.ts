@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { PDFDict, PDFDocument, PDFName } from 'pdf-lib';
+import {
+  decodePDFRawStream,
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFName,
+  PDFRawStream,
+} from 'pdf-lib';
 import { winAnsi } from '../src/lib/pdf';
 import { renderDocket } from '../src/lib/pdf-docket';
 import { renderSheet, type SheetRow } from '../src/lib/pdf-sheet';
@@ -102,6 +109,46 @@ describe('renderSheet — the register on paper', () => {
     // The whole point of `winAnsi`: one such name must not take the export down.
     const bytes = await renderSheet(spec([row('03.08', 'Şükrü Yılmaz — Иван', '3', 'Faseta')]));
     assert.equal(Buffer.from(bytes.slice(0, 5)).toString('ascii'), '%PDF-');
+  });
+
+  it('draws the tick column rather than setting it, and once per case', async () => {
+    // A box has to be *drawn*: no encoding these fonts can write holds one. So
+    // it is a square path in the page's own instructions rather than a
+    // character, and what is checked here is how many of them arrive — one per
+    // case, none on the row that continues one.
+    const columns = [...COLUMNS, { header: 'Kontroll', width: 7, box: true }];
+    const opens = (patient: string): SheetRow => ({
+      opensGroup: true,
+      cells: [...row('03.08', patient, '6', 'Zirkon').cells, []],
+    });
+    // The row under it writes in two columns and continues the rest, the tick
+    // box among them.
+    const under: SheetRow = {
+      cells: [null, null, [{ text: '1' }], [{ text: 'Provizor' }], null],
+    };
+
+    const boxes = async (rows: SheetRow[]) => {
+      const doc = await PDFDocument.load(await renderSheet({ ...spec(rows), columns }));
+      // A page's instructions can be split across several streams; the boxes are
+      // in whichever one the table went into, so they are read as one.
+      const contents = doc.getPage(0).node.Contents();
+      const streams = contents instanceof PDFArray ? contents.asArray() : [contents];
+      const drawn = streams
+        .map((ref) =>
+          Buffer.from(
+            decodePDFRawStream(doc.context.lookup(ref) as PDFRawStream).decode(),
+          ).toString('latin1'),
+        )
+        .join(' ');
+      // The square, drawn from its own corner: `0 0 m` then up, across and down
+      // by its side. The rules of the table are lines in page coordinates, so
+      // none of them can look like this.
+      return drawn.match(/0 9 l\s+9 9 l\s+9 0 l/g)?.length ?? 0;
+    };
+
+    assert.equal(await boxes([opens('Ylli Berisha'), under, opens('Mirela Hoxha')]), 2);
+    // The heading is still set as type; a sheet with nothing in it draws none.
+    assert.equal(await boxes([]), 0);
   });
 
   it('breaks a word too long for its column instead of running into the next', async () => {

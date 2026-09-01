@@ -196,12 +196,26 @@ export function TailorMenu({
                             type="button"
                             onClick={() => toggle(item.key)}
                             aria-pressed={!off}
-                            className="flex min-h-12 w-full items-center gap-3 px-5 py-2 text-left transition-colors hover:bg-paper"
+                            className={cn(
+                              'relative flex min-h-12 w-full items-center gap-3 px-5 py-2 text-left transition-colors hover:bg-paper',
+                              // Indented off a hairline, exactly as the rail
+                              // indents them, so a row called "Categories"
+                              // cannot be mistaken for the one two sections
+                              // down that is also called Categories.
+                              //
+                              // Padding and a drawn rule rather than a margin:
+                              // the row is `w-full`, so a left margin pushed it
+                              // that far past the right edge of the panel and
+                              // took its switch with it.
+                              item.under &&
+                                'pl-13 before:absolute before:inset-y-0 before:left-8 before:w-px before:bg-line',
+                            )}
                           >
                             <span
                               aria-hidden
                               className={cn(
-                                'grid size-8 shrink-0 place-items-center rounded-lg transition-colors',
+                                'grid shrink-0 place-items-center rounded-lg transition-colors',
+                                item.under ? 'size-7' : 'size-8',
                                 off
                                   ? 'bg-paper text-ink-faint'
                                   : 'bg-brand-soft text-brand-deep',
@@ -211,7 +225,10 @@ export function TailorMenu({
                             </span>
                             <span
                               className={cn(
-                                'min-w-0 flex-1 truncate text-body font-semibold',
+                                'min-w-0 flex-1 truncate',
+                                item.under
+                                  ? 'text-meta font-medium'
+                                  : 'text-body font-semibold',
                                 off ? 'text-ink-faint line-through' : 'text-ink',
                               )}
                             >

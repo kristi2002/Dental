@@ -4,12 +4,17 @@ import { TemplateFormDialog } from '@/components/prescriptions/TemplateFormDialo
 import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ArchivedList } from '@/components/ui/ArchivedList';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
-import { deletePrescriptionTemplate } from '@/lib/actions/prescriptions';
+import { deletePrescriptionTemplate,
+  restorePrescriptionTemplate,
+} from '@/lib/actions/prescriptions';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
-import { getServiceOptions } from '@/lib/queries';
+import { getServiceOptions,
+  ACTIVE_TEMPLATES,
+} from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,10 +45,16 @@ export default async function PrescriptionsPage({
   const t = await getTranslations('prescriptions');
   const tc = await getTranslations('common');
 
-  const [templates, services] = await Promise.all([
+  const [templates, archivedTemplates, services] = await Promise.all([
     prisma.prescriptionTemplate.findMany({
+      where: ACTIVE_TEMPLATES,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
       include: { services: { select: { serviceId: true, service: { select: { name: true } } } } },
+    }),
+    prisma.prescriptionTemplate.findMany({
+      where: { archivedAt: { not: null } },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, archivedAt: true },
     }),
     // The whole catalogue: a template is tied to a treatment, and the form has
     // to offer every one of them grouped by department.
@@ -120,7 +131,7 @@ export default async function PrescriptionsPage({
                   <ActionForm
                     action={deletePrescriptionTemplate}
                     values={{ id: template.id }}
-                    confirmMessage={tc('confirmDelete')}
+                    confirmMessage={tc('confirmRetire')}
                   >
                     <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
                       <Trash2 size={17} aria-hidden />
@@ -133,6 +144,14 @@ export default async function PrescriptionsPage({
           ))}
         </ul>
       )}
+
+      <div className="mt-6">
+        <ArchivedList
+          rows={archivedTemplates}
+          action={restorePrescriptionTemplate}
+          title={tc('archivedTemplates')}
+        />
+      </div>
     </>
   );
 }

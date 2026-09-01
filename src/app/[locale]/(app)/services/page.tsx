@@ -5,14 +5,19 @@ import { ActionForm } from '@/components/ui/ActionForm';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterBar } from '@/components/ui/FilterBar';
+import { ArchivedList } from '@/components/ui/ArchivedList';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
-import { deleteService } from '@/lib/actions/services';
+import { deleteService,
+  restoreService,
+} from '@/lib/actions/services';
 import { requirePermission } from '@/lib/auth/guard';
 import { byDepartment, departmentOf } from '@/lib/catalog';
 import { addMonths, today } from '@/lib/dates';
 import { prisma } from '@/lib/prisma';
-import { getServiceCategories } from '@/lib/queries';
+import { getServiceCategories,
+  ACTIVE_SERVICES,
+} from '@/lib/queries';
 import { cn, matches } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -54,12 +59,20 @@ export default async function ServicesPage({
   // what "recently" means.
   const since = addMonths(today(), -6);
 
-  const [allServices, performed] = await Promise.all([
+  const [allServices, archivedServices, performed] = await Promise.all([
     prisma.service.findMany({
+      where: ACTIVE_SERVICES,
       orderBy: { name: 'asc' },
       include: {
         category: { select: { id: true, name: true, parent: { select: { id: true, name: true } } } },
       },
+    }),
+    // Retired treatments, listed only so one retired by mistake can come back —
+    // see `ArchivedList`, and `deleteService` for why they are retired at all.
+    prisma.service.findMany({
+      where: { archivedAt: { not: null } },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, archivedAt: true },
     }),
     // How often each treatment was actually performed. The catalogue is where an
     // owner decides what to keep, what to reprice and what to stop offering, and
@@ -253,7 +266,7 @@ export default async function ServicesPage({
                         <ActionForm
                           action={deleteService}
                           values={{ id: service.id }}
-                          confirmMessage={tc('confirmDelete')}
+                          confirmMessage={tc('confirmRetire')}
                         >
                           <button
                             type="submit"
@@ -273,6 +286,14 @@ export default async function ServicesPage({
           ))}
         </div>
       )}
+
+      <div className="mt-6">
+        <ArchivedList
+          rows={archivedServices}
+          action={restoreService}
+          title={tc('archivedServices')}
+        />
+      </div>
     </>
   );
 }

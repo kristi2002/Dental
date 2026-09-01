@@ -6,7 +6,13 @@ import { ActionForm } from '@/components/ui/ActionForm';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
-import { adoptWorkProcedure, deleteWorkProcedure } from '@/lib/actions/work-procedures';
+import {
+  adoptWorkProcedure,
+  deleteWorkProcedure,
+  restoreWorkProcedure,
+} from '@/lib/actions/work-procedures';
+import { ArchivedList } from '@/components/ui/ArchivedList';
+import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth/guard';
 import {
   getProcedureUsage,
@@ -53,7 +59,17 @@ export default async function WorkProceduresPage({
   const tc = await getTranslations('common');
   const tw = await getTranslations('works');
 
-  const [procedures, usage] = await Promise.all([getWorkProcedures(), getProcedureUsage()]);
+  const [procedures, archivedProcedures, usage] = await Promise.all([
+    getWorkProcedures(),
+    // Retired kinds of work — see `deleteWorkProcedure`, which stopped deleting
+    // them the moment `WorkLine.procedureId` made a delete destroy the link.
+    prisma.workProcedure.findMany({
+      where: { archivedAt: { not: null } },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, archivedAt: true },
+    }),
+    getProcedureUsage(),
+  ]);
   const suggestions = unnamedProcedures(
     usage,
     procedures.map((procedure) => procedure.name),
@@ -114,7 +130,7 @@ export default async function WorkProceduresPage({
                   <ActionForm
                     action={deleteWorkProcedure}
                     values={{ id: procedure.id }}
-                    confirmMessage={t('confirmDelete')}
+                    confirmMessage={tc('confirmRetire')}
                   >
                     <button type="submit" className="btn btn-danger btn-sm" title={tc('delete')}>
                       <Trash2 size={17} aria-hidden />
@@ -168,6 +184,14 @@ export default async function WorkProceduresPage({
           </ul>
         </section>
       ) : null}
+
+      <div className="mt-6">
+        <ArchivedList
+          rows={archivedProcedures}
+          action={restoreWorkProcedure}
+          title={tc('archivedProcedures')}
+        />
+      </div>
     </>
   );
 }

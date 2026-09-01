@@ -9,7 +9,7 @@ import { composeForQueued } from '@/lib/messages/compose';
 import { recordOutbound } from '@/lib/messages/correspondence';
 import { MAIL_FAILURE_NOTES, MAIL_SENT_NOTE } from '@/lib/messages/email';
 import { mailerConfig, sendMail } from '@/lib/messages/mailer';
-import { CANCEL_NOTES, SENT_NOTES } from '@/lib/messages/outbox';
+import { CANCEL_NOTES, retryAfter, SENT_NOTES, usableEmail } from '@/lib/messages/outbox';
 import { MAX_MESSAGE_LENGTH } from '@/lib/messages/templates';
 import { prisma } from '@/lib/prisma';
 import { requiredString } from '@/lib/utils';
@@ -122,6 +122,12 @@ async function resolveAsSent(
           // enough to turn the table into a message archive.
           body: body.slice(0, 2000),
           actorId: user.id,
+          // The queue row this answers. The two have always been written in
+          // this one transaction and could not name each other, so "did that
+          // reminder go out, and what did it say" meant lining two tables up by
+          // patient and timestamp — the same guess-by-calendar-day that
+          // `VisitRecord.appointmentId` exists to stop.
+          scheduledMessageId: message.id,
         },
       }),
       // Guarded on PENDING a second time, in the write itself. The read above
@@ -190,7 +196,14 @@ export async function emailQueuedMessage(
   if (!message) return actionError(t('gone'));
   if (message.status !== MessageStatus.PENDING) return actionError(t('alreadyHandled'));
   if (message.patient.contactConsent === false) return actionError(t('optedOutError'));
-  if (!message.patient.email) return actionError(t('noEmailError'));
+  // `board.ts` has already put the address through `usableEmail`, so an address
+  // the provider has told us is dead arrives here empty and this is the sentence
+  // the front desk gets. Saying "there is no email address" about an address
+  // they can see on the record would be the wrong sentence; `emailBounced` is
+  // what the row prints beside the button.
+  if (!message.patient.email) {
+    return actionError(message.patient.emailBounced ? t('bouncedError') : t('noEmailError'));
+  }
 
   const reminder = await composeForQueued(message, await getLocale());
   if (!reminder) return actionError(t('gone'));
@@ -203,15 +216,28 @@ export async function emailQueuedMessage(
     to: message.patient.email,
     toName: `${message.patient.firstName} ${message.patient.lastName}`.trim(),
     subject: reminder.subject,
-    text: reminder.body,
+    // The long form, which is the one written to be read as a letter. It used
+    // to send `body` — the WhatsApp wording — so the same button produced a
+    // different message depending on whether a mailer was configured, the
+    // `mailto:` draft being built from the email text all along.
+    text: reminder.emailBody,
   });
 
   if (!result.ok) {
     // Recorded on the row so the next person to open the queue sees why it is
-    // still sitting there, and not only the person who pressed the button.
+    // still sitting there, and not only the person who pressed the button —
+    // and counted, so "tried and refused twice" stops looking like "nobody has
+    // got to this". `sendAfter` steps forward, which moves the row into the
+    // held section until the wait is up. See `retryAfter`.
+    const now = new Date();
     await prisma.scheduledMessage.updateMany({
       where: { id, status: MessageStatus.PENDING },
-      data: { note: MAIL_FAILURE_NOTES[result.failure] },
+      data: {
+        note: MAIL_FAILURE_NOTES[result.failure],
+        attempts: { increment: 1 },
+        lastAttemptAt: now,
+        sendAfter: retryAfter(result.failure, now),
+      },
     });
     revalidateAll();
     return actionError(t(`note.mail${capitalise(result.failure)}`));
@@ -227,6 +253,8 @@ export async function emailQueuedMessage(
           purpose: ContactPurpose.REMINDER,
           body: reminder.body.slice(0, 2000),
           actorId: user.id,
+          // As above: the queue row this is the record of.
+          scheduledMessageId: id,
         },
       }),
       prisma.scheduledMessage.updateMany({
@@ -316,19 +344,32 @@ export async function sendPatientMessage(
       firstName: true,
       lastName: true,
       email: true,
+      emailBouncedAt: true,
+      emailBounceKind: true,
       contactConsent: true,
     },
   });
 
   if (!patient) return actionError(t('patientGone'));
   if (patient.contactConsent === false) return actionError(t('optedOutError'));
-  if (!patient.email) return actionError(t('noEmailError'));
+
+  // The same rule the queue applies, applied to the one place staff can type
+  // their own wording: an address the provider has told us is dead is not an
+  // address, and a composer that cheerfully accepted it would be the hole in a
+  // feedback loop the rest of the app now respects.
+  const address = usableEmail(patient.email, {
+    bouncedAt: patient.emailBouncedAt,
+    kind: patient.emailBounceKind,
+  });
+  if (!address) {
+    return actionError(patient.emailBouncedAt ? t('bouncedError') : t('noEmailError'));
+  }
 
   const config = mailerConfig();
   if (!config) return actionError(t('mailNotConfigured'));
 
   const result = await sendMail({
-    to: patient.email,
+    to: address,
     toName: `${patient.firstName} ${patient.lastName}`.trim(),
     // A blank subject line is a message that reads as spam to every filter it
     // meets, so the practice's name is the floor rather than an empty header.
@@ -356,7 +397,7 @@ export async function sendPatientMessage(
 
   await recordOutbound({
     patientId: patient.id,
-    toAddress: patient.email,
+    toAddress: address,
     fromAddress: config.fromAddress,
     subject: subject || t('defaultSubject'),
     text: body,

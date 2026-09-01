@@ -213,6 +213,24 @@ it is the reason the practice trusts it.
 > wire. A form field naming the address would turn a send button into an open
 > relay wearing the practice's verified domain.
 >
+> **Two more things now leave without a button, and neither is a patient
+> message.** The first is the morning digest: the practice being emailed its own
+> board on the day nobody opens it (`compose-morning-digest`). The rule is about
+> messages *to patients*, and this one goes to the practice — the same argument
+> `request-alert.ts` made when a stranger's booking request had to reach somebody
+> on a Friday evening. The second is the delivery-event webhook, which is the
+> provider talking to us rather than the other way round.
+>
+> **And the loop finally closes in both directions.** "Sent" meant "the provider
+> accepted it", which is a claim about the provider: a dead address bounced into
+> silence for ever while every send reported success. `/api/mail/events` is the
+> answer — a bounced address is treated as no address at all, and a spam
+> complaint or a followed opt-out link closes `contactConsent` and withdraws
+> whatever was queued. That opt-out link is the other half: every message the
+> patient did not ask for now carries one, signed the same way a confirmation
+> link is, under a purpose of its own so that "yes, I am coming" can never also
+> mean "never write to me again".
+>
 > **What "nudge" cannot cover.** Reaching a patient at all is a separate
 > problem from deciding to. `tel:` and `mailto:` are hand-offs to whatever the
 > *workstation* has registered, and on a browser-only front desk they do
@@ -1840,6 +1858,17 @@ Legend: ✅ happens · ⚠️ partial · ❌ missing · 🔒 deliberately not do
 
 Everything above is T0/T1/T2 — no scheduler. These four are the honest T3 list:
 
+> **The queues are a fifth kind, and they are T3 for one reason only.** Filling
+> the outbox — reminders, recalls, post-operative checks, work back from the
+> laboratory, stalled plans — needs a clock not because the *answers* go stale
+> (they do not; every one of those lists is a comparison made at read time) but
+> because somebody has to be **handed** them on a morning nobody thinks to open
+> the screen. That is the whole of what the clock adds, and it is why each job
+> reads a `getX()` the screen already reads rather than deciding anything of its
+> own. Withdrawing what has stopped being true is the same job in reverse, and
+> for the same reason: time passing is not an event anything can hang off.
+
+
 | Job | Cadence | Why a clock is unavoidable |
 | --- | --- | --- |
 | **Close stale appointments** | Nightly | Yesterday's `SCHEDULED` rows must become `NO_SHOW` (or be queued for a human to close). No user action will ever hang this off — that is the whole problem. Safer variant: do not auto-write, just **surface** them on the dashboard (G-13), which drops this to T2 |
@@ -1873,6 +1902,9 @@ only on a leaf page will not be seen.
 | **Low stock** | `queries.getLowStockItems` | `quantity <= minLimit`, compared in memory | Dashboard, Stock |
 | **Batch expiry** | `expiry.summariseBatches` | `StockBatch.expiryDate` | Stock |
 | **Unreminded tomorrow** | `queries.getUnremindedTomorrow` | tomorrow's SCHEDULED, no `Contact(REMINDER)`, not answered, consent ≠ false | Dashboard |
+| **Waiting to send** | `messages/board.countWaitingMessages` | PENDING rows, still worth sending, not held from a refused attempt | Reminder board bell, `/reminders` |
+| **Usable address** | `messages/outbox.usableEmail` | `email` minus a hard/blocked/spam bounce recorded by the delivery webhook | Send queue, patient header, every queueing rule |
+| **Stalled plans** | `plan-progress.summarisePlan` | 60 quiet days, nothing booked, not snoozed | Plans (stalled tab), send queue |
 | **Allergy prose scan** | `medical.allergyLines` | `medicalNotes` regex `/al+erg/i` | Patient header, patient list |
 | **Allergy ↔ prescription** | `medical.matchingAllergies` | `PatientAlert` rows **and** notes prose vs prescription body — folded and bidirectional by name, then by drug family via `drugs.ts` | Prescription dialog |
 | **Drug family** | `drugs.familiesIn` | name stems (en/sq/it + brands) → family; one cross-reactive edge | Allergy cross-check |

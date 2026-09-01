@@ -37,6 +37,14 @@ export type AppointmentDefaults = {
   durationMin: number;
   status: string;
   serviceName: string;
+  /**
+   * The catalogue entry, when the booking names one.
+   *
+   * Carried rather than re-derived from `serviceName`, because the name lookup
+   * cannot find a treatment the picker no longer offers — which is now the
+   * ordinary state of a retired one, and used to be the state of a deleted one.
+   */
+  serviceId: string;
   notes: string;
   staffUserId: string;
   operatoryId: string;
@@ -151,11 +159,18 @@ export function AppointmentFormDialog({
     setStartTime(initialStartTime);
     setStaffUserId(initialStaff);
   }
-  // Seeded by matching the stored name, so an appointment booked before the id
-  // existed acquires one the next time it is saved. A name that matches nothing
-  // — a service since renamed or removed — resolves to no id and keeps the name.
+  /**
+   * The booking's own id first, the name lookup only as a fallback.
+   *
+   * The fallback is the migration aid it always was: a booking made before the
+   * id column existed acquires one the next time it is saved. What it cannot do
+   * is find a treatment the picker is not offering, and since treatments are
+   * retired rather than deleted that is a state real bookings are now in — so
+   * deriving the id purely from the name meant opening a booking to move its
+   * time and silently dropping which treatment it was for.
+   */
   const [serviceId, setServiceId] = useState(
-    () => services.find((s) => s.name === appointment?.serviceName)?.id ?? '',
+    () => appointment?.serviceId || services.find((s) => s.name === appointment?.serviceName)?.id || '',
   );
   // Set only after the server reports a clash, and cleared as soon as the dialog
   // closes: overriding a double-booking should be a decision, never a default.
@@ -186,7 +201,11 @@ export function AppointmentFormDialog({
         setDate(initialDate);
         setStartTime(initialStartTime);
         setStaffUserId(initialStaff);
-        setServiceId(services.find((s) => s.name === appointment?.serviceName)?.id ?? '');
+        setServiceId(
+          appointment?.serviceId ||
+            services.find((s) => s.name === appointment?.serviceName)?.id ||
+            '',
+        );
         setForce(false);
         setAddingPatient(false);
         setRepeat(0);
@@ -382,12 +401,29 @@ export function AppointmentFormDialog({
             optional={tc('optional')}
             defaultValue={appointment?.serviceName ?? ''}
             onChange={(event) => {
-              const match = services.find((s) => s.name === event.target.value);
-              setServiceId(match?.id ?? '');
+              const name = event.target.value;
+              const match = services.find((s) => s.name === name);
+              // Re-picking the booking's own retired treatment keeps its id.
+              // Only a genuine change to something the catalogue does not hold
+              // clears it, which is the one case where there is nothing to keep.
+              setServiceId(
+                match?.id ?? (name && name === appointment?.serviceName ? appointment.serviceId : ''),
+              );
               if (match) setDuration(match.durationMin);
             }}
           >
             <option value="">{t('selectService')}</option>
+            {/* The treatment this booking already names, when the catalogue no
+                longer offers it — retired, or removed before retiring existed.
+                Offered as its own option rather than silently reset, because a
+                select whose value has no option shows the *first* one, so
+                opening the dialog to change the time and pressing save would
+                quietly wipe what the appointment was for. Same reasoning, and
+                the same shape, as the laboratory list in `WorkLinesField`. */}
+            {appointment?.serviceName &&
+            !services.some((s) => s.name === appointment.serviceName) ? (
+              <option value={appointment.serviceName}>{appointment.serviceName}</option>
+            ) : null}
             {byDepartment(services).map(({ department, items }) => (
               <optgroup key={department || 'none'} label={department || ts('uncategorized')}>
                 {items.map((s) => (

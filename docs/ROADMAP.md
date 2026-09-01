@@ -387,3 +387,67 @@ One bug fell out of the reading: `getReliabilityMap` did not exclude clinic
 cancellations while `getReliability` did, so the badge on the patient list and
 the badge on the patient's own screen were two different claims about the same
 person.
+
+---
+
+## Phase 12 — The messages went out and nothing came back 🟣⚪
+
+**Status: implemented.**
+
+The outbox worked. What it could not do was *hear*, *stop*, or *cover the other
+four things the practice needs to say* — and the bell above it was counting
+something else entirely.
+
+**The bell and the queue were two different questions.** The board counted
+tomorrow's appointments with no reminder contact; the screen behind it held
+pending messages, recalls included. So the badge read nought on a morning with a
+dozen patients waiting to be rung, and read three where the screen showed nine.
+Both now ask `countWaitingMessages`, which is the queue's own three questions —
+pending, still worth sending, not held back from a refused attempt.
+
+**"Sent" meant "the provider accepted it".** A 200 from Brevo is a claim about
+Brevo: an address that died two years ago was written to every recall cycle,
+each send logged as a contact and reported as done. `/api/mail/events` is the
+other half — a hard bounce, a block or a complaint retires the address (the
+patient keeps their telephone, so the queue keeps queueing them), and a
+complaint or a followed opt-out link closes consent and withdraws what was
+queued. Editing the address clears the flag, because a new address is a new
+answer.
+
+**`contactConsent` could only be moved by staff.** A patient who wanted to be
+left alone had to ring up and ask somebody to tick a box, which is not consent
+management. Every message they did not specifically ask for now carries a signed
+opt-out link — the confirmation link's machinery under a purpose of its own, so
+"yes, I am coming" can never also mean "never write to me again".
+
+**Four lists, and only two of them were queued.** The post-operative check, the
+case back from the laboratory and the plan that stopped halfway each had a screen
+somebody had to remember to open — which is exactly where the recall was before
+it was queued. All three are `MessageKind`s now, each reading the authority the
+screen reads (`getFollowUps`, `receivedAt`, `summarisePlan`) rather than
+deciding anything of its own.
+
+**Nothing could see how much one patient was hearing.** Each list declined to be
+the second message *of its own kind* and none could see the other three. One
+ceiling now counts every channel from the `Contact` log — two in seven days,
+appointment reminders exempt, because a reminder is about a slot they agreed to.
+
+**A refused send looked exactly like one nobody had got to.** `note` explains a
+skip and a failure identically, so an unverified sender domain produced a queue
+of rows that each looked like work. `attempts` and a `sendAfter` that steps
+forward give those rows a section of their own, with the count and the time they
+come back.
+
+Riding along: the queue reads `preferredChannel`, which the patient record has
+honoured since the field was collected while the one screen built for sending
+offered WhatsApp to everybody; the provider send uses the *email* wording rather
+than the WhatsApp wording, which the `mailto:` draft had been using all along;
+the morning digest is emailed to the practice on the day nobody opens the board;
+a slot the patient gave back overnight is a pile on the bell instead of a
+discovery; and the bell refreshes itself, so eleven o'clock's booking request no
+longer waits for somebody to navigate.
+
+**Deliberately not done.** A `WAITLIST_OFFER` kind, which would have to decide
+*whom* to offer a freed slot to — the waitlist panel gives that judgement to a
+person, and a queue that picked would either invent a matching policy or write to
+five patients about one chair.

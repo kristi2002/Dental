@@ -69,8 +69,8 @@ export async function POST(request: Request) {
     teeth,
     toothFindings,
     perioExams,
+    chartExams,
     services,
-    serviceMaterials,
     stockProducts,
     stock,
     movements,
@@ -133,8 +133,11 @@ export async function POST(request: Request) {
     // never be reconstructed from anything else: the snapshot only holds the
     // newest reading and the ones before it exist nowhere but this table.
     prisma.perioExam.findMany(),
+    // That the mouth was examined, and by whom. Reconstructible from nothing
+    // else in this file: a chart with no findings on it is exactly the chart
+    // whose examinations cannot be inferred from its findings.
+    prisma.chartExam.findMany(),
     prisma.service.findMany(),
-    prisma.serviceMaterial.findMany(),
     // Before `stock`, because every material may name the product it is a
     // variant of. Without these the restore inserts a `StockItem` holding a
     // `productId` that names nothing and stops there, partway through — which is
@@ -289,8 +292,8 @@ export async function POST(request: Request) {
         teeth,
         toothFindings,
         perioExams,
+        chartExams,
         services,
-        serviceMaterials,
         stockProducts,
         stock,
         movements,

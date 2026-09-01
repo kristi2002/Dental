@@ -27,6 +27,8 @@ export type WorkDefaults = {
   lines: Array<{
     elements: number;
     procedure: string;
+    /** Empty on a line written before the work catalogue had ids. */
+    procedureId: string;
     lab: string;
     /** Empty on a line written before laboratories were rows. */
     labId: string;
@@ -57,7 +59,7 @@ export function WorkFormDialog({
   work: WorkDefaults;
   /** The catalogue of laboratories the line picker offers. */
   labs?: Array<{ id: string; name: string }>;
-  procedures?: string[];
+  procedures?: Array<{ id: string; name: string }>;
   triggerClassName?: string;
   /** Icon-only trigger, for a row that has no width to spare for the word. */
   compact?: boolean;

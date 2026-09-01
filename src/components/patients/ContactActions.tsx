@@ -1,6 +1,16 @@
 'use client';
 
-import { BellOff, Check, Mail, MessageCircle, Pencil, Phone, PhoneCall, Star } from 'lucide-react';
+import {
+  BellOff,
+  Check,
+  Mail,
+  MailWarning,
+  MessageCircle,
+  Pencil,
+  Phone,
+  PhoneCall,
+  Star,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { ActionMenu } from '@/components/ui/ActionMenu';
@@ -36,6 +46,7 @@ export function ContactActions({
   email,
   consent,
   preferredChannel,
+  emailBounced,
   canMessage,
   templates,
   messageLocale,
@@ -54,6 +65,16 @@ export function ContactActions({
    * desk was asking patients for no reason.
    */
   preferredChannel: string | null;
+  /**
+   * Whether the provider has told us this address does not work.
+   *
+   * Shown rather than acted on. The address stays on the chip — hiding it would
+   * be hiding the very thing somebody needs to look at and correct — and the
+   * menu says why writing to it is not on offer. Nothing else in the app can
+   * say this: a bounce is invisible by nature, which is how an address that
+   * died two years ago went on being written to.
+   */
+  emailBounced?: boolean;
   canMessage: boolean;
   templates: ComposedTemplate[];
   messageLocale: string;
@@ -154,6 +175,11 @@ export function ContactActions({
             <p className="menu-item menu-item-muted">
               <BellOff size={18} aria-hidden className="shrink-0" />
               {t('optedOut')}
+            </p>
+          ) : emailBounced ? (
+            <p className="menu-item menu-item-muted">
+              <MailWarning size={18} aria-hidden className="shrink-0" />
+              {t('emailBounced')}
             </p>
           ) : canMessage ? (
             <MessageDialog

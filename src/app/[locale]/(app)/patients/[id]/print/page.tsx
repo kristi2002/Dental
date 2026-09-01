@@ -4,11 +4,15 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { SheetHead } from '@/components/brand/SheetHead';
 import { ChartSheet } from '@/components/dental/ChartSheet';
-import type { ToothRecordMap } from '@/components/dental/DentalChart';
+import type {
+  ChartExamStamp,
+  PlannedMap,
+  ToothRecordMap,
+} from '@/components/dental/DentalChart';
 import { ToothDefsProvider } from '@/components/dental/ToothDefsProvider';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { PrintButton } from '@/components/prescriptions/PrintButton';
-import { TreatmentPlanStatus } from '@/generated/prisma/enums';
+import { TreatmentPlanStatus, TreatmentStepStatus } from '@/generated/prisma/enums';
 import { recordView, requirePermission } from '@/lib/auth/guard';
 import { age } from '@/lib/dates';
 import { planProgress } from '@/lib/plan-progress';
@@ -73,7 +77,18 @@ export default async function PatientRecordPage({
       where: { id },
       include: {
         teethRecords: true,
-        toothFindings: true,
+        // With the person who made each one. On a sheet that leaves the
+        // building this is the difference between a list of findings and a
+        // record of who found them.
+        toothFindings: {
+          orderBy: { recordedAt: 'desc' },
+          include: { recordedBy: { select: { firstName: true, lastName: true } } },
+        },
+        chartExams: {
+          orderBy: { examinedAt: 'desc' },
+          take: 1,
+          include: { examinedBy: { select: { firstName: true, lastName: true } } },
+        },
         plans: {
           orderBy: { createdAt: 'desc' },
           include: { steps: { orderBy: { position: 'asc' } } },
@@ -120,6 +135,38 @@ export default async function PatientRecordPage({
     (patient.dateOfBirth !== null && age(patient.dateOfBirth) < 13) ||
     patient.teethRecords.some((record) => dentitionOf(record.toothNum) === 'PRIMARY');
 
+  /**
+   * What is still owed on each tooth, for the chart's planned layer.
+   *
+   * The same rule the screen chart applies — pending steps of active plans, and
+   * nothing else, because a `DONE` step is already answered by the tooth's own
+   * status and a `SKIPPED` one is a decision not to do it. The plans are listed
+   * in full further down this sheet; this is what puts them *on the arch*, which
+   * is where a surgeon reading the referral looks first.
+   */
+  const planned: PlannedMap = {};
+  for (const plan of patient.plans) {
+    if (plan.status !== TreatmentPlanStatus.ACTIVE) continue;
+    for (const step of plan.steps) {
+      if (step.toothNum === null || step.status !== TreatmentStepStatus.PENDING) continue;
+      (planned[step.toothNum] ??= []).push({ id: step.id, title: step.title, booked: null });
+    }
+  }
+
+  const lastExam = patient.chartExams[0];
+  const chartExam: ChartExamStamp | null = lastExam
+    ? {
+        on: format.dateTime(lastExam.examinedAt, {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }),
+        by: lastExam.examinedBy
+          ? `${lastExam.examinedBy.firstName} ${lastExam.examinedBy.lastName}`.trim()
+          : null,
+      }
+    : null;
+
   const day = (value: Date) =>
     format.dateTime(value, { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -154,6 +201,7 @@ export default async function PatientRecordPage({
                 value={`${day(patient.dateOfBirth)} · ${t('age', { age: age(patient.dateOfBirth) })}`}
               />
             ) : null}
+            {patient.sex ? <Row label={t('sex')} value={t(`sex_${patient.sex}`)} /> : null}
             <Row label={t('phone')} value={patient.phone} />
             <Row label={t('email')} value={patient.email} />
             <Row label={t('address')} value={patient.address} />
@@ -211,6 +259,8 @@ export default async function PatientRecordPage({
                 flat; see the note on it. */}
             <ChartSheet
               records={teeth}
+              planned={planned}
+              exam={chartExam}
               numbering={profile.toothNumbering}
               showPrimary={showsPrimary}
             />

@@ -14,6 +14,7 @@ import {
   Inbox,
   Layers,
   LayoutDashboard,
+  List,
   Menu,
   NotebookPen,
   Package,
@@ -32,12 +33,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ClinicMark } from '@/components/brand/ClinicLogo';
 import type { Role } from '@/generated/prisma/enums';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
-import { LanguageSwitcher } from './LanguageSwitcher';
 import { UserMenu } from './UserMenu';
 
 /**
@@ -57,6 +58,12 @@ const ICONS: Record<string, LucideIcon> = {
   patients: Users,
   plans: ClipboardList,
   works: FlaskConical,
+  // The three rows that open a section onto its own index. One drawing for all
+  // three, because they all mean the same thing — "the list of this" — and a
+  // pinched rail needs the pair under a heading to differ, not to be clever.
+  worksAll: List,
+  servicesAll: List,
+  stockAll: List,
   // A kind of work is one of the layers a job is built out of, and the register
   // it is picked into is the flask beside it.
   workProcedures: Layers,
@@ -95,6 +102,8 @@ type Item = {
   key: string;
   /** Current on this path alone — see `NAV_DESTINATIONS`. */
   exact?: boolean;
+  /** Extra paths this row answers for — see `NAV_DESTINATIONS`. */
+  alsoCurrent?: ReadonlyArray<string>;
   /** The block this row belongs to — see `Group` in `nav-destinations.ts`. */
   group?: string;
   children?: ReadonlyArray<Item>;
@@ -155,6 +164,7 @@ function RailRow({
   expanded,
   controls,
   onToggle,
+  onTip,
 }: {
   /** Omitted on a section heading, which is a button rather than a link. */
   href?: string;
@@ -178,28 +188,58 @@ function RailRow({
   expanded?: boolean;
   controls?: string;
   onToggle?: () => void;
+  /**
+   * Where to show this row's name while the rail is pinched, and where to stop.
+   *
+   * The label is `sr-only` in that state, so a native `title` was the only thing
+   * naming the row for a sighted mouse user — a second-long wait, on the state
+   * people leave the rail in all day. The rail cannot draw the tooltip itself:
+   * the scrolling list clips anything reaching past 4.5rem, so the row reports
+   * its position and the rail renders one tooltip into the document body.
+   */
+  onTip?: (tip: { label: string; top: number; left: number } | null) => void;
 }) {
   const className = cn(
-    'relative flex w-full items-center gap-3 rounded-lg px-3 font-semibold no-underline transition-colors',
+    'relative flex w-full items-center gap-3 rounded-lg px-3 no-underline transition-colors',
     // The ring is white here: brand-dark on teal is invisible.
     'focus-visible:outline-white focus-visible:outline-offset-[-1px]',
-    // Still a thumb-sized target one level down — a phone drawer is where
-    // these get tapped, and 40px is not enough to tap reliably.
-    nested ? 'min-h-11 text-meta' : 'min-h-12 text-body',
+    // 44px is the smallest target anybody should have to hit, and a phone
+    // drawer is where these get tapped, so that is the floor everywhere. On a
+    // desktop pointer they come down to 40 and 36 — fourteen rows at 48px did
+    // not fit a 900px screen, let alone the 768px one at the front desk.
+    nested ? 'min-h-11 text-meta font-medium lg:min-h-9' : 'min-h-11 text-body font-semibold lg:min-h-10',
     collapsed && 'lg:justify-center lg:px-0',
     // A solid white tab, not tinted text — the current screen has to be
     // findable without relying on colour alone, and white is what ties the
     // rail to the page beside it.
-    active ? 'bg-surface text-brand-deep' : 'text-white/85 hover:bg-white/15 hover:text-white',
+    //
+    // Everything else is full white rather than `white/85`. Dimming type on a
+    // coloured ground is how the rail came to sit between 2.0:1 and 3.3:1
+    // against its own gradient: the levels are told apart by size and weight
+    // here, which costs no contrast at all. See `.app-rail` in `globals.css`.
+    active ? 'bg-surface text-brand-deep' : 'text-white hover:bg-white/15',
   );
+
+  // Only while pinched, and only on the desktop rail — the drawer shows labels.
+  const tip = (event: { currentTarget: HTMLElement }) => {
+    if (!collapsed || !onTip) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    onTip({ label, top: box.top + box.height / 2, left: box.right + 8 });
+  };
+  const untip = () => onTip?.(null);
+
+  const pointer = onTip
+    ? {
+        onMouseEnter: tip,
+        onFocus: tip,
+        onMouseLeave: untip,
+        onBlur: untip,
+      }
+    : {};
 
   const content = (
     <>
-      <Icon
-        size={nested ? 18 : 20}
-        aria-hidden
-        className={cn('shrink-0', !active && 'text-white')}
-      />
+      <Icon size={nested ? 18 : 20} aria-hidden className="shrink-0" />
       <span className={cn('min-w-0 flex-1 truncate text-left', collapsed && 'lg:sr-only')}>
         {label}
       </span>
@@ -242,9 +282,13 @@ function RailRow({
         onClick={onToggle}
         aria-expanded={expanded}
         aria-controls={controls}
-        // The only label a pinched rail has room for.
-        title={collapsed ? label : undefined}
+        // A heading takes the white tab whenever nothing under it has one —
+        // standing on `/stock/scan`, which has no row of its own, the rail said
+        // "here" to the eye and nothing at all to a screen reader. `true`
+        // rather than `page`: the heading is a fold, not the page itself.
+        aria-current={active ? 'true' : undefined}
         className={className}
+        {...pointer}
       >
         {content}
       </button>
@@ -255,8 +299,8 @@ function RailRow({
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
-      title={collapsed ? label : undefined}
       className={className}
+      {...pointer}
     >
       {content}
     </Link>
@@ -351,17 +395,19 @@ export function Sidebar({
   // href and the prefix of every other row in this rail. The dashboard lives at
   // `/dashboard` now — `/` is the practice's public page, which this rail never
   // links to — so the ordinary segment rule covers it like everything else.
-  const isCurrent = (href: string, exact = false) =>
-    exact
-      ? pathname === href
-      : pathname === href || pathname.startsWith(`${href}/`);
+  const onPath = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+  const isCurrent = (href: string, exact = false, also?: ReadonlyArray<string>) =>
+    (exact ? pathname === href : onPath(href)) || (also?.some(onPath) ?? false);
+
+  /** Whichever of a row's own tests apply. */
+  const rowIsCurrent = (item: Pick<Item, 'href' | 'exact' | 'alsoCurrent'>) =>
+    isCurrent(item.href, item.exact, item.alsoCurrent);
 
   // A section that holds the screen you are standing on is never left folded:
   // hiding the page you are on is the one thing this fold must not do.
   const holdsCurrent = (key: string) =>
-    (items.find((item) => item.key === key)?.children ?? []).some((child) =>
-      isCurrent(child.href, child.exact),
-    );
+    (items.find((item) => item.key === key)?.children ?? []).some(rowIsCurrent);
 
   const [closed, setClosed] = useState<ReadonlySet<string>>(
     () => new Set(defaultClosedSections.filter((key) => !holdsCurrent(key))),
@@ -396,6 +442,64 @@ export function Sidebar({
 
   const rail = useRef<HTMLElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
+  const scroller = useRef<HTMLElement>(null);
+  const scrollerInner = useRef<HTMLDivElement>(null);
+
+  /*
+   * Whether the list runs past either end of its window, and which one.
+   *
+   * Fourteen destinations no longer fit the screens this practice owns. Folded
+   * to defaults the rail wants 880px and a 1366×768 laptop gives it 572, so
+   * five rows sit below the fold — and `overflow-y-auto` says so with nothing
+   * at all. That is the horizontal scroll of the old top bar, stood on end,
+   * with worse warning than it had: at least a bar that scrolls sideways looks
+   * cut off. A hairline and a shadow at whichever end has more behind it is the
+   * cheapest honest answer, and it works over a gradient, which a colour fade
+   * cannot.
+   */
+  const [edges, setEdges] = useState({ top: false, bottom: false });
+
+  useEffect(() => {
+    const node = scroller.current;
+    const inner = scrollerInner.current;
+    if (!node) return;
+
+    const sync = () => {
+      const room = node.scrollHeight - node.clientHeight;
+      setEdges({
+        top: room > 1 && node.scrollTop > 1,
+        bottom: room > 1 && node.scrollTop < room - 1,
+      });
+    };
+
+    sync();
+    node.addEventListener('scroll', sync, { passive: true });
+    // The window resizing and a section unfolding both change the answer, and
+    // neither is a scroll — hence the observer, on the content and on its
+    // window, rather than a listener on one of them.
+    const watcher = new ResizeObserver(sync);
+    watcher.observe(node);
+    if (inner) watcher.observe(inner);
+
+    return () => {
+      node.removeEventListener('scroll', sync);
+      watcher.disconnect();
+    };
+  }, []);
+
+  /** The pinched rail's tooltip — see `onTip` on `RailRow`. */
+  const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  // Dropped the moment the rail opens back up, so a tooltip cannot outlive the
+  // state that justified it.
+  useEffect(() => {
+    if (!collapsed) setTip(null);
+  }, [collapsed]);
+  const onTip = useCallback(
+    (next: { label: string; top: number; left: number } | null) => setTip(next),
+    [],
+  );
 
   // Following a link is the drawer's whole purpose, so it closes itself when
   // one lands rather than sitting over the page that was asked for.
@@ -545,7 +649,7 @@ export function Sidebar({
       >
         <div
           className={cn(
-            'flex shrink-0 gap-2 px-3 py-3',
+            'flex shrink-0 gap-2 px-3 py-2.5',
             collapsed ? 'items-center lg:flex-col lg:px-2' : 'items-center',
           )}
         >
@@ -566,7 +670,10 @@ export function Sidebar({
               <span className="block truncate text-body leading-tight font-bold tracking-tight text-white">
                 {clinicName}
               </span>
-              <span className="block truncate text-micro text-white/85">
+              {/* Full white like everything else on this ground — see the note
+                  on `RailRow`'s colours. It recedes by being micro and regular
+                  beside a bold body line, which costs no contrast. */}
+              <span className="block truncate text-micro leading-tight text-white">
                 {tApp('tagline')}
               </span>
             </span>
@@ -599,27 +706,34 @@ export function Sidebar({
             did under the masthead — it has only turned the corner with it. */}
         <div className="app-spectrum shrink-0" aria-hidden />
 
-        <nav
-          aria-label={t('menu')}
-          className={cn('flex-1 overflow-y-auto px-2 py-3', collapsed && 'lg:px-1.5')}
-        >
+        {/* The list, and the two hairlines that say it runs past its window.
+            `relative` so they can sit over the scroll rather than inside it. */}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <nav
+            ref={scroller}
+            aria-label={t('menu')}
+            className={cn('min-h-0 flex-1 overflow-y-auto px-2 py-2', collapsed && 'lg:px-1.5')}
+          >
+            <div ref={scrollerInner}>
           {inBlocks(items).map((block) => (
             <div
               key={block.group ?? 'start'}
               className={cn(
-                block.group && 'mt-3 first:mt-0',
-                // Pinched, the words are gone and a rule takes their place: the
-                // blocks are the one thing about this rail worth keeping when
-                // there is no room to name them, and without the rule a
-                // collapsed rail is a single undivided column of icons.
-                block.group && collapsed && 'lg:mt-2 lg:border-t lg:border-white/20 lg:pt-2',
+                // A rule above every block, drawn whether or not the words over
+                // it can be read. It used to appear only in the pinched rail,
+                // where the headings were gone — but the headings were the only
+                // thing separating the blocks in the open rail too, and they
+                // were the dimmest type on the screen. The rule does that work
+                // now, and the words are free to be legible.
+                block.group && 'mt-2 border-t border-white/25 pt-2 first:mt-0',
+                block.group && collapsed && 'lg:mt-1.5 lg:pt-1.5',
               )}
             >
               {block.group ? (
                 <p
                   id={`rail-block-${block.group}`}
                   className={cn(
-                    'px-3 pt-1 pb-1.5 text-micro font-bold tracking-[0.1em] text-white/60 uppercase',
+                    'px-3 pb-1 text-micro font-bold tracking-[0.12em] text-white uppercase',
                     // Still the list's accessible name when it cannot be read:
                     // `aria-labelledby` does not care whether its target is
                     // drawn, and a screen reader gets the block either way.
@@ -637,8 +751,11 @@ export function Sidebar({
                 aria-labelledby={block.group ? `rail-block-${block.group}` : undefined}
                 className="flex flex-col gap-0.5"
               >
-            {block.items.map(({ href, key, children }) => {
+            {block.items.map((item) => {
+              const { href, key, children } = item;
               const kids = children ?? [];
+              // One row under a heading is not a list — see `AppShell`, which
+              // collapses those back to a plain link before they reach here.
               const section = kids.length > 0;
               // A heading shows no tab of its own while its list is open: one of
               // the rows under it is holding the tab, starting with the screen
@@ -647,8 +764,7 @@ export function Sidebar({
               // — the heading takes the tab back, because otherwise nothing in
               // the rail says where you are.
               const unfolded = !closed.has(key);
-              const onChild =
-                kids.some((child) => isCurrent(child.href, child.exact)) && unfolded;
+              const onChild = kids.some(rowIsCurrent) && unfolded;
 
               return (
                 <li key={href}>
@@ -657,22 +773,32 @@ export function Sidebar({
                     href={section ? undefined : href}
                     label={t(key)}
                     icon={ICONS[key] ?? LayoutDashboard}
-                    active={isCurrent(href) && !onChild}
+                    active={rowIsCurrent(item) && !onChild}
                     collapsed={collapsed}
                     badge={badges?.[key] ?? 0}
                     expanded={section ? unfolded : undefined}
                     controls={section ? `rail-section-${key}` : undefined}
                     onToggle={section ? () => toggleSection(key) : undefined}
+                    onTip={onTip}
                   />
 
-                  {section && unfolded ? (
+                  {section ? (
                     // Indented off a hairline, which is what says "inside this"
                     // without a second word of chrome. The pinched rail has no
                     // room for the indent, so the icons simply stack.
+                    //
+                    // Always in the document, hidden rather than dropped: the
+                    // heading names this list in `aria-controls`, and while it
+                    // was conditionally rendered that name pointed at nothing
+                    // for every folded section on the page. `hidden` takes it
+                    // out of the layout, the focus order and the accessibility
+                    // tree alike — including the drawer's own focus trap, which
+                    // filters on `offsetParent`.
                     <ul
                       id={`rail-section-${key}`}
+                      hidden={!unfolded}
                       className={cn(
-                        'mt-0.5 ml-5 flex flex-col gap-0.5 border-l border-white/20 pl-2',
+                        'mt-0.5 ml-5 flex flex-col gap-0.5 border-l border-white/25 pl-2',
                         collapsed && 'lg:ml-0 lg:border-l-0 lg:pl-0',
                       )}
                     >
@@ -682,8 +808,9 @@ export function Sidebar({
                             href={child.href}
                             label={t(child.key)}
                             icon={ICONS[child.key] ?? LayoutDashboard}
-                            active={isCurrent(child.href, child.exact)}
+                            active={rowIsCurrent(child)}
                             collapsed={collapsed}
+                            onTip={onTip}
                             nested
                           />
                         </li>
@@ -696,20 +823,67 @@ export function Sidebar({
               </ul>
             </div>
           ))}
-        </nav>
+            </div>
+          </nav>
+
+          {/* Not a fade: the ground behind these is a gradient, so a strip of
+              one flat colour would only match it at one height. A hairline and
+              a shadow read as "this carries on under here" over anything. */}
+          <div
+            aria-hidden
+            className={cn(
+              'pointer-events-none absolute inset-x-0 top-0 h-px bg-white/40 shadow-[0_6px_10px_-4px_rgba(0,0,0,0.45)] transition-opacity',
+              edges.top ? 'opacity-100' : 'opacity-0',
+            )}
+          />
+          <div
+            aria-hidden
+            className={cn(
+              'pointer-events-none absolute inset-x-0 bottom-0 h-px bg-white/40 shadow-[0_-6px_10px_-4px_rgba(0,0,0,0.45)] transition-opacity',
+              edges.bottom ? 'opacity-100' : 'opacity-0',
+            )}
+          />
+        </div>
 
         <div
           className={cn(
-            'flex shrink-0 flex-col gap-2 border-t border-white/20 p-2',
+            // Desktop only, and the whole strip rather than its one child: the
+            // language switcher has moved into the account menu and the account
+            // button is already in the phone bar, so below `lg` this was an
+            // empty 20px band with a rule across the top of it.
+            'hidden shrink-0 flex-col gap-2 border-t border-white/25 p-2 lg:flex',
             collapsed && 'lg:items-center lg:px-1',
           )}
         >
-          <LanguageSwitcher compact stacked={collapsed} />
-          {/* Only on desktop: on a phone the account button lives in the top
-              bar, where it is reachable without opening the drawer first. */}
-          <div className="hidden lg:block">{account('top')}</div>
+          {/* The language switcher used to live here, and it was the most
+              expensive thing in the rail per press: ~50px open and, stacked
+              into a column of three codes, ~150px pinched — for a control most
+              people touch once. It is in the account menu now, beside the theme
+              and the density, which is where it belonged anyway: all three are
+              "how this looks to me", and none of them is a destination.
+
+              The account button is here on a desktop only — on a phone it
+              lives in the top bar, reachable without opening the drawer. */}
+          {account('top')}
         </div>
       </aside>
+
+      {/* The pinched rail's label, in the body rather than in the rail: the
+          scrolling list clips anything reaching past 4.5rem. Pointer-inert, so
+          it can never be the thing the next click lands on. */}
+      {mounted && collapsed && tip
+        ? createPortal(
+            <div
+              role="tooltip"
+              aria-hidden
+              style={{ top: tip.top, left: tip.left }}
+              className="pointer-events-none fixed z-[60] -translate-y-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-meta font-semibold whitespace-nowrap text-paper shadow-pop"
+            >
+              {tip.label}
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

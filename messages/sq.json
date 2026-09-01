@@ -772,7 +772,11 @@
     "labs": "Laboratorët",
     "prescriptionsIssued": "Të lëshuara",
     "prescriptionTemplates": "Formulime standarde",
-    "requests": "Kërkesa"
+    "requests": "Kërkesa",
+    "worksAll": "Të gjitha punimet",
+    "servicesAll": "Të gjitha trajtimet",
+    "stockAll": "Të gjithë artikujt",
+    "skipToContent": "Kalo te përmbajtja"
   },
   "common": {
     "save": "Ruaj",
@@ -796,6 +800,7 @@
     "moreActions": "Më shumë veprime",
     "loading": "Duke u ngarkuar…",
     "confirmDelete": "Je i sigurt që dëshiron ta fshish? Ky veprim nuk kthehet mbrapsht.",
+    "confirmRetire": "Ta heqim këtë? Çdo gjë e regjistruar tashmë tërhiqet në vend që të fshihet, kështu që të dhënat e punës së bërë mbeten të paprekura.",
     "notes": "Shënime",
     "name": "Emri",
     "category": "Kategoria",
@@ -812,7 +817,13 @@
     "clearFilters": "Pastro",
     "breadcrumb": "Shtegu",
     "pageOf": "Faqja {page} nga {pages}",
-    "saveAndAddAnother": "Ruaj dhe shto një tjetër"
+    "saveAndAddAnother": "Ruaj dhe shto një tjetër",
+    "archivedOn": "tërhequr më {date}",
+    "restore": "Rikthe",
+    "archivedServices": "Trajtime të tërhequra",
+    "archivedSuppliers": "Furnitorë të tërhequr",
+    "archivedTemplates": "Tekste të tërhequra",
+    "archivedProcedures": "Lloje punimesh të tërhequra"
   },
   "calendar": {
     "open": "Zgjidh një datë",
@@ -874,6 +885,11 @@
     "phone": "Telefoni",
     "email": "Email",
     "dateOfBirth": "Datëlindja",
+    "sex": "Gjinia",
+    "sexUnknown": "E paregjistruar",
+    "sex_FEMALE": "Femër",
+    "sex_MALE": "Mashkull",
+    "sex_OTHER": "Tjetër",
     "medicalNotes": "Shënime mjekësore",
     "medicalNotesHint": "Alergji, sëmundje kronike, medikamente…",
     "searchPlaceholder": "Kërko me emër, telefon ose email…",
@@ -1078,7 +1094,8 @@
     "waitingFor": "pret prej {minutes} min",
     "bookAt": "Rezervo {time}",
     "gridHint": "Tërhiqe një takim për ta zhvendosur në një orar tjetër. Kliko dy herë mbi një orar të lirë për ta rezervuar.",
-    "openPatient": "Hap pacientin"
+    "openPatient": "Hap pacientin",
+    "bouncedAddress": "Adresa e emailit në kartelë nuk funksionon"
   },
   "services": {
     "title": "Shërbimet",
@@ -1454,7 +1471,27 @@
     "status_FRACTURE": "Thyerje",
     "status_VENEER": "Faseta",
     "status_BRIDGE": "Urë",
-    "perioSaveNext": "Ruaj · tjetri {num}"
+    "perioSaveNext": "Ruaj · tjetri {num}",
+    "status_IMPACTED": "I mbërthyer",
+    "status_RETAINED_ROOT": "Rrënjë e mbetur",
+    "status_PERIAPICAL": "Lezion periapikal",
+    "status_TEMPORARY": "Mbushje e përkohshme",
+    "status_WATCH": "Për vëzhgim",
+    "redo": "Ribëj",
+    "toolHintKeys": "Tërhiq nëpër dhëmbë për të shënuar disa njëherësh. Tastet 1–9 marrin veglën me atë numër; Esc e lë.",
+    "markedCount": "{count, plural, one {# dhëmb u shënua} other {# dhëmbë u shënuan}}",
+    "undoSaid": "{count, plural, one {U zhbë — # dhëmb si më parë} other {U zhbë — # dhëmbë si më parë}}",
+    "redoSaid": "{count, plural, one {U ribë — # dhëmb u shënua sërish} other {U ribë — # dhëmbë u shënuan sërish}}",
+    "examinedOn": "Ekzaminuar më {date}",
+    "examinedBy": "nga {name}",
+    "examinedNever": "Asnjë ekzaminim i regjistruar ende",
+    "recordExam": "Regjistro ekzaminimin",
+    "recorded": "Tashmë e regjistruar",
+    "foundOn": "Gjetur më {date}",
+    "foundBy": "nga {name}",
+    "dmftParts": "D{d} M{m} F{f}",
+    "dmftHint": "Dhëmbë të kariesuar, të munguar dhe të mbushur. “M” numëron çdo dhëmb që mungon, sepse skeda nuk regjistron pse u hoq.",
+    "perioTrendSince": "që nga {date}"
   },
   "reminders": {
     "whatsappTemplate": "Përshëndetje {name}, ju kujtojmë takimin tuaj dentar më {date} në orën {time}. Ju presim!",
@@ -1467,7 +1504,17 @@
     "followUpEmailSubject": "Si po ndiheni pas trajtimit?",
     "followUpEmailBody": "Përshëndetje {name},\n\nKanë kaluar {days} ditë nga trajtimi juaj ({services}). Donim të dinim si po ia kaloni.\n\nNëse keni dhimbje ose diçka nuk shkon, përgjigjuni këtij emaili ose na telefononi dhe do t’ju presim.\n\nMe respekt,\nKlinika dentare",
     "waitlistWhatsapp": "Përshëndetje {name}, u lirua një orar {day} në {time}. E dëshironi? Na tregoni dhe e mbajmë për ju.",
-    "confirmAsk": "Ju lutemi na tregoni nëse do të vini: {link}"
+    "confirmAsk": "Ju lutemi na tregoni nëse do të vini: {link}",
+    "workWhatsapp": "Përshëndetje {name}, {work} juaj ka ardhur nga laboratori. Dëshironi të vini për ta vendosur? Na tregoni një orar që ju përshtatet.",
+    "workEmailSubject": "{work} juaj është gati",
+    "workEmailBody": "Përshëndetje {name},\n\n{work} juaj ka ardhur nga laboratori dhe është gati për ju.\n\nPërgjigjuni këtij emaili ose na telefononi dhe gjejmë një orar që ju përshtatet.\n\nMe respekt,\nKlinika dentare",
+    "planWhatsapp": "Përshëndetje {name}, ka mbetur edhe një hap nga trajtimi juaj — {step}. Dëshironi ta caktojmë? Gjejmë me kënaqësi një orar që ju përshtatet.",
+    "planWhatsappPlain": "Përshëndetje {name}, trajtimi juaj ({plan}) nuk ka përfunduar ende. Dëshironi të caktoni takimin e radhës?",
+    "planEmailSubject": "Përfundimi i trajtimit tuaj",
+    "planEmailBody": "Përshëndetje {name},\n\nPlani juaj i trajtimit ({plan}) ka ende një hap për t’u kryer — {step} — dhe ka kaluar një kohë që nuk ju kemi parë për të.\n\nMund të ketë një arsye të mirë, dhe nëse po, thjesht na tregoni. Përndryshe, përgjigjuni këtij emaili ose na telefononi dhe gjejmë një orar.\n\nMe respekt,\nKlinika dentare",
+    "planEmailBodyPlain": "Përshëndetje {name},\n\nPlani juaj i trajtimit ({plan}) nuk ka përfunduar ende dhe ka kaluar një kohë që nuk ju kemi parë për të.\n\nMund të ketë një arsye të mirë, dhe nëse po, thjesht na tregoni. Përndryshe, përgjigjuni këtij emaili ose na telefononi dhe gjejmë një orar.\n\nMe respekt,\nKlinika dentare",
+    "theTreatment": "trajtimi juaj",
+    "optOutAsk": "Nëse nuk dëshironi të merrni mesazhe si ky, na tregoni këtu: {link}"
   },
   "reminderBoard": {
     "title": "Kujtesat",
@@ -1522,15 +1569,17 @@
       "works": "{count, plural, one {# rast është ende te laboratori} other {# raste janë ende te laboratori}}",
       "requests": "{count, plural, one {# kërkesë rezervimi nga faqja} other {# kërkesa rezervimi nga faqja}}",
       "mail": "{count, plural, one {# mesazh pacienti, pa përgjigje} other {# mesazhe pacientësh, pa përgjigje}}",
-      "unreminded": "{count, plural, one {# pacient nesër nuk ka marrë asnjë njoftim} other {# pacientë nesër nuk kanë marrë asnjë njoftim}}",
-      "unwritten": "{count, plural, one {# takim nuk u mbyll kurrë} other {# takime nuk u mbyllën kurrë}}"
+      "unreminded": "{count, plural, one {# mesazh po pret të dërgohet} other {# mesazhe po presin të dërgohen}}",
+      "unwritten": "{count, plural, one {# takim nuk u mbyll kurrë} other {# takime nuk u mbyllën kurrë}}",
+      "opened": "{count, plural, one {# orar sapo u lirua} other {# orare sapo u liruan}}"
     },
     "elsewhereHint": {
       "works": "Duhen kthyer brenda pak ditësh, ose kanë kaluar.",
       "requests": "Dikush la numrin e tij dhe po pret.",
       "mail": "Dikush shkroi dhe askush nuk iu përgjigj.",
-      "unreminded": "Nesër, dhe askush nuk u ka dërguar gjë.",
-      "unwritten": "Thuaj çfarë ndodhi, që kartela të mbetet e saktë."
+      "unreminded": "Kujtesa, kontrolle dhe pjesa tjetër e radhës.",
+      "unwritten": "Thuaj çfarë ndodhi, që kartela të mbetet e saktë.",
+      "opened": "Pacienti e anuloi vetë. Lista e pritjes është aty pranë."
     },
     "newSince": "{count, plural, one {# e re që kur e patë së fundmi} other {# të reja që kur e patë së fundmi}}"
   },
@@ -1615,10 +1664,31 @@
       "mailRejected": "ofruesi i postës refuzoi mesazhin",
       "mailLimit": "kufiri i dërgimeve për sot është shterur",
       "mailUnreachable": "ofruesi i postës nuk u arrit",
-      "cancelNoLongerDue": "pacienti nuk është më me vonesë"
+      "cancelNoLongerDue": "pacienti nuk është më me vonesë",
+      "skipRecentlyContacted": "kanë marrë dy mesazhe nga ne këtë javë",
+      "cancelOptedOut": "pacienti kërkoi të mos kontaktohet",
+      "cancelWindowClosed": "tashmë vonë për të pasur kuptim",
+      "cancelBookedIn": "pacienti ka një takim të caktuar"
     },
     "lastSeen": "Parë së fundi më {date}",
-    "neverSeen": "Nuk ka ardhur kurrë"
+    "neverSeen": "Nuk ka ardhur kurrë",
+    "heldTitle": "Në pritje për t’u provuar sërish",
+    "heldSubtitle": "{count, plural, one {# mesazh që shërbimi i emailit e refuzoi} other {# mesazhe që shërbimi i emailit i refuzoi}}",
+    "kind_APPOINTMENT_REMINDER": "Kujtesë",
+    "kind_RECALL_DUE": "Kontroll i radhës",
+    "kind_POST_OP_CHECK": "Pas trajtimit",
+    "kind_WORK_READY": "Puna erdhi",
+    "kind_PLAN_NEXT_STEP": "Plan i papërfunduar",
+    "treatedOn": "Trajtuar më {date}",
+    "workBack": "Nga laboratori: {work}",
+    "triedTimes": "{count, plural, one {Provuar një herë} other {Provuar # herë}}",
+    "backAt": "kthehet në {time}",
+    "emailBounced": "Adresa e emailit në kartelë nuk funksionoi — mesazhi u kthye.",
+    "bouncedError": "adresa e emailit në kartelë nuk funksionon",
+    "prefers_WHATSAPP": "Preferon WhatsApp",
+    "prefers_EMAIL": "Preferon email",
+    "prefers_PHONE": "Preferon telefonatë",
+    "prefers_IN_PERSON": "Preferon personalisht"
   },
   "errors": {
     "duplicatePhone": "Ekziston tashmë një pacient me këtë numër: {list}.",
@@ -2097,6 +2167,7 @@
     "exportPdf": "PDF",
     "exportFileName": "punimet",
     "sheetTitle": "Regjistri i punimeve",
+    "sheetCheck": "Kontroll",
     "exportedAt": "Eksportuar më {date}",
     "exportNotes": "Shënime",
     "sentAt": "Dërguar",
@@ -2226,7 +2297,6 @@
     "namePlaceholder": "Kurorë zirkoni",
     "empty": "Ende asnjë lloj punimi. Shto ato që praksa dërgon — kurorë, urë, protezë — dhe pastaj zgjidhi te rastet.",
     "lineCount": "{count, plural, =0 {në asnjë rresht} one {në # rresht} other {në # rreshta}}",
-    "confirmDelete": "Ta heqim këtë lloj punimi? Rastet e shkruara mbajnë emrin që kanë; hiqet vetëm nga lista e zgjedhjeve.",
     "sectionNaming": "Punimi",
     "sectionNamingHint": "Një lloj punimi është vetëm një emër. Shtoji të gjithë me një herë.",
     "alreadyNamed": "Të emërtuar tashmë",
@@ -2469,12 +2539,18 @@
       "queue-appointment-reminders": "Kujtesat e nesërme",
       "sweep-orphan-files": "Pastro skedarët e papërdorur",
       "queue-recalls": "Kontrollet me vonesë",
+      "queue-post-op-checks": "Kontrollet pas trajtimit",
+      "queue-work-ready": "Punët e kthyera nga laboratori",
+      "queue-stalled-plans": "Planet e trajtimit që kanë ngelur",
       "compose-morning-digest": "Regjistro çfarë priste sot në mëngjes"
     },
     "hint": {
       "queue-appointment-reminders": "Gjen kë duhet kujtuar për nesër dhe mbush radhën e dërgimit. Nuk dërgon asgjë.",
       "sweep-orphan-files": "Heq skedarët e ngarkuar që nuk i përket më asnjë regjistrim.",
       "queue-recalls": "Vendos në radhë pacientët që s'i ka parë kush prej muajsh. Nuk dërgon asgjë.",
+      "queue-post-op-checks": "Vendos në radhë pacientët e trajtuar ditët e fundit, për t’i pyetur si po ndihen. Nuk dërgon asgjë.",
+      "queue-work-ready": "Vendos në radhë pacientët puna e të cilëve është kthyer nga laboratori. Nuk dërgon asgjë.",
+      "queue-stalled-plans": "Vendos në radhë pacientët që e kanë lënë përgjysmë kursin e trajtimit. Nuk dërgon asgjë.",
       "compose-morning-digest": "Shkruan çfarë mbante tabela e kujtesave, që të ketë një histori. Nuk dërgon asgjë."
     },
     "reason": {
@@ -2606,7 +2682,8 @@
     "openMailClient": "Hap në programin e postës",
     "mailClientHint": "Funksionon vetëm nëse ky kompjuter ka një program poste të konfiguruar.",
     "preferred": "e preferuar",
-    "optedOut": "Kërkoi të mos kontaktohet"
+    "optedOut": "Kërkoi të mos kontaktohet",
+    "emailBounced": "Mesazhi drejt kësaj adrese u kthye"
   },
   "alerts": {
     "title": "Alertet mjekësore",
@@ -4066,5 +4143,20 @@
     "reason_visitDeleted": "Vizita u fshi — u kthye",
     "reason_writeOff": "Hequr nga magazina",
     "reason_unknown": "Korrigjim"
+  },
+  "unsubscribe": {
+    "title": "Mesazhet nga klinika",
+    "greeting": "Përshëndetje {name}",
+    "intro": "Mund të ndaloni në çdo moment kujtesat dhe mesazhet për kontrollet nga {clinic}. Do t’ju telefonojmë prapë për çdo gjë urgjente dhe për takimet që keni caktuar.",
+    "optOut": "Mos më dërgoni më mesazhe",
+    "optIn": "Më dërgoni sërish mesazhe",
+    "doneOut": "U krye — nuk do t’ju dërgojmë më këto mesazhe.",
+    "doneIn": "U krye — do t’ju mbajmë të informuar si më parë.",
+    "stillReachable": "Mund ta ndryshoni në çdo kohë, ose thjesht na tregoni në vizitën tuaj të radhës.",
+    "invalidTitle": "Kjo lidhje nuk është e vlefshme",
+    "invalidText": "Mund të jetë shkruar gabim ose kopjuar jo e plotë. Na telefononi dhe e rregullojmë.",
+    "tooMany": "Shumë përpjekje. Prisni një minutë dhe provoni sërish.",
+    "errorInvalid": "kjo lidhje nuk është e vlefshme",
+    "errorGeneric": "nuk u ruajt — ju lutemi provoni sërish"
   }
 }

@@ -25,6 +25,8 @@ export function QueueSendLinks({
   mail,
   body,
   consent,
+  preferred,
+  emailBounced,
   emailAction,
 }: {
   messageId: string;
@@ -34,6 +36,23 @@ export function QueueSendLinks({
   body: string;
   /** Tri-state, as `Patient.contactConsent`. Only an explicit `false` closes it. */
   consent: boolean | null;
+  /**
+   * `Patient.preferredChannel`, when they were asked.
+   *
+   * Read here for the first time on this screen. The patient record has marked
+   * the preferred channel since the field was collected, and the queue — the
+   * one screen whose entire purpose is contacting people — offered WhatsApp
+   * first to everybody, including the patients who had said they would rather
+   * be emailed. It changes which button is the filled one, and nothing else: a
+   * preference is not a refusal, so every channel stays available.
+   */
+  preferred?: string | null;
+  /**
+   * Whether the address on the record is one the provider has told us does not
+   * work. Changes what the disabled button says, which is the difference
+   * between "they never gave us an address" and "the one we have is dead".
+   */
+  emailBounced?: boolean;
   /**
    * The button that really sends, when a mail provider is configured. Given as a
    * slot rather than a flag because it is a server-rendered form and this is a
@@ -66,6 +85,13 @@ export function QueueSendLinks({
     });
   };
 
+  // Which button is filled. The preference decides it when there is one, and
+  // WhatsApp keeps it otherwise — it is the channel this practice reaches most
+  // patients on, and the one that was hard-coded here before.
+  const emailFirst = preferred === 'EMAIL';
+  const whatsappTone = emailFirst ? 'btn-secondary' : 'btn-primary';
+  const emailTone = emailFirst ? 'btn-primary' : 'btn-secondary';
+
   return (
     <>
       {whatsapp ? (
@@ -73,7 +99,7 @@ export function QueueSendLinks({
           href={whatsapp}
           target="_blank"
           rel="noopener noreferrer"
-          className="btn btn-primary btn-sm"
+          className={`btn btn-sm ${whatsappTone}`}
           onClick={() => record('WHATSAPP')}
         >
           <MessageCircle size={17} aria-hidden className="shrink-0" />
@@ -92,12 +118,17 @@ export function QueueSendLinks({
           does today. */}
       {emailAction ??
         (mail ? (
-          <a href={mail} className="btn btn-secondary btn-sm" onClick={() => record('EMAIL')}>
+          <a href={mail} className={`btn btn-sm ${emailTone}`} onClick={() => record('EMAIL')}>
             <Mail size={17} aria-hidden className="shrink-0" />
             {t('remindEmail')}
           </a>
         ) : (
-          <button type="button" disabled className="btn btn-secondary btn-sm" title={t('noEmailForReminder')}>
+          <button
+            type="button"
+            disabled
+            className="btn btn-secondary btn-sm"
+            title={emailBounced ? t('bouncedAddress') : t('noEmailForReminder')}
+          >
             <Mail size={17} aria-hidden className="shrink-0" />
             {t('remindEmail')}
           </button>

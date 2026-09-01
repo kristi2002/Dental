@@ -37,6 +37,19 @@ import { addDays, toDateKey, timeToMinutes, today } from '@/lib/dates';
 import { DUE_SOON_DAYS } from '@/lib/works';
 
 /**
+ * The same "not retired" filter, for the three catalogues that gained one.
+ *
+ * A retired treatment, supplier or piece of standard wording leaves every
+ * picker and stays on every record that names it — see `Service.archivedAt`,
+ * which sets out why deleting them was destroying history. Management screens
+ * deliberately read *without* these, because the one thing a retired row has to
+ * be able to do is be restored.
+ */
+export const ACTIVE_SERVICES = { archivedAt: null } as const;
+export const ACTIVE_SUPPLIERS = { archivedAt: null } as const;
+export const ACTIVE_TEMPLATES = { archivedAt: null } as const;
+
+/**
  * The seven weekday rows, with any the database has not been given yet filled
  * in from `DEFAULT_WEEK`. A fresh install therefore behaves like a configured
  * one, and the settings form always has seven rows to render.
@@ -160,91 +173,21 @@ export type ServiceCategoryOption = {
 };
 
 /**
- * The catalogue's headings, flat and in name order — and the only place the old
- * free-text categories are carried over to them.
+ * The catalogue's headings, flat and in name order.
  *
  * Flat rather than nested because every caller wants a different shape of tree,
  * and one level of `parentId` is cheaper to re-nest than to un-nest.
  *
- * The carry-over is `getStockCategories`' twin, for the same reason: the
- * categories the practice already typed are real information — the whole
- * catalogue is grouped by them — and it is done on first read so that a
- * practice sees its own headings without anybody having to run anything. A
- * migration could do it now that the deploy replays them, and this could be
- * retired into one; it is left here because it is idempotent, costs an empty
- * query once adopted, and works the same on a database restored from backup.
- * Each distinct spelling becomes one top-level `ServiceCategory`; nothing
- * arrives as a subcategory, because the old text box could not express one.
+ * Used to also be where the practice's old free-text categories were adopted
+ * into real rows on first read — `getStockCategories` still does that for
+ * `StockItem`. The service side of it was folded into a migration instead
+ * (`20260901180000_retire_legacy_service_fields`), once the deploy could run
+ * reviewed SQL rather than only `db push`.
  */
 export async function getServiceCategories(): Promise<ServiceCategoryOption[]> {
-  const orphaned = await prisma.service.findMany({
-    where: { categoryId: null, NOT: { legacyCategory: null } },
-    select: { id: true, legacyCategory: true },
-  });
-  if (orphaned.length > 0) await adoptLegacyServiceCategories(orphaned);
-
   return prisma.serviceCategory.findMany({
     orderBy: { name: 'asc' },
     select: { id: true, name: true, parentId: true },
-  });
-}
-
-/**
- * Turn the typed-in category names into rows, once.
- *
- * Two requests can arrive together on the deploy that first exposes this, and
- * without a unique index on `name` (see `saveServiceCategory`) both would create
- * their own "Kirurgji". The advisory lock is held for the transaction only, so
- * the second request waits, then finds nothing left to adopt.
- */
-async function adoptLegacyServiceCategories(
-  orphaned: Array<{ id: string; legacyCategory: string | null }>,
-): Promise<void> {
-  const wanted = new Map<string, { name: string; serviceIds: string[] }>();
-  for (const service of orphaned) {
-    const name = service.legacyCategory?.trim();
-    if (!name) continue;
-
-    const key = name.toLowerCase();
-    const group = wanted.get(key) ?? { name, serviceIds: [] };
-    group.serviceIds.push(service.id);
-    wanted.set(key, group);
-  }
-  if (wanted.size === 0) return;
-
-  await prisma.$transaction(async (tx) => {
-    // A second arbitrary constant, distinct from the storage room's: the two
-    // adoptions touch different tables and must not queue behind each other.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(4207310002)`;
-
-    const known = new Map(
-      (
-        await tx.serviceCategory.findMany({
-          where: { parentId: null },
-          select: { id: true, name: true },
-        })
-      ).map((category) => [category.name.toLowerCase(), category.id]),
-    );
-
-    for (const [key, group] of wanted) {
-      const categoryId =
-        known.get(key) ??
-        (await tx.serviceCategory.create({ data: { name: group.name }, select: { id: true } })).id;
-
-      await tx.service.updateMany({
-        // `categoryId: null` again: a treatment somebody has since filed by hand
-        // keeps the heading they chose, not the one the old text box remembers.
-        where: { id: { in: group.serviceIds }, categoryId: null },
-        data: { categoryId, legacyCategory: null },
-      });
-    }
-
-    // Anything left holding a blank or whitespace-only category — nothing to
-    // adopt, but it would make this run again on every single load.
-    await tx.service.updateMany({
-      where: { id: { in: orphaned.map((service) => service.id) }, categoryId: null },
-      data: { legacyCategory: null },
-    });
   });
 }
 
@@ -255,16 +198,10 @@ async function adoptLegacyServiceCategories(
  * subcategory — every picker in the app groups by this string and prints it as
  * a heading, and "Kirurgji" is the heading whether the treatment sits directly
  * under it or under "Implantologji" inside it.
- *
- * The categories are read first, and not beside the services: this is the call
- * every other screen makes, so it is also where the practice's old typed-in
- * categories get adopted for anyone who books an appointment before opening the
- * services page.
  */
 export async function getServiceOptions(): Promise<ServiceOption[]> {
-  await getServiceCategories();
-
   const services = await prisma.service.findMany({
+    where: ACTIVE_SERVICES,
     select: {
       id: true,
       name: true,
@@ -298,6 +235,7 @@ type AppointmentWithPatient = {
   status: string;
   notes: string | null;
   serviceName: string | null;
+  serviceId: string | null;
   confirmedAt: Date | null;
   declinedAt: Date | null;
   staffUserId: string | null;
@@ -326,6 +264,7 @@ export function toAppointmentView(appointment: AppointmentWithPatient): Appointm
     durationMin: appointment.durationMin,
     status: appointment.status,
     serviceName: appointment.serviceName ?? '',
+    serviceId: appointment.serviceId ?? '',
     notes: appointment.notes ?? '',
     confirmed: appointment.confirmedAt !== null,
     declined: appointment.declinedAt !== null,
@@ -361,6 +300,7 @@ const APPOINTMENT_SELECT = {
   status: true,
   notes: true,
   serviceName: true,
+  serviceId: true,
   confirmedAt: true,
   declinedAt: true,
   staffUserId: true,
@@ -596,86 +536,23 @@ export const ACTIVE_STOCK = { archivedAt: null } as const;
 export type StockCategoryOption = { id: string; name: string };
 
 /**
- * The shelves, in picker order — and the only place the old free-text
- * categories are carried over to them.
+ * The shelves, in picker order.
  *
- * The categories the practice already has were typed into a text box, one
- * material at a time, and they are real information: the stocktake screen walks
- * the room by them. This moves them on first read rather than in a migration —
- * see `getServiceCategories` above for why that is still the case now that
- * migrations do run.
+ * This used to carry the old free-text categories over on first read — each
+ * distinct spelling became a `StockCategory`, the materials wearing it were
+ * pointed at the row, and `legacyCategory` was cleared, all under an advisory
+ * lock because two requests could arrive together. It ran once per practice and
+ * then cost an empty query on every load for ever.
  *
- * Each distinct spelling becomes one `StockCategory`, the materials wearing it
- * are pointed at that row, and `legacyCategory` is cleared in the same
- * transaction — which is what makes this run once and cost a single empty query
- * on every load afterwards, rather than being a permanent second code path.
+ * `20260901220000_the_links_the_entity_map_was_missing` does that pass in SQL
+ * and drops the column, the way the identical adoption on `Service` was closed
+ * out one migration earlier. What is left is the question the function was
+ * always about.
  */
 export async function getStockCategories(): Promise<StockCategoryOption[]> {
-  const orphaned = await prisma.stockItem.findMany({
-    where: { categoryId: null, NOT: { legacyCategory: null } },
-    select: { id: true, legacyCategory: true },
-  });
-  if (orphaned.length > 0) await adoptLegacyCategories(orphaned);
-
   return prisma.stockCategory.findMany({
     orderBy: { name: 'asc' },
     select: { id: true, name: true },
-  });
-}
-
-/**
- * Turn the typed-in category names into rows, once.
- *
- * Two requests can arrive together on the deploy that first exposes this, and
- * without a unique index on `name` (see `StockCategory`) both would create their
- * own "Higjienë". The advisory lock is held for the transaction only, so the
- * second request waits, then finds nothing left to adopt.
- */
-async function adoptLegacyCategories(
-  orphaned: Array<{ id: string; legacyCategory: string | null }>,
-): Promise<void> {
-  const wanted = new Map<string, { name: string; itemIds: string[] }>();
-  for (const item of orphaned) {
-    const name = item.legacyCategory?.trim();
-    if (!name) continue;
-
-    const key = name.toLowerCase();
-    const group = wanted.get(key) ?? { name, itemIds: [] };
-    group.itemIds.push(item.id);
-    wanted.set(key, group);
-  }
-  if (wanted.size === 0) return;
-
-  await prisma.$transaction(async (tx) => {
-    // An arbitrary constant, and the only advisory lock in the app.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(4207310001)`;
-
-    const known = new Map(
-      (await tx.stockCategory.findMany({ select: { id: true, name: true } })).map((category) => [
-        category.name.toLowerCase(),
-        category.id,
-      ]),
-    );
-
-    for (const [key, group] of wanted) {
-      const categoryId =
-        known.get(key) ??
-        (await tx.stockCategory.create({ data: { name: group.name }, select: { id: true } })).id;
-
-      await tx.stockItem.updateMany({
-        // `categoryId: null` again: a material somebody has since filed by hand
-        // keeps the shelf they chose, not the one the old text box remembers.
-        where: { id: { in: group.itemIds }, categoryId: null },
-        data: { categoryId, legacyCategory: null },
-      });
-    }
-
-    // Anything left holding a blank or whitespace-only category — nothing to
-    // adopt, but it would make this run again on every single load.
-    await tx.stockItem.updateMany({
-      where: { id: { in: orphaned.map((item) => item.id) }, categoryId: null },
-      data: { legacyCategory: null },
-    });
   });
 }
 

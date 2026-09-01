@@ -1,6 +1,6 @@
 'use client';
 
-import { MousePointerClick, Undo2 } from 'lucide-react';
+import { MousePointerClick, Redo2, Undo2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ToothGlyph } from '@/components/dental/ToothGlyph';
 import {
@@ -34,17 +34,32 @@ const PALETTE_TOOTH = 16;
  *  naming a surface for the thumbnail would be inventing one. */
 const PREVIEW_SURFACES = ['O'] as const;
 
+/**
+ * How many of these have a number key.
+ *
+ * The chart binds `1`–`9` to the first nine tools in this row, and the only
+ * thing that makes that shortcut exist for anybody but its author is the number
+ * being printed on the button. So the count lives here, next to the drawing of
+ * it, rather than being a fact about the keyboard handler that this file has to
+ * be kept in step with by hand.
+ */
+const KEYED_TOOLS = 9;
+
 export function ConditionPalette({
   tool,
   onPick,
   onUndo,
   canUndo,
+  onRedo,
+  canRedo,
 }: {
   /** The condition being applied, or null when a click opens the record. */
   tool: ToothStatus | null;
   onPick: (tool: ToothStatus | null) => void;
   onUndo: () => void;
   canUndo: boolean;
+  onRedo: () => void;
+  canRedo: boolean;
 }) {
   const t = useTranslations('teeth');
 
@@ -54,16 +69,32 @@ export function ConditionPalette({
         <p className="text-meta font-bold text-ink-faint uppercase">{t('paletteTitle')}</p>
 
         {/* Undo, because a marking tool without one is a tool people are afraid
-            to use quickly — and quickly is the entire point of it. */}
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={onUndo}
-          disabled={!canUndo}
-        >
-          <Undo2 size={16} aria-hidden />
-          {t('undo')}
-        </button>
+            to use quickly — and quickly is the entire point of it.
+
+            And redo beside it, because undo on its own is only half a safety
+            net: the press that takes back the wrong thing is itself
+            unrecoverable, which is exactly the hesitation this pair exists to
+            remove. */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={onUndo}
+            disabled={!canUndo}
+          >
+            <Undo2 size={16} aria-hidden />
+            {t('undo')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={onRedo}
+            disabled={!canRedo}
+          >
+            <Redo2 size={16} aria-hidden />
+            {t('redo')}
+          </button>
+        </div>
       </div>
 
       {/* Measured against the chart's own container rather than the viewport:
@@ -75,6 +106,7 @@ export function ConditionPalette({
           <PaletteButton
             selected={tool === null}
             label={t('toolRecord')}
+            shortcut="1"
             onClick={() => onPick(null)}
           >
             <span className="flex h-16 w-9 items-center justify-center">
@@ -83,11 +115,13 @@ export function ConditionPalette({
           </PaletteButton>
         </li>
 
-        {TOOTH_STATUSES.map((status) => (
+        {TOOTH_STATUSES.map((status, index) => (
           <li key={status}>
             <PaletteButton
               selected={tool === status}
               label={t(`status_${status}`)}
+              // The record tool is the first button, so this row starts at two.
+              shortcut={index + 2 <= KEYED_TOOLS ? String(index + 2) : undefined}
               onClick={() => onPick(status)}
             >
               <span aria-hidden className="h-16 w-9">
@@ -121,6 +155,12 @@ export function ConditionPalette({
       <p className="mt-2.5 text-meta leading-snug text-ink-soft" aria-live="polite">
         {tool === null ? t('toolHintRecord') : t('toolHintMark', { tool: t(`status_${tool}`) })}
       </p>
+
+      {/* The two things about this palette that cannot be worked out by looking
+          at it: that a run of teeth can be painted in one drag, and that the
+          numbers on the buttons are keys. Both are the difference between
+          charting a mouth in one pass and charting it thirty-two times. */}
+      <p className="mt-1 text-caption leading-snug text-ink-faint">{t('toolHintKeys')}</p>
     </div>
   );
 }
@@ -128,11 +168,14 @@ export function ConditionPalette({
 function PaletteButton({
   selected,
   label,
+  shortcut,
   onClick,
   children,
 }: {
   selected: boolean;
   label: string;
+  /** The number key that picks this tool up, where it has one. */
+  shortcut?: string;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -142,13 +185,27 @@ function PaletteButton({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        'flex w-full flex-col items-center gap-1 rounded-lg border px-1 py-2',
+        'relative flex w-full flex-col items-center gap-1 rounded-lg border px-1 py-2',
         'text-center text-caption leading-tight font-semibold',
         selected
           ? 'border-brand bg-brand-soft text-brand-deep ring-2 ring-brand'
           : 'border-line-strong bg-surface text-ink hover:border-ink',
       )}
     >
+      {/* Hidden from assistive technology: the key is a fact about the mouse
+          hand's other half, and read out on every one of eighteen buttons it is
+          eighteen numbers between a reader and the tool names. */}
+      {shortcut ? (
+        <span
+          aria-hidden
+          className={cn(
+            'absolute top-1 left-1 rounded px-1 text-micro font-bold tabular-nums',
+            selected ? 'bg-brand text-white' : 'bg-paper text-ink-faint',
+          )}
+        >
+          {shortcut}
+        </span>
+      ) : null}
       {children}
       {label}
     </button>

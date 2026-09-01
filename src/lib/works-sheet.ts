@@ -30,7 +30,8 @@ import { today } from './dates';
  * `SheetColumn` — so this one list prints on any paper.
  *
  * The order is the screen's order, which is the paper ledger's order: when it
- * went out, when it is due, whose it is, and then what was actually made. The
+ * went out, when it is due, whose it is, and then what was actually made, with
+ * the tick column last because it is the only one the paper is written on. The
  * two columns that hold sentences get the width; the four that hold dates and
  * counts take what they need and no more.
  */
@@ -46,6 +47,15 @@ const COLUMNS = [
   { key: 'elements', weight: 4, align: 'right' as const },
   { key: 'procedure', weight: 17.5 },
   { key: 'lab', weight: 11.5 },
+  // The one column that arrives empty: a box per case for whoever is reading
+  // the sheet with the laboratory's invoice beside it, ticked as each case is
+  // found on it. It sits at the end because the tick is what the reader does
+  // *after* reading the row, and because the eight columns before it are the
+  // register's order — the screen's, and the paper ledger's — which a column of
+  // empty boxes has no business getting in front of. Its width is the heading's
+  // rather than the box's: `KONTROLL` in the heading's caps is four times the
+  // width of the square under it.
+  { key: 'check', weight: 7, box: true as const },
 ] as const;
 
 type ColumnKey = (typeof COLUMNS)[number]['key'];
@@ -79,6 +89,13 @@ const cell = (text: string, span: Omit<SheetSpan, 'text'> = {}): SheetSpan[] =>
   text ? [{ text, ...span }] : [];
 
 /**
+ * The tick box, which is a cell with nothing in it in a column that draws boxes
+ * rather than type — see `SheetColumn.box`. Only ever set on the row that opens
+ * a case: `null` underneath is what makes the case's four items share one box.
+ */
+const BOX: SheetSpan[] = [];
+
+/**
  * The register as a printable table.
  *
  * `formatDate` is passed in rather than chosen here because the sheet's dates
@@ -95,6 +112,7 @@ export function worksToSheet(
     header: column.key === 'elements' ? labels.elementsShort : labels[column.key],
     width: column.weight,
     align: 'align' in column ? column.align : undefined,
+    box: 'box' in column ? column.box : undefined,
   }));
 
   const rows: SheetRow[] = [];
@@ -133,7 +151,10 @@ export function worksToSheet(
     const continued: (SheetSpan[] | null)[] = [null, null, null, null];
 
     if (work.lines.length === 0) {
-      rows.push({ opensGroup: true, cells: [...head, cell('—', { tone: 'faint' }), [], [], []] });
+      rows.push({
+        opensGroup: true,
+        cells: [...head, cell('—', { tone: 'faint' }), [], [], [], BOX],
+      });
       continue;
     }
 
@@ -151,6 +172,7 @@ export function worksToSheet(
           cell(String(line.elements), { bold: true }),
           cell(line.procedure, { bold: true }),
           cell(line.lab ?? '', { tone: 'soft' }),
+          index === 0 ? BOX : null,
         ],
       });
     }
@@ -166,6 +188,9 @@ export function worksToSheet(
           cell(String(elementsOf(work)), { bold: true }),
           [],
           [],
+          // The case's box is the one on its first row; a second one here would
+          // read as a second thing to tick.
+          null,
         ],
       });
     }

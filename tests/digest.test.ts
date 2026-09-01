@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  digestMail,
   digestSummary,
   digestTotal,
   EMPTY_DIGEST,
@@ -88,5 +89,53 @@ describe('digestSummary — the line recorded against the run', () => {
   it('leads with the same total the digest itself reports', () => {
     const shelf = counts({ stockOut: 1, stockLow: 4, ordersLate: 2 });
     assert.ok(digestSummary(shelf).startsWith(`${digestTotal(shelf)} waiting`));
+  });
+});
+
+/**
+ * The email the practice gets on the morning nobody comes in.
+ *
+ * The interesting cases are the two silences: a clear morning must produce
+ * nothing at all, because a digest that arrives every day whatever happened is
+ * filed unread by the second week and takes the one that mattered with it.
+ */
+describe('digestMail — the morning the practice is told', () => {
+  it('says nothing on a clear morning', () => {
+    assert.equal(digestMail(EMPTY_DIGEST, 'https://klinika.al/'), null);
+  });
+
+  it('puts the number in the subject, where it is read on a lock screen', () => {
+    const mail = digestMail(counts({ requestsWaiting: 2, stockLow: 1 }), null);
+    assert.equal(mail?.subject, '3 waiting at the practice');
+  });
+
+  it('carries the same sentence the run recorded, so the two agree', () => {
+    const morning = counts({ followUpsOverdue: 1, unreadMail: 2 });
+    assert.ok(digestMail(morning, null)?.text.startsWith(digestSummary(morning)));
+  });
+
+  it('says how much of it will not keep, and says so either way', () => {
+    const urgent = digestMail(counts({ followUpsOverdue: 2 }), null);
+    assert.match(urgent!.text, /2 of them will not keep/);
+
+    // Nothing urgent is worth a sentence of its own: a reader who is told only
+    // about urgency cannot tell "none today" from "this email is broken".
+    const calm = digestMail(counts({ unreadMail: 3 }), null);
+    assert.match(calm!.text, /None of it is urgent/);
+  });
+
+  it('includes the way in when the deployment knows its own address', () => {
+    assert.match(digestMail(counts({ unreadMail: 1 }), 'https://klinika.al/')!.text, /klinika\.al/);
+    // And is a perfectly good email without it — `NEXT_PUBLIC_APP_URL` is the
+    // one setting a hurried deployment leaves out.
+    assert.ok(!digestMail(counts({ unreadMail: 1 }), null)!.text.includes('http'));
+  });
+
+  it('never mentions a patient, because this leaves the building', () => {
+    // Counts only. The board itself names people; the email that announces it
+    // is read on a telephone on a bus, and `request-alert.ts` made the same
+    // call about how much of a stranger's request may travel.
+    const mail = digestMail(counts({ unremindedTomorrow: 4, worksToChase: 1 }), null);
+    assert.ok(!/@/.test(mail!.text));
   });
 });

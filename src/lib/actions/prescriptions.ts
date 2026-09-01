@@ -7,6 +7,7 @@ import { MedicalAlertKind } from '@/generated/prisma/enums';
 import { authorize, recordAudit } from '@/lib/auth/guard';
 import { allergyLines, matchingAllergies } from '@/lib/medical';
 import { prisma } from '@/lib/prisma';
+import { sameDayVisitId } from '@/lib/visit-link';
 import { optionalString, requiredString } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
 
@@ -88,18 +89,55 @@ export async function deletePrescriptionTemplate(formData: FormData): Promise<vo
 
   const template = await prisma.prescriptionTemplate.findUnique({
     where: { id },
-    select: { name: true },
+    select: { name: true, _count: { select: { prescriptions: true } } },
   });
   if (!template) return;
 
   // Issued prescriptions keep their own copy of the text, so removing a template
-  // cannot rewrite what a patient was actually given.
-  await prisma.prescriptionTemplate.delete({ where: { id } });
+  // cannot rewrite what a patient was actually given — which was the whole of
+  // the argument and only half of the question. `Prescription.templateId` is
+  // `SetNull`, so the delete also unlinked every prescription from the wording
+  // it came out of, and "which of these did we write" stopped being answerable.
+  // Archived once any has been issued, the same as everything else here.
+  const used = template._count.prescriptions > 0;
+
+  if (used) {
+    await prisma.prescriptionTemplate.update({
+      where: { id },
+      data: { archivedAt: new Date() },
+    });
+  } else {
+    await prisma.prescriptionTemplate.delete({ where: { id } });
+  }
+
   await recordAudit(user, {
-    action: 'delete',
+    action: used ? 'update' : 'delete',
     entity: 'prescription',
     entityId: id,
-    summary: template.name,
+    summary: used ? `${template.name} → archived` : template.name,
+  });
+  revalidateAll();
+}
+
+/** Put a retired piece of standard wording back in the picker. */
+export async function restorePrescriptionTemplate(formData: FormData): Promise<void> {
+  const user = await authorize('prescription.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const template = await prisma.prescriptionTemplate.update({
+    where: { id },
+    data: { archivedAt: null },
+    select: { name: true },
+  });
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'prescription',
+    entityId: id,
+    summary: `${template.name} → restored`,
   });
   revalidateAll();
 }
@@ -185,7 +223,17 @@ export async function issuePrescription(
   try {
     issuedId = (
       await prisma.prescription.create({
-        data: { patientId, body, templateId, issuedById: user.id },
+        data: {
+          patientId,
+          body,
+          templateId,
+          issuedById: user.id,
+          // What this was written at, where today's treatment has been written
+          // up. See `sameDayVisitId` — the prescription is issued from the
+          // patient's own screen and has no visit to hand, which is exactly the
+          // position the chart is in.
+          visitRecordId: await sameDayVisitId(patientId),
+        },
         select: { id: true },
       })
     ).id;

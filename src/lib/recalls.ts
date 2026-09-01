@@ -1,5 +1,6 @@
 import { ContactPurpose } from '@/generated/prisma/enums';
 import { addMonths, today, toDateKey } from '@/lib/dates';
+import { usableEmail } from '@/lib/messages/outbox';
 import { ACTIVE_PATIENTS } from '@/lib/patient-search';
 import { prisma } from '@/lib/prisma';
 import { OCCUPIES_A_SLOT } from '@/lib/scheduling';
@@ -79,6 +80,13 @@ function monthsBetween(from: Date, to: Date): number {
 }
 
 export type PatientForRecall = {
+  /**
+   * What the mail provider has told us about the address, when it has told us
+   * anything. Optional so a test can state a case without them, and read
+   * through `usableEmail` so a dead address counts as no address on both lists.
+   */
+  emailBouncedAt?: Date | null;
+  emailBounceKind?: string | null;
   id: string;
   firstName: string;
   lastName: string;
@@ -138,6 +146,8 @@ function candidateSelect(now: Date) {
     lastName: true,
     phone: true,
     email: true,
+    emailBouncedAt: true,
+    emailBounceKind: true,
     // Which language they read in — and, through `diallingCodeFor`, which
     // country their number is assumed to be in when they wrote it without a
     // code. See `lib/reminders.ts`.
@@ -310,7 +320,10 @@ export function selectRecalls(patients: PatientForRecall[], now: Date): RecallRo
       lastName: patient.lastName,
       phone: patient.phone,
       locale: patient.locale,
-      email: patient.email ?? '',
+      email: usableEmail(patient.email, {
+        bouncedAt: patient.emailBouncedAt ?? null,
+        kind: patient.emailBounceKind ?? null,
+      }),
       lastVisit: lastVisit ? toDateKey(lastVisit) : null,
       monthsSince: monthsBetween(reference, now),
       overdueDays: daysBetween(dueDate, now),
@@ -346,7 +359,10 @@ export function selectFollowUps(patients: PatientForRecall[], now: Date): Follow
       lastName: patient.lastName,
       phone: patient.phone,
       locale: patient.locale,
-      email: patient.email ?? '',
+      email: usableEmail(patient.email, {
+        bouncedAt: patient.emailBouncedAt ?? null,
+        kind: patient.emailBounceKind ?? null,
+      }),
       lastVisit: toDateKey(visit.visitDate),
       daysSince,
       services: visit.servicesText,

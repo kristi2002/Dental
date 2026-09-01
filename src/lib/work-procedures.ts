@@ -11,16 +11,37 @@ import { prisma } from './prisma';
 
 export type WorkProcedureOption = { id: string; name: string };
 
+/**
+ * The whole catalogue, retired entries included — for the management page,
+ * which is the one screen that has to be able to see what it is un-retiring.
+ */
+export async function getAllWorkProcedures(): Promise<
+  Array<WorkProcedureOption & { archivedAt: Date | null }>
+> {
+  return prisma.workProcedure.findMany({
+    orderBy: [{ archivedAt: 'asc' }, { name: 'asc' }],
+    select: { id: true, name: true, archivedAt: true },
+  });
+}
+
 /** The list every `punimi` field offers, alphabetical because it is picked from. */
 export async function getWorkProcedures(): Promise<WorkProcedureOption[]> {
   return prisma.workProcedure.findMany({
+    where: ACTIVE_PROCEDURES,
     orderBy: { name: 'asc' },
     select: { id: true, name: true },
   });
 }
 
 /**
- * What a `punimi` field should offer, as plain names.
+ * The shared "not retired" filter, the same shape `ACTIVE_STOCK` has. A kind of
+ * work the practice has stopped sending leaves every picker and stays on every
+ * case that named it — see `WorkProcedure.archivedAt`.
+ */
+export const ACTIVE_PROCEDURES = { archivedAt: null } as const;
+
+/**
+ * What a `punimi` field should offer.
  *
  * The catalogue, unless there is not one yet — on the day this ships there will
  * not be, because the deploy pushes the schema and never a backfill. A select
@@ -28,13 +49,19 @@ export async function getWorkProcedures(): Promise<WorkProcedureOption[]> {
  * has named its work the field offers what the register has been writing all
  * along. The catalogue page turns that list into real entries; the moment it has
  * one, it is the only thing offered.
+ *
+ * Rows rather than names, since `WorkLine.procedureId` exists: a fallback entry
+ * carries an empty id, which is the honest thing to say about a spelling that
+ * is not in the catalogue and is what the line will store for it.
  */
-export async function getProcedureOptions(): Promise<string[]> {
+export async function getProcedureOptions(): Promise<WorkProcedureOption[]> {
   const catalogue = await getWorkProcedures();
-  if (catalogue.length > 0) return catalogue.map((procedure) => procedure.name);
+  if (catalogue.length > 0) return catalogue;
 
   const usage = await getProcedureUsage();
-  return usage.map((row) => row.name).sort((a, b) => a.localeCompare(b));
+  return usage
+    .map((row) => ({ id: '', name: row.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** A name the register has actually used, and how many lines used it. */

@@ -958,7 +958,7 @@
    * densest part of the gradient and stays legible. Still worn by the signed-out
    * screens (login, setup, confirm) and by the phone top bar. */
   .app-header {
-    background-image: linear-gradient(100deg, #0b8f86 0%, #16a89d 46%, #3cc4b8 100%);
+    background-image: linear-gradient(100deg, #0a7d74 0%, #09756d 46%, #086c64 100%);
   }
 
   /* The rail is that same masthead stood on end: deep at the top, so the
@@ -966,9 +966,29 @@
    * thinned out by the time it reaches the account button at the foot.
    *
    * All of the app's colour is spent here, on the one column that is chrome.
-   * That is what buys the workspace beside it the right to stay white. */
+   * That is what buys the workspace beside it the right to stay white.
+   *
+   * **Why these teals and not the brighter ones this started as.** The rail is
+   * the only surface in the application that carries a column of small type on
+   * a saturated ground, and the ground it carried it on ran from #0b8f86 at the
+   * top to #34bdb2 at the foot. Measured against those, pure white is 3.97:1
+   * falling to 2.32:1 — and the rows were not pure white, they were white/85
+   * (3.30 to 2.05) with the block headings at white/60 (2.38 to 1.66). Every
+   * label in the rail failed AA, and the two blocks at the bottom of it — the
+   * ones with the most rows — failed by more than half.
+   *
+   * The gradient now runs the other way, and darker: #0a7d74 to #086c64, which
+   * is the neighbourhood of `--color-brand-dark` and still unmistakably the
+   * practice's teal. White on it is 5.0:1 at the top and 6.3:1 at the foot, so
+   * the long tail of small labels sits on the densest part rather than the
+   * thinnest. The mark and the practice's name lose nothing by leading on the
+   * lighter end: a logo is a graphic (3:1) and the name is bold body type.
+   *
+   * The type is full white throughout — see `RailRow`. Dimming type is how the
+   * contrast was spent in the first place, and size and weight tell the levels
+   * apart for free. */
   .app-rail {
-    background-image: linear-gradient(168deg, #0b8f86 0%, #16a89d 55%, #34bdb2 100%);
+    background-image: linear-gradient(168deg, #0a7d74 0%, #09756d 55%, #086c64 100%);
   }
 
   /* --- The chrome after dark -------------------------------------------
@@ -1051,8 +1071,12 @@
 
   /* Header controls live on teal, so they are outlined in white at low alpha
    * rather than in a line colour that would vanish. */
+  /* white/65, not white/35: a control's own boundary is what tells somebody
+   * there is a button there, and 3:1 against the ground behind it is the bar
+   * (WCAG 1.4.11). On the rail's teal the old value came to about 1.9:1; this
+   * clears 3:1 at every stop of both gradients. */
   .on-brand-control {
-    @apply border border-white/35 text-white transition-colors hover:bg-white/15;
+    @apply border border-white/65 text-white transition-colors hover:bg-white/15;
   }
 
   /* --- Shelf labels ----------------------------------------------------

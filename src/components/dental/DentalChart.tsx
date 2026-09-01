@@ -3,6 +3,7 @@
 import {
   Activity,
   ArrowRight,
+  CalendarCheck,
   ClipboardList,
   Droplet,
   Paperclip,
@@ -19,7 +20,7 @@ import { ToothDefs } from '@/components/dental/ToothDefsProvider';
 import { ToothGlyph } from '@/components/dental/ToothGlyph';
 import { TOOTH_PHOTOS, ToothPhoto } from '@/components/dental/ToothPhoto';
 import { SubmitButton } from '@/components/ui/SubmitButton';
-import { saveToothPerio, saveToothRecord, setToothFindings } from '@/lib/actions/patients';
+import { markTeeth, recordChartExam, saveToothPerio, saveToothRecord } from '@/lib/actions/patients';
 import { planStepForTooth } from '@/lib/actions/plans';
 import { IDLE_STATE } from '@/lib/actions/types';
 import {
@@ -27,19 +28,23 @@ import {
   PERIO_SITES,
   perioOverview,
   perioSummaryOf,
+  POCKET_DEEP,
   type PerioSummary,
 } from '@/lib/perio';
 import {
   ALL_TEETH,
   applyFinding,
+  cariesIndex,
   DEFAULT_TOOTH_STATUS,
   HEALTHY_TOOTH,
   PERMANENT_LOWER_LEFT,
   PERMANENT_LOWER_RIGHT,
+  PERMANENT_TEETH,
   PERMANENT_UPPER_LEFT,
   PERMANENT_UPPER_RIGHT,
   PRIMARY_LOWER_LEFT,
   PRIMARY_LOWER_RIGHT,
+  PRIMARY_TEETH,
   PRIMARY_UPPER_LEFT,
   PRIMARY_UPPER_RIGHT,
   findingOf,
@@ -59,6 +64,7 @@ import {
   quadrantOf,
   toothKind,
   toothLabel as toothLabelFor,
+  type CariesIndex,
   type ToothCondition,
   type ToothFindings,
   type ToothNumbering,
@@ -157,9 +163,51 @@ export type PerioBefore = {
   on: string;
   deepest: number | null;
   worstAttachment: number | null;
+  /**
+   * The deepest pocket at each of this tooth's examinations, oldest first and
+   * including the one on screen.
+   *
+   * Two readings say better or worse. A *line* says which of the two stories
+   * this is — 3, 4, 5, 6 is a tooth being lost slowly and nobody noticing,
+   * where 6, 6, 6, 6 is a defect that has been stable for four recalls and
+   * wants maintaining rather than referring. Both of those show as "+1 since
+   * last time" or "no change" respectively, which is exactly the wrong summary
+   * of each.
+   *
+   * A handful of points, not the history: this is a shape read at a glance
+   * beside a number, and thirty of them in ten pixels is a smudge.
+   */
+  series: number[];
 };
 
 export type PerioBeforeMap = Record<number, PerioBefore>;
+
+/**
+ * The mouth's periodontal condition at each examination, oldest last.
+ *
+ * The per-tooth trend answers "is this tooth getting worse"; this answers "is
+ * this mouth", which is the question a hygiene recall interval is actually set
+ * from. Bleeding as a percentage of probed sites, because that is how a
+ * periodontal examination is reported and the only form of it that is
+ * comparable between two visits that probed different numbers of teeth.
+ */
+export type PerioMouthPoint = {
+  on: string;
+  bleedingPercent: number | null;
+  deepest: number | null;
+};
+
+/**
+ * That this mouth was examined, and by whom.
+ *
+ * See `ChartExam` in the schema: a healthy tooth is a tooth with no findings,
+ * so a fully examined sound mouth and a mouth nobody has looked in draw the
+ * same thirty-two clean teeth. This is the line that tells them apart.
+ */
+export type ChartExamStamp = {
+  on: string;
+  by: string | null;
+};
 
 export type PlannedStep = {
   /** The step's own id, so the list has a key that is not its position. */
@@ -271,28 +319,57 @@ const SWEEP_ORDER: readonly number[] = [
   ...PERMANENT_LOWER_RIGHT.toReversed(),
 ];
 
+/**
+ * The tools a number key picks up, in the order the palette draws them.
+ *
+ * Nine, because the tenth would have to be `0` and nobody reads `0` as tenth —
+ * and because the shortcut is only worth having for the tools a hand reaches
+ * for without looking. The palette draws the number on each of these, which is
+ * the only reason anybody will ever find them: an undiscoverable shortcut is a
+ * feature written for the person who wrote it.
+ *
+ * Palette order rather than an order of its own. Two numberings for one row of
+ * buttons — the one printed on them and the one the keyboard uses — is worse
+ * than any gain from putting caries on `1`.
+ */
+const TOOL_KEYS: readonly (ToothStatus | null)[] = [null, ...TOOTH_STATUSES.slice(0, 8)];
+
 /** Deep enough that one wrong click never costs an examination, short enough
  *  that the stack is not a second copy of the chart's history. */
 const UNDO_DEPTH = 50;
 
-/** One step back: which tooth, and what it was before. Carries its own id
- *  because a write that fails has to find the step it pushed among however many
- *  have been pushed on that tooth since. */
-type UndoEntry = { id: number; toothNum: number; before: ToothFindings };
+/**
+ * How far a tooth sits from the midline, negative on the patient's right.
+ *
+ * What the arrow keys move by when they cross between rows. The permanent rows
+ * are sixteen teeth and the milk rows are ten, so stepping down by *index*
+ * would land four columns away from the tooth the eye was on; stepping by
+ * position in the mouth lands on the milk tooth under the adult one, which is
+ * where it is.
+ */
+function offsetIn(row: readonly number[], index: number): number {
+  const half = row.length / 2;
+  return index < half ? index - half : index - half + 1;
+}
+
+/**
+ * One step back: which teeth, and what each of them was before.
+ *
+ * A list of teeth rather than one, because a stroke across six molars is one
+ * thing the hand did and has to come back in one press. Undoing it tooth by
+ * tooth would mean six presses to take back one gesture, and the fifth of them
+ * would leave the mouth in a state nobody ever chose.
+ *
+ * Carries its own id because a write that fails has to find the step *it*
+ * pushed among however many have been pushed since.
+ */
+type UndoEntry = { id: number; teeth: { toothNum: number; before: ToothFindings }[] };
+
+/** What one write does to one tooth. */
+type ToothChange = { toothNum: number; after: ToothFindings };
 
 function storedFindings(records: ToothRecordMap, toothNum: number): ToothFindings {
   return records[toothNum]?.findings ?? NO_FINDINGS;
-}
-
-/** Every face named by any finding on the tooth, in anatomical order — the
- *  findings row has one surfaces line per tooth, and a tooth can now carry
- *  several findings between them. */
-function allFaces(findings: ToothFindings): ToothSurface[] {
-  const seen = new Set<ToothSurface>();
-  for (const finding of findings) {
-    for (const surface of parseSurfaces(finding.surfaces)) seen.add(surface);
-  }
-  return TOOTH_SURFACES.filter((surface) => seen.has(surface));
 }
 
 /** Two findings lists as one string, for comparing what is on screen against
@@ -394,6 +471,8 @@ export function DentalChart({
   records,
   planned,
   perioBefore,
+  perioTrend,
+  exam,
   files,
   numbering = 'FDI',
   showPrimary: initialShowPrimary = false,
@@ -407,6 +486,11 @@ export function DentalChart({
   planned?: PlannedMap;
   /** The previous periodontal reading, per tooth. Same reason for optional. */
   perioBefore?: PerioBeforeMap;
+  /** The whole mouth's periodontal history, oldest first. */
+  perioTrend?: PerioMouthPoint[];
+  /** The last recorded examination of this chart, or nothing if there has never
+   *  been one. */
+  exam?: ChartExamStamp | null;
   /** Files filed against each tooth. Only ever passed by a page that has
    *  already checked `document.view` — this component does not gate. */
   files?: ToothFileMap;
@@ -440,6 +524,8 @@ export function DentalChart({
   const [view, setView] = useState<ChartView>('CONDITION');
   const [dialogTab, setDialogTab] = useState<ChartView>('CONDITION');
 
+  const [examState, examFormAction] = useActionState(recordChartExam, IDLE_STATE);
+
   const [perioState, perioFormAction] = useActionState(saveToothPerio, IDLE_STATE);
   /**
    * Whether the last periodontal save asked to move on rather than to close.
@@ -464,6 +550,22 @@ export function DentalChart({
 
   /** The condition being applied on click, or null when a click opens the record. */
   const [tool, setTool] = useState<ToothStatus | null>(null);
+
+  // Primary teeth are hidden rather than absent: twenty empty milk teeth on an
+  // adult chart is noise, and a child's chart is unusable without them. Anything
+  // already recorded on one forces them open.
+  //
+  // Declared up here because the arrow keys need it: which rows exist is what
+  // decides where Down from an upper molar lands.
+  const [showPrimary, setShowPrimary] = useState(
+    initialShowPrimary ||
+      [
+        ...PRIMARY_UPPER_RIGHT,
+        ...PRIMARY_UPPER_LEFT,
+        ...PRIMARY_LOWER_RIGHT,
+        ...PRIMARY_LOWER_LEFT,
+      ].some((n) => (records[n]?.findings.length ?? 0) > 0),
+  );
   /**
    * Teeth changed since the last server render, so the drawing answers the
    * click rather than the round trip. Marking is done at the speed of speech
@@ -471,7 +573,21 @@ export function DentalChart({
    */
   const [pending, setPending] = useState<Record<number, ToothFindings>>({});
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
+  /**
+   * What undo took back, so it can be put back again.
+   *
+   * Undo without redo is a trap rather than a safety net: the press that takes
+   * back the wrong thing is itself unrecoverable, so people stop pressing it —
+   * which costs exactly the confidence the marking tools were built to give.
+   * Cleared by the next real mark, because a redo of something the chart has
+   * since been told to forget would put back a finding that contradicts what is
+   * now on the tooth.
+   */
+  const [redoStack, setRedoStack] = useState<UndoEntry[]>([]);
   const [markError, setMarkError] = useState<string | null>(null);
+  /** What just happened, for the reader who cannot see the chart change — and
+   *  for the one who can but did not catch which tooth moved. */
+  const [markSaid, setMarkSaid] = useState<string | null>(null);
   const [, startMarking] = useTransition();
   /** Identifies one pushed step, so a failed write takes back the step *it*
    *  pushed rather than every step ever recorded on that tooth. */
@@ -500,87 +616,367 @@ export function DentalChart({
     return pending[toothNum] ?? storedFindings(records, toothNum);
   }
 
-  /** Write a resolved list of findings, keeping the drawing ahead of the round
-   *  trip. The whole list goes over rather than a delta: the server then has
-   *  one job — make the tooth look like this — and cannot end up in a state the
-   *  screen never predicted. */
-  function write(toothNum: number, after: ToothFindings, undoTo: ToothFindings | null) {
+  /**
+   * Write a resolved list of findings for one or more teeth, keeping the
+   * drawing ahead of the round trip.
+   *
+   * The whole list goes over rather than a delta: the server then has one job —
+   * make the tooth look like this — and cannot end up in a state the screen
+   * never predicted.
+   *
+   * **One call for the whole stroke.** Painting six molars is six teeth in one
+   * gesture, and sending it as six actions means six revalidations of the page
+   * and six chances for two of them to land out of order. `undoTo` carries what
+   * all of them were, so the gesture comes back in one press as well.
+   */
+  function write(
+    changes: readonly ToothChange[],
+    undoTo: readonly { toothNum: number; before: ToothFindings }[] | null,
+    said: string | null,
+    /** Where the step goes if it sticks. Undo pushes what it took back onto the
+     *  redo stack and redo pushes it back onto undo, which is the whole of the
+     *  difference between the two. */
+    onto: 'undo' | 'redo' = 'undo',
+  ) {
+    if (changes.length === 0) return;
+
     setMarkError(null);
-    setPending((current) => ({ ...current, [toothNum]: after }));
+    setMarkSaid(said);
+    setPending((current) => {
+      const next = { ...current };
+      for (const change of changes) next[change.toothNum] = change.after;
+      return next;
+    });
 
     let step: number | null = null;
     if (undoTo !== null) {
       const id = (step = ++undoSeq.current);
-      setUndoStack((stack) => [...stack, { id, toothNum, before: undoTo }].slice(-UNDO_DEPTH));
+      const entry: UndoEntry = { id, teeth: [...undoTo] };
+      (onto === 'undo' ? setUndoStack : setRedoStack)((stack) =>
+        [...stack, entry].slice(-UNDO_DEPTH),
+      );
     }
 
     startMarking(async () => {
-      const result = await setToothFindings({
+      const result = await markTeeth({
         patientId,
-        toothNum,
-        findings: after.map((finding) => ({ status: finding.status, surfaces: finding.surfaces })),
+        teeth: changes.map((change) => ({
+          toothNum: change.toothNum,
+          findings: change.after.map((finding) => ({
+            status: finding.status,
+            surfaces: finding.surfaces,
+          })),
+        })),
       });
 
       if (result.status === 'error') {
-        // Drop the optimistic entry rather than replacing it with the old
-        // value: what is on file is whatever the server still has, and falling
+        // Drop the optimistic entries rather than replacing them with the old
+        // values: what is on file is whatever the server still has, and falling
         // back to the record is the one answer that cannot be wrong.
+        const refused = new Set(changes.map((change) => change.toothNum));
         setPending((current) =>
-          Object.fromEntries(
-            Object.entries(current).filter(([key]) => Number(key) !== toothNum),
-          ),
+          Object.fromEntries(Object.entries(current).filter(([key]) => !refused.has(Number(key)))),
         );
         // Only this write's own step. Filtering by tooth took back every step
         // recorded on it, so one refused mark made the marks before it — which
         // are on file and perfectly undoable — permanently un-undoable.
-        setUndoStack((stack) => stack.filter((entry) => entry.id !== step));
+        const drop = (stack: UndoEntry[]) => stack.filter((entry) => entry.id !== step);
+        (onto === 'undo' ? setUndoStack : setRedoStack)(drop);
+        setMarkSaid(null);
         setMarkError(result.message);
       }
     });
   }
 
-  function mark(toothNum: number, surface: ToothSurface | null) {
-    if (readOnly || tool === null) return;
+  /** What a mark did, in words: the tooth, and what is on it now. */
+  function markSentence(toothNum: number, after: ToothFindings): string {
+    const name = t('tooth', { num: label(toothNum) });
+    return after.length === 0
+      ? `${name} — ${t(`status_${DEFAULT_TOOTH_STATUS}`)}`
+      : `${name} — ${after.map((finding) => t(`status_${finding.status}`)).join(' · ')}`;
+  }
 
+  /** The tooth as the held tool would leave it, or null where the tool would
+   *  change nothing — clicking a face already marked with it turns it off, and
+   *  a click that changes nothing should not cost a write. */
+  function toolChange(toothNum: number, surface: ToothSurface | null): ToothChange | null {
+    if (readOnly || tool === null) return null;
     const before = findingsOf(toothNum);
     const after = applyFinding(before, tool, surface);
-    // Clicking a face that is already marked with the held tool turns it off,
-    // and clicking one that changes nothing should not cost a write.
-    if (findingsKey(after) === findingsKey(before)) return;
+    return findingsKey(after) === findingsKey(before) ? null : { toothNum, after };
+  }
 
-    write(toothNum, after, before);
+  function mark(toothNum: number, surface: ToothSurface | null) {
+    const change = toolChange(toothNum, surface);
+    if (!change) return;
+    setRedoStack([]);
+    write(
+      [change],
+      [{ toothNum, before: findingsOf(toothNum) }],
+      markSentence(toothNum, change.after),
+    );
   }
 
   function undo() {
     const last = undoStack[undoStack.length - 1];
     if (!last) return;
     setUndoStack((stack) => stack.slice(0, -1));
-    write(last.toothNum, last.before, null);
+    write(
+      last.teeth.map((tooth) => ({ toothNum: tooth.toothNum, after: tooth.before })),
+      // What they are *now* is what a redo would have to put back.
+      last.teeth.map((tooth) => ({ toothNum: tooth.toothNum, before: findingsOf(tooth.toothNum) })),
+      t('undoSaid', { count: last.teeth.length }),
+      'redo',
+    );
   }
 
-  // Ctrl+Z where a marking tool is held. Bound to the window rather than to the
-  // chart because the hand that just clicked a tooth is not on a focused
-  // control, and a shortcut that needs the right thing focused first is one
-  // nobody reaches for.
+  function redo() {
+    const last = redoStack[redoStack.length - 1];
+    if (!last) return;
+    setRedoStack((stack) => stack.slice(0, -1));
+    write(
+      last.teeth.map((tooth) => ({ toothNum: tooth.toothNum, after: tooth.before })),
+      last.teeth.map((tooth) => ({ toothNum: tooth.toothNum, before: findingsOf(tooth.toothNum) })),
+      t('redoSaid', { count: last.teeth.length }),
+      'undo',
+    );
+  }
+
+  /* ---------------------------------------------------------------- *
+   * Painting a run of teeth
+   * ---------------------------------------------------------------- */
+
+  /**
+   * The teeth this stroke has painted, and what each of them was before it.
+   *
+   * A ref rather than state: it is written on every pointer that crosses a
+   * tooth, and re-rendering the arch mid-drag to store a set nothing draws from
+   * would cost frames in the one gesture that has to keep up with a hand.
+   *
+   * Null when no stroke is in progress, which is also what tells the click
+   * handler that the press it is about to see has already been dealt with.
+   */
+  const stroke = useRef<Map<number, { before: ToothFindings; after: ToothFindings }> | null>(null);
+  /** The face the stroke started on, or null for a stroke over whole teeth.
+   *  Dragging from the occlusal of 16 across to 18 seals three occlusal
+   *  surfaces, which is what starting on one meant. */
+  const strokeSurface = useRef<ToothSurface | null>(null);
+  /** Set when a stroke actually wrote something, so the click that follows the
+   *  same press does not write it a second time. */
+  const strokeWrote = useRef(false);
+
+  /**
+   * Add one tooth to the stroke in progress, optimistically.
+   *
+   * The stroke keeps **both** states itself rather than reading the answer back
+   * off `pending` when the hand lets go. That was the first version and it
+   * silently wrote nothing: `setPending` is asynchronous, and a quick drag
+   * finishes before React has committed a single one of its updates, so the
+   * release found an empty map and concluded the stroke had changed nothing.
+   * Held here, the gesture does not depend on a render having happened.
+   */
+  function paint(toothNum: number, surface: ToothSurface | null) {
+    const run = stroke.current;
+    if (run === null || run.has(toothNum)) return;
+
+    const before = findingsOf(toothNum);
+    const change = toolChange(toothNum, surface);
+    // Recorded even when nothing changed, so dragging back and forth across a
+    // tooth already carrying the tool's finding does not toggle it on and off
+    // under the hand. A stroke says "these teeth are this", once.
+    run.set(toothNum, { before, after: change?.after ?? before });
+    if (!change) return;
+
+    setPending((current) => ({ ...current, [toothNum]: change.after }));
+  }
+
+  /**
+   * The gesture is over: write what it painted, as one step.
+   *
+   * Bound to the window rather than to the arch, because a hand that leaves the
+   * last tooth before letting go — which is most of them — releases over the
+   * page and not over a tooth, and a stroke that only ended when the pointer
+   * happened to be on a target would sometimes never end at all.
+   */
+  useEffect(() => {
+    if (readOnly || view !== 'CONDITION') return;
+
+    function end() {
+      const run = stroke.current;
+      stroke.current = null;
+      if (run === null) return;
+
+      const changes: ToothChange[] = [];
+      const before: { toothNum: number; before: ToothFindings }[] = [];
+      for (const [toothNum, was] of run) {
+        if (findingsKey(was.after) === findingsKey(was.before)) continue;
+        changes.push({ toothNum, after: was.after });
+        before.push({ toothNum, before: was.before });
+      }
+
+      if (changes.length === 0) return;
+      strokeWrote.current = true;
+      setRedoStack([]);
+      write(
+        changes,
+        before,
+        changes.length === 1
+          ? markSentence(changes[0].toothNum, changes[0].after)
+          : t('markedCount', { count: changes.length }),
+      );
+    }
+
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    return () => {
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+    // Reads everything it needs through refs at the moment the hand lets go, so
+    // it is bound once per view rather than rebound on every painted tooth.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly, view]);
+
+  /* ---------------------------------------------------------------- *
+   * The keyboard
+   * ---------------------------------------------------------------- */
+
+  /**
+   * The rows the arrow keys walk, top to bottom as drawn.
+   *
+   * Built from what is actually on screen: with the milk teeth hidden there are
+   * two rows, with them shown there are four, and a Down that stepped into a
+   * row nobody can see would move the focus ring somewhere invisible.
+   */
+  const rows: number[][] = [
+    [...PERMANENT_UPPER_RIGHT, ...PERMANENT_UPPER_LEFT],
+    ...(showPrimary ? [[...PRIMARY_UPPER_RIGHT, ...PRIMARY_UPPER_LEFT]] : []),
+    ...(showPrimary ? [[...PRIMARY_LOWER_RIGHT, ...PRIMARY_LOWER_LEFT]] : []),
+    [...PERMANENT_LOWER_RIGHT, ...PERMANENT_LOWER_LEFT],
+  ];
+
+  /**
+   * Which tooth the tab key lands on.
+   *
+   * One stop for the whole arch rather than fifty-two. Thirty-two tab presses
+   * to get past the chart is not navigation, it is a wall — and it is the
+   * reason the chart was, for anybody not using a mouse, a thing to be escaped
+   * rather than used. Inside it, the arrows move: along the arch, and across to
+   * the other one.
+   */
+  const [focusTooth, setFocusTooth] = useState<number>(rows[0][0]);
+  const toothId = (toothNum: number) => `${uid}-tooth-${toothNum}`;
+
+  function moveFocus(toothNum: number, dx: number, dy: number) {
+    let rowIndex = rows.findIndex((row) => row.includes(toothNum));
+    if (rowIndex < 0) return;
+    let index = rows[rowIndex].indexOf(toothNum);
+
+    if (dy !== 0) {
+      const target = Math.min(rows.length - 1, Math.max(0, rowIndex + dy));
+      if (target === rowIndex) return;
+      const wanted = offsetIn(rows[rowIndex], index);
+      // The nearest column *by position in the mouth*, so the ring stays over
+      // the same part of the arch when it crosses to a row of another length.
+      let best = 0;
+      for (let i = 1; i < rows[target].length; i++) {
+        if (
+          Math.abs(offsetIn(rows[target], i) - wanted) <
+          Math.abs(offsetIn(rows[target], best) - wanted)
+        ) {
+          best = i;
+        }
+      }
+      rowIndex = target;
+      index = best;
+    } else {
+      // Stops at the third molar rather than wrapping to the other side of the
+      // mouth. A ring that jumps the midline on one press is a wrong tooth
+      // waiting to be marked.
+      index = Math.min(rows[rowIndex].length - 1, Math.max(0, index + dx));
+    }
+
+    const next = rows[rowIndex][index];
+    setFocusTooth(next);
+    document.getElementById(toothId(next))?.focus();
+  }
+
+  /**
+   * The shortcuts that make the chart usable at the pace it is worked at.
+   *
+   * Bound to the window rather than to the chart, because the hand that just
+   * clicked a tooth is not on a focused control, and a shortcut that needs the
+   * right thing focused first is one nobody reaches for. Nothing fires while
+   * the dialog is open — it has its own form, and a digit typed into the note
+   * field must stay in the note field.
+   */
   useEffect(() => {
     if (readOnly || view !== 'CONDITION') return;
 
     function onKeyDown(event: KeyboardEvent) {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
-      // Nothing to take back is not the chart's shortcut to swallow — with an
-      // empty stack the keypress belongs to whatever the browser would have
-      // done with it.
-      if (dialogRef.current?.open || undoStack.length === 0) return;
-      event.preventDefault();
-      undo();
+      if (dialogRef.current?.open) return;
+
+      const target = event.target as HTMLElement | null;
+      // A digit belongs to whatever is being typed into, always.
+      const typing =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable === true;
+
+      if (event.ctrlKey || event.metaKey) {
+        const key = event.key.toLowerCase();
+        // Ctrl+Shift+Z and Ctrl+Y are the two redo chords in the world, and
+        // which one a person reaches for is which editor they grew up in.
+        if (key === 'z' && event.shiftKey) {
+          if (redoStack.length === 0) return;
+          event.preventDefault();
+          redo();
+          return;
+        }
+        if (key === 'y') {
+          if (redoStack.length === 0) return;
+          event.preventDefault();
+          redo();
+          return;
+        }
+        if (key === 'z') {
+          // Nothing to take back is not the chart's shortcut to swallow — with
+          // an empty stack the keypress belongs to whatever the browser would
+          // have done with it.
+          if (undoStack.length === 0) return;
+          event.preventDefault();
+          undo();
+        }
+        return;
+      }
+
+      if (typing) return;
+
+      // Escape puts the tool down. The palette's first button does the same
+      // thing, and the whole point of a held tool is that the hand is not over
+      // there.
+      if (event.key === 'Escape' && tool !== null) {
+        event.preventDefault();
+        setTool(null);
+        return;
+      }
+
+      // A digit picks the tool with that number drawn on it. Nine of them,
+      // because a tenth would be `0` and nobody reads `0` as tenth.
+      if (/^[1-9]$/.test(event.key)) {
+        const picked = TOOL_KEYS[Number(event.key) - 1];
+        if (picked === undefined) return;
+        event.preventDefault();
+        setTool(picked);
+      }
     }
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-    // Rebound as the stack changes, so `undo` always closes over the current
-    // top of it rather than the one that existed when the tool was picked up.
+    // Rebound as the stacks change, so `undo` and `redo` always close over the
+    // current top of each rather than the one that existed when the effect ran.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readOnly, view, undoStack]);
+  }, [readOnly, view, undoStack, redoStack, tool]);
 
   /* ---------------------------------------------------------------- *
    * The record dialog
@@ -666,8 +1062,19 @@ export function DentalChart({
     dialogRef.current?.showModal();
   }
 
-  /** A click on a tooth: mark it where a tool is held, open it where none is. */
+  /**
+   * A click on a tooth: mark it where a tool is held, open it where none is.
+   *
+   * A press that began a stroke has already been dealt with by the time this
+   * runs — the pointer handlers wrote it — so the click that follows the same
+   * press is swallowed. Without that, every painted tooth would be marked
+   * twice, and the second mark would toggle the first straight back off.
+   */
   function touch(toothNum: number, surface: ToothSurface | null = null) {
+    if (strokeWrote.current) {
+      strokeWrote.current = false;
+      return;
+    }
     if (view === 'CONDITION' && tool !== null && !readOnly) {
       mark(toothNum, surface);
       return;
@@ -675,18 +1082,25 @@ export function DentalChart({
     openTooth(toothNum, surface);
   }
 
-  // Primary teeth are hidden rather than absent: twenty empty milk teeth on an
-  // adult chart is noise, and a child's chart is unusable without them. Anything
-  // already recorded on one forces them open.
-  const [showPrimary, setShowPrimary] = useState(
-    initialShowPrimary ||
-      [
-        ...PRIMARY_UPPER_RIGHT,
-        ...PRIMARY_UPPER_LEFT,
-        ...PRIMARY_LOWER_RIGHT,
-        ...PRIMARY_LOWER_LEFT,
-      ].some((n) => (records[n]?.findings.length ?? 0) > 0),
-  );
+  /**
+   * Press: begin a run.
+   *
+   * The tooth under the press is painted immediately, so a press that turns out
+   * to be an ordinary click has already done the work and the click above has
+   * nothing left to do but stand aside. Only where a tool is held — with none,
+   * a press is on its way to opening the record.
+   */
+  function beginStroke(toothNum: number, surface: ToothSurface | null) {
+    if (readOnly || tool === null || view !== 'CONDITION') return;
+    stroke.current = new Map();
+    strokeSurface.current = surface;
+    paint(toothNum, surface);
+  }
+
+  /** Drag: the pointer has reached another tooth. */
+  function extendStroke(toothNum: number) {
+    paint(toothNum, strokeSurface.current);
+  }
 
   const surfacesApply = statusTakesSurfaces(status);
   const current = selected === null ? null : records[selected];
@@ -794,6 +1208,12 @@ export function DentalChart({
     plannedCount: (n: number) => plannedFor(n).length,
     marking: tool !== null && !readOnly && view === 'CONDITION',
     onSelect: touch,
+    onPaintStart: beginStroke,
+    onPaintOver: extendStroke,
+    tabStop: focusTooth,
+    onFocusTooth: setFocusTooth,
+    onArrow: moveFocus,
+    idOf: toothId,
     highlight,
     numberLabel: label,
     // The biting surface is the occlusal one on a tooth that grinds and the
@@ -853,6 +1273,52 @@ export function DentalChart({
         </div>
       </div>
 
+      {/**
+        * That somebody examined this mouth, and when.
+        *
+        * The chart draws what is wrong with each tooth and, until this line, had
+        * no way to say that anybody had looked. A healthy tooth is a tooth with
+        * no findings — the right model, and the reason a fully examined sound
+        * mouth and a mouth nobody has ever opened draw the same thirty-two clean
+        * teeth. Everything else in this record is dated and attributed; the
+        * examination itself was the one thing that could only be inferred, and
+        * inferred wrong in the case that matters most, because the patient with
+        * nothing wrong has no finding to take a date from.
+        *
+        * At the top rather than beside the button that writes it: it is read far
+        * more often than it is pressed.
+        */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-line bg-paper px-4 py-2.5">
+        <p className="text-meta text-ink-soft">
+          <CalendarCheck size={16} aria-hidden className="mr-1.5 -mt-0.5 inline text-ink-faint" />
+          {exam ? (
+            <>
+              <span className="font-bold text-ink">{t('examinedOn', { date: exam.on })}</span>
+              {exam.by ? <span className="ml-1.5">{t('examinedBy', { name: exam.by })}</span> : null}
+            </>
+          ) : (
+            t('examinedNever')
+          )}
+        </p>
+
+        {readOnly ? null : (
+          <form action={examFormAction} className="flex items-center gap-3">
+            <input type="hidden" name="patientId" value={patientId} />
+            {examState.status === 'error' ? (
+              <span role="alert" className="text-meta font-semibold text-danger">
+                {examState.message}
+              </span>
+            ) : null}
+            <SubmitButton
+              variant="secondary"
+              className="btn-sm"
+              label={t('recordExam')}
+              pendingLabel={tc('saving')}
+            />
+          </form>
+        )}
+      </div>
+
       {/* The arches, and the written record of them underneath.
           
           This used to be a two-column split above 68rem, with the panel beside
@@ -882,11 +1348,29 @@ export function DentalChart({
             </p>
           ) : null}
 
+          {/* What the last mark did, in words.
+              A stroke across six teeth changes six drawings at once and an undo
+              changes them back, and neither is something a person watching one
+              tooth will catch. Announced as well as shown, because with a tool
+              held nothing on this screen has focus and nothing else would say a
+              word about what just happened. */}
+          {markError === null && markSaid !== null ? (
+            <p role="status" aria-live="polite" className="text-meta text-ink-soft">
+              {markSaid}
+            </p>
+          ) : null}
+
           <div className="overflow-x-auto pb-2">
             {/* Sized to its contents rather than the viewport, so the arches keep
                 their proportions and the page scrolls instead of the chart
-                squashing — a compressed odontogram is an unreadable one. */}
-            <div className="w-max">
+                squashing — a compressed odontogram is an unreadable one.
+
+                `select-none` because a run of teeth is marked by dragging
+                across them, and a drag over text is a *selection* to every
+                browser there is: the first version of the stroke highlighted
+                half the page in blue on its way along the arch. Nothing here is
+                text anybody copies — the numbers are labels on a drawing. */}
+            <div className="w-max select-none">
               <div className="flex justify-between px-1 pb-1">
                 <span className="text-meta font-bold text-ink-faint">{t('right')}</span>
                 <span className="text-meta font-bold text-ink-faint">{t('left')}</span>
@@ -962,6 +1446,8 @@ export function DentalChart({
               onPick={setTool}
               onUndo={undo}
               canUndo={undoStack.length > 0}
+              onRedo={redo}
+              canRedo={redoStack.length > 0}
             />
           )}
         </div>
@@ -970,6 +1456,7 @@ export function DentalChart({
           view={view}
           records={records}
           findingsOf={findingsOf}
+          trend={perioTrend}
           numberLabel={label}
           onSelect={(toothNum) => openTooth(toothNum)}
           onPoint={setHighlight}
@@ -1249,13 +1736,19 @@ export function DentalChart({
                     <div className="space-y-4 px-5 py-5">
                       <div>
                         <p className="field-label">{t('condition')}</p>
-                        <p className="text-body font-semibold text-ink">
-                          {openFindings.length === 0
-                            ? t(`status_${DEFAULT_TOOTH_STATUS}`)
-                            : openFindings
-                                .map((finding) => t(`status_${finding.status}`))
-                                .join(' · ')}
-                        </p>
+                        {openFindings.length === 0 ? (
+                          <p className="text-body font-semibold text-ink">
+                            {t(`status_${DEFAULT_TOOTH_STATUS}`)}
+                          </p>
+                        ) : (
+                          <ul className="space-y-1.5">
+                            {openFindings.map((finding) => (
+                              <li key={finding.status}>
+                                <FindingLine toothNum={selected} finding={finding} />
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                       <div>
                         <p className="field-label">{t('notes')}</p>
@@ -1288,6 +1781,29 @@ export function DentalChart({
                     <div className="space-y-4 px-5 py-5">
                       <input type="hidden" name="patientId" value={patientId} />
                       <input type="hidden" name="toothNum" value={selected} />
+
+                      {/* What is already on the tooth, before anything is
+                          chosen below.
+
+                          The picker underneath shows what each option *would*
+                          do, which is the wrong shape for the question asked
+                          first: what is on this tooth already, when was it
+                          found and by whom. A dentist deciding whether to
+                          re-drill a filling wants its age, and a tooth that has
+                          carried three findings for two years has three answers
+                          — none of which a row of radio buttons can give. */}
+                      {openFindings.length > 0 ? (
+                        <div>
+                          <p className="field-label">{t('recorded')}</p>
+                          <ul className="space-y-1.5">
+                            {openFindings.map((finding) => (
+                              <li key={finding.status}>
+                                <FindingLine toothNum={selected} finding={finding} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
 
                       {/* The choice is made on a picture of the outcome: each option
                           draws *this* tooth as it would look once the condition is
@@ -1443,7 +1959,13 @@ function PerioTrend({ now, before }: { now: PerioSummary; before: PerioBefore })
 
   return (
     <section className="border-b border-line bg-paper px-5 py-3.5">
-      <h3 className="field-label">{t('perioSince', { date: before.on })}</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="field-label">{t('perioSince', { date: before.on })}</h3>
+        {/* This tooth's own pocket depths, every examination of them. */}
+        <span className="text-ink-soft">
+          <TrendLine values={before.series} max={POCKET_DEEP} />
+        </span>
+      </div>
 
       <dl className="mt-1.5 space-y-1">
         {rows.map((row) => {
@@ -1599,12 +2121,15 @@ function ChartFindings({
   view,
   records,
   findingsOf,
+  trend,
   numberLabel,
   onSelect,
   onPoint,
 }: {
   view: ChartView;
   records: ToothRecordMap;
+  /** The whole mouth's periodontal history, oldest first. */
+  trend?: PerioMouthPoint[];
   /** The tooth as the screen knows it — one mark ahead of `records` while a
    *  click is in flight. */
   findingsOf: (toothNum: number) => ToothFindings;
@@ -1627,7 +2152,6 @@ function ChartFindings({
       toothNum,
       list: findings,
       status: headlineStatus(findings),
-      surfaces: allFaces(findings),
       notes: records[toothNum]?.notes ?? '',
       chartedOn: records[toothNum]?.chartedOn ?? '',
       perio: perioSummaryOf(records[toothNum] ?? {}),
@@ -1650,6 +2174,25 @@ function ChartFindings({
     .map((status) => ({ status, count: flagged.filter((f) => f.status === status).length }))
     .filter((row) => row.count > 0);
 
+  /**
+   * The mouth as one number, adult teeth and milk teeth separately.
+   *
+   * DMFT is what makes two charts comparable — to the same mouth two years
+   * apart, to a sibling, to a population — and every figure in it was already
+   * on this screen, spread across thirty-two drawings where nothing could add
+   * it up. Written in the two cases dentistry writes it in, upper for the
+   * permanent dentition and lower for the primary one, which is not a
+   * typographic flourish: they are different scores over different denominators
+   * and a child in mixed dentition has both.
+   *
+   * The milk score is drawn only where there are milk teeth charted. Every
+   * adult chart would otherwise carry a permanent `dmft 0` describing twenty
+   * teeth that are not there.
+   */
+  const dmft = cariesIndex(PERMANENT_TEETH, findingsOf);
+  const dmftPrimary = cariesIndex(PRIMARY_TEETH, findingsOf);
+  const primaryCharted = PRIMARY_TEETH.some((toothNum) => findingsOf(toothNum).length > 0);
+
   // Not sticky any more: it sits under the chart rather than beside it, and a
   // panel that pins itself to the top of a column it is the only thing in just
   // floats away from the arch it belongs to.
@@ -1666,6 +2209,25 @@ function ChartFindings({
             <p className="mt-1 font-semibold text-ink-soft">
               {t('perioSummary', { count: overview.teethProbed })}
             </p>
+            {trend && trend.length > 1 ? (
+              // The mouth rather than the tooth. Bleeding is the number a
+              // hygiene recall interval is actually set from, and a single
+              // percentage says nothing about whether the last course of
+              // treatment worked.
+              <p className="mt-2 flex items-center gap-2 text-caption text-ink-soft">
+                <span className="font-semibold">{t('perioBleeding')}</span>
+                <span className="text-ink-faint">
+                  <TrendLine
+                    values={trend.map((point) => point.bleedingPercent ?? 0)}
+                    max={30}
+                  />
+                </span>
+                <span className="tabular-nums">
+                  {t('perioTrendSince', { date: trend[0].on })}
+                </span>
+              </p>
+            ) : null}
+
             {overview.teethProbed > 0 ? (
               <ul className="mt-2.5 flex flex-wrap gap-1.5">
                 {overview.deepest !== null ? (
@@ -1721,6 +2283,11 @@ function ChartFindings({
                 ))}
               </ul>
             ) : null}
+
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <CariesScore label="DMFT" index={dmft} />
+              {primaryCharted ? <CariesScore label="dmft" index={dmftPrimary} /> : null}
+            </div>
           </>
         )}
       </div>
@@ -1822,27 +2389,52 @@ function ChartFindings({
                       </span>
                     ) : (
                       <>
-                        {/* The letters are how the finding is written down and the
-                            words are how it is checked — "MOD" is unreadable to
-                            anyone outside the surgery, and the names alone are too
-                            long to scan. */}
-                        {finding.surfaces.length > 0 ? (
-                          <span className="mt-1 block text-meta leading-snug text-ink">
-                            <span className="font-bold tracking-wide">
-                              {finding.surfaces.join('')}
+                        {/* Every finding on the tooth, each with its own faces
+                            and its own provenance.
+
+                            This used to be one line: the union of every face any
+                            finding claimed, and one date taken from the
+                            periodontal row. Both were wrong in the same way. A
+                            molar with an old filling on the mesial and fresh
+                            decay on the distal read as "MD", which is the one
+                            thing it is not — it is two findings, and which is
+                            which is the whole reason the tooth is being looked
+                            at again. And the date belonged to whenever anybody
+                            last probed the gum, so most flagged teeth carried no
+                            date at all while a few carried somebody else's. */}
+                        {finding.list.map((one) => {
+                          const faces = parseSurfaces(one.surfaces);
+                          return (
+                            <span
+                              key={one.status}
+                              className="mt-1 block text-meta leading-snug text-ink"
+                            >
+                              <span className="font-semibold">{t(`status_${one.status}`)}</span>
+                              {faces.length > 0 ? (
+                                <>
+                                  <span className="ml-1.5 font-bold tracking-wide">
+                                    {faces.join('')}
+                                  </span>
+                                  <span className="text-ink-soft">
+                                    {' — '}
+                                    {faces
+                                      .map((surface) =>
+                                        surface === 'O'
+                                          ? t(
+                                              isAnterior(finding.toothNum)
+                                                ? 'surface_I'
+                                                : 'surface_O',
+                                            )
+                                          : t(`surface_${surface}`),
+                                      )
+                                      .join(', ')}
+                                  </span>
+                                </>
+                              ) : null}
+                              <Provenance finding={one} />
                             </span>
-                            <span className="text-ink-soft">
-                              {' — '}
-                              {finding.surfaces
-                                .map((surface) =>
-                                  surface === 'O'
-                                    ? t(isAnterior(finding.toothNum) ? 'surface_I' : 'surface_O')
-                                    : t(`surface_${surface}`),
-                                )
-                                .join(', ')}
-                            </span>
-                          </span>
-                        ) : null}
+                          );
+                        })}
 
                         {finding.notes ? (
                           <span className="mt-1 block line-clamp-3 text-meta leading-snug whitespace-pre-line text-ink">
@@ -1850,7 +2442,11 @@ function ChartFindings({
                           </span>
                         ) : null}
 
-                        {finding.chartedOn ? (
+                        {/* The tooth's own last-charted date, which is the note
+                            and the periodontal row rather than the findings —
+                            they carry their own above. Shown only where it says
+                            something they do not. */}
+                        {finding.notes && finding.chartedOn ? (
                           <span className="mt-1 block text-caption text-ink-faint">
                             {t('chartedOn', { date: finding.chartedOn })}
                           </span>
@@ -1865,6 +2461,144 @@ function ChartFindings({
         </ul>
       )}
     </aside>
+  );
+}
+
+/**
+ * A run of readings as a line, about the size of a word.
+ *
+ * The pair of numbers above it says better or worse than last time. The line
+ * says *which story this is*, and they are not the same question: 3, 4, 5, 6 is
+ * a tooth being lost over four recalls while every single visit reported "one
+ * millimetre deeper", and 6, 6, 6, 6 is a stable defect that reported "no
+ * change" every time and needs maintaining rather than referring. A chart that
+ * can only compare with last time cannot tell those apart, and it is the
+ * difference between watching a tooth and losing it.
+ *
+ * Scaled from zero rather than from the lowest reading. Normalising to the data
+ * would draw a mouth that has been 3, 3, 4 as a cliff, and the shape is the
+ * whole content here.
+ *
+ * Hidden from assistive technology: the readings themselves are beside it in
+ * text, and a line has nothing to say that they do not.
+ */
+function TrendLine({ values, max }: { values: readonly number[]; max: number }) {
+  // One point is not a trend, it is a reading — and it is already on screen.
+  if (values.length < 2) return null;
+
+  const w = 62;
+  const h = 16;
+  const top = Math.max(max, ...values) || 1;
+  const at = (value: number, index: number): [number, number] => [
+    (index / (values.length - 1)) * w,
+    h - (value / top) * h,
+  ];
+
+  const last = at(values[values.length - 1], values.length - 1);
+
+  return (
+    <svg
+      aria-hidden
+      viewBox={`-1.5 -1.5 ${w + 3} ${h + 3}`}
+      className="h-4 w-[62px] shrink-0 overflow-visible"
+    >
+      <polyline
+        points={values.map((value, index) => at(value, index).join(',')).join(' ')}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+      {/* Where it has got to, which is the end a reader looks at first. */}
+      <circle cx={last[0]} cy={last[1]} r="2.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** One finding written out: what it is, which faces it is on, and where it came
+ *  from. The dialog states the tooth twice — once as the record that exists and
+ *  once as the choice being made — and this is the first of those. */
+function FindingLine({ toothNum, finding }: { toothNum: number; finding: ToothCondition }) {
+  const t = useTranslations('teeth');
+  const faces = parseSurfaces(finding.surfaces);
+
+  return (
+    <>
+      <span className="text-body font-semibold text-ink">{t(`status_${finding.status}`)}</span>
+      {faces.length > 0 ? (
+        <span className="ml-1.5 text-body text-ink-soft">
+          <span className="font-bold tracking-wide text-ink">{faces.join('')}</span>
+          {' — '}
+          {faces
+            .map((surface) =>
+              surface === 'O'
+                ? t(isAnterior(toothNum) ? 'surface_I' : 'surface_O')
+                : t(`surface_${surface}`),
+            )
+            .join(', ')}
+        </span>
+      ) : null}
+      <Provenance finding={finding} />
+    </>
+  );
+}
+
+/**
+ * When a finding was made, and by whom.
+ *
+ * Drawn only from what is actually known. A finding recorded before the chart
+ * kept either — and every finding in the practice's history is one of those —
+ * gets no line rather than a line with a blank in it, because a missing date
+ * reads as history where an empty one reads as a fault.
+ *
+ * The date is the day the finding was *first* made and survives every later
+ * amendment to the same finding; see `ToothFinding.recordedAt`. That is the
+ * whole value of it: decay found two years ago and decay found this morning are
+ * the same red on the drawing and two entirely different conversations.
+ */
+function Provenance({ finding }: { finding: ToothCondition }) {
+  const t = useTranslations('teeth');
+
+  if (!finding.on && !finding.by) return null;
+
+  return (
+    <span className="block text-caption text-ink-faint">
+      {finding.on ? t('foundOn', { date: finding.on }) : null}
+      {finding.on && finding.by ? ' · ' : null}
+      {finding.by ? t('foundBy', { name: finding.by }) : null}
+    </span>
+  );
+}
+
+/**
+ * The caries index, with its own workings beside it.
+ *
+ * The score alone is a number nobody can check — and this one carries a known
+ * overstatement, because no chart in this app records *why* a tooth came out, so
+ * M counts every absent tooth rather than only the carious ones (`cariesIndex`
+ * makes the argument). Printing D, M and F next to the total is what lets a
+ * reader see where it came from and discount the part they know about, which is
+ * the difference between a number that is trusted and one that is quoted.
+ *
+ * Nothing is drawn for a mouth with no eligible teeth: a score of 0 over 0 teeth
+ * is not a healthy mouth, it is an empty chart, and it must not read as the
+ * former.
+ */
+function CariesScore({ label, index }: { label: string; index: CariesIndex }) {
+  const t = useTranslations('teeth');
+
+  if (index.counted === 0) return null;
+
+  return (
+    <p className="flex items-baseline gap-1.5" title={t('dmftHint')}>
+      <span className="text-caption font-bold tracking-wide text-ink-faint uppercase">{label}</span>
+      <span className="text-body font-bold text-ink tabular-nums">{index.total}</span>
+      <span className="text-caption text-ink-soft tabular-nums">
+        {t('dmftParts', { d: index.decayed, m: index.missing, f: index.filled })}
+      </span>
+    </p>
   );
 }
 
@@ -1922,6 +2656,17 @@ type ToothCellProps = {
   upper?: boolean;
   primary?: boolean;
   onSelect: (toothNum: number, surface?: ToothSurface | null) => void;
+  /** Begin a stroke on this tooth, and extend one onto it. Both are no-ops
+   *  without a tool held. */
+  onPaintStart: (toothNum: number, surface: ToothSurface | null) => void;
+  onPaintOver: (toothNum: number) => void;
+  /** The one tooth in the arch that the tab key reaches, and how the arrows
+   *  move it. See `focusTooth`. */
+  tabStop: number;
+  onFocusTooth: (toothNum: number) => void;
+  onArrow: (toothNum: number, dx: number, dy: number) => void;
+  /** The id the arrow keys focus this tooth by. */
+  idOf: (toothNum: number) => string;
   /** The tooth the findings list is pointing at, if it is this one. */
   highlight?: number | null;
   /** FDI or Universal, whichever the practice reads. */
@@ -1943,6 +2688,12 @@ function ToothCell({
   upper = false,
   primary = false,
   onSelect,
+  onPaintStart,
+  onPaintOver,
+  tabStop,
+  onFocusTooth,
+  onArrow,
+  idOf,
   highlight = null,
   numberLabel,
   toothLabel,
@@ -1956,7 +2707,29 @@ function ToothCell({
   const glyph = (
     <button
       type="button"
+      id={idOf(toothNum)}
       onClick={() => onSelect(toothNum)}
+      // One tab stop for the whole arch, and the arrows move within it. Fifty-two
+      // stops is not navigation, it is a wall — and it is why this chart was, to
+      // anybody not using a mouse, a thing to get past rather than to use.
+      tabIndex={tabStop === toothNum ? 0 : -1}
+      onFocus={() => onFocusTooth(toothNum)}
+      onKeyDown={(event) => {
+        const move: Record<string, [number, number]> = {
+          ArrowLeft: [-1, 0],
+          ArrowRight: [1, 0],
+          ArrowUp: [0, -1],
+          ArrowDown: [0, 1],
+        };
+        const step = move[event.key];
+        if (!step) return;
+        event.preventDefault();
+        onArrow(toothNum, step[0], step[1]);
+      }}
+      // The stroke is on the pointer rather than the click, because a click is
+      // a press *and* a release on one target and a stroke is neither.
+      onPointerDown={() => onPaintStart(toothNum, null)}
+      onPointerEnter={() => onPaintOver(toothNum)}
       aria-label={toothLabel(toothNum)}
       className={cn(
         // A tooth is a long thin thing, so the glyph is given height rather
@@ -2015,13 +2788,20 @@ function ToothCell({
         <PerioStrip toothNum={toothNum} summary={perio} />
       </button>
     ) : (
-      <div className="mx-auto h-11 w-11">
+      <div
+        className="mx-auto h-11 w-11"
+        // A stroke started on a face carries that face across the run: dragging
+        // from the occlusal of 16 to 18 seals three occlusal surfaces, which is
+        // what somebody who started on one meant.
+        onPointerEnter={() => onPaintOver(toothNum)}
+      >
         <SurfaceTarget
           toothNum={toothNum}
           readOnly={readOnly}
           fillOf={(surface) => surfaceFill(findings, surface)}
           labelOf={(surface) => surfaceLabel(toothNum, surface)}
           onSurfaceClick={(surface) => onSelect(toothNum, surface)}
+          onSurfacePointerDown={(surface) => onPaintStart(toothNum, surface)}
         />
       </div>
     );

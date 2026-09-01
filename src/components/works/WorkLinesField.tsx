@@ -54,8 +54,18 @@ export function WorkLinesField({
    * errand and could not dial it.
    */
   labs?: Array<{ id: string; name: string }>;
-  /** The catalogue every row picks its work from. */
-  procedures?: string[];
+  /**
+   * The catalogue every row picks its work from.
+   *
+   * Rows and not names, since `WorkLine.procedureId` exists. The select is
+   * still keyed on the *name* rather than the id, deliberately: a case written
+   * before the catalogue had ids names a spelling this list may not hold, and
+   * keying on the name is what lets that entry keep being offered as itself
+   * instead of needing a sentinel id to stand for "not in the catalogue". The
+   * id is looked up from the name when one is chosen, which is the only moment
+   * the two can be made to agree.
+   */
+  procedures?: Array<{ id: string; name: string }>;
 }) {
   const t = useTranslations('works');
   const tc = useTranslations('common');
@@ -72,7 +82,15 @@ export function WorkLinesField({
     // at zero would mean typing a 1 on most rows of most cases.
     onChange([
       ...value,
-      { key: `${uid}-${seq.current}`, elements: 1, procedure: '', lab: '', labId: '', teeth: '' },
+      {
+        key: `${uid}-${seq.current}`,
+        elements: 1,
+        procedure: '',
+        procedureId: '',
+        lab: '',
+        labId: '',
+        teeth: '',
+      },
     ]);
   }
 
@@ -88,9 +106,10 @@ export function WorkLinesField({
         type="hidden"
         name="lines"
         value={JSON.stringify(
-          value.map(({ elements, procedure, lab, labId, teeth }) => ({
+          value.map(({ elements, procedure, procedureId, lab, labId, teeth }) => ({
             elements,
             procedure,
+            procedureId,
             lab,
             labId,
             teeth,
@@ -108,9 +127,14 @@ export function WorkLinesField({
             // Everything the row offers, plus whatever this row already says.
             // A case written before the catalogue existed keeps its wording
             // instead of being silently blanked the first time it is edited.
+            // The line's own wording, when the catalogue no longer offers it —
+            // retired, or written before the catalogue existed. It carries the
+            // line's *existing* id rather than an empty one, so re-picking the
+            // option a row already shows keeps the link it already had; only a
+            // genuine change to something uncatalogued clears it.
             const options =
-              line.procedure && !procedures.includes(line.procedure)
-                ? [line.procedure, ...procedures]
+              line.procedure && !procedures.some((entry) => entry.name === line.procedure)
+                ? [{ id: line.procedureId, name: line.procedure }, ...procedures]
                 : procedures;
 
             return (
@@ -152,12 +176,22 @@ export function WorkLinesField({
                       id={`${line.key}-procedure`}
                       className="field-input"
                       value={line.procedure}
-                      onChange={(event) => patch(line.key, { procedure: event.target.value })}
+                      onChange={(event) => {
+                        // Both halves move together, the way the laboratory
+                        // pair below does: `procedureId` is what the register
+                        // counts by and `procedure` is the snapshot printed on
+                        // the docket. An option carried over from the old text
+                        // box has no id, which is the true thing to store about
+                        // a spelling nobody has catalogued.
+                        const name = event.target.value;
+                        const picked = options.find((entry) => entry.name === name);
+                        patch(line.key, { procedure: name, procedureId: picked?.id ?? '' });
+                      }}
                     >
                       <option value="">{t('procedureChoose')}</option>
-                      {options.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
+                      {options.map((entry) => (
+                        <option key={entry.name} value={entry.name}>
+                          {entry.name}
                         </option>
                       ))}
                     </select>

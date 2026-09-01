@@ -2,7 +2,13 @@ import { readdir, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { composeMorningDigest } from '@/lib/jobs/digest';
-import { queueAppointmentReminders, queueRecalls } from '@/lib/messages/queue';
+import {
+  queueAppointmentReminders,
+  queuePostOpChecks,
+  queueRecalls,
+  queueStalledPlans,
+  queueWorkReady,
+} from '@/lib/messages/queue';
 import { referencedStorageKeys } from '@/lib/storage-keys';
 
 /**
@@ -160,6 +166,49 @@ export const JOBS: Record<string, Job> = {
   },
 
   /**
+   * Ask the people treated a few days ago how they are getting on.
+   *
+   * Daily, and the cadence is forced rather than chosen: the window is only a
+   * few days wide, so a job that ran weekly would miss most of the people it is
+   * for. That narrowness is also why this list was the worst-served thing in
+   * the app — a courtesy with a four-day window, offered only on a screen
+   * somebody has to remember to open, happens on the mornings the practice is
+   * quiet enough to think of it.
+   */
+  'queue-post-op-checks': {
+    description: 'Queue the how-are-you-getting-on message for recent treatments.',
+    everyHours: DAILY,
+    run: queuePostOpChecks,
+  },
+
+  /**
+   * Tell the patients whose case has come back from the laboratory.
+   *
+   * The only thing on this list the patient is actively waiting for, and the
+   * one the register has always been able to answer and never been asked. Daily
+   * because a crown that arrived on Tuesday is news on Tuesday; by the
+   * following week it is an apology.
+   */
+  'queue-work-ready': {
+    description: 'Queue the patients whose work has come back from the lab.',
+    everyHours: DAILY,
+    run: queueWorkReady,
+  },
+
+  /**
+   * Put the courses of treatment that stopped halfway in front of somebody.
+   *
+   * Weekly, for the reason the recall is weekly: a plan that has been quiet for
+   * sixty days is not urgent on any particular morning, and a queue that
+   * refilled itself every night would be read as noise by the third day.
+   */
+  'queue-stalled-plans': {
+    description: 'Queue the patients whose treatment plan has gone quiet.',
+    everyHours: WEEKLY,
+    run: queueStalledPlans,
+  },
+
+  /**
    * Write down what was waiting on the practice this morning.
    *
    * The first job here that is about the practice rather than about a patient
@@ -167,18 +216,19 @@ export const JOBS: Record<string, Job> = {
    * the practice's own behalf. It reads the same three piles the reminder board
    * reads and stores the numbers against the day.
    *
-   * It sends nothing — see `lib/jobs/digest.ts`, which sets out why that is the
-   * design and not a stage of it. The row it writes carries a `sentAt` that
-   * stays null until somebody decides the practice should be emailed its own
-   * board, with a mailer that is actually configured. Until then this is a
-   * queue filling quietly, which is the point: the day that decision is made,
-   * there is a history to send from rather than a feature to start writing.
+   * It emails the practice its own board, and nothing else — see
+   * `lib/jobs/digest.ts`. The line every job here holds is *"it fills a queue a
+   * person works down"*, and that line is about messages to **patients**:
+   * nothing about a patient leaves this app without somebody pressing a button,
+   * before this change or after it. What is new is that the practice can be
+   * written to on the morning nobody comes in, which is the only morning this
+   * row was ever for. `sentAt` is the interlock against sending twice.
    *
    * Daily, and idempotent on the day — a restart re-runs it and the unique
    * index on `forDay` turns the second write into a refresh.
    */
   'compose-morning-digest': {
-    description: "Record what was waiting on the practice this morning. It sends nothing.",
+    description: "Record what was waiting on the practice this morning, and email it.",
     everyHours: DAILY,
     run: composeMorningDigest,
   },

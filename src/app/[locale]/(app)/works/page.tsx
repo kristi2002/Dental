@@ -740,6 +740,7 @@ export default async function WorksPage({
                                     lines: work.lines.map((line) => ({
                                       elements: line.elements,
                                       procedure: line.procedure,
+                                      procedureId: line.procedureId ?? '',
                                       lab: line.lab ?? '',
                                       labId: line.labId ?? '',
                                       teeth: line.teeth ?? '',

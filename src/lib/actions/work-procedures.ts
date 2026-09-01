@@ -84,9 +84,18 @@ export async function saveWorkProcedure(
 }
 
 /**
- * Drop an entry. Every case that named it keeps saying so — the name is the
- * line's own copy, not a link — so this removes an option from a form and
- * nothing else. That is what makes it safe to delete a typo.
+ * Retire an entry.
+ *
+ * This used to be a plain delete, on the argument that "every case that named it
+ * keeps saying so — the name is the line's own copy, not a link". That was true
+ * while `procedure` was the only thing a line stored, and it stopped being true
+ * the moment `WorkLine.procedureId` existed: the id is `SetNull`, so deleting a
+ * kind of work now unlinks every case that named it and puts the register back
+ * to counting strings, which is the state the catalogue was built to end.
+ *
+ * So: archived once any line points here, deleted when none does. A typo named
+ * this morning and never used is still safe to remove, which is what the old
+ * comment was really protecting.
  */
 export async function deleteWorkProcedure(formData: FormData): Promise<void> {
   const user = await authorize('work.delete');
@@ -97,16 +106,46 @@ export async function deleteWorkProcedure(formData: FormData): Promise<void> {
 
   const procedure = await prisma.workProcedure.findUnique({
     where: { id },
-    select: { name: true },
+    select: { name: true, _count: { select: { lines: true } } },
   });
   if (!procedure) return;
 
-  await prisma.workProcedure.delete({ where: { id } });
+  const used = procedure._count.lines > 0;
+
+  if (used) {
+    await prisma.workProcedure.update({ where: { id }, data: { archivedAt: new Date() } });
+  } else {
+    await prisma.workProcedure.delete({ where: { id } });
+  }
+
   await recordAudit(user, {
-    action: 'delete',
+    action: used ? 'update' : 'delete',
     entity: 'workProcedure',
     entityId: id,
-    summary: procedure.name,
+    summary: used ? `${procedure.name} → archived` : procedure.name,
+  });
+  revalidateAll();
+}
+
+/** Put a retired kind of work back in the picker. */
+export async function restoreWorkProcedure(formData: FormData): Promise<void> {
+  const user = await authorize('work.edit');
+  if (!user) return;
+
+  const id = requiredString(formData.get('id'));
+  if (!id) return;
+
+  const procedure = await prisma.workProcedure.update({
+    where: { id },
+    data: { archivedAt: null },
+    select: { name: true },
+  });
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'workProcedure',
+    entityId: id,
+    summary: `${procedure.name} → restored`,
   });
   revalidateAll();
 }

@@ -82,6 +82,7 @@ export async function AppointmentRow({
   // It points at *their* language, not the reader's, so the confirmation page
   // opens in the same tongue as the message that carried it.
   const reminder = await composeReminder({
+    patientId: appointment.patient.id,
     patientName,
     phone: appointment.patient.phone,
     email: appointment.patient.email,
@@ -307,6 +308,7 @@ export async function AppointmentRow({
                     durationMin: appointment.durationMin,
                     status: appointment.status,
                     serviceName: appointment.serviceName,
+                    serviceId: appointment.serviceId,
                     notes: appointment.notes,
                     staffUserId: appointment.staffUserId,
                     operatoryId: appointment.operatoryId,

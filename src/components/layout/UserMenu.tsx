@@ -5,15 +5,25 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { ChangePinDialog } from '@/components/auth/ChangePinDialog';
 import { Appearance } from './Appearance';
-import { Link } from '@/i18n/navigation';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { Link, usePathname } from '@/i18n/navigation';
 import type { Role } from '@/generated/prisma/enums';
 import { signOut } from '@/lib/actions/auth';
 import { cn, initials } from '@/lib/utils';
+
+/** The screens this menu carries. Order matches the items below. */
+const OWN_SCREENS = ['/settings', '/staff', '/activity'] as const;
 
 /**
  * Who is signed in, and the three screens that belong to running the practice
  * rather than doing the day's work. Kept out of the rail so it stays the same
  * short list of daily destinations for everyone.
+ *
+ * It also holds the three preferences that answer "how does this look to me" —
+ * the language, the theme and the density. The language used to sit in the foot
+ * of the rail, where it cost about 50px open and 150px pinched for a control
+ * most people press once ever, and where it was the odd one out: the other two
+ * were already here.
  */
 export function UserMenu({
   firstName,
@@ -38,8 +48,21 @@ export function UserMenu({
 }) {
   const t = useTranslations('auth');
   const tr = useTranslations('roles');
+  const tn = useTranslations('nav');
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const wrapper = useRef<HTMLDivElement>(null);
+
+  /*
+   * Whether the screen being looked at is one of this menu's own.
+   *
+   * The rail answers "where am I" with a white tab, and on `/settings`,
+   * `/staff` and `/activity` it answered with nothing at all — those three
+   * deliberately have no row in it, so the whole of the navigation went blank
+   * on three real screens. The button that does carry them says so instead.
+   */
+  const onOwnScreen = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const here = OWN_SCREENS.some(onOwnScreen);
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +92,11 @@ export function UserMenu({
           // Fills the rail foot; in the phone bar it must not take the width the
           // wordmark beside it is using.
           placement === 'top' && !compact && 'w-full',
+          // Standing on one of this menu's own screens. Not the rail's solid
+          // white tab — this is a button that opens a menu, not a link to the
+          // page — but the same idea, and the same job: something on the screen
+          // has to say where you are.
+          here && 'bg-white/20',
         )}
         aria-expanded={open}
         aria-haspopup="menu"
@@ -125,6 +153,7 @@ export function UserMenu({
             <Link
               href="/settings"
               role="menuitem"
+              aria-current={onOwnScreen('/settings') ? 'page' : undefined}
               onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 px-4 py-2.5 text-body font-semibold text-ink no-underline hover:bg-brand-soft"
             >
@@ -137,6 +166,7 @@ export function UserMenu({
             <Link
               href="/staff"
               role="menuitem"
+              aria-current={onOwnScreen('/staff') ? 'page' : undefined}
               onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 px-4 py-2.5 text-body font-semibold text-ink no-underline hover:bg-brand-soft"
             >
@@ -149,6 +179,7 @@ export function UserMenu({
             <Link
               href="/activity"
               role="menuitem"
+              aria-current={onOwnScreen('/activity') ? 'page' : undefined}
               onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 px-4 py-2.5 text-body font-semibold text-ink no-underline hover:bg-brand-soft"
             >
@@ -166,6 +197,20 @@ export function UserMenu({
               their own. See `changeOwnPin`, which never takes an id. */}
           <div className="border-t border-line">
             <ChangePinDialog triggerClassName="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-body font-semibold text-ink hover:bg-brand-soft" />
+          </div>
+
+          {/* The language, then the appearance. Two blocks rather than one,
+              because they are stored in two different places and only one of
+              them is a property of the machine: the locale is a segment of the
+              URL and travels with the link, while the theme and the density
+              never leave this browser. Drawn with the same segmented control
+              all the same — from where somebody is sitting they are three
+              answers to one question. */}
+          <div className="border-t border-line px-4 py-3">
+            <p className="mb-2 text-caption font-bold tracking-wide text-ink-faint uppercase">
+              {tn('language')}
+            </p>
+            <LanguageSwitcher tone="menu" />
           </div>
 
           {/* Below the account's own settings and above the way out, because it

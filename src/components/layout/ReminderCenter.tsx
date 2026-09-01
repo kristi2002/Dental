@@ -5,6 +5,7 @@ import {
   Bell,
   CalendarClock,
   CalendarDays,
+  CalendarX,
   CircleCheck,
   ClipboardList,
   Flag,
@@ -819,6 +820,7 @@ const ELSEWHERE_ICONS: Record<Elsewhere['key'], LucideIcon> = {
   mail: Mail,
   unreminded: Send,
   unwritten: ClipboardList,
+  opened: CalendarX,
 };
 
 /** A titled run of rows, with its count in the header rather than in a badge. */

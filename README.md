@@ -355,7 +355,7 @@ send a real message no matter which button it presses.
 prisma/
   schema.prisma      StaffUser, AuditLog, Patient, Appointment, VisitRecord,
                      VisitService, ToothRecord, StockItem, StockMovement,
-                     Service, ServiceMaterial, WaitlistEntry, TreatmentPlan,
+                     Service, WaitlistEntry, TreatmentPlan,
                      PatientAlert, Contact, ClinicHours, Closure,
                      AppointmentRequest, AppointmentRequestAttachment
   seed.ts            Demo data

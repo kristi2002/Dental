@@ -126,9 +126,19 @@ describe('parseDraftLines — the case as the builder posts it', () => {
       { elements: 1, procedure: 'Kurorë', lab: '' },
     ]);
 
+    // `procedureId` empty on both, because neither entry names one — the same
+    // state as `labId`, and the honest one for a case posted from a form that
+    // offered a spelling the catalogue does not hold.
     assert.deepEqual(parseDraftLines(raw), [
-      { elements: 3, procedure: 'Urë zirkoni', lab: 'Dental Art', labId: '', teeth: '' },
-      { elements: 1, procedure: 'Kurorë', lab: '', labId: '', teeth: '' },
+      {
+        elements: 3,
+        procedure: 'Urë zirkoni',
+        procedureId: '',
+        lab: 'Dental Art',
+        labId: '',
+        teeth: '',
+      },
+      { elements: 1, procedure: 'Kurorë', procedureId: '', lab: '', labId: '', teeth: '' },
     ]);
   });
 
@@ -139,8 +149,38 @@ describe('parseDraftLines — the case as the builder posts it', () => {
     ]);
 
     assert.deepEqual(parseDraftLines(raw), [
-      { elements: 2, procedure: 'Protezë', lab: '', labId: '', teeth: '' },
+      { elements: 2, procedure: 'Protezë', procedureId: '', lab: '', labId: '', teeth: '' },
     ]);
+  });
+
+  /**
+   * The half of the pair the register counts by.
+   *
+   * `procedure` is the docket's own copy and `procedureId` is the catalogue
+   * entry, exactly as `lab`/`labId` are — and like `labId`, what arrives here is
+   * whatever a hidden field last held, so it is read back rather than trusted.
+   * `saveWork` is what checks it resolves to a row.
+   */
+  it('reads the work catalogue id beside the name it was written under', () => {
+    const raw = JSON.stringify([
+      { elements: 1, procedure: 'Kurorë zirkoni', procedureId: 'wp-1', lab: '', labId: '' },
+    ]);
+
+    const [row] = parseDraftLines(raw);
+    assert.equal(row.procedure, 'Kurorë zirkoni');
+    assert.equal(row.procedureId, 'wp-1');
+  });
+
+  it('leaves the catalogue id empty when the posted one is not a string', () => {
+    // A case written before the catalogue had ids posts no `procedureId` at all,
+    // and a client that has gone wrong may post anything. Both mean the same
+    // thing — this line names no catalogue entry — and neither may become one.
+    for (const posted of [undefined, null, 42, { id: 'wp-1' }]) {
+      const raw = JSON.stringify([
+        { elements: 1, procedure: 'Kurorë', procedureId: posted, lab: '' },
+      ]);
+      assert.equal(parseDraftLines(raw)[0].procedureId, '');
+    }
   });
 
   it('takes the count from the span, which is the one thing that cannot be wrong', () => {

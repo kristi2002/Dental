@@ -581,6 +581,7 @@ export default async function AppointmentsPage({
                 patientName: `${entry.patient.lastName} ${entry.patient.firstName}`,
                 phone: entry.patient.phone,
                 serviceName: entry.serviceName ?? '',
+                serviceId: entry.serviceId ?? '',
                 durationMin: entry.durationMin,
                 note: entry.note ?? '',
                 urgent: entry.urgent,

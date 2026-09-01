@@ -63,6 +63,15 @@ export type SheetColumn = {
    */
   width: number;
   align?: 'left' | 'right';
+  /**
+   * A column of empty tick boxes rather than of type: a box is drawn in every
+   * cell of it that is not a continuation, and any spans the cell holds are
+   * ignored. It is the one column of the sheet the paper is expected to be
+   * *written on* — see the note on the register's own check column — so it is
+   * described here rather than faked with a character, which no encoding these
+   * fonts can write has anyway.
+   */
+  box?: boolean;
 };
 
 export type SheetSpec = SheetHead & {
@@ -183,9 +192,13 @@ function drawHeadings(
     // arrangement in which a tall heading does not look like a different row.
     for (const [line, span] of lines.entries()) {
       const y = bottom + HEADINGS_GAP + (lines.length - 1 - line) * SIZE.head * LEADING;
-      const x =
-        spec.columns[index].align === 'right'
-          ? xs[index] + widths[index] - CELL_PAD_X - span.font.widthOfTextAtSize(span.text, span.size)
+      const text = span.font.widthOfTextAtSize(span.text, span.size);
+      // A box column is headed over its boxes, which are centred — a heading set
+      // to the left of a centred box reads as a heading for the column before it.
+      const x = spec.columns[index].box
+        ? xs[index] + (widths[index] - text) / 2
+        : spec.columns[index].align === 'right'
+          ? xs[index] + widths[index] - CELL_PAD_X - text
           : xs[index] + CELL_PAD_X;
       page.drawText(span.text, { x, y, size: span.size, font: span.font, color: span.colour });
     }
@@ -199,6 +212,26 @@ function drawHeadings(
     colour: RULE_HEAVY,
   });
   return bottom;
+}
+
+/** The side of a tick box, in points. A pen's width, not a spreadsheet's. */
+const BOX = 9;
+
+/**
+ * An empty tick box, centred in its column and sitting on the first line's
+ * baseline — so a column of them lines up with the type beside it rather than
+ * with the top of the cell, which on a two-line row would leave it floating
+ * above the name it belongs to.
+ */
+function drawBox(page: PDFPage, x: number, width: number, top: number): void {
+  page.drawRectangle({
+    x: x + (width - BOX) / 2,
+    y: top - CELL_PAD_Y - SIZE.body * LEADING + SIZE.body * 0.22 - 0.5,
+    width: BOX,
+    height: BOX,
+    borderWidth: 0.8,
+    borderColor: RULE,
+  });
 }
 
 /**
@@ -273,6 +306,16 @@ export async function renderSheet(spec: SheetSpec): Promise<Uint8Array> {
 
       for (const [column, lines] of row.lines.entries()) {
         if (!lines) continue;
+
+        // A box column holds no type. Drawn on the first row of a case only,
+        // because `null` on the rows under it is what says the case continues —
+        // the same rule the patient's name is written by, and the reason a case
+        // of four crowns gets one box to tick rather than four.
+        if (spec.columns[column].box) {
+          drawBox(page, xs[column], widths[column], y);
+          continue;
+        }
+
         let cellY = y - CELL_PAD_Y;
         for (const line of lines) {
           cellY -= line.size * LEADING;

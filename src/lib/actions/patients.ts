@@ -2,7 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { AppointmentStatus, ContactChannel } from '@/generated/prisma/enums';
+import {
+  AppointmentRequestStatus,
+  AppointmentStatus,
+  ContactChannel,
+  PatientSex,
+} from '@/generated/prisma/enums';
 import { redirect } from '@/i18n/navigation';
 import { locales } from '@/i18n/routing';
 import { authorize, recordAudit } from '@/lib/auth/guard';
@@ -17,6 +22,7 @@ import {
 import { parseMaterialList } from '@/lib/material-history';
 import { completeStepForAppointment } from '@/lib/plan-sync';
 import { prisma } from '@/lib/prisma';
+import { sameDayVisitId } from '@/lib/visit-link';
 import { findPhoneDuplicates } from '@/lib/queries';
 import { reverseVisitConsumption, takeFromShelf } from '@/lib/stock-consumption';
 import { isDateKey, isTimeOfDay, timeToMinutes, today } from '@/lib/dates';
@@ -34,13 +40,15 @@ import {
   toRecession,
 } from '@/lib/perio';
 import {
+  ALL_TEETH,
   DEFAULT_TOOTH_STATUS,
   formatSurfaces,
   isExclusive,
+  isToothFindingKind,
   isToothStatus,
   isValidTooth,
   statusTakesSurfaces,
-  type ToothStatus,
+  type ToothFindingKind,
 } from '@/lib/teeth';
 import { optionalString, parseServiceList, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -61,6 +69,11 @@ function toChannel(value: string | null): ContactChannel | null {
 
 function toPatientLocale(value: string | null): string | null {
   return value && (locales as readonly string[]).includes(value) ? value : null;
+}
+
+/** `''` → null (nobody has asked), otherwise one of the three, or null. */
+function toSex(value: string | null): PatientSex | null {
+  return value && value in PatientSex ? (value as PatientSex) : null;
 }
 
 /**
@@ -134,6 +147,7 @@ export async function savePatient(_prev: ActionState, formData: FormData): Promi
     searchKey: buildSearchKey({ firstName, lastName, phone, email: formData.get('email')?.toString() }),
     email: optionalString(formData.get('email')),
     dateOfBirth: dob ? new Date(`${dob}T00:00:00.000Z`) : null,
+    sex: toSex(optionalString(formData.get('sex'))),
     // The front desk keeps the diary; the chart belongs to whoever treats.
     ...(user.permissions.includes('patient.medical.edit')
       ? { medicalNotes: optionalString(formData.get('medicalNotes')) }
@@ -155,12 +169,66 @@ export async function savePatient(_prev: ActionState, formData: FormData): Promi
   let savedId = id;
   try {
     if (id) {
-      await prisma.patient.update({ where: { id }, data });
+      // A new address is a new answer to the question a bounce recorded, so the
+      // bounce is cleared with it — otherwise correcting the typo that caused
+      // the bounce leaves the corrected address permanently unusable, and the
+      // only way back would be a database console. Only when it actually
+      // changed: re-saving a record for an unrelated reason must not quietly
+      // re-arm an address the provider has already refused twice.
+      const before = await prisma.patient.findUnique({
+        where: { id },
+        select: { email: true },
+      });
+      const changed = (before?.email ?? null) !== data.email;
+
+      await prisma.patient.update({
+        where: { id },
+        data: changed ? { ...data, emailBouncedAt: null, emailBounceKind: null } : data,
+      });
     } else {
       savedId = (await prisma.patient.create({ data, select: { id: true } })).id;
     }
   } catch {
     return actionError(t('generic'));
+  }
+
+  // The enquiry this record came out of, when the desk opened the form from
+  // one — `/patients/new?request=…` carries the id and nothing else does.
+  //
+  // Only on a create, and only onto a request nothing has claimed. Editing a
+  // record months later must not re-point an old enquiry at it, and a request
+  // already tied to somebody is not re-tied by a second person being registered
+  // from the same screen.
+  //
+  // Deliberately not fatal. The patient exists; failing the save now would
+  // report that they do not, and the link is a reporting nicety beside that.
+  const requestId = optionalString(formData.get('requestId'));
+  if (!id && savedId && requestId) {
+    try {
+      // Two writes rather than one, because the status is conditional and the
+      // link is not. Registering somebody *is* picking the enquiry up, so a
+      // request still sitting in the new pile stops sitting there — while one
+      // the desk has already answered or closed keeps whatever they decided,
+      // and only gains the link.
+      //
+      // The second is guarded on `patientId: null` too, so a request claimed by
+      // the first is not touched again.
+      await prisma.appointmentRequest.updateMany({
+        where: { id: requestId, patientId: null, status: AppointmentRequestStatus.NEW },
+        data: {
+          patientId: savedId,
+          status: AppointmentRequestStatus.CONTACTED,
+          handledAt: new Date(),
+          handledById: user.id,
+        },
+      });
+      await prisma.appointmentRequest.updateMany({
+        where: { id: requestId, patientId: null },
+        data: { patientId: savedId },
+      });
+    } catch (error) {
+      console.error('[patients] could not link request', requestId, error);
+    }
   }
 
   await recordAudit(user, {
@@ -697,24 +765,6 @@ export async function deleteVisit(formData: FormData): Promise<void> {
 }
 
 /**
- * Which visit today's charting belongs to.
- *
- * The chart is edited from its own tab rather than from inside the visit form,
- * so there is no id to thread through — but charting is something done *while*
- * writing up today's treatment, and a change made on the same day as a visit
- * belongs to that visit far more often than it belongs to nothing. Anything
- * charted on a day with no visit recorded stays unattributed, which is honest.
- */
-async function sameDayVisitId(patientId: string): Promise<string | null> {
-  const visit = await prisma.visitRecord.findFirst({
-    where: { patientId, visitDate: today() },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true },
-  });
-  return visit?.id ?? null;
-}
-
-/**
  * What is already on file for this tooth, for the writes that must not take
  * the rest of the row with them.
  *
@@ -727,9 +777,10 @@ async function sameDayVisitId(patientId: string): Promise<string | null> {
 async function toothRowContext(patientId: string, toothNum: number) {
   const row = await prisma.toothRecord.findUnique({
     where: { patientId_toothNum: { patientId, toothNum } },
+    // The findings are not asked for and no longer live here: both callers want
+    // the two things that decide whether the row is empty, which are the note
+    // and the readings.
     select: {
-      status: true,
-      surfaces: true,
       notes: true,
       mobility: true,
       pockets: true,
@@ -798,7 +849,7 @@ export async function saveToothRecord(
   ]);
 
   try {
-    await writeFindings(patientId, toothNum, merged);
+    await writeFindings(patientId, toothNum, merged, user.id);
 
     // The note lives on `ToothRecord`, which is now the periodontal row. A
     // tooth left with no findings, no note and no readings keeps no row at all,
@@ -868,7 +919,7 @@ export async function setToothFindings(input: {
   if (cleaned === null) return actionError(t('generic'));
 
   try {
-    await writeFindings(patientId, toothNum, cleaned);
+    await writeFindings(patientId, toothNum, cleaned, user.id);
   } catch {
     return actionError(t('generic'));
   }
@@ -891,22 +942,193 @@ export async function setToothFindings(input: {
 }
 
 /**
+ * The same write, over several teeth at once.
+ *
+ * Charting is not one tooth at a time. "Every molar is sealed", "the whole
+ * lower left is sound", "these three are the bridge" — each of those is one
+ * decision that used to cost one click and one round trip per tooth, and the
+ * chart's drag-to-mark makes the same stroke over eight of them. Sent one at a
+ * time that is eight actions, eight revalidations of the whole page and eight
+ * chances for two of them to land out of order; sent together it is one.
+ *
+ * Each tooth still arrives as its **whole resolved list**, exactly as
+ * `setToothFindings` takes one, for exactly the same reason: the client has
+ * already worked out the answer with `applyFinding`, and handing over the
+ * answer rather than a delta is what stops the server reaching a state the
+ * drawing never predicted. Nothing here is trusted any more than there — every
+ * status is checked, every tooth number is checked, and the whole batch is
+ * refused if any part of it is wrong rather than the good half being written.
+ *
+ * One audit line for the stroke rather than one per tooth: a hand that sealed
+ * six molars did one thing, and six identical entries a second apart is how a
+ * trail becomes unreadable.
+ */
+export async function markTeeth(input: {
+  patientId: string;
+  teeth: { toothNum: number; findings: { status: string; surfaces: string }[] }[];
+}): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('patient.medical.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const { patientId, teeth } = input;
+  // The whole mouth is 52 teeth. Anything past that is not a stroke across an
+  // arch, so it is refused rather than clamped — a truncated batch would look
+  // to the chart exactly like a batch that worked.
+  if (!patientId || !Array.isArray(teeth) || teeth.length === 0 || teeth.length > ALL_TEETH.length) {
+    return actionError(t('generic'));
+  }
+
+  const seen = new Set<number>();
+  const batch: {
+    toothNum: number;
+    findings: { status: ToothFindingKind; surfaces: string | null }[];
+  }[] = [];
+
+  for (const tooth of teeth) {
+    if (!Number.isInteger(tooth.toothNum) || !isValidTooth(tooth.toothNum)) {
+      return actionError(t('generic'));
+    }
+    // One entry per tooth. Two lists for the same tooth in one payload is a
+    // client that has lost track of its own stroke, and whichever landed last
+    // would silently win.
+    if (seen.has(tooth.toothNum)) return actionError(t('generic'));
+    seen.add(tooth.toothNum);
+
+    const cleaned = normaliseFindings(tooth.findings);
+    if (cleaned === null) return actionError(t('generic'));
+    batch.push({ toothNum: tooth.toothNum, findings: cleaned });
+  }
+
+  try {
+    // Sequential rather than concurrent: `writeFindings` opens a transaction
+    // per tooth and reads the row it is about to replace, and a fan-out of
+    // those against one patient buys nothing but lock contention on a stroke
+    // that is eight teeth at the outside.
+    for (const tooth of batch) {
+      await writeFindings(patientId, tooth.toothNum, tooth.findings, user.id);
+    }
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'tooth',
+    entityId: patientId,
+    summary: batch
+      .map(
+        (tooth) =>
+          `#${tooth.toothNum} · ${
+            tooth.findings.length === 0
+              ? DEFAULT_TOOTH_STATUS
+              : tooth.findings
+                  .map((f) => `${f.status}${f.surfaces ? ` (${f.surfaces})` : ''}`)
+                  .join(', ')
+          }`,
+      )
+      .join(' · '),
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/**
+ * That this mouth was examined today, by this person.
+ *
+ * The chart records what is wrong with each tooth and has never been able to
+ * record that somebody looked. A healthy tooth is one with no findings — which
+ * is the right model, and which leaves a fully examined sound mouth and a mouth
+ * nobody has ever opened drawing the same thirty-two clean teeth. Everything
+ * else in this record is dated and attributed; this was not.
+ *
+ * **Pressed rather than inferred.** The obvious alternative was to treat the
+ * newest finding's date as the examination date, and it is wrong in the case
+ * that matters most: the patient whose chart is clean has no findings to take a
+ * date from, and they are exactly the patient whose examination somebody will
+ * later need to prove happened.
+ *
+ * Same person, same day, one row. A second press is somebody making sure rather
+ * than a second examination, and two rows an hour apart would read as one.
+ */
+export async function recordChartExam(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const t = await getTranslations('errors');
+
+  const user = await authorize('patient.medical.edit');
+  if (!user) return actionError(t('forbidden'));
+
+  const patientId = requiredString(formData.get('patientId'));
+  if (!patientId) return actionError(t('generic'));
+
+  const note = optionalString(formData.get('note'));
+
+  const since = new Date();
+  since.setHours(0, 0, 0, 0);
+
+  try {
+    const already = await prisma.chartExam.findFirst({
+      where: { patientId, examinedById: user.id, examinedAt: { gte: since } },
+      orderBy: { examinedAt: 'desc' },
+      select: { id: true },
+    });
+
+    if (already) {
+      await prisma.chartExam.update({
+        where: { id: already.id },
+        data: { examinedAt: new Date(), note },
+      });
+    } else {
+      await prisma.chartExam.create({
+        data: {
+          patientId,
+          examinedById: user.id,
+          visitRecordId: await sameDayVisitId(patientId),
+          note,
+        },
+      });
+    }
+  } catch {
+    return actionError(t('generic'));
+  }
+
+  await recordAudit(user, {
+    action: 'update',
+    entity: 'tooth',
+    entityId: patientId,
+    summary: `Examined${note ? ` · ${note}` : ''}`,
+  });
+
+  revalidateAll();
+  return actionOk();
+}
+
+/**
  * The findings as they will be stored, or null if any of them is not a finding.
  *
  * Rejects rather than filters. A payload naming a status this app does not have
  * is a client that has gone wrong or one that is not ours, and quietly writing
  * the half of it that parsed is how a tooth ends up in a state nobody chose.
+ *
+ * Returns `ToothFindingKind`, which is the narrower list the column can hold.
+ * The `HEALTHY` rejection below has been here since the table existed and was
+ * invisible to the type system, so every caller was handed something wider than
+ * this function ever produces and `writeFindings` had to take it on trust.
  */
 function normaliseFindings(
   findings: readonly { status: string; surfaces: string }[],
-): { status: ToothStatus; surfaces: string | null }[] | null {
+): { status: ToothFindingKind; surfaces: string | null }[] | null {
   const seen = new Set<string>();
-  const out: { status: ToothStatus; surfaces: string | null }[] = [];
+  const out: { status: ToothFindingKind; surfaces: string | null }[] = [];
 
   for (const finding of findings) {
     // `HEALTHY` is the absence of findings, so it is never one — a list that
     // names it is a client still thinking in single statuses.
-    if (!isToothStatus(finding.status) || finding.status === DEFAULT_TOOTH_STATUS) return null;
+    if (!isToothStatus(finding.status) || !isToothFindingKind(finding.status)) return null;
     if (seen.has(finding.status)) return null;
     seen.add(finding.status);
     out.push({
@@ -941,21 +1163,60 @@ function normaliseFindings(
 async function writeFindings(
   patientId: string,
   toothNum: number,
-  findings: readonly { status: ToothStatus; surfaces: string | null }[],
+  /**
+   * `ToothFindingKind` and not `ToothStatus`: `HEALTHY` is the eraser, and the
+   * way to erase is to pass an empty list. The column is an enum that cannot
+   * hold it, so the narrowing that used to be a comment is now the signature —
+   * every caller already filtered it out, and this is what stops the next one
+   * forgetting to.
+   */
+  findings: readonly { status: ToothFindingKind; surfaces: string | null }[],
+  /** Who is charting. Stamped on findings this write actually adds. */
+  recordedById: string,
 ): Promise<void> {
   const visitId = await sameDayVisitId(patientId);
+
+  /**
+   * What this tooth already carried, by status.
+   *
+   * The rewrite below deletes and re-inserts, which is what made a finding's
+   * provenance quietly disposable: every row came back with today's date, the
+   * current visit and — once there was one — the current author. So adding a
+   * crown in August re-dated the caries found in March and put the crowning
+   * dentist's name on somebody else's diagnosis, and the chart lost the one
+   * distinction its own comments said it was keeping ("caries found two years
+   * ago and caries found this morning are the same red and two very different
+   * conversations").
+   *
+   * Carried across by **status**, which is what the unique key is and what a
+   * finding's identity is here: caries on 26 is one finding whether it reaches
+   * one face or three. Amending its surfaces is learning more about the same
+   * decay, not finding new decay, so it keeps its date.
+   */
+  const before = await prisma.toothFinding.findMany({
+    where: { patientId, toothNum },
+    select: { status: true, recordedAt: true, recordedById: true, visitRecordId: true },
+  });
+  const kept = new Map(before.map((finding) => [finding.status, finding]));
 
   await prisma.$transaction(async (tx) => {
     await tx.toothFinding.deleteMany({ where: { patientId, toothNum } });
     if (findings.length > 0) {
       await tx.toothFinding.createMany({
-        data: findings.map((finding) => ({
-          patientId,
-          toothNum,
-          status: finding.status,
-          surfaces: finding.surfaces,
-          visitRecordId: visitId,
-        })),
+        data: findings.map((finding) => {
+          const prior = kept.get(finding.status);
+          return {
+            patientId,
+            toothNum,
+            status: finding.status,
+            surfaces: finding.surfaces,
+            // `undefined` rather than a date on a genuinely new finding, so the
+            // column's own default stamps it — one place decides what "now" is.
+            recordedAt: prior?.recordedAt,
+            recordedById: prior ? prior.recordedById : recordedById,
+            visitRecordId: prior ? prior.visitRecordId : visitId,
+          };
+        }),
       });
     }
   });
@@ -1053,7 +1314,9 @@ export async function saveToothPerio(
     // Clearing the last reading off a tooth that has nothing else recorded takes
     // the row with it, the same way clearing the condition does — otherwise a
     // mistyped examination, corrected, leaves a permanent healthy-looking row.
-    if (empty && (!row || (row.status === DEFAULT_TOOTH_STATUS && !row.notes && !row.surfaces))) {
+    // The findings are not consulted: they are their own rows now, and a tooth
+    // keeps every one of them whether or not anybody ever probed it.
+    if (empty && (!row || !row.notes)) {
       await prisma.toothRecord.deleteMany({ where: { patientId, toothNum } });
     } else {
       await prisma.toothRecord.upsert({
@@ -1061,7 +1324,6 @@ export async function saveToothPerio(
         create: {
           patientId,
           toothNum,
-          status: DEFAULT_TOOTH_STATUS,
           mobility,
           pockets,
           bleeding,

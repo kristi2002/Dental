@@ -7,7 +7,9 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { prisma } from '@/lib/prisma';
-import { getStockCategories } from '@/lib/queries';
+import { getStockCategories,
+  ACTIVE_SUPPLIERS,
+} from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +60,9 @@ export default async function EditStockItemPage({
         variantName: true,
         orderQty: true,
         supplierId: true,
+        // The name too, so a retired supplier can still be shown as this
+        // material's own option — see `supplierOptions` below.
+        supplier: { select: { name: true } },
         product: { select: { name: true } },
         // What the scanner has been taught this material is. Read here because
         // this is the only screen in the app that could ever have shown it —
@@ -78,10 +83,32 @@ export default async function EditStockItemPage({
     // "Filtek Z250", "filtek z250" and "Filtek  Z250" from becoming three
     // products holding one shade each.
     prisma.stockProduct.findMany({ orderBy: { name: 'asc' }, select: { name: true } }),
-    prisma.supplier.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.supplier.findMany({
+      where: ACTIVE_SUPPLIERS,
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
   ]);
 
   if (!item) notFound();
+
+  /**
+   * The active suppliers, plus this material's own if it has been retired.
+   *
+   * A select whose value matches no option shows the *first* one, which here is
+   * "none" — so opening this form to change a minimum and pressing save would
+   * quietly detach the material from whoever the practice buys it from. The
+   * list is filtered so a retired supplier stops being offered to *other*
+   * materials; the one already named by this one has to stay visible, which is
+   * the same rule the laboratory list in `WorkLinesField` follows.
+   *
+   * Done here rather than in `StockFields`, which is handed a list and should
+   * not have to know that some of it is history.
+   */
+  const supplierOptions =
+    item.supplierId && !suppliers.some((supplier) => supplier.id === item.supplierId)
+      ? [...suppliers, { id: item.supplierId, name: item.supplier?.name ?? '' }]
+      : suppliers;
 
   const { from: rawFrom } = await searchParams;
   const from = rawFrom === 'catalog' ? 'catalog' : 'list';
@@ -125,7 +152,7 @@ export default async function EditStockItemPage({
         }}
         categories={categories}
         products={products.map((row) => row.name)}
-        suppliers={suppliers}
+        suppliers={supplierOptions}
         from={from}
       />
 

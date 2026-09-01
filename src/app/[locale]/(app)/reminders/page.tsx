@@ -1,4 +1,4 @@
-import { CircleCheck, History, Send } from 'lucide-react';
+import { CircleCheck, History, RotateCcw, Send } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { QueueRow } from '@/components/messages/QueueRow';
@@ -35,6 +35,13 @@ export async function generateMetadata({
  * Three lists rather than one, because they are three different actions:
  *
  *  - **Waiting** is work. It empties.
+ *  - **Held** is the mail provider having refused. Its own section because a
+ *    refused send used to leave the row exactly where it was, with a sentence in
+ *    the note that looked like every other sentence in the note — so an
+ *    unverified sender domain produced a queue of rows that each looked like
+ *    work and each failed identically, and the front desk found that out one
+ *    press at a time. These say how many times they have been tried and when
+ *    they come back.
  *  - **Missed** is an apology. Its rows were queued, never sent, and the moment
  *    has gone; they are shown rather than quietly filtered out, because "nobody
  *    got to these" is exactly what a send queue owes the person opening it, and
@@ -60,7 +67,7 @@ export default async function OutboxPage({
   const canSend = user.permissions.includes('recall.send');
 
   const t = await getTranslations('outbox');
-  const { waiting, passed, handled } = await getSendQueue();
+  const { waiting, held, passed, handled } = await getSendQueue();
 
   // Configured or not, this screen works — the difference is whether the email
   // button sends or opens a draft. Said out loud in the subtitle rather than
@@ -70,6 +77,7 @@ export default async function OutboxPage({
 
   const sections = [
     { key: 'waiting', icon: <Send size={22} aria-hidden />, rows: waiting, mode: 'send' },
+    { key: 'held', icon: <RotateCcw size={22} aria-hidden />, rows: held, mode: 'held' },
     { key: 'passed', icon: <History size={22} aria-hidden />, rows: passed, mode: 'passed' },
     {
       key: 'handled',

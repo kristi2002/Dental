@@ -31,7 +31,7 @@ export function NewWorkForm({
 }: {
   /** The catalogue of laboratories the line picker offers. */
   labs?: Array<{ id: string; name: string }>;
-  procedures?: string[];
+  procedures?: Array<{ id: string; name: string }>;
   today: string;
 }) {
   const t = useTranslations('works');
@@ -44,7 +44,7 @@ export function NewWorkForm({
   const [lines, setLines] = useState<LineDraft[]>([
     // One row to start: the case is the reason this screen was opened, and making
     // the first act "press Add" is a step that teaches nothing.
-    { key: 'line-1', elements: 1, procedure: '', lab: '', labId: '', teeth: '' },
+    { key: 'line-1', elements: 1, procedure: '', procedureId: '', lab: '', labId: '', teeth: '' },
   ]);
   const [preview, setPreview] = useState({ patientName: '', phone: '', labSerial: '' });
 

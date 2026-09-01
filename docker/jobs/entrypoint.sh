@@ -92,6 +92,22 @@ DIGEST_SCHEDULE="${DIGEST_SCHEDULE:-10 7 * * *}"
 # starts, and after the reminder run above so the two do not collide.
 RECALLS_SCHEDULE="${RECALLS_SCHEDULE:-30 7 * * 1}"
 
+# Twenty past seven, every day. Two queues that have to run daily because their
+# windows are days wide rather than weeks: the post-operative check has four
+# days to be worth sending at all, and a crown that came back on Tuesday is news
+# on Tuesday.
+#
+# Both are idempotent on their own keys — the visit day for one, the case for
+# the other — so a second run costs nothing and a missed run is picked up by
+# tomorrow's while the window is still open.
+FOLLOW_UPS_SCHEDULE="${FOLLOW_UPS_SCHEDULE:-20 7 * * *}"
+WORK_READY_SCHEDULE="${WORK_READY_SCHEDULE:-25 7 * * *}"
+
+# Monday, after the recalls. A plan that has been quiet for sixty days can wait
+# five more minutes, and running the two courtesy sweeps back to back keeps the
+# contact ceiling reading one settled picture rather than a moving one.
+PLANS_SCHEDULE="${PLANS_SCHEDULE:-35 7 * * 1}"
+
 # `/proc/1/fd/1` is this process's own stdout — what `docker logs` and Coolify's
 # log view read. Without it a cron job's output goes to a mail spool that does
 # not exist in this image, and every run is silent.
@@ -100,11 +116,14 @@ $REMINDERS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-appointment-rem
 $REMINDERS_MORNING_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-appointment-reminders > /proc/1/fd/1 2>&1
 $DIGEST_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh compose-morning-digest > /proc/1/fd/1 2>&1
 $RECALLS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-recalls > /proc/1/fd/1 2>&1
+$FOLLOW_UPS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-post-op-checks > /proc/1/fd/1 2>&1
+$WORK_READY_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-work-ready > /proc/1/fd/1 2>&1
+$PLANS_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh queue-stalled-plans > /proc/1/fd/1 2>&1
 $SWEEP_SCHEDULE . $ENV_FILE; /usr/local/bin/run-job.sh sweep-orphan-files > /proc/1/fd/1 2>&1
 CRONTAB
 
 log "app: $APP_URL"
-log "schedule: reminders '$REMINDERS_SCHEDULE' and '$REMINDERS_MORNING_SCHEDULE', digest '$DIGEST_SCHEDULE', recalls '$RECALLS_SCHEDULE', sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
+log "schedule: reminders '$REMINDERS_SCHEDULE' and '$REMINDERS_MORNING_SCHEDULE', digest '$DIGEST_SCHEDULE', recalls '$RECALLS_SCHEDULE', post-op '$FOLLOW_UPS_SCHEDULE', lab work '$WORK_READY_SCHEDULE', plans '$PLANS_SCHEDULE', sweep '$SWEEP_SCHEDULE' (TZ=${TZ:-UTC})"
 
 # --- Reachability -----------------------------------------------------------
 # Not a first run of the job itself: unlike a backup, nothing here is urgent

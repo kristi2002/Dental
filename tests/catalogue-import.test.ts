@@ -94,6 +94,9 @@ describe('readServices — a price list', () => {
 
 describe('readStockItems — a storage-room list', () => {
   it('reads a row into a material', () => {
+    // The unit and pack-size columns are still in the file, because a supplier's
+    // price list has them — and are no longer read into anything, because the
+    // shelf is counted in boxes and the two columns they fed have been dropped.
     const [row] = stock(
       'Emri;Kodi;Kategoria;Furnitori;Njësia;Minimumi;Në paketë;Çmimi\n' +
         'Dorashka;GL-100;Higjienë;Dentalux;box;3;100;1.250,00\n',
@@ -105,9 +108,7 @@ describe('readStockItems — a storage-room list', () => {
       gtin: null,
       category: 'Higjienë',
       supplier: 'Dentalux',
-      unit: 'box',
       minLimit: 3,
-      packSize: 100,
       unitPrice: 1250,
     });
     assert.deepEqual(row.problems, []);
@@ -153,22 +154,28 @@ describe('readStockItems — a storage-room list', () => {
 
   it('uses the column defaults the table declares when a file is sparse', () => {
     const [row] = stock('Emri\nDorashka\n').rows;
-    assert.equal(row.draft.unit, 'box');
     assert.equal(row.draft.minLimit, 5);
-    assert.equal(row.draft.packSize, 1);
     assert.equal(row.draft.unitPrice, null);
   });
 
-  it('rounds counts to whole things but leaves a price fractional', () => {
-    // A reorder level is a count of things on a shelf; a price is money.
-    const [row] = stock('Emri;Minimumi;Në paketë;Çmimi\nDorashka;2,6;1,4;12,50\n').rows;
+  it('rounds a count to whole things but leaves a price fractional', () => {
+    // A reorder level is a count of boxes on a shelf; a price is money.
+    const [row] = stock('Emri;Minimumi;Çmimi\nDorashka;2,6;12,50\n').rows;
     assert.equal(row.draft.minLimit, 3);
-    assert.equal(row.draft.packSize, 1);
     assert.equal(row.draft.unitPrice, 12.5);
   });
 
-  it('never lets a pack size fall below one', () => {
-    assert.equal(stock('Emri;Në paketë\nDorashka;0\n').rows[0].draft.packSize, 1);
+  it('walks past the unit and pack-size columns a price list still carries', () => {
+    // Both were read into columns nothing on any screen ever displayed, which is
+    // how two dead columns went on being filled — see the note on
+    // `STOCK_ALIASES`. A supplier's file still has them, so the reader has to
+    // ignore them rather than choke on them.
+    const [row] = stock('Emri;Njësia;Në paketë;Minimumi\nDorashka;copë;100;3\n').rows;
+    assert.deepEqual(row.problems, []);
+    assert.equal(row.draft.name, 'Dorashka');
+    assert.equal(row.draft.minLimit, 3);
+    assert.ok(!('unit' in row.draft));
+    assert.ok(!('packSize' in row.draft));
   });
 
   it('claims a material by its code when it has one', () => {

@@ -195,10 +195,13 @@ const STOCK_ALIASES = {
   gtin: ['Barcode', 'Barkodi', 'GTIN', 'EAN', 'EAN13', 'UPC', 'Kodi i barit'],
   category: ['Kategoria', 'Categoria', 'Category', 'Rafti', 'Shelf'],
   supplier: ['Furnitori', 'Fornitore', 'Supplier', 'Vendor'],
-  unit: ['Njësia', 'Unità', 'Unit', 'Njesia'],
   minLimit: ['Minimumi', 'Minimo', 'Minimum', 'Reorder level', 'Min'],
-  packSize: ['Në paketë', 'Confezione', 'Pack size', 'Pack'],
   unitPrice: ['Çmimi', 'Prezzo', 'Price', 'Unit price', 'Cmimi'],
+  // No `unit` and no `packSize`. A supplier's price list has both columns and
+  // this reader used to take them, which is how two dead columns went on being
+  // filled long after every screen had settled on counting boxes and saying so
+  // in one word. A column nothing reads is worse than an absent one: it is
+  // still typed, still imported, and still believed by whoever finds it.
 } as const;
 
 export type StockDraft = {
@@ -208,16 +211,12 @@ export type StockDraft = {
   gtin: string | null;
   category: string | null;
   supplier: string | null;
-  unit: string;
   minLimit: number;
-  packSize: number;
   unitPrice: number | null;
 };
 
-/** The column defaults, matching what `StockItem` declares. */
-const DEFAULT_UNIT = 'box';
+/** The column default, matching what `StockItem` declares. */
 const DEFAULT_MIN_LIMIT = 5;
-const DEFAULT_PACK_SIZE = 1;
 
 export function readStockItems(grid: readonly string[][]): CatalogueReading<StockDraft> {
   const [header, ...body] = grid;
@@ -243,7 +242,7 @@ export function readStockItems(grid: readonly string[][]): CatalogueReading<Stoc
     else if (code || name) claimed.add(key);
 
     let badNumber = false;
-    const number = (field: 'minLimit' | 'packSize' | 'unitPrice', fallback: number | null) => {
+    const number = (field: 'minLimit' | 'unitPrice', fallback: number | null) => {
       const written = cell(at(raw, field));
       const parsed = parseNumber(written);
       if (written && parsed === null) badNumber = true;
@@ -258,7 +257,6 @@ export function readStockItems(grid: readonly string[][]): CatalogueReading<Stoc
     if (writtenGtin && gtin === null) problems.push('badBarcode');
 
     const minLimit = number('minLimit', DEFAULT_MIN_LIMIT)!;
-    const packSize = number('packSize', DEFAULT_PACK_SIZE)!;
     const unitPrice = number('unitPrice', null);
     if (badNumber) problems.push('badNumber');
 
@@ -270,11 +268,9 @@ export function readStockItems(grid: readonly string[][]): CatalogueReading<Stoc
         gtin,
         category: optional(at(raw, 'category')),
         supplier: optional(at(raw, 'supplier')),
-        unit: optional(at(raw, 'unit')) ?? DEFAULT_UNIT,
-        // Whole units, never negative: a reorder level is a count of things on
+        // Whole boxes, never negative: a reorder level is a count of things on
         // a shelf, and a spreadsheet full of `2,5` should not produce one.
         minLimit: Math.max(0, Math.round(minLimit)),
-        packSize: Math.max(1, Math.round(packSize)),
         // A price may be fractional; it is money.
         unitPrice: unitPrice === null ? null : Math.max(0, unitPrice),
       },

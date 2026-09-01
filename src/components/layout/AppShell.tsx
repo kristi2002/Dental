@@ -27,6 +27,7 @@ import { HELP_TOPICS } from '@/lib/help/topics';
 import { HIDEABLE } from '@/lib/nav-visibility';
 import { stockAlertCounts } from '@/lib/stock-alerts';
 import { BackupBanner } from './BackupBanner';
+import { BoardPoll } from './BoardPoll';
 import { ReminderCenter } from './ReminderCenter';
 import { CommandPalette } from './CommandPalette';
 import { NAV_DESTINATIONS, SEARCHABLE_LISTS } from './nav-destinations';
@@ -80,10 +81,11 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   // block whose every row a role may not open loses its heading with them,
   // because no surviving row ever names that group.
   const reachable = NAV_DESTINATIONS.filter(({ permission }) => allowed(permission)).map(
-    ({ href, key, group, children }) => ({
+    ({ href, key, group, alsoCurrent, children }) => ({
       href,
       key,
       group,
+      alsoCurrent,
       children: children
         ?.filter(({ permission }) => allowed(permission))
         .map(({ href, key, exact }) => ({ href, key, exact })),
@@ -99,7 +101,24 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   // somebody has put away is out of the menu and still one Ctrl-K away. A
   // tidy-up that hid things from search would be a trap.
   const hidden = new Set(user.hiddenNav);
-  const items = reachable.filter(({ key }) => !hidden.has(key));
+  const items = reachable
+    .filter(({ key }) => !hidden.has(key))
+    .map((item) => {
+      // A sub-screen can be put away on its own now, not only with the whole
+      // section over it. "I never print shelf labels" is the commoner sentence
+      // by far, and switching off the cupboard to be rid of one row was the
+      // only way to say it. See `HIDEABLE`, which lists both levels.
+      const kids = item.children?.filter((child) => !hidden.has(child.key));
+
+      // And a section is only a section while it has more than one row to fold.
+      // A read-only role loses both of Services' lookup tables to the permission
+      // filter above, and both of Works', which left two headings whose whole
+      // list was one row repeating the heading — a chevron, two clicks, and
+      // nothing behind them. Those become the plain link they would have been.
+      return kids && kids.length <= 1
+        ? { ...item, href: kids[0]?.href ?? item.href, children: undefined }
+        : { ...item, children: kids };
+    });
 
   // Everywhere the palette can send somebody: the rail's own destinations and
   // the lists filed under them, flattened, plus the three screens that live in
@@ -338,6 +357,22 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
   return (
     // Column on a phone — top bar above the page. Row on a desktop — rail beside it.
     <div className="flex min-h-screen flex-col lg:flex-row">
+      {/* The first thing a keyboard reaches, and invisible until it does. The
+          rail is up to twenty stops deep and it is in front of the work on every
+          single screen; without this, reaching the page meant tabbing past all
+          of it, every time. The practice's public page has had one of these
+          since it was built — see `SiteHeader`, whose comment claimed the app's
+          chrome did too. It does now. */}
+      <a
+        href="#main"
+        className="sr-only rounded-lg bg-surface px-4 py-2 font-semibold text-brand-deep shadow-pop focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60]"
+      >
+        {tn('skipToContent')}
+      </a>
+      {/* The bell was accurate as of the last time this person navigated, which
+          on a front desk that opens the calendar at nine and works from it all
+          morning is nine o'clock. Renders nothing; see `BoardPoll`. */}
+      <BoardPoll />
       <Sidebar
         items={items}
         clinicName={clinicName}
@@ -428,7 +463,9 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
           </div>
         </div>
 
-        <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
+        {/* `tabIndex={-1}` so the skip link above can actually land focus here
+            rather than only scrolling to it. */}
+        <main id="main" tabIndex={-1} className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
           <div className="app-measure">{children}</div>
         </main>
 
