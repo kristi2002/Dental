@@ -1,3 +1,4 @@
+import type { Prisma } from '@/generated/prisma/client';
 import { AppointmentStatus } from '@/generated/prisma/enums';
 import type { DaySchedule } from '@/lib/clinic-hours';
 import { addDays, clinicMinutesNow, minutesToTime, timeToMinutes, toDateKey } from '@/lib/dates';
@@ -72,11 +73,67 @@ export function collides(a: Resources, b: Resources): boolean {
 }
 
 /**
+ * The advisory-lock namespace the diary books under.
+ *
+ * Any integer would do; it exists so that a lock taken here can never be
+ * mistaken for one taken by something else in the same database. It is
+ * currently the only advisory lock this application takes.
+ */
+const DIARY_LOCK = 4021;
+
+/**
+ * Hold the diary for these days until the surrounding transaction ends.
+ *
+ * **Why a re-check inside the transaction is not enough on its own.** Postgres
+ * runs at `READ COMMITTED` by default, so two transactions that each re-query
+ * for conflicts see the state before the other started, both find the slot
+ * free, and both commit. Re-checking closes the gap between *reading* and
+ * *writing* in one request; it does nothing about two requests overlapping.
+ * Only something that makes them take turns does.
+ *
+ * A day is exactly the right granularity, and not a guess: `findConflicts`
+ * filters on `date` before anything else, so two bookings that could possibly
+ * collide are on the same day *by construction*. Locking the day therefore
+ * serialises every pair that could conflict and no pair that could not — a
+ * clinic's other twenty-nine days keep booking in parallel.
+ *
+ * Taken in sorted order because a series booking locks several days at once,
+ * and two series overlapping in opposite directions is the textbook deadlock.
+ * A fixed order makes that impossible.
+ *
+ * `pg_advisory_xact_lock` releases on commit *or* rollback, with no `finally`
+ * to forget — which matters here, because the whole point is a path that
+ * deliberately throws.
+ */
+export async function lockDiaryDays(
+  tx: Prisma.TransactionClient,
+  dates: readonly Date[],
+): Promise<void> {
+  // Appointment dates are stored at UTC midnight, so this division is exact.
+  const days = [
+    ...new Set(dates.map((date) => Math.floor(date.getTime() / 86_400_000))),
+  ].toSorted((a, b) => a - b);
+
+  for (const day of days) {
+    // `$executeRaw`, not `$queryRaw`: the function returns `void`, and Prisma
+    // cannot deserialize a void column — it fails with a message about
+    // `Unsupported` schema types that has nothing to do with what went wrong.
+    // Nothing here wants the result anyway; the lock is the whole return value.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${DIARY_LOCK}::int, ${day}::int)`;
+  }
+}
+
+/**
  * Appointments on the same day whose time range overlaps the proposed one *and*
  * whose resources collide with it.
  *
  * Cancelled and no-show slots do not block anything — the chair is free, which
  * is exactly the case where someone else should be offered the time.
+ *
+ * `client` is how the booking action asks this question *again* from inside its
+ * own transaction, after `lockDiaryDays` has made the answer authoritative. The
+ * default keeps every read-only caller — the dialog's live warning, the day
+ * grid — exactly as it was.
  */
 export async function findConflicts({
   date,
@@ -85,17 +142,20 @@ export async function findConflicts({
   staffUserId,
   operatoryId,
   excludeId,
+  client = prisma,
 }: {
   date: Date;
   startTime: string;
   durationMin: number;
   /** The appointment being edited, which must not conflict with itself. */
   excludeId?: string | null;
+  /** The transaction to ask inside, when the answer is about to be acted on. */
+  client?: Prisma.TransactionClient | typeof prisma;
 } & Resources): Promise<Conflict[]> {
   const start = timeToMinutes(startTime);
   const end = start + durationMin;
 
-  const sameDay = await prisma.appointment.findMany({
+  const sameDay = await client.appointment.findMany({
     where: {
       date,
       status: { in: [...OCCUPIES_A_SLOT] },

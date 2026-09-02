@@ -11,7 +11,7 @@ import { prisma } from '../src/lib/prisma';
 import { getStockAlerts, getUnremindedTomorrow } from '../src/lib/queries';
 import { getRecalls } from '../src/lib/recalls';
 import { getReliability, getReliabilityMap, NOT_CLINIC_CANCELLED } from '../src/lib/reliability';
-import { findConflicts, OCCUPIES_A_SLOT } from '../src/lib/scheduling';
+import { findConflicts, lockDiaryDays, OCCUPIES_A_SLOT } from '../src/lib/scheduling';
 
 /**
  * The half of the app the rest of this suite cannot see.
@@ -392,6 +392,106 @@ describe('the query layer — filters that only a database can settle', { skip: 
       !rows.some((row) => row.id === patientId),
       'opening the message is what the cooldown reads — not only the Contacted button',
     );
+  });
+
+  /**
+   * Two people booking the same chair in the same second.
+   *
+   * The conflict check and the write used to be two separate round trips with
+   * nothing holding the slot between them, so two requests could both be told
+   * the time was free and both take it. Nothing afterwards showed it: two
+   * ordinary rows, no warning, and the second patient found out in the waiting
+   * room.
+   *
+   * The pause inside each attempt is what makes this a race rather than a
+   * coincidence. It is the gap between deciding and writing, held open on
+   * purpose and made wide enough that two attempts *must* overlap — so a run
+   * that comes back with one booking proves the lock, and not luck.
+   */
+  async function bookConcurrently(
+    patientId: string,
+    day: Date,
+    { locked }: { locked: boolean },
+  ): Promise<string[]> {
+    const attempt = () =>
+      prisma.$transaction(
+        async (tx) => {
+          if (locked) await lockDiaryDays(tx, [day]);
+
+          const clashes = await findConflicts({
+            date: day,
+            startTime: '09:00',
+            durationMin: 30,
+            client: tx,
+          });
+          if (clashes.length > 0) return 'refused';
+
+          // The window. Without the lock above, the other attempt reads the
+          // same empty diary inside these 60ms.
+          await new Promise((resolve) => setTimeout(resolve, 60));
+
+          await tx.appointment.create({
+            data: {
+              patientId,
+              date: day,
+              startTime: '09:00',
+              durationMin: 30,
+              status: AppointmentStatus.SCHEDULED,
+            },
+          });
+          return 'booked';
+        },
+        // Generous: the second attempt spends most of it waiting on the first.
+        { timeout: 20_000, maxWait: 20_000 },
+      );
+
+    const results = await Promise.all([attempt(), attempt()]);
+    return results.toSorted();
+  }
+
+  it('lets exactly one of two simultaneous bookings take the chair', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(null);
+    const day = addDays(today(), 3);
+
+    const results = await bookConcurrently(patientId, day, { locked: true });
+
+    assert.deepEqual(
+      results,
+      ['booked', 'refused'],
+      'one books, the other is told the slot went — never both',
+    );
+
+    const rows = await prisma.appointment.count({ where: { patientId, date: day } });
+    assert.equal(rows, 1, 'and exactly one appointment reaches the diary');
+  });
+
+  it('would double-book without the lock — which is what makes the test above mean something', async (t) => {
+    if (needsDatabase(t)) return;
+    await cleanUp();
+    const patientId = await makePatient(null);
+    const day = addDays(today(), 4);
+
+    // Deliberately the broken shape: check, pause, write, with nothing holding
+    // the slot. If this ever comes back `['booked', 'refused']` the window has
+    // stopped being a window and the test above has stopped proving anything.
+    //
+    // One future change is *expected* to break this, and it is the right kind
+    // of break: an `EXCLUDE USING gist` constraint on the appointment range
+    // (see `docs/SYSTEMS.md` §8.5) would have the database refuse the second
+    // insert on its own. When that lands, this test should be replaced by one
+    // asserting the constraint rejects it — not deleted, and not "fixed" by
+    // loosening the assertion.
+    const results = await bookConcurrently(patientId, day, { locked: false });
+
+    assert.deepEqual(
+      results,
+      ['booked', 'booked'],
+      'check-then-write with no lock lets both in — the bug this exists to pin',
+    );
+
+    await prisma.appointment.deleteMany({ where: { patientId, date: day } });
   });
 });
 

@@ -20,6 +20,7 @@ import { completeStepForAppointment } from '@/lib/plan-sync';
 import {
   findConflicts,
   findNextGaps,
+  lockDiaryDays,
   nextSlotTime,
   type Conflict,
   type DatedGap,
@@ -79,6 +80,26 @@ export async function findNextSlots({
     // Free time that has already passed is not an opportunity, it is a regret.
     after: isToday ? nextSlotTime() : undefined,
   });
+}
+
+/**
+ * The slot went while this booking was being written.
+ *
+ * A thrown error rather than an early return, because by the time this is known
+ * the transaction is open and a patient may already have been created inside
+ * it. Returning would commit that patient and refuse the appointment they were
+ * created for — the exact orphan the transaction exists to prevent. Throwing
+ * rolls both back together.
+ *
+ * It carries the same rendered list the early check produces, so the two
+ * refusals are indistinguishable to the person reading them: same wording, same
+ * `overlap` code, same "book anyway".
+ */
+class SlotTaken extends Error {
+  constructor(readonly list: string) {
+    super('slot taken');
+    this.name = 'SlotTaken';
+  }
 }
 
 function toStatus(value: string): AppointmentStatus {
@@ -178,8 +199,13 @@ export async function saveAppointment(
   // slots is a real thing a dentist does. Submitting again with `force` books it.
   //
   // Checked before anything is written, so a refused booking never leaves a
-  // half-created patient behind for the retry to duplicate.
-  if (requiredString(formData.get('force')) !== '1') {
+  // half-created patient behind for the retry to duplicate. It is checked
+  // *again* inside the transaction below — see `SlotTaken` — because this
+  // answer is already stale by the time anything acts on it. This one exists to
+  // fail early and cheaply, and to be the check the dialog's message comes from.
+  const forced = requiredString(formData.get('force')) === '1';
+
+  if (!forced) {
     const conflicts = await findConflicts({
       date: data.date,
       startTime: data.startTime,
@@ -234,10 +260,69 @@ export async function saveAppointment(
   let createdPatientId: string | null = null;
   let resolvedWaiting = 0;
   let linkedStep = false;
+  // What the run actually got, decided inside the transaction rather than
+  // outside it. The audit line below reports this, not what was hoped for.
+  let bookedFollowUps: Date[] = [];
+
   try {
     // One transaction: a patient record with no appointment is exactly the
     // orphan this feature exists to avoid creating by hand.
     await prisma.$transaction(async (tx) => {
+      // Take the diary for every day this write touches, before reading
+      // anything it is about to trust. Everything from here to commit is the
+      // only booking happening on these days.
+      await lockDiaryDays(tx, [data.date, ...followUps]);
+
+      // The same question as above, asked where the answer can still be relied
+      // on. Between the early check and this line a colleague at the other
+      // screen can have taken the slot — same chair, same minute, both
+      // requests told it was free. That is the whole reason this exists, and
+      // it is invisible afterwards: two perfectly ordinary rows.
+      if (!forced) {
+        const taken = await findConflicts({
+          date: data.date,
+          startTime: data.startTime,
+          durationMin: data.durationMin,
+          staffUserId: data.staffUserId,
+          operatoryId: data.operatoryId,
+          excludeId: id,
+          client: tx,
+        });
+
+        // Thrown rather than returned: this is how a transaction says no. The
+        // rollback takes the inline patient with it, and the catch below turns
+        // it back into the same `overlap` the early check produces — so the
+        // dialog offers "book anyway" exactly as it would have done.
+        if (taken.length > 0) throw new SlotTaken(describeConflicts(taken));
+      }
+
+      // The rest of a series, re-tested under the lock for the same reason.
+      // Skipping a clash rather than refusing is the behaviour the run already
+      // had: booking six of eight and saying so beats quietly booking over
+      // somebody. `force` is deliberately not consulted — it is a decision
+      // about *this* slot, made in front of a warning about this slot, and
+      // nobody waved through eight of them sight unseen.
+      // Rebuilt rather than appended to, so this stays correct if the
+      // transaction body is ever run twice — a retry that doubled the run
+      // would book each follow-up day two or three times over.
+      bookedFollowUps = [];
+      for (const when of followUps) {
+        const clashes = await findConflicts({
+          date: when,
+          startTime: data.startTime,
+          durationMin: data.durationMin,
+          staffUserId: data.staffUserId,
+          operatoryId: data.operatoryId,
+          client: tx,
+        });
+        if (clashes.length === 0) bookedFollowUps.push(when);
+      }
+
+      // A series of one is not a series. Nothing breaks if it were — the id is
+      // only ever read as a group — but a run whose every follow-up was taken
+      // should leave a plain appointment behind, not a group of one.
+      const runId = bookedFollowUps.length > 0 ? seriesId : null;
+
       if (newPatient) {
         createdPatientId = (await tx.patient.create({ data: newPatient, select: { id: true } })).id;
       }
@@ -262,7 +347,7 @@ export async function saveAppointment(
       } else {
         savedId = (
           await tx.appointment.create({
-            data: { ...data, patientId: targetPatientId, seriesId },
+            data: { ...data, patientId: targetPatientId, seriesId: runId },
             select: { id: true },
           })
         ).id;
@@ -270,13 +355,13 @@ export async function saveAppointment(
         // The rest of the run. Same slot, same treatment, same chair — only the
         // day moves. `createMany` because none of them needs its id back: a
         // series is read through `seriesId`, never through a list of ids.
-        if (followUps.length > 0) {
+        if (bookedFollowUps.length > 0) {
           await tx.appointment.createMany({
-            data: followUps.map((when) => ({
+            data: bookedFollowUps.map((when) => ({
               ...data,
               date: when,
               patientId: targetPatientId,
-              seriesId,
+              seriesId: runId,
             })),
           });
         }
@@ -314,7 +399,14 @@ export async function saveAppointment(
         }
       }
     });
-  } catch {
+  } catch (error) {
+    // The one failure here that is not a fault. Everything else is a database
+    // problem the user can do nothing about; this is a slot somebody else took
+    // while this booking was being filled in, and it deserves the message that
+    // says so and the button that overrides it.
+    if (error instanceof SlotTaken) {
+      return actionError(t('overlap', { list: error.list }), 'overlap');
+    }
     return actionError(t('generic'));
   }
 
@@ -351,7 +443,7 @@ export async function saveAppointment(
       action: 'create',
       entity: 'appointment',
       entityId: savedId,
-      summary: `${patientName} · series ${followUps.length + 1}/${repeatCount} · every ${repeatEveryDays}d`,
+      summary: `${patientName} · series ${bookedFollowUps.length + 1}/${repeatCount} · every ${repeatEveryDays}d`,
     });
   }
 
@@ -510,6 +602,8 @@ export async function rescheduleAppointment(
     where: { id },
     select: {
       patientId: true,
+      // The day being vacated, so the move can hold both ends of itself.
+      date: true,
       durationMin: true,
       serviceId: true,
       serviceName: true,
@@ -534,7 +628,9 @@ export async function rescheduleAppointment(
   const durationMin = Math.max(5, toInt(formData.get('durationMin'), original.durationMin));
   const when = new Date(`${date}T00:00:00.000Z`);
 
-  if (requiredString(formData.get('force')) !== '1') {
+  const forced = requiredString(formData.get('force')) === '1';
+
+  if (!forced) {
     const conflicts = await findConflicts({
       date: when,
       startTime,
@@ -555,6 +651,25 @@ export async function rescheduleAppointment(
 
   try {
     await prisma.$transaction(async (tx) => {
+      // Both ends of the move: the day being left frees a slot, the day being
+      // taken fills one, and either can be the day somebody else is booking.
+      await lockDiaryDays(tx, [when, original.date]);
+
+      // Re-asked under the lock. See `SlotTaken` — a move is a booking, and it
+      // races exactly as a booking does.
+      if (!forced) {
+        const taken = await findConflicts({
+          date: when,
+          startTime,
+          durationMin,
+          staffUserId: original.staffUserId,
+          operatoryId: original.operatoryId,
+          excludeId: id,
+          client: tx,
+        });
+        if (taken.length > 0) throw new SlotTaken(describeConflicts(taken));
+      }
+
       movedId = (
         await tx.appointment.create({
           data: {
@@ -597,7 +712,10 @@ export async function rescheduleAppointment(
         });
       }
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof SlotTaken) {
+      return actionError(t('overlap', { list: error.list }), 'overlap');
+    }
     return actionError(t('generic'));
   }
 
@@ -688,9 +806,34 @@ export async function moveAppointment({
     }
   }
 
+  // A transaction for a single `update`, which it did not need before: the lock
+  // is what it is for. Dragging a block across the grid is the fastest way to
+  // book in this application and therefore the likeliest to land in the same
+  // second as somebody else's, and it was the one write path that checked for a
+  // clash and then wrote with nothing in between.
   try {
-    await prisma.appointment.update({ where: { id }, data: { date: when, startTime } });
-  } catch {
+    await prisma.$transaction(async (tx) => {
+      await lockDiaryDays(tx, [when, original.date]);
+
+      if (!force) {
+        const taken = await findConflicts({
+          date: when,
+          startTime,
+          durationMin: original.durationMin,
+          staffUserId: original.staffUserId,
+          operatoryId: original.operatoryId,
+          excludeId: id,
+          client: tx,
+        });
+        if (taken.length > 0) throw new SlotTaken(describeConflicts(taken));
+      }
+
+      await tx.appointment.update({ where: { id }, data: { date: when, startTime } });
+    });
+  } catch (error) {
+    if (error instanceof SlotTaken) {
+      return actionError(t('overlap', { list: error.list }), 'overlap');
+    }
     return actionError(t('generic'));
   }
 

@@ -15,7 +15,7 @@ import { syncPlanStatus } from '@/lib/plan-sync';
 import { positionWrites } from '@/lib/plan-steps';
 import { prisma } from '@/lib/prisma';
 import { getDaySchedule } from '@/lib/queries';
-import { findConflicts } from '@/lib/scheduling';
+import { findConflicts, lockDiaryDays } from '@/lib/scheduling';
 import { isValidTooth } from '@/lib/teeth';
 import { optionalString, requiredString, toInt } from '@/lib/utils';
 import { actionError, actionOk, type ActionState } from './types';
@@ -35,6 +35,22 @@ function revalidatePlans() {
   revalidatePath('/[locale]/plans/new', 'page');
   revalidatePath('/[locale]/plans/[id]/print', 'page');
   revalidatePath('/[locale]/patients/[id]', 'page');
+}
+
+/**
+ * Every day the course had found room on was taken while the form was open.
+ *
+ * Thrown from inside the booking transaction so nothing is written — the
+ * alternative is a course that books nothing and reports success. The caller
+ * turns it back into the same "no room" message the search itself produces when
+ * it finds none in the first place, because from the reader's side those are
+ * the same event.
+ */
+class NoRoomLeft extends Error {
+  constructor() {
+    super('no room left');
+    this.name = 'NoRoomLeft';
+  }
 }
 
 /**
@@ -860,9 +876,46 @@ export async function bookPlanSteps(_prev: ActionState, formData: FormData): Pro
 
   const seriesId = placed.length > 1 ? randomUUID() : null;
 
+  // What survived the second look, under the lock. Read after the transaction
+  // for the audit line and the partial-booking message, both of which have to
+  // report what happened rather than what was planned.
+  let booked = placed;
+
   try {
     await prisma.$transaction(async (tx) => {
+      // Every day this run touches, held until it commits. Searching for room
+      // and taking it are two steps, and a course of eight visits spends a long
+      // time between them — long enough for the front desk to fill one.
+      await lockDiaryDays(tx, placed.map((booking) => booking.day));
+
+      // The search above ran outside the lock, so each day it chose has to be
+      // asked again. Dropping a day that has gone rather than refusing the
+      // whole course is the behaviour the search already had: fewer visits than
+      // asked for is reported, and the steps left over stay open on the plan.
+      const survived: typeof placed = [];
       for (const booking of placed) {
+        const clashes = await findConflicts({
+          date: booking.day,
+          startTime,
+          durationMin: booking.durationMin,
+          staffUserId,
+          operatoryId,
+          client: tx,
+        });
+        if (clashes.length === 0) survived.push(booking);
+      }
+      booked = survived;
+
+      // Every day taken while this form was open. Nothing is written, so the
+      // caller reports it the same way it reports a course with no room at all.
+      if (booked.length === 0) throw new NoRoomLeft();
+
+      // Decided here rather than outside, for the reason `saveAppointment`
+      // decides its own: a course whose second visit was taken while the form
+      // was open is one appointment, and one appointment is not a series.
+      const runId = booked.length > 1 ? seriesId : null;
+
+      for (const booking of booked) {
         const appointment = await tx.appointment.create({
           data: {
             patientId: plan.patientId,
@@ -874,7 +927,7 @@ export async function bookPlanSteps(_prev: ActionState, formData: FormData): Pro
             serviceName: booking.service?.name ?? null,
             staffUserId,
             operatoryId,
-            seriesId,
+            seriesId: runId,
           },
           select: { id: true },
         });
@@ -888,7 +941,10 @@ export async function bookPlanSteps(_prev: ActionState, formData: FormData): Pro
         });
       }
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof NoRoomLeft) {
+      return actionError(tp('seriesNoRoom', { days: SERIES_SEARCH_DAYS }));
+    }
     return actionError(t('generic'));
   }
 
@@ -897,7 +953,7 @@ export async function bookPlanSteps(_prev: ActionState, formData: FormData): Pro
     action: 'create',
     entity: 'appointment',
     entityId: planId,
-    summary: `${patientName} · ${plan.title} · ${placed.length}/${queue.length} visits · every ${everyDays}d`,
+    summary: `${patientName} · ${plan.title} · ${booked.length}/${queue.length} visits · every ${everyDays}d`,
   });
 
   // The diary, not just the plan screens: these are appointments, and they land
@@ -907,7 +963,7 @@ export async function bookPlanSteps(_prev: ActionState, formData: FormData): Pro
   // Fewer booked than asked for is not a failure — the visits that fitted are
   // real and the row now shows exactly which steps are still open — but it is
   // not a silent success either.
-  return placed.length < queue.length
-    ? actionError(tp('seriesPartial', { booked: placed.length, asked: queue.length }))
+  return booked.length < queue.length
+    ? actionError(tp('seriesPartial', { booked: booked.length, asked: queue.length }))
     : actionOk();
 }
