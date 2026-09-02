@@ -111,6 +111,47 @@ export async function refreshSession(payload: SessionPayload): Promise<string> {
   return sign({ sub: payload.sub, iat: payload.iat, exp: payload.exp });
 }
 
+/**
+ * The moment to record as "everything issued before this is no longer signed
+ * in".
+ *
+ * **Rounded up to the next whole second, and that rounding is the whole point.**
+ * `iat` is written in whole seconds, so a sign-out at 12:19:56.345 has to decide
+ * what to do about a token stamped `12:19:56` — it could have been issued a
+ * third of a second before the sign-out or a third of a second after, and the
+ * token cannot say which.
+ *
+ * Rounding *down* answers "let it live", which is the wrong way for a guess
+ * about a session to fail. It is also not hypothetical: signing in and signing
+ * out land about a second apart in `e2e/auth.spec.ts`, so they shared a second
+ * often enough to leave the original bug still reproducing at roughly one run
+ * in six with the revocation check already in place.
+ *
+ * Rounding up answers "kill it", and costs at most this: somebody who signs
+ * back in during the same second as their own sign-out is refused and types
+ * their PIN again. Choosing a name and entering a PIN takes longer than that, so
+ * no person can reach the window — and a spare login prompt is a far smaller
+ * harm than a session that outlives the button that ended it.
+ */
+export function revokedAt(now: Date = new Date()): Date {
+  return new Date(Math.ceil(now.getTime() / 1000) * 1000);
+}
+
+/**
+ * Whether this token predates the owner's last sign-out.
+ *
+ * Split out from `getCurrentUser` so the rule can be tested without a database
+ * or a cookie jar — it is three lines and one of them decides whether signing
+ * out works.
+ */
+export function wasRevoked(
+  payload: Pick<SessionPayload, 'iat'>,
+  revoked: Date | null | undefined,
+): boolean {
+  if (!revoked) return false;
+  return payload.iat < revoked.getTime() / 1000;
+}
+
 /** Returns the payload only when the signature checks out and it has not expired. */
 export async function verifySession(token: string | undefined): Promise<SessionPayload | null> {
   if (!token) return null;

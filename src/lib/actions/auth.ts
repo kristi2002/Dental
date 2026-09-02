@@ -9,6 +9,7 @@ import { hashPin, isValidPinFormat, verifyPin } from '@/lib/auth/crypto';
 import { recordAnonymousAudit, recordAudit, recordPatientAudit } from '@/lib/auth/guard';
 import { attemptsLeft, lockoutMinutes, shouldLock } from '@/lib/auth/lockout';
 import { createSession, destroySession, getCurrentUser } from '@/lib/auth/session';
+import { revokedAt } from '@/lib/auth/token';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit } from '@/lib/rate-limit';
 import { requiredString } from '@/lib/utils';
@@ -268,6 +269,16 @@ export async function createFirstOwner(
 export async function signOut(): Promise<void> {
   const user = await getCurrentUser();
   if (user) {
+    // The half that actually ends it. Deleting the cookie is a request the
+    // browser can have overturned a moment later by a prefetch that was already
+    // in flight — see `StaffUser.sessionsRevokedAt`. This is the half nothing
+    // in the browser can argue with, so it goes first: if the redirect below
+    // never happens, the session is still over.
+    await prisma.staffUser.update({
+      where: { id: user.id },
+      data: { sessionsRevokedAt: revokedAt() },
+    });
+
     await recordAudit(user, {
       action: 'logout',
       entity: 'session',

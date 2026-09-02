@@ -1,0 +1,22 @@
+-- Signing out has to survive a prefetch.
+--
+-- The session is a signed cookie and nothing else. Signing out deleted it, and
+-- that was the whole of it — while the router was prefetching every screen in
+-- the rail, each response carrying `Set-Cookie: dent_session=<refreshed>` from
+-- the proxy. Any of those still in flight when the delete landed put the cookie
+-- straight back, and the person was signed in again with no sign of it.
+--
+-- Roughly one sign-out in three, measured. `e2e/auth.spec.ts` had been failing
+-- intermittently on exactly this for weeks, and was right every time.
+--
+-- No header tells the proxy which requests are speculative — Next strips
+-- `Next-Router-Prefetch` before middleware runs, and a real click is otherwise
+-- byte-identical — so the answer cannot live in the cookie layer. This column
+-- is the server-side half: `getCurrentUser` refuses any token issued before it,
+-- and because `refreshSession` copies `iat` across verbatim, a cookie handed
+-- back by a late prefetch is inert rather than dangerous.
+--
+-- Nullable with no backfill on purpose. Null means "has never signed out",
+-- which is true of every existing row and is exactly the permissive answer —
+-- nobody is logged out by this migration running.
+ALTER TABLE "StaffUser" ADD COLUMN "sessionsRevokedAt" TIMESTAMP(3);

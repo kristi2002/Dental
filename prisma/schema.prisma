@@ -30,6 +30,37 @@ model StaffUser {
   lockedUntil    DateTime?
   lastLoginAt    DateTime?
 
+  /// When this person last signed out, and the only thing that makes signing
+  /// out *stick*.
+  ///
+  /// The session is a signed cookie and nothing else, which was fine until you
+  /// notice that a cookie cannot win a race. Signing out deletes it — and the
+  /// router is meanwhile prefetching every screen in the rail, each of whose
+  /// responses carries `Set-Cookie: dent_session=<refreshed>` from the proxy.
+  /// Any of those still in flight when the delete lands puts the cookie back.
+  /// Measured at roughly one sign-out in three
+  /// (`e2e/auth.spec.ts` had been reporting it as an intermittent failure), and
+  /// on a shared reception machine it means the last patient's chart is still
+  /// open to whoever sits down next.
+  ///
+  /// No header distinguishes a prefetch from a real navigation by the time the
+  /// request reaches the proxy — Next strips `Next-Router-Prefetch`, and a
+  /// genuine click is byte-identical to a speculative one. So the fix cannot
+  /// live in the cookie layer at all; something server-side has to outrank it.
+  ///
+  /// This is that. `verifySession` still does the signature check with no
+  /// database read, so the proxy stays as cheap as it was; the comparison
+  /// happens in `getCurrentUser`, which was already reading this row, so it
+  /// costs no query. A resurrected cookie is now simply inert: `refreshSession`
+  /// copies `iat` across verbatim, so a token handed back by a late prefetch
+  /// still carries the moment it was *issued*, which is before this.
+  ///
+  /// **It signs the person out everywhere, not just here.** Deliberate: the
+  /// tablet at the chair and the machine at the desk are the same four people,
+  /// and "I have finished" is a statement about the person rather than about
+  /// the browser they happened to say it in.
+  sessionsRevokedAt DateTime?
+
   /// When this person last shut the reminder board.
   ///
   /// The board grew from two piles to seven, and the badge stopped ever reading

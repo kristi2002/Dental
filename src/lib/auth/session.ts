@@ -8,6 +8,7 @@ import {
   SESSION_COOKIE_OPTIONS,
   signSession,
   verifySession,
+  wasRevoked,
 } from './token';
 
 export type SessionUser = {
@@ -54,11 +55,18 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
       active: true,
       hiddenNav: true,
       helpSeenAt: true,
+      sessionsRevokedAt: true,
     },
   });
 
   // Deactivated mid-shift: the cookie is still valid, the person is not.
   if (!user || !user.active) return null;
+
+  // Signed out since this token was issued. See `StaffUser.sessionsRevokedAt`:
+  // deleting the cookie is not enough on its own, because a prefetch already in
+  // flight can hand it straight back.
+  //
+  if (wasRevoked(payload, user.sessionsRevokedAt)) return null;
 
   return {
     id: user.id,
