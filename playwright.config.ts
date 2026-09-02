@@ -29,6 +29,11 @@ export default defineConfig({
   // guarded as heavily as it is.
   globalSetup: './e2e/global-setup.ts',
 
+  // And drops it again, so an overridable schema name does not leave a seeded
+  // copy of the practice behind everywhere the suite was ever pointed. Set
+  // `E2E_KEEP_SCHEMA=1` to keep the rows a failure happened on.
+  globalTeardown: './e2e/global-teardown.ts',
+
   // The seed runs once, so specs share one database. They are written not to
   // collide — each creates what it needs under a name of its own — but a
   // parallel run would still interleave writes against shared list screens, and

@@ -31,6 +31,31 @@ import { findConflicts, lockDiaryDays, OCCUPIES_A_SLOT } from '../src/lib/schedu
  * there is not one. CI has a database; a fresh clone does not, and reporting
  * three broken suites to somebody who has just typed `npm install` would teach
  * them to ignore this file.
+ *
+ * **`npm test` passes `--env-file-if-exists=.env` for exactly this file.**
+ * Nothing else in `tests/` opens a connection, and for most of this suite's life
+ * the script did not load `.env` at all — so locally these thirteen tests were
+ * skipped on every run, including the two that pin the diary's advisory lock.
+ * That skip is a `describe` option rather than skipped tests, so the summary
+ * read `pass 1149 … skipped 0` and said nothing about a whole layer not having
+ * run. Only CI, which sets `DATABASE_URL` in the environment, was ever
+ * exercising the seam this file exists to cover.
+ *
+ * `-if-exists` and not `--env-file`, because the latter is a hard error when
+ * the file is absent — which is the fresh clone above, and would break `npm
+ * test` for the one person least able to diagnose it.
+ *
+ * Note what that means: run locally, these write to whatever `DATABASE_URL`
+ * names, which is your development database. Every row created here is either
+ * named `MARKER` or cascades from a row that is, `cleanUp` removes exactly
+ * those, and nothing here creates a `StockMovement` — the one relation that
+ * would refuse the delete. Keep it that way; a fixture that outlives the run is
+ * a fixture in somebody's patient list.
+ *
+ * An explicit variable still wins over the file, so
+ * `DATABASE_URL=…?schema=scratch npm test` aims the whole suite somewhere
+ * disposable, and CI — which sets the variable and ships no `.env` — is
+ * untouched by any of this.
  */
 
 const MARKER = '__querylayer_fixture__';
