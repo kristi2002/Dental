@@ -879,7 +879,8 @@ export async function saveToothRecord(
 }
 
 /**
- * Everything true of one tooth, written straight down without a form.
+ * Everything true of a tooth — or of eight at once — written straight down
+ * without a form.
  *
  * This is what the chart's marking tools call. Charting a mouth is thirty-two
  * findings entered one after another, and routing each of them through the
@@ -887,77 +888,28 @@ export async function saveToothRecord(
  * turned a two-minute examination into a filing exercise. With a tool selected
  * the click *is* the record.
  *
- * **The whole list arrives, not a delta.** The client has already worked out the
- * resulting state with `applyFinding`, which is what lets the drawing update on
- * the click rather than after the round trip; sending the answer means the
- * server has one job — make the tooth look like this — and cannot land in a
- * state the screen never predicted. It is still checked rather than trusted:
- * every status has to be a real one, a status that names no surface has its
- * surfaces dropped however they arrived, and the exclusivity rule is applied
- * here as well as there, because a form is not a permission.
+ * And charting is not one tooth at a time either. "Every molar is sealed", "the
+ * whole lower left is sound", "these three are the bridge" — each of those is
+ * one decision, and the chart's drag-to-mark makes the same stroke over eight
+ * teeth. Sent one at a time that is eight actions, eight revalidations of the
+ * whole page and eight chances for two of them to land out of order; sent
+ * together it is one. So the batch is the only shape this write has, and a
+ * single tooth is a batch of one.
+ *
+ * **The whole list arrives, not a delta.** The client has already worked out
+ * the resulting state with `applyFinding`, which is what lets the drawing
+ * update on the click rather than after the round trip; sending the answer
+ * means the server has one job — make these teeth look like this — and cannot
+ * land in a state the screen never predicted. It is still checked rather than
+ * trusted: every status has to be a real one, a status that names no surface
+ * has its surfaces dropped however they arrived, the exclusivity rule is
+ * applied here as well as there, every tooth number is checked, and the whole
+ * batch is refused if any part of it is wrong rather than the good half being
+ * written.
  *
  * The note and the periodontal readings are deliberately not in the payload.
  * Marking a tooth is not a statement about either, and a quick tool that
  * silently wiped a typed note would be the worst kind of fast.
- */
-export async function setToothFindings(input: {
-  patientId: string;
-  toothNum: number;
-  findings: { status: string; surfaces: string }[];
-}): Promise<ActionState> {
-  const t = await getTranslations('errors');
-
-  const user = await authorize('patient.medical.edit');
-  if (!user) return actionError(t('forbidden'));
-
-  const { patientId, toothNum } = input;
-  if (!patientId || !Number.isInteger(toothNum) || !isValidTooth(toothNum)) {
-    return actionError(t('generic'));
-  }
-
-  const cleaned = normaliseFindings(input.findings);
-  if (cleaned === null) return actionError(t('generic'));
-
-  try {
-    await writeFindings(patientId, toothNum, cleaned, user.id);
-  } catch {
-    return actionError(t('generic'));
-  }
-
-  await recordAudit(user, {
-    action: 'update',
-    entity: 'tooth',
-    entityId: patientId,
-    summary: `#${toothNum} · ${
-      cleaned.length === 0
-        ? DEFAULT_TOOTH_STATUS
-        : cleaned
-            .map((f) => `${f.status}${f.surfaces ? ` (${f.surfaces})` : ''}`)
-            .join(', ')
-    }`,
-  });
-
-  revalidateAll();
-  return actionOk();
-}
-
-/**
- * The same write, over several teeth at once.
- *
- * Charting is not one tooth at a time. "Every molar is sealed", "the whole
- * lower left is sound", "these three are the bridge" — each of those is one
- * decision that used to cost one click and one round trip per tooth, and the
- * chart's drag-to-mark makes the same stroke over eight of them. Sent one at a
- * time that is eight actions, eight revalidations of the whole page and eight
- * chances for two of them to land out of order; sent together it is one.
- *
- * Each tooth still arrives as its **whole resolved list**, exactly as
- * `setToothFindings` takes one, for exactly the same reason: the client has
- * already worked out the answer with `applyFinding`, and handing over the
- * answer rather than a delta is what stops the server reaching a state the
- * drawing never predicted. Nothing here is trusted any more than there — every
- * status is checked, every tooth number is checked, and the whole batch is
- * refused if any part of it is wrong rather than the good half being written.
  *
  * One audit line for the stroke rather than one per tooth: a hand that sealed
  * six molars did one thing, and six identical entries a second apart is how a
