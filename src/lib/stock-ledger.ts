@@ -24,7 +24,7 @@ import { prisma } from '@/lib/prisma';
  * an older version, or by hand shows its own text rather than being hidden or
  * mislabelled: an unrecognised reason is still a true fact about the shelf.
  */
-export const LEDGER_REASONS = {
+const LEDGER_REASONS = {
   delivery: 'delivery',
   'delivery reversed': 'deliveryReversed',
   'scan in': 'scanIn',

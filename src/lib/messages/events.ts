@@ -53,7 +53,7 @@ export type DeliveryEvent = {
  * who pressed "this is junk" has said something much clearer than any form ever
  * asked them.
  */
-export const BOUNCE_KINDS = {
+const BOUNCE_KINDS = {
   hard: 'HARD',
   soft: 'SOFT',
   blocked: 'BLOCKED',

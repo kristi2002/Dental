@@ -351,7 +351,7 @@ export const getSiteHours = cache(async (): Promise<SiteHours | null> => {
  * round trip; fifty-six small objects is a few kilobytes, and a year of them
  * would be a page weight nobody agreed to.
  */
-export const BOOKING_WINDOW_DAYS = 56;
+const BOOKING_WINDOW_DAYS = 56;
 
 /**
  * The two tables the calendar is drawn from, cached beside everything else the

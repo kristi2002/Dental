@@ -256,7 +256,7 @@ type AppointmentWithPatient = {
   };
 };
 
-export function toAppointmentView(appointment: AppointmentWithPatient): AppointmentView {
+function toAppointmentView(appointment: AppointmentWithPatient): AppointmentView {
   return {
     id: appointment.id,
     date: toDateKey(appointment.date),

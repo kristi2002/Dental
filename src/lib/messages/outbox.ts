@@ -19,23 +19,6 @@ export type MessageKind =
   | 'PLAN_NEXT_STEP';
 
 /**
- * The kinds that are a courtesy rather than an obligation.
- *
- * The distinction earns its keep in exactly one place — the contact ceiling —
- * and it is worth stating rather than inferring from "has no appointment". An
- * appointment reminder is about a slot the patient agreed to and must go out
- * however much else they have heard from us this week. Everything else on this
- * list is the practice deciding to get in touch, and four such decisions inside
- * one week are not four courtesies.
- */
-export const COURTESY_KINDS: ReadonlyArray<MessageKind> = [
-  'RECALL_DUE',
-  'POST_OP_CHECK',
-  'WORK_READY',
-  'PLAN_NEXT_STEP',
-];
-
-/**
  * The unique column that makes a clock safe to run twice.
  *
  * Built here rather than in the job so that the shape of a key is one decision
@@ -93,7 +76,7 @@ export function monthCycle(now: Date): string {
  * this morning — see `queueAppointmentReminders`. So this is the far edge only;
  * the near edge is always today.
  */
-export const REMINDER_DAYS_AHEAD = 1;
+const REMINDER_DAYS_AHEAD = 1;
 
 /**
  * The days the reminder job reads, given the moment it runs at.

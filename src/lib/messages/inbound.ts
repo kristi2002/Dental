@@ -149,7 +149,7 @@ function usableAttachments(list: unknown): InboundAttachment[] {
 }
 
 /** How many attachments one message may bring. Past this it is not correspondence. */
-export const MAX_ATTACHMENTS = 10;
+const MAX_ATTACHMENTS = 10;
 
 /**
  * Brevo's inbound payload, turned into the shape this app stores.

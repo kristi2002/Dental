@@ -21,7 +21,7 @@ export type SessionPayload = {
  * tablet at reception is shared, and a token that outlives the day is a token
  * somebody else uses.
  */
-export const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
+const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
 
 /**
  * How long a session survives without the person doing anything.

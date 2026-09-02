@@ -54,16 +54,6 @@ export function moneyToInput(value: Money | null): string {
 }
 
 /**
- * Across the server/client boundary, where a Decimal cannot go.
- *
- * Display is the only thing on the far side of that boundary, and display works
- * in `number` — the arithmetic has already happened by then.
- */
-export function moneyToNumber(value: Money | null): number | null {
-  return value === null ? null : value.toNumber();
-}
-
-/**
  * How every price in the app is written.
  *
  * Lek and yen carry no minor unit in CLDR, so the default rounds a price of

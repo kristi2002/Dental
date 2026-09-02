@@ -40,7 +40,7 @@ import { countEveryPile } from '@/lib/board-elsewhere';
 import { stockAlertCounts } from '@/lib/stock-alerts';
 
 /** Read the board as the clock sees it: everything, gated on nobody. */
-export async function readDigestCounts(): Promise<DigestCounts> {
+async function readDigestCounts(): Promise<DigestCounts> {
   const [followUps, stock, piles] = await Promise.all([
     getOpenFollowUps(),
     getStockAlerts(),

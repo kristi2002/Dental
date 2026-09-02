@@ -35,7 +35,7 @@ import { phoneKey } from './patient-search';
  */
 export const IMPORT_LIMIT = 5000;
 
-export const IMPORT_FIELDS = [
+const IMPORT_FIELDS = [
   'firstName',
   'lastName',
   'phone',
@@ -60,7 +60,7 @@ export type ImportField = (typeof IMPORT_FIELDS)[number];
  * titles lead each list, which is what makes a file that came out of this app
  * go straight back into another copy of it.
  */
-export const PATIENT_ALIASES: Record<ImportField, readonly string[]> = {
+const PATIENT_ALIASES: Record<ImportField, readonly string[]> = {
   lastName: ['Mbiemri', 'Cognome', 'Last name', 'Surname', 'Family name'],
   firstName: ['Emri', 'Nome', 'First name', 'Name', 'Given name'],
   phone: ['Telefoni', 'Telefono', 'Phone', 'Mobile', 'Cel', 'Celular', 'Tel'],
@@ -75,7 +75,7 @@ export const PATIENT_ALIASES: Record<ImportField, readonly string[]> = {
 };
 
 /** The two columns without which a row is not a person. */
-export const REQUIRED_FIELDS: readonly ImportField[] = ['lastName', 'phone'];
+const REQUIRED_FIELDS: readonly ImportField[] = ['lastName', 'phone'];
 
 /** What can be wrong with a row. Each is shown against the row on the screen. */
 export type ImportProblem =

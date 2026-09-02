@@ -812,6 +812,7 @@
     "viewAll": "Shiko të gjitha",
     "saving": "Duke ruajtur…",
     "viewOnly": "Vetëm shikim",
+    "viewOnlyBanner": "Vetëm lexim: mund të hapni çdo ekran, por asgjë që bëni nuk i ndryshon të dhënat e klinikës.",
     "filter": "Filtro",
     "filters": "Filtrat",
     "clearFilters": "Pastro",

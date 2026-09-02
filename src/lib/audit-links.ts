@@ -62,14 +62,3 @@ export function auditDestination(
 
   return null;
 }
-
-/**
- * Which entity names are worth offering as "everything about this record".
- *
- * Only the patient, for now, and for a reason rather than as a first step: a
- * patient is the only thing in this app whose history is scattered across
- * several entity names — their chart, their recalls, the times they were
- * contacted — *and* whose scattered rows all carry the patient's own id. See
- * `patientAuditFilter`.
- */
-export const AUDIT_SUBJECTS = ['patient'] as const;

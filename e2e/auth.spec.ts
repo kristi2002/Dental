@@ -14,7 +14,7 @@
  * reason. That is not hypothetical; it is what the first draft of this file did.
  */
 import { expect, test } from '@playwright/test';
-import { READONLY } from './env';
+import { OWNER, READONLY } from './env';
 import { signIn } from './helpers';
 
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -59,6 +59,32 @@ test('a read-only account is refused the screens it may not use', async ({ page 
   await page.goto('/en/patients');
   await expect(page).toHaveURL(/\/en\/patients$/);
   await expect(page.locator('h1')).toBeVisible();
+});
+
+test('a read-only account is told so on every screen, not at the last moment', async ({ page }) => {
+  await signIn(page, READONLY);
+
+  // The help page promises a locum that "every screen tells them so rather than
+  // refusing at the last moment", and for a long time three screens did. The
+  // banner is mounted in the shell, so the claim is only true if it survives
+  // navigating between unrelated parts of the app — which is what this walks.
+  const banner = page.getByText('Read-only: you can open any screen');
+
+  for (const path of ['/en/dashboard', '/en/patients', '/en/appointments']) {
+    await page.goto(path);
+    await expect(banner, `no view-only banner on ${path}`).toBeVisible();
+  }
+});
+
+test('the view-only banner is not shown to somebody who can write', async ({ page }) => {
+  // The other half, and the one that makes the test above mean something: a
+  // banner rendered unconditionally would pass every assertion up there while
+  // telling the owner they cannot change their own practice.
+  await signIn(page, OWNER);
+
+  await page.goto('/en/patients');
+  await expect(page.locator('h1')).toBeVisible();
+  await expect(page.getByText('Read-only: you can open any screen')).toHaveCount(0);
 });
 
 test('signing out ends the session', async ({ page }) => {

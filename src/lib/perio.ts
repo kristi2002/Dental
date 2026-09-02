@@ -56,8 +56,8 @@ export type PocketDepths = readonly (number | null)[];
 /** Whether each site bled. */
 export type BleedingSites = readonly boolean[];
 
-export const NO_POCKETS: PocketDepths = [null, null, null, null, null, null];
-export const NO_BLEEDING: BleedingSites = [false, false, false, false, false, false];
+const NO_POCKETS: PocketDepths = [null, null, null, null, null, null];
+const NO_BLEEDING: BleedingSites = [false, false, false, false, false, false];
 
 /** Past this the reading is a typo, not a pocket — the deepest ever recorded in
  *  a mouth is far short of it, and a stray keypress must not become a 55mm
@@ -65,7 +65,7 @@ export const NO_BLEEDING: BleedingSites = [false, false, false, false, false, fa
 export const POCKET_MAX = 15;
 
 /** Where a healthy sulcus stops and a pocket begins. */
-export const POCKET_SHALLOW = 3;
+const POCKET_SHALLOW = 3;
 /** Where watching stops and disease begins. */
 export const POCKET_DEEP = 6;
 
@@ -81,7 +81,7 @@ export const MOBILITY_LABEL: Record<MobilityGrade, string> = {
   3: 'III',
 };
 
-export function isMobilityGrade(value: number): value is MobilityGrade {
+function isMobilityGrade(value: number): value is MobilityGrade {
   return (MOBILITY_GRADES as readonly number[]).includes(value);
 }
 
@@ -159,7 +159,7 @@ export function formatPockets(depths: PocketDepths): string | null {
 export const RECESSION_MAX = 20;
 
 export type Recessions = readonly (number | null)[];
-export const NO_RECESSION: Recessions = [null, null, null, null, null, null];
+const NO_RECESSION: Recessions = [null, null, null, null, null, null];
 
 export function toRecession(value: unknown): number | null {
   const mm = typeof value === 'string' ? Number.parseInt(value.trim(), 10) : value;
@@ -168,7 +168,7 @@ export function toRecession(value: unknown): number | null {
     : null;
 }
 
-export function parseRecession(value: string | null | undefined): Recessions {
+function parseRecession(value: string | null | undefined): Recessions {
   if (!value) return NO_RECESSION;
   const parts = value.split(',');
   return Array.from({ length: PERIO_SITE_COUNT }, (_, i) => toRecession(parts[i] ?? ''));
@@ -190,7 +190,7 @@ export function formatRecession(values: Recessions): string | null {
  * column was added to stop, and it would be indistinguishable from a real
  * reading once stored.
  */
-export function attachmentLoss(depth: number | null, recession: number | null): number | null {
+function attachmentLoss(depth: number | null, recession: number | null): number | null {
   return depth === null || recession === null ? null : depth + recession;
 }
 
@@ -205,7 +205,7 @@ export function attachmentLoss(depth: number | null, recession: number | null): 
 export const FURCATION_GRADES = [0, 1, 2, 3] as const;
 export type FurcationGrade = (typeof FURCATION_GRADES)[number];
 
-export function isFurcationGrade(value: number): value is FurcationGrade {
+function isFurcationGrade(value: number): value is FurcationGrade {
   return (FURCATION_GRADES as readonly number[]).includes(value);
 }
 

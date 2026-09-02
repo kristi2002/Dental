@@ -812,6 +812,7 @@
     "viewAll": "Vedi tutti",
     "saving": "Salvataggio…",
     "viewOnly": "Sola lettura",
+    "viewOnlyBanner": "Sola lettura: puoi aprire qualsiasi schermata, ma nulla di ciò che fai modifica i dati della clinica.",
     "filter": "Filtra",
     "filters": "Filtri",
     "clearFilters": "Azzera",

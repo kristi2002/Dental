@@ -250,7 +250,7 @@ export function severityOf(run: BackupRun | null, now: Date = new Date()): Backu
   return assess(run, now).severity;
 }
 
-export function ageHoursOf(run: BackupRun | null, now: Date = new Date()): number | null {
+function ageHoursOf(run: BackupRun | null, now: Date = new Date()): number | null {
   if (!run?.lastSuccessAt) return null;
   return (now.getTime() - run.lastSuccessAt.getTime()) / 3_600_000;
 }

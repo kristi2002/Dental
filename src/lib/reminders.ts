@@ -34,7 +34,7 @@ const DIALLING_CODES: Record<string, string> = {
 };
 
 /** The practice's own country, for a number with nothing at all to go on. */
-export const DEFAULT_DIALLING_CODE = '355';
+const DEFAULT_DIALLING_CODE = '355';
 
 export function diallingCodeFor(locale: string | null | undefined): string {
   return (locale && DIALLING_CODES[locale]) || DEFAULT_DIALLING_CODE;

@@ -38,7 +38,7 @@ export async function getWorkProcedures(): Promise<WorkProcedureOption[]> {
  * work the practice has stopped sending leaves every picker and stays on every
  * case that named it — see `WorkProcedure.archivedAt`.
  */
-export const ACTIVE_PROCEDURES = { archivedAt: null } as const;
+const ACTIVE_PROCEDURES = { archivedAt: null } as const;
 
 /**
  * What a `punimi` field should offer.

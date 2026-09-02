@@ -812,6 +812,7 @@
     "viewAll": "View all",
     "saving": "Saving…",
     "viewOnly": "View only",
+    "viewOnlyBanner": "Read-only: you can open any screen, but nothing you do changes the practice’s records.",
     "filter": "Filter",
     "filters": "Filters",
     "clearFilters": "Clear",

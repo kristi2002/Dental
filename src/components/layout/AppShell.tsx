@@ -33,6 +33,7 @@ import { CommandPalette } from './CommandPalette';
 import { NAV_DESTINATIONS, SEARCHABLE_LISTS } from './nav-destinations';
 import { Sidebar } from './Sidebar';
 import { TailorMenu } from './TailorMenu';
+import { ViewOnlyBanner } from './ViewOnlyBanner';
 
 /**
  * The frame every signed-in screen hangs in: a navigation rail down the left,
@@ -402,6 +403,11 @@ export async function AppShell({ children, user }: { children: ReactNode; user: 
             stopped, that is the most important thing on the screen. It renders
             nothing at all in the ordinary case. */}
         {backupStatus ? <BackupBanner status={backupStatus} /> : null}
+
+        {/* Below the backup bar, because a stopped backup is the practice's
+            problem and this is only a fact about the account reading the
+            screen. Renders nothing for everybody else. */}
+        <ViewOnlyBanner user={user} />
 
         {/* One box, on every screen, that finds a person or a place. Deliberately
             thin and unpinned: the rail already costs width, and a second bar

@@ -108,11 +108,6 @@ export const HIDEABLE: readonly Hideable[] = [
   { key: 'activity', permission: 'audit.view', labels: 'auth', labelKey: 'activity', group: 'admin' },
 ];
 
-/** The cookie as a set. An absent or empty cookie means nothing is switched off. */
-export function parseHidden(value: string | undefined): ReadonlySet<string> {
-  return new Set((value ?? '').split('.').filter(Boolean));
-}
-
 /** Back to a cookie value. Sorted, so the same choice is always the same string. */
 export function serialiseHidden(keys: Iterable<string>): string {
   return [...new Set(keys)].toSorted().join('.');

@@ -102,9 +102,7 @@ export function isToothFindingKind(status: ToothStatus): status is ToothFindingK
   return status !== DEFAULT_TOOTH_STATUS;
 }
 
-/** Tailwind red-500 — a marked surface, where the caller has no stronger opinion. */
-export const SURFACE_MARKED = '#EF4444';
-/** Tailwind slate-300 — an unmarked one. */
+/** Tailwind slate-300 — an unmarked surface. */
 export const SURFACE_UNMARKED = '#CBD5E1';
 
 /** Pale fills carrying dark, same-hue text. This reads quieter than the saturated
@@ -389,50 +387,6 @@ export function formatSurfaces(value: string | null | undefined): string {
   return parseSurfaces(value).join('');
 }
 
-/**
- * The same five surfaces as a flag per face, which is what a drawn target wants
- * — it asks "is this segment marked?" five times per tooth and a `string.includes`
- * for each is both slower and easier to get subtly wrong (`"MO".includes("O")`
- * is fine, but the habit is not).
- *
- * `"MOD"` on the wire, this in the component. Storage stays the string.
- */
-export interface ToothSurfaceState {
-  /** Mesial — the face towards the midline. */
-  M: boolean;
-  /** Occlusal on a back tooth, incisal on a front one. */
-  O: boolean;
-  /** Distal — the face away from the midline. */
-  D: boolean;
-  /** Buccal / labial — the cheek side. */
-  B: boolean;
-  /** Lingual / palatal — the tongue side. */
-  L: boolean;
-}
-
-export const NO_SURFACES: ToothSurfaceState = { M: false, O: false, D: false, B: false, L: false };
-
-export function toSurfaceState(value: string | null | undefined): ToothSurfaceState {
-  const marked = parseSurfaces(value);
-  return {
-    M: marked.includes('M'),
-    O: marked.includes('O'),
-    D: marked.includes('D'),
-    B: marked.includes('B'),
-    L: marked.includes('L'),
-  };
-}
-
-/** Back to the stored form, in anatomical order. */
-export function fromSurfaceState(state: ToothSurfaceState): string {
-  return TOOTH_SURFACES.filter((surface) => state[surface]).join('');
-}
-
-/** Anything other than "healthy" is worth flagging to the dentist. */
-export function needsAttention(status: string): boolean {
-  return status !== 'HEALTHY';
-}
-
 /* ------------------------------------------------------------------ *
  * Marking a tooth
  * ------------------------------------------------------------------ */
@@ -441,7 +395,7 @@ export function needsAttention(status: string): boolean {
  * The statuses that describe the whole tooth, where naming a surface is
  * nonsense: an extracted tooth has no mesial face left to have caries on.
  */
-export const WHOLE_TOOTH_STATUSES: readonly ToothStatus[] = [
+const WHOLE_TOOTH_STATUSES: readonly ToothStatus[] = [
   'HEALTHY',
   'EXTRACTED',
   'MISSING',
@@ -888,7 +842,7 @@ export type ToothSelection = Record<number, ToothSurface[]>;
  * cases were written with before surfaces existed. Anything unrecognisable is
  * dropped rather than guessed at.
  */
-export function parseToothSelection(value: string | null | undefined): ToothSelection {
+function parseToothSelection(value: string | null | undefined): ToothSelection {
   if (!value) return {};
 
   const selection: ToothSelection = {};
@@ -903,16 +857,6 @@ export function parseToothSelection(value: string | null | undefined): ToothSele
     selection[toothNum] = TOOTH_SURFACES.filter((surface) => surfaces.has(surface));
   }
   return selection;
-}
-
-/** The inverse, in chart order so the string reads the way the row does. */
-export function formatToothSelection(selection: ToothSelection): string {
-  return ALL_TEETH.filter((toothNum) => selection[toothNum] !== undefined)
-    .map((toothNum) => {
-      const surfaces = selection[toothNum];
-      return surfaces.length > 0 ? `${toothNum}:${surfaces.join('')}` : String(toothNum);
-    })
-    .join(',');
 }
 
 /** Just the numbers, for the places that show a case in one line. */

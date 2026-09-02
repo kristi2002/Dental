@@ -137,7 +137,7 @@ export const REQUEST_LIMITS = {
  * exactly right for a field that is optional on the form and absent from every
  * request written before it existed.
  */
-export const PREFERRED_TIMES = ['morning', 'afternoon'] as const;
+const PREFERRED_TIMES = ['morning', 'afternoon'] as const;
 
 export type PreferredTime = (typeof PREFERRED_TIMES)[number];
 
@@ -288,7 +288,7 @@ export type TreatmentStepKey = (typeof TREATMENT_STEPS)[number];
  * a patient is actually choosing when they read that page is what the finished
  * tooth will look like. It is filed with the cosmetic work on purpose.
  */
-export const TREATMENT_MOVEMENTS = ['direct', 'journey', 'showcase'] as const;
+const TREATMENT_MOVEMENTS = ['direct', 'journey', 'showcase'] as const;
 
 export type TreatmentMovement = (typeof TREATMENT_MOVEMENTS)[number];
 
@@ -323,7 +323,7 @@ export const TREATMENT_MOVEMENT = {
  * pages above it rather than being the one part of the site that is translated
  * into the URL bar.
  */
-export const TREATMENT_SLUGS = {
+const TREATMENT_SLUGS = {
   checkup: 'checkup',
   fillings: 'fillings',
   rootCanal: 'root-canal',
@@ -545,11 +545,6 @@ export const TREATMENT_PRICES: Partial<Record<TreatmentKey, TreatmentPrice>> = {
  */
 export const PRICES_REVIEWED: string | null = null;
 
-/** Whether there is anything to show at all. */
-export function hasPrices(): boolean {
-  return Object.keys(TREATMENT_PRICES).length > 0;
-}
-
 /**
  * The floor for a set of treatments, or null when any one of them has no price.
  *
@@ -668,7 +663,7 @@ export function hasGuarantees(): boolean {
  * five the practice has an answer for, and `messages/*.json` carries the answer
  * under `pages.visit.arrival.*` in three languages.
  */
-export const ARRIVAL_KEYS = ['parking', 'door', 'access', 'transport', 'landmark'] as const;
+const ARRIVAL_KEYS = ['parking', 'door', 'access', 'transport', 'landmark'] as const;
 
 export type ArrivalKey = (typeof ARRIVAL_KEYS)[number];
 
@@ -708,7 +703,7 @@ export function hasArrival(): boolean {
  * below and `faqJsonLd` is fed the same list, so the section and its structured
  * data cannot disagree about what this practice claims.
  */
-export const VISIT_FAQ_KEYS = [
+const VISIT_FAQ_KEYS = [
   'walkIn',
   'pain',
   'payment',
