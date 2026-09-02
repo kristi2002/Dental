@@ -232,6 +232,24 @@ jobs:
         run: |
           PGPASSWORD=dent psql -h localhost -U dent -d dentorganizer -c 'CREATE DATABASE pushed;'
 
+          # The extension the search index needs, installed by hand because
+          # `db push` is the one path that never installs it.
+          #
+          # `CREATE EXTENSION pg_trgm` lives in a migration, and `db push` does
+          # not run migrations — it reads `schema.prisma` and makes the database
+          # look like it. So it reaches the GIN index on `Patient.searchKey`,
+          # finds no `gin_trgm_ops` operator class, and fails. That killed this
+          # step before it could test anything: the failure was in the *setup*,
+          # not in the guard the step exists to check.
+          #
+          # Doing it here is faithful to what is being simulated rather than a
+          # way round the error. This step stands in for a database somebody
+          # built with `db push` before the migration history existed — and for
+          # such a database to have ever worked, whoever built it had to install
+          # this extension by hand exactly like this.
+          PGPASSWORD=dent psql -h localhost -U dent -d pushed \
+            -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm;'
+
           # Build one the old way, using the CLI the image already carries.
           docker run --rm --network host \
             -e DATABASE_URL="postgresql://dent:dent@localhost:5432/pushed?schema=public" \
