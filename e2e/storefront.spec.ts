@@ -353,12 +353,25 @@ test.describe('the public page', () => {
     await page.goto('/en');
 
     const bar = page.locator('header nav[aria-label]').first();
-    await bar.getByRole('link', { name: 'Treatments' }).click();
+
+    // `exact`, because clicking this word also opens the panel under it.
+    //
+    // The bar's Treatments entry is a link *and* a dropdown trigger
+    // (`onPointerEnter` in `SiteNav`), so a click leaves the cursor resting on
+    // it with the panel open — which is what hovering is supposed to do, and
+    // stays true after the navigation because the pointer re-enters the
+    // re-rendered link. The panel's own footer link reads "All treatments", and
+    // an inexact accessible-name match takes both: two elements, and a strict
+    // mode violation rather than an assertion failure, so the message names
+    // Playwright rather than the thing that is wrong.
+    //
+    // What this test is about is the *bar* saying which page you are on, so it
+    // has to name the bar's own link and nothing the panel happens to contain.
+    const treatments = bar.getByRole('link', { name: 'Treatments', exact: true });
+
+    await treatments.click();
     await expect(page).toHaveURL(/\/en\/treatments$/);
-    await expect(bar.getByRole('link', { name: 'Treatments' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    await expect(treatments).toHaveAttribute('aria-current', 'page');
     // And only that one. Four links all claiming to be the current page is the
     // same bug as none of them claiming it.
     await expect(bar.locator('a[aria-current="page"]')).toHaveCount(1);
